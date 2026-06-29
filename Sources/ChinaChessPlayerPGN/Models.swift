@@ -1,0 +1,120 @@
+import Foundation
+
+struct PlayerCandidate: Identifiable, Hashable {
+    let id: String
+    var displayName: String
+    var fideID: String?
+    var federation: String
+    var clubs: [String]
+    var nameVariants: [String]
+    var latestEventDate: Date?
+    var eventCount: Int
+    var source: String
+    var events: [TournamentEvent]
+
+    var detailLine: String {
+        let fide = fideID.map { "FIDE \($0)" } ?? "无 FIDE ID"
+        let date = latestEventDate.map { AppFormatters.shortDate.string(from: $0) } ?? "无日期"
+        return "\(fide) · \(federation.isEmpty ? "未知协会" : federation) · \(eventCount) 场赛事 · 最近 \(date)"
+    }
+
+    var profileURL: URL? {
+        guard let fideID, !fideID.isEmpty else { return nil }
+        return URL(string: "https://ratings.fide.com/profile/\(fideID)")
+    }
+}
+
+struct TournamentEvent: Identifiable, Hashable {
+    let id: String
+    let tournamentID: String
+    let playerSerial: String?
+    let playerName: String
+    let fideID: String?
+    let club: String
+    let federation: String
+    let name: String
+    let endDate: Date?
+    let rank: String
+    let rounds: String
+    let participants: String
+    let eventURL: URL
+    let playerURL: URL?
+    let source: String
+    let isLikelyTestData: Bool
+
+    var dateText: String {
+        endDate.map { AppFormatters.shortDate.string(from: $0) } ?? "未知"
+    }
+
+    var compactMeta: String {
+        let rd = rounds.isEmpty ? "?" : rounds
+        let players = participants.isEmpty ? "?" : participants
+        return "\(rd) 轮 · \(players) 人"
+    }
+}
+
+struct PGNDownloadResult: Identifiable, Hashable {
+    let id = UUID()
+    let event: TournamentEvent
+    let status: PGNDownloadStatus
+    let pgn: String
+
+    var gameCount: Int {
+        PGNTools.gameCount(in: pgn)
+    }
+
+    var byteCount: Int {
+        pgn.data(using: .utf8)?.count ?? 0
+    }
+}
+
+enum PGNDownloadStatus: Hashable {
+    case cached
+    case success
+    case empty
+    case failed(String)
+
+    var label: String {
+        switch self {
+        case .cached:
+            "本地缓存"
+        case .success:
+            "已下载"
+        case .empty:
+            "无棋谱"
+        case .failed:
+            "失败"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .cached:
+            "tray.full.fill"
+        case .success:
+            "checkmark.circle.fill"
+        case .empty:
+            "minus.circle"
+        case .failed:
+            "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+enum AppFormatters {
+    static let shortDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    static let pgnStamp: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmm"
+        return formatter
+    }()
+}
