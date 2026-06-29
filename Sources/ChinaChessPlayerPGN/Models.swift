@@ -68,6 +68,19 @@ struct PGNDownloadResult: Identifiable, Hashable {
     }
 }
 
+struct DatabaseStats: Hashable {
+    var players = 0
+    var aliases = 0
+    var events = 0
+    var pgnArchives = 0
+    var games = 0
+    var pgnBytes = 0
+
+    var pgnSizeText: String {
+        ByteCountFormatter.string(fromByteCount: Int64(pgnBytes), countStyle: .file)
+    }
+}
+
 enum PGNDownloadStatus: Hashable {
     case cached
     case success

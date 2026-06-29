@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 final class AppStore: ObservableObject {
     @Published var query = ""
     @Published var includeLikelyTestEvents = false
+    @Published var autoRefreshOnline = false
     @Published var candidates: [PlayerCandidate] = []
     @Published var selectedCandidateID: PlayerCandidate.ID?
     @Published var selectedEventIDs: Set<TournamentEvent.ID> = []
@@ -16,10 +17,15 @@ final class AppStore: ObservableObject {
     @Published var isDownloading = false
     @Published var downloadProgress = 0.0
     @Published var savedFileURL: URL?
+    @Published var databaseStats = DatabaseStats()
 
     private let client = ChessResultsClient()
     private let repository = LocalChessRepository()
     private var latestMergedPGN = ""
+
+    init() {
+        refreshDatabaseStats()
+    }
 
     var selectedCandidate: PlayerCandidate? {
         candidates.first { $0.id == selectedCandidateID }
@@ -82,6 +88,12 @@ final class AppStore: ObservableObject {
                     candidates = local
                     selectedCandidateID = local.first?.id
                     selectedEventIDs = Set(local.first?.events.prefix(8).map(\.id) ?? [])
+                    refreshDatabaseStats()
+                    if !autoRefreshOnline, local.contains(where: { !$0.events.isEmpty }) {
+                        statusText = "本地命中 \(local.count) 个候选；未联网"
+                        isSearching = false
+                        return
+                    }
                     statusText = "本地命中 \(local.count) 个候选，正在联网补齐"
                 } else {
                     statusText = "本地未命中，正在搜索 Chess-Results"
@@ -107,6 +119,7 @@ final class AppStore: ObservableObject {
                 candidates = found
                 selectedCandidateID = found.first?.id
                 selectedEventIDs = Set(found.first?.events.prefix(8).map(\.id) ?? [])
+                refreshDatabaseStats()
                 statusText = found.isEmpty ? "未找到匹配棋手" : "找到 \(found.count) 个候选棋手，本地库已更新"
             } catch {
                 statusText = error.localizedDescription
@@ -181,6 +194,7 @@ final class AppStore: ObservableObject {
                         status = pgn.isEmpty ? .empty : .success
                         if !pgn.isEmpty {
                             _ = try repository.storePGN(pgn, event: event, player: candidate)
+                            refreshDatabaseStats()
                         }
                     }
                     results.append(PGNDownloadResult(event: event, status: status, pgn: pgn))
@@ -235,6 +249,18 @@ final class AppStore: ObservableObject {
             .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
         let stamp = AppFormatters.pgnStamp.string(from: Date())
         return "\(safeName.isEmpty ? "player" : safeName)-\(stamp).pgn"
+    }
+
+    func refreshDatabaseStats() {
+        do {
+            databaseStats = try repository.stats()
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func revealDatabaseFolder() {
+        NSWorkspace.shared.activateFileViewerSelecting([repository.databaseLocation])
     }
 
     private func onlineCandidates(

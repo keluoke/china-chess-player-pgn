@@ -10,6 +10,7 @@
 - 棋手唯一身份使用本地 `player_id`，有 FIDE ID 时固定为 `fide-<FIDE_ID>`。
 - PGN 下载后进入本地统一归档，下次查询优先使用本地缓存。
 - 数据源可扩展，Chess-Results 只是第一批 provider。
+- 默认查询本地优先，不在已有本地赛事时强制联网。
 
 ## 本地存储
 
@@ -62,10 +63,20 @@ PGNArchive/chess-results/tnr935824/fide-8601429-935824.pgn
 
 1. 标准化用户输入。
 2. 查询 `player_aliases`，中文和拼音都能命中同一个 `player_id`。
-3. 如果本地命中 FIDE ID，使用 FIDE ID 到 Chess-Results 补齐近十年赛事。
-4. 如果本地没有命中，按拼音姓名走 Chess-Results 棋手搜索。
-5. 联网结果写回 `players`、`player_aliases`、`events` 和 `player_events`。
-6. UI 展示更新后的本地候选棋手和赛事。
+3. 如果本地命中且已有赛事，直接展示本地结果。
+4. 如果用户打开“联网补齐本地结果”，使用 FIDE ID 到 Chess-Results 补齐近十年赛事。
+5. 如果本地没有命中，按拼音姓名走 Chess-Results 棋手搜索。
+6. 联网结果写回 `players`、`player_aliases`、`events` 和 `player_events`。
+7. UI 展示更新后的本地候选棋手和赛事。
+
+## 种子库
+
+首版种子库在代码中维护：
+
+- `ChinesePlayerSeeds.swift`：中文名、拼音、英文名、FIDE ID。
+- `ChineseEventSeeds.swift`：默认赛事索引和棋手参赛关系。
+
+这些种子保证首次启动后不依赖网络也能查到一批中国棋手和赛事。它们不是完整 PGN 库；PGN 正文进入本地库的方式是下载、导入或后续 provider 同步。
 
 ## PGN 下载流程
 

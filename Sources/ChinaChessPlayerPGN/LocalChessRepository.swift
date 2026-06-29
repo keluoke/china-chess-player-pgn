@@ -109,6 +109,30 @@ final class LocalChessRepository {
         }
     }
 
+    func stats() throws -> DatabaseStats {
+        try ensureReady()
+        let counts = try select(
+            """
+            SELECT
+              (SELECT COUNT(*) FROM players),
+              (SELECT COUNT(*) FROM player_aliases),
+              (SELECT COUNT(*) FROM events),
+              (SELECT COUNT(*) FROM pgn_archives),
+              (SELECT COUNT(*) FROM games)
+            """
+        )
+        var stats = DatabaseStats()
+        if let row = counts.first, row.count >= 5 {
+            stats.players = Int(row[0]) ?? 0
+            stats.aliases = Int(row[1]) ?? 0
+            stats.events = Int(row[2]) ?? 0
+            stats.pgnArchives = Int(row[3]) ?? 0
+            stats.games = Int(row[4]) ?? 0
+        }
+        stats.pgnBytes = archiveByteCount()
+        return stats
+    }
+
     func cachedPGN(for event: TournamentEvent, player: PlayerCandidate) throws -> String? {
         try ensureReady()
         let playerID = stablePlayerID(for: player)
@@ -281,7 +305,55 @@ final class LocalChessRepository {
                     try insertAlias(alias, type: "manual", source: "seed", playerID: playerID)
                 }
             }
+
+            for event in ChineseEventSeeds.events {
+                try seed(event: event)
+            }
         }
+    }
+
+    private func seed(event: ChineseEventSeed) throws {
+        let playerID = "fide-\(event.fideID)"
+        let eventID = "\(event.source.slugified)-\(event.tournamentID)"
+        let url = "https://chess-results.com/tnr\(event.tournamentID).aspx?lan=1"
+        try execute(
+            """
+            INSERT INTO events(id, name, normalized_name, end_date, source, source_event_id, url, rounds, participants, is_test)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            ON CONFLICT(source, source_event_id) DO UPDATE SET
+                name = excluded.name,
+                normalized_name = excluded.normalized_name,
+                end_date = COALESCE(events.end_date, excluded.end_date),
+                url = excluded.url,
+                rounds = COALESCE(events.rounds, excluded.rounds),
+                participants = COALESCE(events.participants, excluded.participants)
+            """,
+            [
+                eventID,
+                event.eventName,
+                Self.normalizedAlias(event.eventName),
+                event.endDate,
+                event.source,
+                event.tournamentID,
+                url,
+                event.rounds,
+                event.participants
+            ]
+        )
+        try execute(
+            """
+            INSERT INTO player_events(player_id, event_id, player_name, rank, club, federation, source_player_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(player_id, event_id) DO UPDATE SET
+                player_name = COALESCE(player_events.player_name, excluded.player_name),
+                rank = COALESCE(player_events.rank, excluded.rank),
+                club = COALESCE(player_events.club, excluded.club),
+                federation = COALESCE(player_events.federation, excluded.federation),
+                source_player_id = COALESCE(player_events.source_player_id, excluded.source_player_id)
+            """,
+            [playerID, eventID, event.playerName, event.rank, event.club, event.federation, event.playerSerial]
+        )
+        try insertAlias(event.playerName, type: "pgn", source: "seed", playerID: playerID)
     }
 
     private func upsert(candidate: PlayerCandidate) throws {
@@ -592,6 +664,25 @@ final class LocalChessRepository {
         let url = base.appendingPathComponent("ChinaChessPlayerPGN", isDirectory: true)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+
+    private func archiveByteCount() -> Int {
+        guard let enumerator = FileManager.default.enumerator(
+            at: archiveRootURL,
+            includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]
+        ) else {
+            return 0
+        }
+
+        var total = 0
+        for case let url as URL in enumerator {
+            guard
+                let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]),
+                values.isRegularFile == true
+            else { continue }
+            total += values.fileSize ?? 0
+        }
+        return total
     }
 }
 
