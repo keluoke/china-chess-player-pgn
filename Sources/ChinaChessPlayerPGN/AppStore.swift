@@ -19,6 +19,7 @@ final class AppStore: ObservableObject {
     @Published var savedFileURL: URL?
     @Published var databaseStats = DatabaseStats()
     @Published var recommendedYouthPlayers: [RecommendedYouthPlayer] = []
+    @Published var youthLeaderboards: [YouthLeaderboard] = []
     @Published var selectedDashboardStats = PlayerDashboardStats()
 
     private let client = ChessResultsClient()
@@ -34,6 +35,11 @@ final class AppStore: ObservableObject {
     var selectedCandidate: PlayerCandidate? {
         candidates.first { $0.id == selectedCandidateID }
             ?? recommendedYouthPlayers.map(\.candidate).first { $0.id == selectedCandidateID }
+            ?? youthLeaderboards.flatMap(\.entries).map(\.candidate).first { $0.id == selectedCandidateID }
+    }
+
+    var youthLeaderboardEntryCount: Int {
+        youthLeaderboards.reduce(0) { $0 + $1.entries.count }
     }
 
     var selectedEvents: [TournamentEvent] {
@@ -136,6 +142,9 @@ final class AppStore: ObservableObject {
     func loadHomepage() {
         do {
             recommendedYouthPlayers = try repository.recommendedYouthPlayers(
+                includeLikelyTestEvents: includeLikelyTestEvents
+            )
+            youthLeaderboards = try repository.youthLeaderboards(
                 includeLikelyTestEvents: includeLikelyTestEvents
             )
         } catch {
@@ -347,6 +356,7 @@ final class AppStore: ObservableObject {
                 dashboard: (try? repository.dashboardStats(for: candidate)) ?? recommendedYouthPlayers[index].dashboard
             )
         }
+        loadHomepage()
     }
 
     private func onlineCandidates(

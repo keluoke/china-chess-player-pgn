@@ -86,6 +86,64 @@ final class LocalChessRepository {
         }
     }
 
+    func youthLeaderboards(includeLikelyTestEvents: Bool, limit: Int = 5) throws -> [YouthLeaderboard] {
+        try ensureReady()
+        let rows = try select(
+            """
+            SELECT id, fide_id, chinese_name, pinyin_name, english_name, federation,
+                   birth_year, standard_rating, rapid_rating, blitz_rating
+            FROM players
+            WHERE birth_year IS NOT NULL
+              AND (standard_rating IS NOT NULL OR rapid_rating IS NOT NULL OR blitz_rating IS NOT NULL)
+            """
+        )
+
+        var entriesByStage: [YouthStage: [YouthLeaderboardEntry]] = [:]
+        for row in rows {
+            let candidate = try candidate(from: row, includeLikelyTestEvents: includeLikelyTestEvents)
+            guard
+                let stage = Self.currentYouthStage(birthYear: candidate.birthYear),
+                let rating = Self.leaderboardRating(for: candidate)
+            else { continue }
+
+            entriesByStage[stage, default: []].append(
+                YouthLeaderboardEntry(
+                    stage: stage,
+                    rank: 0,
+                    candidate: candidate,
+                    rating: rating.value,
+                    ratingKind: rating.kind,
+                    note: Self.liChengzhiTopThreeNote(for: candidate, stage: stage)
+                )
+            )
+        }
+
+        return YouthStage.allCases.map { stage in
+            let sortedEntries = (entriesByStage[stage] ?? [])
+                .sorted {
+                    if $0.rating != $1.rating { return $0.rating > $1.rating }
+                    if $0.ratingKind.sortPriority != $1.ratingKind.sortPriority {
+                        return $0.ratingKind.sortPriority < $1.ratingKind.sortPriority
+                    }
+                    return $0.candidate.displayName.localizedStandardCompare($1.candidate.displayName) == .orderedAscending
+                }
+                .prefix(limit)
+                .enumerated()
+                .map { offset, entry in
+                    YouthLeaderboardEntry(
+                        stage: entry.stage,
+                        rank: offset + 1,
+                        candidate: entry.candidate,
+                        rating: entry.rating,
+                        ratingKind: entry.ratingKind,
+                        note: entry.note
+                    )
+                }
+
+            return YouthLeaderboard(stage: stage, entries: Array(sortedEntries))
+        }
+    }
+
     func dashboardStats(for candidate: PlayerCandidate) throws -> PlayerDashboardStats {
         try ensureReady()
         let playerID = stablePlayerID(for: candidate)
@@ -348,18 +406,18 @@ final class LocalChessRepository {
 
     private func seedChinesePlayers() throws {
         try transaction {
-            for seed in ChinesePlayerSeeds.players {
+            for seed in ChinesePlayerSeeds.players + YouthLeaderboardSeeds.players {
                 let playerID = "fide-\(seed.fideID)"
                 try execute(
                     """
                     INSERT INTO players(id, fide_id, chinese_name, pinyin_name, english_name, federation, birth_year, standard_rating, rapid_rating, blitz_rating)
-                    VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))
+                    VALUES (?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))
                     ON CONFLICT(id) DO UPDATE SET
                         fide_id = excluded.fide_id,
-                        chinese_name = COALESCE(players.chinese_name, excluded.chinese_name),
-                        pinyin_name = COALESCE(players.pinyin_name, excluded.pinyin_name),
-                        english_name = COALESCE(players.english_name, excluded.english_name),
-                        federation = COALESCE(players.federation, excluded.federation),
+                        chinese_name = COALESCE(NULLIF(players.chinese_name, ''), excluded.chinese_name),
+                        pinyin_name = COALESCE(NULLIF(players.pinyin_name, ''), excluded.pinyin_name),
+                        english_name = COALESCE(NULLIF(players.english_name, ''), excluded.english_name),
+                        federation = COALESCE(NULLIF(players.federation, ''), excluded.federation),
                         birth_year = COALESCE(players.birth_year, excluded.birth_year),
                         standard_rating = COALESCE(excluded.standard_rating, players.standard_rating),
                         rapid_rating = COALESCE(excluded.rapid_rating, players.rapid_rating),
@@ -797,6 +855,46 @@ final class LocalChessRepository {
         return YouthStage.stage(forAge: currentYear - birthYear)
     }
 
+    private static func leaderboardRating(for candidate: PlayerCandidate) -> (value: Int, kind: FIDERatingSnapshot.Kind)? {
+        if let standard = candidate.standardRating {
+            return (standard, .standard)
+        }
+        if let rapid = candidate.rapidRating {
+            return (rapid, .rapid)
+        }
+        if let blitz = candidate.blitzRating {
+            return (blitz, .blitz)
+        }
+        return nil
+    }
+
+    private static func liChengzhiTopThreeNote(for candidate: PlayerCandidate, stage: YouthStage) -> String? {
+        let matches = candidate.events.compactMap { event -> (rank: Int, event: TournamentEvent)? in
+            guard
+                eventStage(for: event, birthYear: candidate.birthYear) == stage,
+                isLiChengzhiCupLike(event.name),
+                let rank = numericRank(event.rank),
+                rank <= 3
+            else { return nil }
+            return (rank, event)
+        }
+        .sorted {
+            if $0.rank != $1.rank { return $0.rank < $1.rank }
+            return ($0.event.endDate ?? .distantPast) > ($1.event.endDate ?? .distantPast)
+        }
+
+        guard let best = matches.first else { return nil }
+        return "李成智杯第 \(best.rank)"
+    }
+
+    private static func isLiChengzhiCupLike(_ eventName: String) -> Bool {
+        let normalized = normalizedAlias(eventName)
+        let lowercased = eventName.lowercased()
+        return normalized.contains("李成智")
+            || lowercased.contains("li chengzhi")
+            || lowercased.contains("national youth chess championship")
+    }
+
     private static func youthStageSummaries(for candidate: PlayerCandidate) -> [YouthStageSummary] {
         YouthStage.allCases.map { stage in
             let events = candidate.events.filter {
@@ -966,6 +1064,16 @@ private extension String {
         lowercased()
             .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
             .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+}
+
+private extension FIDERatingSnapshot.Kind {
+    var sortPriority: Int {
+        switch self {
+        case .standard: 0
+        case .rapid: 1
+        case .blitz: 2
+        }
     }
 }
 

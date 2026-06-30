@@ -47,6 +47,40 @@ struct RecommendedYouthPlayer: Identifiable, Hashable {
     }
 }
 
+struct YouthLeaderboard: Identifiable, Hashable {
+    let stage: YouthStage
+    let entries: [YouthLeaderboardEntry]
+
+    var id: YouthStage { stage }
+}
+
+struct YouthLeaderboardEntry: Identifiable, Hashable {
+    let stage: YouthStage
+    let rank: Int
+    let candidate: PlayerCandidate
+    let rating: Int
+    let ratingKind: FIDERatingSnapshot.Kind
+    let note: String?
+
+    var id: String {
+        "\(stage.rawValue)-\(candidate.id)"
+    }
+
+    var ratingKindText: String {
+        switch ratingKind {
+        case .standard: "STD"
+        case .rapid: "RAP"
+        case .blitz: "BLZ"
+        }
+    }
+
+    var playerMetaText: String {
+        let fide = candidate.fideID.map { "FIDE \($0)" } ?? "无 FIDE ID"
+        let year = candidate.birthYear.map { "\($0)" } ?? "出生年待补"
+        return "\(fide) · \(year)"
+    }
+}
+
 struct PlayerDashboardStats: Hashable {
     var eventCount = 0
     var cachedPGNArchives = 0

@@ -188,7 +188,7 @@ private struct HomeSidebarButton: View {
                 Text("首页")
                     .font(.callout.weight(.medium))
                 Spacer()
-                Text("\(store.recommendedYouthPlayers.count)")
+                Text("\(store.youthLeaderboardEntryCount)")
                     .font(.caption.monospacedDigit().weight(.semibold))
                     .foregroundStyle(Color.appTextSecondary)
             }
@@ -287,10 +287,6 @@ private struct EventListView: View {
 private struct HomeView: View {
     @EnvironmentObject private var store: AppStore
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 250), spacing: 12)
-    ]
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -299,7 +295,7 @@ private struct HomeView: View {
                         Text("首页")
                             .font(.largeTitle.weight(.semibold))
                             .foregroundStyle(Color.appText)
-                        Text("中国优秀青少年棋手")
+                        Text("U8-U18 FIDE 排行榜")
                             .font(.title3)
                             .foregroundStyle(Color.appTextSecondary)
                     }
@@ -319,19 +315,7 @@ private struct HomeView: View {
 
                 HomeCacheSummaryView()
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("重点推荐")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(Color.appText)
-
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-                        ForEach(store.recommendedYouthPlayers) { item in
-                            RecommendedYouthCard(item: item) {
-                                store.selectCandidate(item.candidate)
-                            }
-                        }
-                    }
-                }
+                YouthLeaderboardsSection()
             }
             .padding(24)
         }
@@ -377,6 +361,195 @@ private struct HomeCacheSummaryView: View {
                 .stroke(Color.panelBorder)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct YouthLeaderboardsSection: View {
+    @EnvironmentObject private var store: AppStore
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 330), spacing: 12)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("青少年 FIDE 排行榜")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.appText)
+                Spacer()
+                Text("\(store.youthLeaderboardEntryCount) 名")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                ForEach(store.youthLeaderboards) { leaderboard in
+                    YouthLeaderboardCard(leaderboard: leaderboard) { candidate in
+                        store.selectCandidate(candidate)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct YouthLeaderboardCard: View {
+    let leaderboard: YouthLeaderboard
+    let action: (PlayerCandidate) -> Void
+
+    @State private var animateBars = false
+
+    private var maxRating: Int {
+        max(leaderboard.entries.map(\.rating).max() ?? 1, 1)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(leaderboard.stage.rawValue)
+                    .font(.title.weight(.bold))
+                    .foregroundStyle(Color.appAccentStrong)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("FIDE ELO")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.appText)
+                    Text("本地缓存排名")
+                        .font(.caption2)
+                        .foregroundStyle(Color.appTextSecondary)
+                }
+                Spacer()
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.appAccent)
+            }
+
+            if leaderboard.entries.isEmpty {
+                Text("待补缓存")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(Color.appTextSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 236, alignment: .center)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(leaderboard.entries) { entry in
+                        YouthLeaderboardRow(
+                            entry: entry,
+                            maxRating: maxRating,
+                            animateBar: animateBars
+                        ) {
+                            action(entry.candidate)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 332, alignment: .topLeading)
+        .background(
+            LinearGradient(
+                colors: [Color.panelBackground, Color.selectionBackground.opacity(0.55)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: Color.appAccentStrong.opacity(0.08), radius: 14, y: 6)
+        .onAppear {
+            withAnimation(.spring(response: 0.65, dampingFraction: 0.82).delay(0.08)) {
+                animateBars = true
+            }
+        }
+    }
+}
+
+private struct YouthLeaderboardRow: View {
+    let entry: YouthLeaderboardEntry
+    let maxRating: Int
+    let animateBar: Bool
+    let action: () -> Void
+
+    private var barRatio: CGFloat {
+        guard maxRating > 0 else { return 0 }
+        return animateBar ? CGFloat(entry.rating) / CGFloat(maxRating) : 0
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .center, spacing: 10) {
+                    Text("\(entry.rank)")
+                        .font(.caption.monospacedDigit().weight(.bold))
+                        .foregroundStyle(Color.appTextOnAccent)
+                        .frame(width: 24, height: 24)
+                        .background(rankColor)
+                        .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.candidate.displayName)
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(Color.appText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+                        Text(entry.playerMetaText)
+                            .font(.caption2)
+                            .foregroundStyle(Color.appTextSecondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("\(entry.rating)")
+                            .font(.callout.monospacedDigit().weight(.bold))
+                            .foregroundStyle(Color.appText)
+                        Text(entry.ratingKindText)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color.appAccent)
+                    }
+                    .frame(width: 54, alignment: .trailing)
+                }
+
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.panelBorder.opacity(0.45))
+                        Capsule()
+                            .fill(Color.appAccent)
+                            .frame(width: proxy.size.width * barRatio)
+                    }
+                }
+                .frame(height: 5)
+
+                if let note = entry.note {
+                    Text(note)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Color.stageFutureAccent)
+                        .lineLimit(1)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color.stageFutureBackground)
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .background(Color.panelBackground.opacity(0.78))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var rankColor: Color {
+        switch entry.rank {
+        case 1: Color.appAccentStrong
+        case 2: Color.appAccent
+        case 3: Color.stageFutureAccent
+        default: Color.appTextSecondary
+        }
     }
 }
 
