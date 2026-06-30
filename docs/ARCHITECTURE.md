@@ -71,7 +71,14 @@ PGNArchive/chess-results/tnr935824/fide-8601429-935824.pgn
 
 ## 首页排行榜
 
-首页使用 `LocalChessRepository.youthLeaderboards` 聚合本地 `players` 表中有出生年和 FIDE 分的棋手，按当前年份归入 U8/U10/U12/U14/U16/U18，并按 standard 分排序；如果没有 standard 分，再回退到 rapid、blitz。
+首页使用 `LocalChessRepository.youthLeaderboards` 聚合本地 `players` 表中有出生年和 FIDE 分的棋手，按李成智杯自然年龄组口径归入 U8/U10/U12/U14/U16/U18，并按 standard 分排序；如果没有 standard 分，再回退到 rapid、blitz。
+
+年龄组定义集中在 `YouthStage` 和 `YouthStageRules`：
+
+- 以比赛年度减出生年份计算年龄组。
+- U8=7-8 岁，U10=9-10 岁，U12=11-12 岁，U14=13-14 岁，U16=15-16 岁，U18=17-18 岁。
+- 例如 2026 年口径：U8=2018-2019 出生，U10=2016-2017，U12=2014-2015，U14=2012-2013，U16=2010-2011，U18=2008-2009。
+- 本版本首页只展示 U8-U18；如果某届赛事另设 U20，不进入青少年阶段看板。
 
 每个榜单条目仍然是完整 `PlayerCandidate`，用户点击后进入同一套棋手看板、赛事列表和 PGN 下载流程。这样首页不是单独的展示数据，而是本地棋手库的入口。
 

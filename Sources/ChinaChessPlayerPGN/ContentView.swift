@@ -383,6 +383,8 @@ private struct YouthLeaderboardsSection: View {
                     .foregroundStyle(Color.appTextSecondary)
             }
 
+            YouthStageRuleNote()
+
             LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
                 ForEach(store.youthLeaderboards) { leaderboard in
                     YouthLeaderboardCard(leaderboard: leaderboard) { candidate in
@@ -391,6 +393,25 @@ private struct YouthLeaderboardsSection: View {
                 }
             }
         }
+    }
+}
+
+private struct YouthStageRuleNote: View {
+    var body: some View {
+        Label {
+            Text(YouthStageRules.currentDefinitionText)
+                .font(.caption)
+                .foregroundStyle(Color.appTextSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "calendar.badge.clock")
+                .foregroundStyle(Color.appAccent)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.statBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -414,7 +435,7 @@ private struct YouthLeaderboardCard: View {
                     Text("FIDE ELO")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(Color.appText)
-                    Text("本地缓存排名")
+                    Text(leaderboard.stage.birthYearRangeText(in: YouthStageRules.currentCompetitionYear))
                         .font(.caption2)
                         .foregroundStyle(Color.appTextSecondary)
                 }
@@ -671,6 +692,10 @@ private struct PlayerDashboardView: View {
                         .font(.callout)
                         .foregroundStyle(Color.appTextSecondary)
                         .lineLimit(2)
+                    Text(YouthStageRules.currentCompactDefinitionText)
+                        .font(.caption)
+                        .foregroundStyle(Color.appTextSecondary)
+                        .lineLimit(1)
                 }
 
                 Spacer()
@@ -689,7 +714,7 @@ private struct PlayerDashboardView: View {
                 DashboardMetricCard(title: "赛事索引", value: "\(stats.eventCount)", subtitle: "近十年", symbol: "calendar")
                 DashboardMetricCard(title: "前三名", value: "\(stats.topThreeCount)", subtitle: "冠军 \(stats.firstPlaceCount)", symbol: "trophy")
                 DashboardMetricCard(title: "PGN 缓存", value: "\(stats.cachedPGNArchives)", subtitle: "\(stats.cachedGames) 盘", symbol: "archivebox")
-                DashboardMetricCard(title: "青少年阶段", value: stats.currentStage?.rawValue ?? "-", subtitle: stats.birthYear.map { "\($0) 出生" } ?? "待补出生年", symbol: "flag.checkered")
+                DashboardMetricCard(title: "青少年阶段", value: stats.currentStage?.rawValue ?? "-", subtitle: youthStageSubtitle, symbol: "flag.checkered")
             }
 
             YouthStageTimelineView(stages: stats.youthStages)
@@ -703,6 +728,14 @@ private struct PlayerDashboardView: View {
                 .stroke(Color.panelBorder)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var youthStageSubtitle: String {
+        guard let birthYear = stats.birthYear else { return "待补出生年" }
+        guard let currentStage = stats.currentStage else {
+            return "\(birthYear) 出生 · 未到 U8"
+        }
+        return "\(birthYear) 出生 · \(currentStage.ageBandText)"
     }
 }
 

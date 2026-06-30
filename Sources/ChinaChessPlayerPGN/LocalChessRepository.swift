@@ -851,8 +851,10 @@ final class LocalChessRepository {
 
     private static func currentYouthStage(birthYear: Int?) -> YouthStage? {
         guard let birthYear else { return nil }
-        let currentYear = Calendar(identifier: .gregorian).component(.year, from: Date())
-        return YouthStage.stage(forAge: currentYear - birthYear)
+        return YouthStageRules.stage(
+            forBirthYear: birthYear,
+            in: YouthStageRules.currentCompetitionYear
+        )
     }
 
     private static func leaderboardRating(for candidate: PlayerCandidate) -> (value: Int, kind: FIDERatingSnapshot.Kind)? {
@@ -953,7 +955,7 @@ final class LocalChessRepository {
         let preferredKind = preferredRatingKind(candidate.fideRatingHistory)
         let ratings = candidate.fideRatingHistory.compactMap { snapshot -> Int? in
             guard preferredKind == nil || snapshot.kind == preferredKind else { return nil }
-            guard YouthStage.stage(forAge: snapshot.year - birthYear) == stage else { return nil }
+            guard YouthStageRules.stage(forBirthYear: birthYear, in: snapshot.year) == stage else { return nil }
             return snapshot.rating
         }
         return ratings.max()
@@ -976,7 +978,7 @@ final class LocalChessRepository {
             let date = event.endDate
         {
             let eventYear = Calendar(identifier: .gregorian).component(.year, from: date)
-            if let stage = YouthStage.stage(forAge: eventYear - birthYear) {
+            if let stage = YouthStageRules.stage(forBirthYear: birthYear, in: eventYear) {
                 return stage
             }
         }
@@ -985,12 +987,11 @@ final class LocalChessRepository {
 
     private static func status(for stage: YouthStage, birthYear: Int?) -> YouthStageStatus {
         guard let birthYear else { return .unknown }
-        let currentYear = Calendar(identifier: .gregorian).component(.year, from: Date())
-        let currentAge = currentYear - birthYear
+        let currentAge = YouthStageRules.currentCompetitionYear - birthYear
         if currentAge > stage.upperAge {
             return .completed
         }
-        if currentAge > stage.previousUpperAge {
+        if currentAge >= stage.lowerAge {
             return .current
         }
         return .upcoming

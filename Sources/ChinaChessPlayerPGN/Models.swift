@@ -131,6 +131,17 @@ enum YouthStage: String, CaseIterable, Hashable, Identifiable {
 
     var id: String { rawValue }
 
+    var lowerAge: Int {
+        switch self {
+        case .u8: 7
+        case .u10: 9
+        case .u12: 11
+        case .u14: 13
+        case .u16: 15
+        case .u18: 17
+        }
+    }
+
     var upperAge: Int {
         switch self {
         case .u8: 8
@@ -143,18 +154,11 @@ enum YouthStage: String, CaseIterable, Hashable, Identifiable {
     }
 
     var previousUpperAge: Int {
-        switch self {
-        case .u8: 0
-        case .u10: 8
-        case .u12: 10
-        case .u14: 12
-        case .u16: 14
-        case .u18: 16
-        }
+        lowerAge - 1
     }
 
     static func stage(forAge age: Int) -> YouthStage? {
-        allCases.first { age <= $0.upperAge && age > $0.previousUpperAge }
+        allCases.first { ($0.lowerAge...$0.upperAge).contains(age) }
     }
 
     static func stage(fromEventName name: String) -> YouthStage? {
@@ -163,6 +167,47 @@ enum YouthStage: String, CaseIterable, Hashable, Identifiable {
             return stage
         }
         return nil
+    }
+
+    func birthYearRangeText(in competitionYear: Int) -> String {
+        "\(competitionYear - upperAge)-\(competitionYear - lowerAge) 出生"
+    }
+
+    var ageBandText: String {
+        "\(lowerAge)-\(upperAge) 岁"
+    }
+}
+
+enum YouthStageRules {
+    static var currentCompetitionYear: Int {
+        competitionYear()
+    }
+
+    static func competitionYear(for date: Date = Date()) -> Int {
+        Calendar(identifier: .gregorian).component(.year, from: date)
+    }
+
+    static func stage(forBirthYear birthYear: Int, in competitionYear: Int) -> YouthStage? {
+        YouthStage.stage(forAge: competitionYear - birthYear)
+    }
+
+    static var currentDefinitionText: String {
+        definitionText(for: currentCompetitionYear)
+    }
+
+    static var currentCompactDefinitionText: String {
+        compactDefinitionText(for: currentCompetitionYear)
+    }
+
+    static func definitionText(for competitionYear: Int) -> String {
+        let ranges = YouthStage.allCases
+            .map { "\($0.rawValue) \($0.birthYearRangeText(in: competitionYear))" }
+            .joined(separator: " · ")
+        return "按李成智杯自然年龄组：以比赛年度 - 出生年份计算，两年一组；\(competitionYear) 年口径为 \(ranges)。"
+    }
+
+    static func compactDefinitionText(for competitionYear: Int) -> String {
+        "李成智杯口径：按比赛年度 \(competitionYear) - 出生年份划组"
     }
 }
 
