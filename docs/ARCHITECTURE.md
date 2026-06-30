@@ -69,14 +69,23 @@ PGNArchive/chess-results/tnr935824/fide-8601429-935824.pgn
 6. 联网结果写回 `players`、`player_aliases`、`events` 和 `player_events`。
 7. UI 展示更新后的本地候选棋手和赛事。
 
+## 首页排行榜
+
+首页使用 `LocalChessRepository.youthLeaderboards` 聚合本地 `players` 表中有出生年和 FIDE 分的棋手，按当前年份归入 U8/U10/U12/U14/U16/U18，并按 standard 分排序；如果没有 standard 分，再回退到 rapid、blitz。
+
+每个榜单条目仍然是完整 `PlayerCandidate`，用户点击后进入同一套棋手看板、赛事列表和 PGN 下载流程。这样首页不是单独的展示数据，而是本地棋手库的入口。
+
+李成智杯备注由本地赛事记录动态生成：赛事名包含“李成智”、`Li Chengzhi`，或 Chess-Results 英文标题里的 `National Youth Chess Championship`，且该年龄段名次为前三时，榜单行显示“李成智杯第 N”。
+
 ## 种子库
 
 首版种子库在代码中维护：
 
 - `ChinesePlayerSeeds.swift`：中文名、拼音、英文名、FIDE ID。
 - `ChineseEventSeeds.swift`：默认赛事索引和棋手参赛关系。
+- `YouthLeaderboardSeeds.swift`：U8/U10/U12/U14/U16/U18 首页 FIDE 排行榜种子。
 
-这些种子保证首次启动后不依赖网络也能查到一批中国棋手和赛事。它们不是完整 PGN 库；PGN 正文进入本地库的方式是下载、导入或后续 provider 同步。
+这些种子保证首次启动后不依赖网络也能查到一批中国棋手、赛事和青少年榜单。它们不是完整 PGN 库；PGN 正文进入本地库的方式是下载、导入或后续 provider 同步。
 
 ## PGN 下载流程
 

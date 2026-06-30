@@ -4,6 +4,8 @@
 
 当前数据源以 Chess-Results 为主，同时已经加入本地 SQLite 棋手库、中文别名索引和 PGN 归档层。应用默认本地优先：本地有候选和赛事时不会联网；只有本地没有赛事，或用户打开“联网补齐本地结果”时，才访问 Chess-Results。
 
+首页默认展示 U8/U10/U12/U14/U16/U18 六个青少年年龄组的 FIDE ELO 排行榜。榜单优先使用本地缓存里的棋手分数；首次启动时会写入一组中国青少年 FIDE 排名种子，保证离线也能看到基础榜单。若本地赛事记录里有李成智杯或全国青少年锦标赛前三名，会在对应年龄组榜单行上自动标注。
+
 ## 运行
 
 ```bash
@@ -41,6 +43,7 @@ Scripts/package_app.sh
 
 - 中国常见强手中文名、拼音名、英文名、FIDE ID。
 - 一批国内顶级赛事、中国甲级联赛、全国冠军赛、女子/男子世界顶级赛事的 Chess-Results 赛事索引。
+- U8/U10/U12/U14/U16/U18 中国青少年 FIDE 排行榜种子，包含 FIDE ID、英文名、出生年和 standard/rapid/blitz 分。
 
 种子库只包含索引和身份映射，不内置大批 PGN 正文。PGN 正文会在用户下载或后续导入后进入 `PGNArchive/`，之后同一赛事会直接读本地缓存。
 
@@ -48,6 +51,7 @@ Scripts/package_app.sh
 
 - 棋手和赛事：Chess-Results Player-Database。
 - 对局 PGN：Chess-Results Game-Database 的 `Download as PGN-File`。
+- 当前 FIDE 分和年龄组榜单种子：FIDE/Lichess FIDE 公开资料镜像。
 - 中文查询：内置一批中国棋手中文名/拼音/FIDE ID 种子，联网和 PGN 导入后会继续扩充本地别名。
 
 并非每个赛事都上传 PGN。下载时应用会逐项标记“本地缓存 / 已下载 / 无棋谱 / 失败”，只合并有内容的 PGN。
