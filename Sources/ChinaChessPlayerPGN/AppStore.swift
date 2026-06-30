@@ -165,6 +165,7 @@ final class AppStore: ObservableObject {
         latestMergedPGN = ""
         savedFileURL = nil
         updateDashboard(for: candidate)
+        refreshFIDEProfile(for: candidate)
         statusText = "已选择 \(candidate.displayName)"
     }
 
@@ -314,6 +315,40 @@ final class AppStore: ObservableObject {
         }
     }
 
+    private func refreshFIDEProfile(for candidate: PlayerCandidate) {
+        guard let fideID = candidate.fideID, !fideID.isEmpty else { return }
+        Task {
+            guard let profile = try? await fideClient.player(fideID: fideID) else { return }
+            var enriched = profile.candidate
+            enriched.displayName = candidate.displayName
+            enriched.events = candidate.events
+            enriched.latestEventDate = candidate.latestEventDate
+            enriched.eventCount = candidate.eventCount
+            enriched.clubs = candidate.clubs
+            enriched.nameVariants = (candidate.nameVariants + enriched.nameVariants).orderedUnique()
+            enriched.source = [candidate.source, "FIDE"].orderedUnique().joined(separator: " + ")
+
+            try? repository.upsert(candidates: [enriched])
+            replaceCandidate(enriched)
+            if selectedCandidateID == enriched.id {
+                updateDashboard(for: enriched)
+            }
+        }
+    }
+
+    private func replaceCandidate(_ candidate: PlayerCandidate) {
+        if let index = candidates.firstIndex(where: { $0.id == candidate.id }) {
+            candidates[index] = candidate
+        }
+        if let index = recommendedYouthPlayers.firstIndex(where: { $0.candidate.id == candidate.id }) {
+            recommendedYouthPlayers[index] = RecommendedYouthPlayer(
+                seed: recommendedYouthPlayers[index].seed,
+                candidate: candidate,
+                dashboard: (try? repository.dashboardStats(for: candidate)) ?? recommendedYouthPlayers[index].dashboard
+            )
+        }
+    }
+
     private func onlineCandidates(
         query: String,
         localCandidates: [PlayerCandidate],
@@ -342,12 +377,17 @@ final class AppStore: ObservableObject {
                         displayName: base?.displayName ?? profile?.name ?? events.first?.playerName ?? "FIDE \(fideID)",
                         fideID: fideID,
                         federation: base?.federation ?? profile?.federation ?? events.first?.federation ?? "CHN",
+                        birthYear: base?.birthYear ?? profile?.year,
+                        standardRating: base?.standardRating ?? profile?.standardRating,
+                        rapidRating: base?.rapidRating ?? profile?.rapidRating,
+                        blitzRating: base?.blitzRating ?? profile?.blitzRating,
                         clubs: base?.clubs ?? [],
                         nameVariants: Array(((base?.nameVariants ?? []) + (profile?.aliases ?? []) + events.map(\.playerName)).filter { !$0.isEmpty }.orderedUnique().prefix(12)),
                         latestEventDate: events.first?.endDate ?? base?.latestEventDate,
                         eventCount: events.count,
                         source: profile == nil ? "Chess-Results" : "Chess-Results + FIDE",
-                        events: events
+                        events: events,
+                        fideRatingHistory: profile?.ratingHistory ?? base?.fideRatingHistory ?? []
                     ),
                     into: &candidatesByID
                 )
@@ -434,12 +474,17 @@ final class AppStore: ObservableObject {
             displayName: existing.displayName.hasPrefix("FIDE ") ? candidate.displayName : existing.displayName,
             fideID: existing.fideID ?? candidate.fideID,
             federation: existing.federation.isEmpty ? candidate.federation : existing.federation,
+            birthYear: existing.birthYear ?? candidate.birthYear,
+            standardRating: existing.standardRating ?? candidate.standardRating,
+            rapidRating: existing.rapidRating ?? candidate.rapidRating,
+            blitzRating: existing.blitzRating ?? candidate.blitzRating,
             clubs: (existing.clubs + candidate.clubs).orderedUnique(),
             nameVariants: (existing.nameVariants + candidate.nameVariants).orderedUnique(),
             latestEventDate: events.first?.endDate ?? existing.latestEventDate ?? candidate.latestEventDate,
             eventCount: events.count,
             source: [existing.source, candidate.source].orderedUnique().joined(separator: " + "),
-            events: events
+            events: events,
+            fideRatingHistory: existing.fideRatingHistory.isEmpty ? candidate.fideRatingHistory : existing.fideRatingHistory
         )
     }
 }

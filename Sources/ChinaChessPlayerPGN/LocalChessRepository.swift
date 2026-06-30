@@ -30,6 +30,7 @@ final class LocalChessRepository {
                 try execute("PRAGMA foreign_keys = ON;")
                 try execute("PRAGMA journal_mode = WAL;")
                 try prepareSchema()
+                try migrateSchema()
                 try seedChinesePlayers()
             } else {
                 throw SQLiteStoreError.openFailed(String(cString: sqlite3_errmsg(handle)))
@@ -52,7 +53,8 @@ final class LocalChessRepository {
 
         let rows = try select(
             """
-            SELECT DISTINCT p.id, p.fide_id, p.chinese_name, p.pinyin_name, p.english_name, p.federation
+            SELECT DISTINCT p.id, p.fide_id, p.chinese_name, p.pinyin_name, p.english_name, p.federation,
+                   p.birth_year, p.standard_rating, p.rapid_rating, p.blitz_rating
             FROM players p
             JOIN player_aliases a ON a.player_id = p.id
             WHERE a.normalized_alias = ? OR a.normalized_alias LIKE ?
@@ -99,6 +101,17 @@ final class LocalChessRepository {
         let cachedGames = Int(archiveRows.first?.dropFirst().first ?? "") ?? 0
         let datedEvents = candidate.events.compactMap(\.endDate)
         let numericRanks = candidate.events.compactMap { Self.numericRank($0.rank) }
+        let youthStages = Self.youthStageSummaries(for: candidate)
+        let eloPoints = Self.eloChartPoints(for: candidate, stages: youthStages)
+        let rankPoints = youthStages.compactMap { stage -> YouthChartPoint? in
+            guard let rank = stage.bestRank else { return nil }
+            return YouthChartPoint(
+                stage: stage.stage,
+                value: Double(rank),
+                label: "\(rank)",
+                subtitle: stage.majorEventName ?? "赛事名次"
+            )
+        }
 
         return PlayerDashboardStats(
             eventCount: candidate.events.count,
@@ -106,6 +119,11 @@ final class LocalChessRepository {
             cachedGames: cachedGames,
             firstPlaceCount: numericRanks.filter { $0 == 1 }.count,
             topThreeCount: numericRanks.filter { $0 <= 3 }.count,
+            birthYear: candidate.birthYear,
+            currentStage: Self.currentYouthStage(birthYear: candidate.birthYear),
+            youthStages: youthStages,
+            eloChartPoints: eloPoints,
+            rankChartPoints: rankPoints,
             earliestEventDate: datedEvents.min(),
             latestEventDate: datedEvents.max()
         )
@@ -239,6 +257,10 @@ final class LocalChessRepository {
             pinyin_name TEXT,
             english_name TEXT,
             federation TEXT,
+            birth_year INTEGER,
+            standard_rating INTEGER,
+            rapid_rating INTEGER,
+            blitz_rating INTEGER,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
@@ -310,23 +332,52 @@ final class LocalChessRepository {
         """)
     }
 
+    private func migrateSchema() throws {
+        try addColumnIfMissing("birth_year", definition: "INTEGER")
+        try addColumnIfMissing("standard_rating", definition: "INTEGER")
+        try addColumnIfMissing("rapid_rating", definition: "INTEGER")
+        try addColumnIfMissing("blitz_rating", definition: "INTEGER")
+    }
+
+    private func addColumnIfMissing(_ column: String, definition: String) throws {
+        let rows = try select("PRAGMA table_info(players)")
+        let names = Set(rows.compactMap { $0.count > 1 ? $0[1] : nil })
+        guard !names.contains(column) else { return }
+        try execute("ALTER TABLE players ADD COLUMN \(column) \(definition)")
+    }
+
     private func seedChinesePlayers() throws {
         try transaction {
             for seed in ChinesePlayerSeeds.players {
                 let playerID = "fide-\(seed.fideID)"
                 try execute(
                     """
-                    INSERT INTO players(id, fide_id, chinese_name, pinyin_name, english_name, federation)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO players(id, fide_id, chinese_name, pinyin_name, english_name, federation, birth_year, standard_rating, rapid_rating, blitz_rating)
+                    VALUES (?, ?, ?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))
                     ON CONFLICT(id) DO UPDATE SET
                         fide_id = excluded.fide_id,
                         chinese_name = COALESCE(players.chinese_name, excluded.chinese_name),
                         pinyin_name = COALESCE(players.pinyin_name, excluded.pinyin_name),
                         english_name = COALESCE(players.english_name, excluded.english_name),
                         federation = COALESCE(players.federation, excluded.federation),
+                        birth_year = COALESCE(players.birth_year, excluded.birth_year),
+                        standard_rating = COALESCE(excluded.standard_rating, players.standard_rating),
+                        rapid_rating = COALESCE(excluded.rapid_rating, players.rapid_rating),
+                        blitz_rating = COALESCE(excluded.blitz_rating, players.blitz_rating),
                         updated_at = CURRENT_TIMESTAMP
                     """,
-                    [playerID, seed.fideID, seed.chineseName, seed.pinyinName, seed.englishName, seed.federation]
+                    [
+                        playerID,
+                        seed.fideID,
+                        seed.chineseName,
+                        seed.pinyinName,
+                        seed.englishName,
+                        seed.federation,
+                        seed.birthYear.map(String.init) ?? "",
+                        seed.standardRating.map(String.init) ?? "",
+                        seed.rapidRating.map(String.init) ?? "",
+                        seed.blitzRating.map(String.init) ?? ""
+                    ]
                 )
                 try insertAlias(seed.chineseName, type: "zh", source: "seed", playerID: playerID)
                 try insertAlias(seed.pinyinName, type: "pinyin", source: "seed", playerID: playerID)
@@ -397,7 +448,8 @@ final class LocalChessRepository {
     private func candidate(for playerID: String, includeLikelyTestEvents: Bool) throws -> PlayerCandidate? {
         let rows = try select(
             """
-            SELECT id, fide_id, chinese_name, pinyin_name, english_name, federation
+            SELECT id, fide_id, chinese_name, pinyin_name, english_name, federation,
+                   birth_year, standard_rating, rapid_rating, blitz_rating
             FROM players
             WHERE id = ?
             LIMIT 1
@@ -417,6 +469,10 @@ final class LocalChessRepository {
             displayName: Self.displayName(chinese: row[2], pinyin: row[3], english: row[4]),
             fideID: row[1].nilIfBlank,
             federation: row[5].nilIfBlank ?? "CHN",
+            birthYear: Int(row[safe: 6] ?? ""),
+            standardRating: Int(row[safe: 7] ?? ""),
+            rapidRating: Int(row[safe: 8] ?? ""),
+            blitzRating: Int(row[safe: 9] ?? ""),
             clubs: try clubs(for: playerID),
             nameVariants: aliases,
             latestEventDate: events.first?.endDate,
@@ -430,15 +486,28 @@ final class LocalChessRepository {
         let playerID = stablePlayerID(for: candidate)
         try execute(
             """
-            INSERT INTO players(id, fide_id, english_name, federation)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO players(id, fide_id, english_name, federation, birth_year, standard_rating, rapid_rating, blitz_rating)
+            VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))
             ON CONFLICT(id) DO UPDATE SET
                 fide_id = COALESCE(players.fide_id, excluded.fide_id),
                 english_name = COALESCE(excluded.english_name, players.english_name),
                 federation = COALESCE(excluded.federation, players.federation),
+                birth_year = COALESCE(excluded.birth_year, players.birth_year),
+                standard_rating = COALESCE(excluded.standard_rating, players.standard_rating),
+                rapid_rating = COALESCE(excluded.rapid_rating, players.rapid_rating),
+                blitz_rating = COALESCE(excluded.blitz_rating, players.blitz_rating),
                 updated_at = CURRENT_TIMESTAMP
             """,
-            [playerID, candidate.fideID ?? "", candidate.displayName, candidate.federation]
+            [
+                playerID,
+                candidate.fideID ?? "",
+                candidate.displayName,
+                candidate.federation,
+                candidate.birthYear.map(String.init) ?? "",
+                candidate.standardRating.map(String.init) ?? "",
+                candidate.rapidRating.map(String.init) ?? "",
+                candidate.blitzRating.map(String.init) ?? ""
+            ]
         )
         if let fideID = candidate.fideID {
             try insertAlias(fideID, type: "fide_id", source: candidate.source, playerID: playerID)
@@ -722,6 +791,113 @@ final class LocalChessRepository {
         return Int(trimmed[range])
     }
 
+    private static func currentYouthStage(birthYear: Int?) -> YouthStage? {
+        guard let birthYear else { return nil }
+        let currentYear = Calendar(identifier: .gregorian).component(.year, from: Date())
+        return YouthStage.stage(forAge: currentYear - birthYear)
+    }
+
+    private static func youthStageSummaries(for candidate: PlayerCandidate) -> [YouthStageSummary] {
+        YouthStage.allCases.map { stage in
+            let events = candidate.events.filter {
+                eventStage(for: $0, birthYear: candidate.birthYear) == stage
+            }
+            let rankedEvents = events.compactMap { event -> (rank: Int, event: TournamentEvent)? in
+                guard let rank = numericRank(event.rank) else { return nil }
+                return (rank, event)
+            }
+            .sorted {
+                if $0.rank != $1.rank { return $0.rank < $1.rank }
+                return ($0.event.endDate ?? .distantPast) > ($1.event.endDate ?? .distantPast)
+            }
+
+            return YouthStageSummary(
+                stage: stage,
+                status: status(for: stage, birthYear: candidate.birthYear),
+                eventCount: events.count,
+                bestRank: rankedEvents.first?.rank,
+                majorEventName: rankedEvents.first?.event.name,
+                peakRating: peakRating(for: stage, candidate: candidate)
+                    ?? (currentYouthStage(birthYear: candidate.birthYear) == stage ? currentBestRating(candidate) : nil)
+            )
+        }
+    }
+
+    private static func eloChartPoints(for candidate: PlayerCandidate, stages: [YouthStageSummary]) -> [YouthChartPoint] {
+        var points = stages.compactMap { stage -> YouthChartPoint? in
+            guard let rating = stage.peakRating else { return nil }
+            return YouthChartPoint(
+                stage: stage.stage,
+                value: Double(rating),
+                label: "\(rating)",
+                subtitle: "FIDE 峰值"
+            )
+        }
+
+        if points.isEmpty, let currentStage = currentYouthStage(birthYear: candidate.birthYear) {
+            let ratings = [candidate.standardRating, candidate.rapidRating, candidate.blitzRating].compactMap { $0 }
+            if let rating = ratings.max() {
+                points.append(
+                    YouthChartPoint(
+                        stage: currentStage,
+                        value: Double(rating),
+                        label: "\(rating)",
+                        subtitle: "当前 FIDE"
+                    )
+                )
+            }
+        }
+        return points
+    }
+
+    private static func peakRating(for stage: YouthStage, candidate: PlayerCandidate) -> Int? {
+        guard let birthYear = candidate.birthYear else { return nil }
+        let preferredKind = preferredRatingKind(candidate.fideRatingHistory)
+        let ratings = candidate.fideRatingHistory.compactMap { snapshot -> Int? in
+            guard preferredKind == nil || snapshot.kind == preferredKind else { return nil }
+            guard YouthStage.stage(forAge: snapshot.year - birthYear) == stage else { return nil }
+            return snapshot.rating
+        }
+        return ratings.max()
+    }
+
+    private static func preferredRatingKind(_ snapshots: [FIDERatingSnapshot]) -> FIDERatingSnapshot.Kind? {
+        for kind in [FIDERatingSnapshot.Kind.standard, .rapid, .blitz] where snapshots.contains(where: { $0.kind == kind }) {
+            return kind
+        }
+        return nil
+    }
+
+    private static func currentBestRating(_ candidate: PlayerCandidate) -> Int? {
+        [candidate.standardRating, candidate.rapidRating, candidate.blitzRating].compactMap { $0 }.max()
+    }
+
+    private static func eventStage(for event: TournamentEvent, birthYear: Int?) -> YouthStage? {
+        if
+            let birthYear,
+            let date = event.endDate
+        {
+            let eventYear = Calendar(identifier: .gregorian).component(.year, from: date)
+            if let stage = YouthStage.stage(forAge: eventYear - birthYear) {
+                return stage
+            }
+        }
+        return YouthStage.stage(fromEventName: event.name)
+    }
+
+    private static func status(for stage: YouthStage, birthYear: Int?) -> YouthStageStatus {
+        guard let birthYear else { return .unknown }
+        let currentYear = Calendar(identifier: .gregorian).component(.year, from: Date())
+        let currentAge = currentYear - birthYear
+        if currentAge > stage.upperAge {
+            return .completed
+        }
+        if currentAge > stage.previousUpperAge {
+            return .current
+        }
+        return .upcoming
+    }
+
     private static func sha256Hex(_ value: String) -> String {
         SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
@@ -794,6 +970,10 @@ private extension String {
 }
 
 private extension Array where Element: Hashable {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+
     func orderedUnique() -> [Element] {
         var seen: Set<Element> = []
         var result: [Element] = []

@@ -8,6 +8,7 @@ struct FIDEPlayerProfile: Hashable {
     let standardRating: Int?
     let rapidRating: Int?
     let blitzRating: Int?
+    var ratingHistory: [FIDERatingSnapshot] = []
 
     var candidate: PlayerCandidate {
         PlayerCandidate(
@@ -15,12 +16,17 @@ struct FIDEPlayerProfile: Hashable {
             displayName: name,
             fideID: fideID,
             federation: federation,
+            birthYear: year,
+            standardRating: standardRating,
+            rapidRating: rapidRating,
+            blitzRating: blitzRating,
             clubs: [],
             nameVariants: aliases,
             latestEventDate: nil,
             eventCount: 0,
             source: "FIDE",
-            events: []
+            events: [],
+            fideRatingHistory: ratingHistory
         )
     }
 
@@ -80,7 +86,9 @@ actor FIDEPlayerClient {
         let data = try await load(url)
         let decoder = JSONDecoder()
         guard let payload = try? decoder.decode(FIDEPlayerPayload.self, from: data) else { return nil }
-        return payload.profile
+        var profile = payload.profile
+        profile.ratingHistory = (try? await ratingHistory(fideID: fideID, name: profile.name)) ?? []
+        return profile
     }
 
     private func searchProfiles(query: String) async throws -> [FIDEPlayerProfile] {
@@ -105,6 +113,51 @@ actor FIDEPlayerClient {
     private func parseSearchResults(_ html: String) -> [FIDEPlayerProfile] {
         HTMLTools.matches(pattern: #"<tr\b[^>]*class="[^"]*paginated[^"]*"[^>]*>.*?</tr>"#, in: html)
             .compactMap(parseRow)
+    }
+
+    private func ratingHistory(fideID: String, name: String) async throws -> [FIDERatingSnapshot] {
+        guard let url = URL(string: "https://lichess.org/fide/\(fideID)/\(slug(for: name))") else {
+            return []
+        }
+        let data = try await load(url)
+        guard let html = String(data: data, encoding: .utf8) else { return [] }
+        return parseRatingHistory(html)
+    }
+
+    private func parseRatingHistory(_ html: String) -> [FIDERatingSnapshot] {
+        var snapshots: [FIDERatingSnapshot] = []
+        for kind in [FIDERatingSnapshot.Kind.standard, .rapid, .blitz] {
+            snapshots.append(contentsOf: parseRatingArray(kind: kind, html: html))
+        }
+        return snapshots.sorted {
+            if $0.year != $1.year { return $0.year < $1.year }
+            if $0.month != $1.month { return $0.month < $1.month }
+            return $0.kind.rawValue < $1.kind.rawValue
+        }
+    }
+
+    private func parseRatingArray(kind: FIDERatingSnapshot.Kind, html: String) -> [FIDERatingSnapshot] {
+        let pattern = #""\#(kind.rawValue)"\s*:\s*\[([0-9,\s]*)\]"#
+        guard
+            let regex = try? NSRegularExpression(pattern: pattern),
+            let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..<html.endIndex, in: html)),
+            let range = Range(match.range(at: 1), in: html)
+        else {
+            return []
+        }
+
+        return html[range]
+            .split(separator: ",")
+            .compactMap { encoded -> FIDERatingSnapshot? in
+                let text = encoded.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard text.count >= 7, let value = Int(text) else { return nil }
+                let rating = value % 10_000
+                let monthValue = value / 10_000
+                let year = monthValue / 100
+                let month = monthValue % 100
+                guard (1...12).contains(month), rating > 0 else { return nil }
+                return FIDERatingSnapshot(kind: kind, year: year, month: month, rating: rating)
+            }
     }
 
     private func parseRow(_ row: String) -> FIDEPlayerProfile? {
@@ -184,6 +237,12 @@ actor FIDEPlayerClient {
 
     private func bestRating(_ profile: FIDEPlayerProfile) -> Int {
         max(profile.standardRating ?? 0, profile.rapidRating ?? 0, profile.blitzRating ?? 0)
+    }
+
+    private func slug(for name: String) -> String {
+        name
+            .replacingOccurrences(of: "[^A-Za-z0-9]+", with: "_", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
     }
 
     private func normalized(_ value: String) -> String {

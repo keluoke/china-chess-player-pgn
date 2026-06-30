@@ -434,6 +434,8 @@ private struct PlayerDetailView: View {
 }
 
 private struct PlayerDashboardView: View {
+    @State private var chartKind: DashboardChartKind = .elo
+
     let candidate: PlayerCandidate
     let stats: PlayerDashboardStats
 
@@ -471,8 +473,11 @@ private struct PlayerDashboardView: View {
                 DashboardMetricCard(title: "赛事索引", value: "\(stats.eventCount)", subtitle: "近十年", symbol: "calendar")
                 DashboardMetricCard(title: "前三名", value: "\(stats.topThreeCount)", subtitle: "冠军 \(stats.firstPlaceCount)", symbol: "trophy")
                 DashboardMetricCard(title: "PGN 缓存", value: "\(stats.cachedPGNArchives)", subtitle: "\(stats.cachedGames) 盘", symbol: "archivebox")
-                DashboardMetricCard(title: "活跃年份", value: stats.activeYearsText, subtitle: stats.latestEventText, symbol: "chart.line.uptrend.xyaxis")
+                DashboardMetricCard(title: "青少年阶段", value: stats.currentStage?.rawValue ?? "-", subtitle: stats.birthYear.map { "\($0) 出生" } ?? "待补出生年", symbol: "flag.checkered")
             }
+
+            YouthStageTimelineView(stages: stats.youthStages)
+            YouthChartSwitcher(kind: $chartKind, stats: stats)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -482,6 +487,255 @@ private struct PlayerDashboardView: View {
                 .stroke(Color.panelBorder)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private enum DashboardChartKind: String, CaseIterable, Identifiable {
+    case elo = "FIDE ELO"
+    case rank = "大赛名次"
+
+    var id: String { rawValue }
+}
+
+private struct YouthStageTimelineView: View {
+    let stages: [YouthStageSummary]
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 6)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("青少年阶段")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.appTextSecondary)
+
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(stages) { stage in
+                    YouthStageCard(summary: stage)
+                }
+            }
+        }
+    }
+}
+
+private struct YouthStageCard: View {
+    let summary: YouthStageSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(summary.stage.rawValue)
+                    .font(.headline.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(Color.appText)
+                Spacer()
+                Circle()
+                    .fill(statusColor)
+                    .frame(width: 8, height: 8)
+            }
+
+            Text(summary.status.label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(statusColor)
+                .lineLimit(1)
+
+            Text(summary.status == .upcoming && summary.eventCount == 0 ? "未完待续" : "\(summary.eventCount) 场")
+                .font(.caption)
+                .foregroundStyle(Color.appTextSecondary)
+                .lineLimit(1)
+
+            HStack(spacing: 4) {
+                Text(summary.rankText)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(Color.appText)
+                Spacer(minLength: 2)
+                Text(summary.ratingText)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
+        .background(Color.statBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(summary.status == .current ? Color.appAccent : Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var statusColor: Color {
+        switch summary.status {
+        case .completed:
+            Color.appTextSecondary
+        case .current:
+            Color.appAccent
+        case .upcoming:
+            Color(red: 0.58, green: 0.50, blue: 0.30)
+        case .unknown:
+            Color.appTextSecondary.opacity(0.7)
+        }
+    }
+}
+
+private struct YouthChartSwitcher: View {
+    @Binding var kind: DashboardChartKind
+    let stats: PlayerDashboardStats
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("成长曲线")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.appTextSecondary)
+
+                Spacer()
+
+                Picker("", selection: $kind) {
+                    ForEach(DashboardChartKind.allCases) { chartKind in
+                        Text(chartKind.rawValue).tag(chartKind)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 220)
+            }
+
+            StageLineChart(
+                points: points,
+                invertY: kind == .rank,
+                emptyText: emptyText
+            )
+            .frame(height: 230)
+        }
+        .padding(14)
+        .background(Color.statBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var points: [YouthChartPoint] {
+        switch kind {
+        case .elo:
+            stats.eloChartPoints
+        case .rank:
+            stats.rankChartPoints
+        }
+    }
+
+    private var emptyText: String {
+        switch kind {
+        case .elo:
+            "暂无 FIDE 分阶段数据"
+        case .rank:
+            "暂无大赛名次数据"
+        }
+    }
+}
+
+private struct StageLineChart: View {
+    let points: [YouthChartPoint]
+    let invertY: Bool
+    let emptyText: String
+
+    private let stages = YouthStage.allCases
+
+    var body: some View {
+        GeometryReader { proxy in
+            let chartRect = CGRect(
+                x: 42,
+                y: 18,
+                width: max(proxy.size.width - 64, 1),
+                height: max(proxy.size.height - 58, 1)
+            )
+
+            ZStack(alignment: .topLeading) {
+                chartGrid(in: chartRect)
+
+                if points.isEmpty {
+                    Text(emptyText)
+                        .font(.callout)
+                        .foregroundStyle(Color.appTextSecondary)
+                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
+                } else {
+                    Path { path in
+                        for (index, point) in points.enumerated() {
+                            let position = position(for: point, in: chartRect)
+                            if index == 0 {
+                                path.move(to: position)
+                            } else {
+                                path.addLine(to: position)
+                            }
+                        }
+                    }
+                    .stroke(Color.appAccent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+
+                    ForEach(points) { point in
+                        let position = position(for: point, in: chartRect)
+                        VStack(spacing: 4) {
+                            Text(point.label)
+                                .font(.caption2.monospacedDigit().weight(.semibold))
+                                .foregroundStyle(Color.appText)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color.panelBackground)
+                                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            Circle()
+                                .fill(Color.appAccent)
+                                .frame(width: 8, height: 8)
+                        }
+                        .position(x: position.x, y: position.y - 13)
+                        .help(point.subtitle)
+                    }
+                }
+
+                ForEach(Array(stages.enumerated()), id: \.element) { index, stage in
+                    Text(stage.rawValue)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(Color.appTextSecondary)
+                        .frame(width: 36)
+                        .position(
+                            x: xPosition(forStageIndex: index, in: chartRect),
+                            y: chartRect.maxY + 18
+                        )
+                }
+            }
+        }
+    }
+
+    private func chartGrid(in rect: CGRect) -> some View {
+        ZStack(alignment: .topLeading) {
+            Path { path in
+                for step in 0...3 {
+                    let y = rect.minY + rect.height * CGFloat(step) / 3
+                    path.move(to: CGPoint(x: rect.minX, y: y))
+                    path.addLine(to: CGPoint(x: rect.maxX, y: y))
+                }
+            }
+            .stroke(Color.panelBorder.opacity(0.7), lineWidth: 1)
+
+            Path { path in
+                path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+                path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+                path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            }
+            .stroke(Color.panelBorder, lineWidth: 1)
+        }
+    }
+
+    private func position(for point: YouthChartPoint, in rect: CGRect) -> CGPoint {
+        let stageIndex = stages.firstIndex(of: point.stage) ?? 0
+        let values = points.map(\.value)
+        let minValue = values.min() ?? 0
+        let maxValue = values.max() ?? 1
+        let range = max(maxValue - minValue, 1)
+        let normalized = (point.value - minValue) / range
+        let yFactor = maxValue == minValue ? 0.5 : (invertY ? normalized : 1 - normalized)
+        return CGPoint(
+            x: xPosition(forStageIndex: stageIndex, in: rect),
+            y: rect.minY + rect.height * CGFloat(yFactor)
+        )
+    }
+
+    private func xPosition(forStageIndex index: Int, in rect: CGRect) -> CGFloat {
+        guard stages.count > 1 else { return rect.midX }
+        return rect.minX + rect.width * CGFloat(index) / CGFloat(stages.count - 1)
     }
 }
 
