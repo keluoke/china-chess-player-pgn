@@ -63,22 +63,52 @@ final class LocalChessRepository {
         )
 
         return try rows.map { row in
-            let playerID = row[0]
-            let aliases = try aliases(for: playerID)
-            let events = try events(for: playerID, includeLikelyTestEvents: includeLikelyTestEvents)
-            return PlayerCandidate(
-                id: playerID,
-                displayName: row[4].nilIfBlank ?? row[2].nilIfBlank ?? row[3].nilIfBlank ?? "未知棋手",
-                fideID: row[1].nilIfBlank,
-                federation: row[5].nilIfBlank ?? "CHN",
-                clubs: try clubs(for: playerID),
-                nameVariants: aliases,
-                latestEventDate: events.first?.endDate,
-                eventCount: events.count,
-                source: "本地库",
-                events: events
+            try candidate(from: row, includeLikelyTestEvents: includeLikelyTestEvents)
+        }
+    }
+
+    func recommendedYouthPlayers(includeLikelyTestEvents: Bool) throws -> [RecommendedYouthPlayer] {
+        try ensureReady()
+        return try RecommendedYouthSeeds.players.compactMap { seed in
+            guard let candidate = try candidate(
+                for: "fide-\(seed.fideID)",
+                includeLikelyTestEvents: includeLikelyTestEvents
+            ) else {
+                return nil
+            }
+            return RecommendedYouthPlayer(
+                seed: seed,
+                candidate: candidate,
+                dashboard: try dashboardStats(for: candidate)
             )
         }
+    }
+
+    func dashboardStats(for candidate: PlayerCandidate) throws -> PlayerDashboardStats {
+        try ensureReady()
+        let playerID = stablePlayerID(for: candidate)
+        let archiveRows = try select(
+            """
+            SELECT COUNT(*), COALESCE(SUM(game_count), 0)
+            FROM pgn_archives
+            WHERE player_id = ?
+            """,
+            [playerID]
+        )
+        let archiveCount = Int(archiveRows.first?.first ?? "") ?? 0
+        let cachedGames = Int(archiveRows.first?.dropFirst().first ?? "") ?? 0
+        let datedEvents = candidate.events.compactMap(\.endDate)
+        let numericRanks = candidate.events.compactMap { Self.numericRank($0.rank) }
+
+        return PlayerDashboardStats(
+            eventCount: candidate.events.count,
+            cachedPGNArchives: archiveCount,
+            cachedGames: cachedGames,
+            firstPlaceCount: numericRanks.filter { $0 == 1 }.count,
+            topThreeCount: numericRanks.filter { $0 <= 3 }.count,
+            earliestEventDate: datedEvents.min(),
+            latestEventDate: datedEvents.max()
+        )
     }
 
     func fideIDsForQuery(_ query: String) throws -> [String] {
@@ -362,6 +392,38 @@ final class LocalChessRepository {
         for event in candidate.events {
             try upsert(event: event, playerID: playerID)
         }
+    }
+
+    private func candidate(for playerID: String, includeLikelyTestEvents: Bool) throws -> PlayerCandidate? {
+        let rows = try select(
+            """
+            SELECT id, fide_id, chinese_name, pinyin_name, english_name, federation
+            FROM players
+            WHERE id = ?
+            LIMIT 1
+            """,
+            [playerID]
+        )
+        guard let row = rows.first else { return nil }
+        return try candidate(from: row, includeLikelyTestEvents: includeLikelyTestEvents)
+    }
+
+    private func candidate(from row: [String], includeLikelyTestEvents: Bool) throws -> PlayerCandidate {
+        let playerID = row[0]
+        let aliases = try aliases(for: playerID)
+        let events = try events(for: playerID, includeLikelyTestEvents: includeLikelyTestEvents)
+        return PlayerCandidate(
+            id: playerID,
+            displayName: Self.displayName(chinese: row[2], pinyin: row[3], english: row[4]),
+            fideID: row[1].nilIfBlank,
+            federation: row[5].nilIfBlank ?? "CHN",
+            clubs: try clubs(for: playerID),
+            nameVariants: aliases,
+            latestEventDate: events.first?.endDate,
+            eventCount: events.count,
+            source: "本地库",
+            events: events
+        )
     }
 
     private func upsert(player candidate: PlayerCandidate) throws {
@@ -648,6 +710,16 @@ final class LocalChessRepository {
             .lowercased()
             .replacingOccurrences(of: "[\\s,.'·，。\\-_]+", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func displayName(chinese: String, pinyin: String, english: String) -> String {
+        chinese.nilIfBlank ?? english.nilIfBlank ?? pinyin.nilIfBlank ?? "未知棋手"
+    }
+
+    private static func numericRank(_ rank: String) -> Int? {
+        let trimmed = rank.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let range = trimmed.range(of: #"^\d+"#, options: .regularExpression) else { return nil }
+        return Int(trimmed[range])
     }
 
     private static func sha256Hex(_ value: String) -> String {

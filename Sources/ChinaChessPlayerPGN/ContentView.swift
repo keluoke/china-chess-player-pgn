@@ -6,7 +6,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             SearchSidebar()
-                .navigationSplitViewColumnWidth(min: 360, ideal: 380, max: 440)
+                .navigationSplitViewColumnWidth(min: 320, ideal: 350, max: 420)
         } detail: {
             HSplitView {
                 EventListView()
@@ -36,6 +36,8 @@ private struct SearchSidebar: View {
                     .frame(minHeight: 34, alignment: .topLeading)
             }
             .padding(.top, 8)
+
+            HomeSidebarButton()
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("棋手搜索")
@@ -132,6 +134,38 @@ private struct SearchSidebar: View {
     }
 }
 
+private struct HomeSidebarButton: View {
+    @EnvironmentObject private var store: AppStore
+
+    var body: some View {
+        Button {
+            store.showHome()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "house")
+                    .frame(width: 20)
+                Text("首页")
+                    .font(.callout.weight(.medium))
+                Spacer()
+                Text("\(store.recommendedYouthPlayers.count)")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+            .foregroundStyle(Color.appText)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(store.selectedCandidateID == nil ? Color.selectionBackground : Color.panelBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(store.selectedCandidateID == nil ? Color.appAccent : Color.panelBorder)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help("首页")
+    }
+}
+
 private struct CandidateRow: View {
     let candidate: PlayerCandidate
     let isSelected: Bool
@@ -198,16 +232,187 @@ private struct EventListView: View {
     @EnvironmentObject private var store: AppStore
 
     var body: some View {
+        Group {
+            if store.selectedCandidate == nil {
+                HomeView()
+            } else {
+                PlayerDetailView()
+            }
+        }
+        .background(Color.appCanvas)
+    }
+}
+
+private struct HomeView: View {
+    @EnvironmentObject private var store: AppStore
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 250), spacing: 12)
+    ]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("首页")
+                            .font(.largeTitle.weight(.semibold))
+                            .foregroundStyle(Color.appText)
+                        Text("中国优秀青少年棋手")
+                            .font(.title3)
+                            .foregroundStyle(Color.appTextSecondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        store.refreshDatabaseStats()
+                        store.loadHomepage()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.bordered)
+                    .help("刷新")
+                }
+
+                HomeCacheSummaryView()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("重点推荐")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.appText)
+
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                        ForEach(store.recommendedYouthPlayers) { item in
+                            RecommendedYouthCard(item: item) {
+                                store.selectCandidate(item.candidate)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(24)
+        }
+    }
+}
+
+private struct HomeCacheSummaryView: View {
+    @EnvironmentObject private var store: AppStore
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("本地缓存")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Color.appText)
+                Spacer()
+                Button {
+                    store.revealDatabaseFolder()
+                } label: {
+                    Label("目录", systemImage: "folder")
+                }
+                .buttonStyle(.bordered)
+            }
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                DashboardMetricCard(title: "棋手", value: "\(store.databaseStats.players)", subtitle: "唯一 ID", symbol: "person.crop.circle")
+                DashboardMetricCard(title: "赛事", value: "\(store.databaseStats.events)", subtitle: "索引", symbol: "calendar")
+                DashboardMetricCard(title: "PGN", value: "\(store.databaseStats.pgnArchives)", subtitle: store.databaseStats.pgnSizeText, symbol: "archivebox")
+                DashboardMetricCard(title: "棋局", value: "\(store.databaseStats.games)", subtitle: "已解析", symbol: "checkerboard.rectangle")
+            }
+        }
+        .padding(16)
+        .background(Color.panelBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct RecommendedYouthCard: View {
+    let item: RecommendedYouthPlayer
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(item.displayName)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.appText)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(item.seed.birthYear)
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(Color.appTextSecondary)
+                }
+
+                Text(item.subtitle)
+                    .font(.callout)
+                    .foregroundStyle(Color.appTextSecondary)
+                    .lineLimit(1)
+
+                Text(item.seed.focus)
+                    .font(.callout)
+                    .foregroundStyle(Color.appText)
+                    .lineLimit(2)
+                    .frame(minHeight: 38, alignment: .topLeading)
+
+                HStack(spacing: 6) {
+                    ForEach(Array(item.seed.tags.prefix(3)), id: \.self) { tag in
+                        TagPill(text: tag)
+                    }
+                }
+
+                Divider()
+
+                HStack(spacing: 8) {
+                    MiniMetric(title: "赛事", value: "\(item.dashboard.eventCount)")
+                    MiniMetric(title: "前三", value: "\(item.dashboard.topThreeCount)")
+                    MiniMetric(title: "缓存", value: "\(item.dashboard.cachedGames)")
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 210, alignment: .topLeading)
+            .background(Color.panelBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(Color.panelBorder)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct PlayerDetailView: View {
+    @EnvironmentObject private var store: AppStore
+
+    var body: some View {
         VStack(spacing: 0) {
             EventToolbar()
             Divider()
 
             if let candidate = store.selectedCandidate {
-                if candidate.events.isEmpty {
-                    ContentUnavailableView("没有近十年赛事", systemImage: "calendar.badge.exclamationmark")
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        PlayerDashboardView(candidate: candidate, stats: store.selectedDashboardStats)
+                            .padding(18)
+
+                        if candidate.events.isEmpty {
+                            ContentUnavailableView("没有近十年赛事", systemImage: "calendar.badge.exclamationmark")
+                                .frame(minHeight: 280)
+                        } else {
                             Section {
                                 ForEach(candidate.events) { event in
                                     EventRow(
@@ -223,11 +428,129 @@ private struct EventListView: View {
                         }
                     }
                 }
-            } else {
-                ContentUnavailableView("选择棋手", systemImage: "person.text.rectangle")
             }
         }
-        .background(Color.appCanvas)
+    }
+}
+
+private struct PlayerDashboardView: View {
+    let candidate: PlayerCandidate
+    let stats: PlayerDashboardStats
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("重点数据")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.appText)
+                    Text(candidate.detailLine)
+                        .font(.callout)
+                        .foregroundStyle(Color.appTextSecondary)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                if let url = candidate.profileURL {
+                    Link(destination: url) {
+                        Label("FIDE", systemImage: "arrow.up.right.square")
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                DashboardMetricCard(title: "赛事索引", value: "\(stats.eventCount)", subtitle: "近十年", symbol: "calendar")
+                DashboardMetricCard(title: "前三名", value: "\(stats.topThreeCount)", subtitle: "冠军 \(stats.firstPlaceCount)", symbol: "trophy")
+                DashboardMetricCard(title: "PGN 缓存", value: "\(stats.cachedPGNArchives)", subtitle: "\(stats.cachedGames) 盘", symbol: "archivebox")
+                DashboardMetricCard(title: "活跃年份", value: stats.activeYearsText, subtitle: stats.latestEventText, symbol: "chart.line.uptrend.xyaxis")
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.panelBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct DashboardMetricCard: View {
+    let title: String
+    let value: String
+    let subtitle: String
+    let symbol: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: symbol)
+                    .foregroundStyle(Color.appAccent)
+                    .frame(width: 18)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.appTextSecondary)
+                    .lineLimit(1)
+            }
+
+            Text(value)
+                .font(.title2.monospacedDigit().weight(.semibold))
+                .foregroundStyle(Color.appText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(Color.appTextSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
+        .background(Color.statBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct MiniMetric: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(Color.appTextSecondary)
+            Text(value)
+                .font(.callout.monospacedDigit().weight(.semibold))
+                .foregroundStyle(Color.appText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct TagPill: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(Color.appAccent)
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(Color.selectionBackground)
+            .clipShape(Capsule())
     }
 }
 

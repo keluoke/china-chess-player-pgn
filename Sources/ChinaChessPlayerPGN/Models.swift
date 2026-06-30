@@ -24,6 +24,57 @@ struct PlayerCandidate: Identifiable, Hashable {
     }
 }
 
+struct RecommendedYouthPlayer: Identifiable, Hashable {
+    let seed: RecommendedYouthSeed
+    let candidate: PlayerCandidate
+    let dashboard: PlayerDashboardStats
+
+    var id: String {
+        candidate.id
+    }
+
+    var displayName: String {
+        seed.chineseName.isEmpty ? candidate.displayName : seed.chineseName
+    }
+
+    var subtitle: String {
+        "\(seed.pinyinName) · \(seed.englishName)"
+    }
+}
+
+struct PlayerDashboardStats: Hashable {
+    var eventCount = 0
+    var cachedPGNArchives = 0
+    var cachedGames = 0
+    var firstPlaceCount = 0
+    var topThreeCount = 0
+    var earliestEventDate: Date?
+    var latestEventDate: Date?
+
+    var activeYearsText: String {
+        let calendar = Calendar(identifier: .gregorian)
+        let firstYear = earliestEventDate.map { calendar.component(.year, from: $0) }
+        let latestYear = latestEventDate.map { calendar.component(.year, from: $0) }
+
+        switch (firstYear, latestYear) {
+        case let (.some(first), .some(latest)) where first == latest:
+            return "\(latest)"
+        case let (.some(first), .some(latest)):
+            return "\(first)-\(latest)"
+        case let (.none, .some(latest)):
+            return "\(latest)"
+        case let (.some(first), .none):
+            return "\(first)"
+        case (.none, .none):
+            return "-"
+        }
+    }
+
+    var latestEventText: String {
+        latestEventDate.map { AppFormatters.shortDate.string(from: $0) } ?? "-"
+    }
+}
+
 struct TournamentEvent: Identifiable, Hashable {
     let id: String
     let tournamentID: String

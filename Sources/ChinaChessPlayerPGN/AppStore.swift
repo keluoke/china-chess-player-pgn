@@ -18,6 +18,8 @@ final class AppStore: ObservableObject {
     @Published var downloadProgress = 0.0
     @Published var savedFileURL: URL?
     @Published var databaseStats = DatabaseStats()
+    @Published var recommendedYouthPlayers: [RecommendedYouthPlayer] = []
+    @Published var selectedDashboardStats = PlayerDashboardStats()
 
     private let client = ChessResultsClient()
     private let repository = LocalChessRepository()
@@ -25,10 +27,12 @@ final class AppStore: ObservableObject {
 
     init() {
         refreshDatabaseStats()
+        loadHomepage()
     }
 
     var selectedCandidate: PlayerCandidate? {
         candidates.first { $0.id == selectedCandidateID }
+            ?? recommendedYouthPlayers.map(\.candidate).first { $0.id == selectedCandidateID }
     }
 
     var selectedEvents: [TournamentEvent] {
@@ -73,6 +77,7 @@ final class AppStore: ObservableObject {
         selectedCandidateID = nil
         selectedEventIDs = []
         downloadResults = []
+        selectedDashboardStats = PlayerDashboardStats()
         latestMergedPGN = ""
         savedFileURL = nil
         statusText = "正在查询本地库"
@@ -86,8 +91,7 @@ final class AppStore: ObservableObject {
                 )
                 if !local.isEmpty {
                     candidates = local
-                    selectedCandidateID = local.first?.id
-                    selectedEventIDs = Set(local.first?.events.prefix(8).map(\.id) ?? [])
+                    applyDefaultSelection(local.first)
                     refreshDatabaseStats()
                     if !autoRefreshOnline, local.contains(where: { !$0.events.isEmpty }) {
                         statusText = "本地命中 \(local.count) 个候选；未联网"
@@ -117,9 +121,9 @@ final class AppStore: ObservableObject {
                 )
                 let found = refreshedLocal.isEmpty ? online : refreshedLocal
                 candidates = found
-                selectedCandidateID = found.first?.id
-                selectedEventIDs = Set(found.first?.events.prefix(8).map(\.id) ?? [])
+                applyDefaultSelection(found.first)
                 refreshDatabaseStats()
+                loadHomepage()
                 statusText = found.isEmpty ? "未找到匹配棋手" : "找到 \(found.count) 个候选棋手，本地库已更新"
             } catch {
                 statusText = error.localizedDescription
@@ -128,12 +132,38 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func loadHomepage() {
+        do {
+            recommendedYouthPlayers = try repository.recommendedYouthPlayers(
+                includeLikelyTestEvents: includeLikelyTestEvents
+            )
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func showHome() {
+        selectedCandidateID = nil
+        selectedEventIDs = []
+        selectedDashboardStats = PlayerDashboardStats()
+        downloadResults = []
+        latestMergedPGN = ""
+        savedFileURL = nil
+        statusText = "首页"
+        refreshDatabaseStats()
+        loadHomepage()
+    }
+
     func selectCandidate(_ candidate: PlayerCandidate) {
+        if !candidates.contains(where: { $0.id == candidate.id }) {
+            candidates.insert(candidate, at: 0)
+        }
         selectedCandidateID = candidate.id
         selectedEventIDs = Set(candidate.events.prefix(8).map(\.id))
         downloadResults = []
         latestMergedPGN = ""
         savedFileURL = nil
+        updateDashboard(for: candidate)
         statusText = "已选择 \(candidate.displayName)"
     }
 
@@ -195,6 +225,7 @@ final class AppStore: ObservableObject {
                         if !pgn.isEmpty {
                             _ = try repository.storePGN(pgn, event: event, player: candidate)
                             refreshDatabaseStats()
+                            updateDashboard(for: candidate)
                         }
                     }
                     results.append(PGNDownloadResult(event: event, status: status, pgn: pgn))
@@ -261,6 +292,25 @@ final class AppStore: ObservableObject {
 
     func revealDatabaseFolder() {
         NSWorkspace.shared.activateFileViewerSelecting([repository.databaseLocation])
+    }
+
+    private func applyDefaultSelection(_ candidate: PlayerCandidate?) {
+        selectedCandidateID = candidate?.id
+        selectedEventIDs = Set(candidate?.events.prefix(8).map(\.id) ?? [])
+        if let candidate {
+            updateDashboard(for: candidate)
+        } else {
+            selectedDashboardStats = PlayerDashboardStats()
+        }
+    }
+
+    private func updateDashboard(for candidate: PlayerCandidate) {
+        do {
+            selectedDashboardStats = try repository.dashboardStats(for: candidate)
+        } catch {
+            selectedDashboardStats = PlayerDashboardStats(eventCount: candidate.events.count)
+            statusText = error.localizedDescription
+        }
     }
 
     private func onlineCandidates(
