@@ -45,9 +45,12 @@ private struct SearchSidebar: View {
                     .foregroundStyle(Color.appTextSecondary)
 
                 HStack(spacing: 8) {
-                    TextField("王皓 / wang hao / 8602883", text: $store.query)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit { store.search() }
+                    SearchInputField(
+                        text: $store.query,
+                        placeholder: "王皓 / wang hao / 8602883"
+                    ) {
+                        store.search()
+                    }
 
                     Button {
                         store.search()
@@ -131,6 +134,44 @@ private struct SearchSidebar: View {
         }
         .padding(18)
         .background(Color.sidebarBackground)
+    }
+}
+
+private struct SearchInputField: View {
+    @Binding var text: String
+    let placeholder: String
+    let onSubmit: () -> Void
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(isFocused ? Color.appAccent : Color.appTextSecondary)
+                .frame(width: 18)
+
+            TextField(
+                "",
+                text: $text,
+                prompt: Text(placeholder).foregroundStyle(Color.appPlaceholder)
+            )
+            .textFieldStyle(.plain)
+            .font(.callout)
+            .foregroundStyle(Color.appText)
+            .focused($isFocused)
+            .onSubmit(onSubmit)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(minHeight: 38)
+        .background(Color.inputBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isFocused ? Color.appAccentStrong : Color.panelBorder, lineWidth: isFocused ? 1.6 : 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -469,6 +510,8 @@ private struct PlayerDashboardView: View {
                 }
             }
 
+            YouthProgressRail(stages: stats.youthStages)
+
             LazyVGrid(columns: columns, spacing: 10) {
                 DashboardMetricCard(title: "赛事索引", value: "\(stats.eventCount)", subtitle: "近十年", symbol: "calendar")
                 DashboardMetricCard(title: "前三名", value: "\(stats.topThreeCount)", subtitle: "冠军 \(stats.firstPlaceCount)", symbol: "trophy")
@@ -517,6 +560,117 @@ private struct YouthStageTimelineView: View {
     }
 }
 
+private struct YouthProgressRail: View {
+    let stages: [YouthStageSummary]
+
+    @State private var reveal = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("阶段进度")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.appTextSecondary)
+                Spacer()
+                Text(stageCaption)
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(Color.appAccentStrong)
+            }
+
+            GeometryReader { proxy in
+                let inset: CGFloat = 14
+                let width = max(proxy.size.width - inset * 2, 1)
+                let step = width / CGFloat(max(stages.count - 1, 1))
+                let activeIndex = activeStageIndex
+
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.panelBorder.opacity(0.7))
+                        .frame(height: 4)
+                        .position(x: inset + width / 2, y: 16)
+
+                    Capsule()
+                        .fill(Color.appAccentStrong)
+                        .frame(width: reveal ? step * CGFloat(activeIndex) : 0, height: 4)
+                        .position(x: inset + (reveal ? step * CGFloat(activeIndex) : 0) / 2, y: 16)
+
+                    ForEach(Array(stages.enumerated()), id: \.element.id) { index, stage in
+                        VStack(spacing: 6) {
+                            ZStack {
+                                Circle()
+                                    .fill(circleFill(for: stage))
+                                    .frame(width: stage.status == .current ? 20 : 16, height: stage.status == .current ? 20 : 16)
+                                    .shadow(
+                                        color: stage.status == .current ? Color.appAccentStrong.opacity(0.25) : .clear,
+                                        radius: 7,
+                                        y: 2
+                                    )
+                                Circle()
+                                    .stroke(circleStroke(for: stage), lineWidth: 2)
+                                    .frame(width: 22, height: 22)
+                            }
+
+                            Text(stage.stage.rawValue)
+                                .font(.caption2.monospacedDigit().weight(stage.status == .current ? .semibold : .regular))
+                                .foregroundStyle(stage.status == .current ? Color.appText : Color.appTextSecondary)
+                        }
+                        .position(x: inset + step * CGFloat(index), y: 25)
+                    }
+                }
+            }
+            .frame(height: 58)
+        }
+        .padding(14)
+        .background(Color.chartSurface)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.65)) {
+                reveal = true
+            }
+        }
+        .onChange(of: stages) { _, _ in
+            reveal = false
+            withAnimation(.easeOut(duration: 0.65)) {
+                reveal = true
+            }
+        }
+    }
+
+    private var activeStageIndex: Int {
+        stages.lastIndex { $0.status == .completed || $0.status == .current } ?? 0
+    }
+
+    private var stageCaption: String {
+        stages.first { $0.status == .current }?.stage.rawValue ?? "待补"
+    }
+
+    private func circleFill(for stage: YouthStageSummary) -> Color {
+        switch stage.status {
+        case .completed, .current:
+            Color.appAccentStrong
+        case .upcoming:
+            Color.panelBackground
+        case .unknown:
+            Color.statBackground
+        }
+    }
+
+    private func circleStroke(for stage: YouthStageSummary) -> Color {
+        switch stage.status {
+        case .completed, .current:
+            Color.appAccentStrong
+        case .upcoming:
+            Color.stageFutureBorder
+        case .unknown:
+            Color.panelBorder
+        }
+    }
+}
+
 private struct YouthStageCard: View {
     let summary: YouthStageSummary
 
@@ -554,12 +708,31 @@ private struct YouthStageCard: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
-        .background(Color.statBackground)
+        .background(cardBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(summary.status == .current ? Color.appAccent : Color.panelBorder)
+                .stroke(summary.status == .current ? Color.appAccentStrong : Color.panelBorder, lineWidth: summary.status == .current ? 1.5 : 1)
         )
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(statusColor)
+                .frame(width: 3)
+                .padding(.vertical, 10)
+                .opacity(summary.status == .unknown ? 0.25 : 1)
+        }
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: summary.status == .current ? Color.appAccentStrong.opacity(0.12) : .clear, radius: 9, y: 3)
+    }
+
+    private var cardBackground: Color {
+        switch summary.status {
+        case .current:
+            Color.stageCurrentBackground
+        case .upcoming:
+            Color.stageFutureBackground
+        case .completed, .unknown:
+            Color.statBackground
+        }
     }
 
     private var statusColor: Color {
@@ -567,9 +740,9 @@ private struct YouthStageCard: View {
         case .completed:
             Color.appTextSecondary
         case .current:
-            Color.appAccent
+            Color.appAccentStrong
         case .upcoming:
-            Color(red: 0.58, green: 0.50, blue: 0.30)
+            Color.stageFutureAccent
         case .unknown:
             Color.appTextSecondary.opacity(0.7)
         }
@@ -589,13 +762,7 @@ private struct YouthChartSwitcher: View {
 
                 Spacer()
 
-                Picker("", selection: $kind) {
-                    ForEach(DashboardChartKind.allCases) { chartKind in
-                        Text(chartKind.rawValue).tag(chartKind)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 220)
+                ChartModeControl(selection: $kind)
             }
 
             StageLineChart(
@@ -629,7 +796,44 @@ private struct YouthChartSwitcher: View {
     }
 }
 
+private struct ChartModeControl: View {
+    @Binding var selection: DashboardChartKind
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(DashboardChartKind.allCases) { chartKind in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        selection = chartKind
+                    }
+                } label: {
+                    Text(chartKind.rawValue)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(selection == chartKind ? Color.appTextOnAccent : Color.appText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .frame(minWidth: 92)
+                        .background(selection == chartKind ? Color.appAccentStrong : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(Color.inputBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
 private struct StageLineChart: View {
+    @State private var reveal = false
+
     let points: [YouthChartPoint]
     let invertY: Bool
     let emptyText: String
@@ -664,7 +868,8 @@ private struct StageLineChart: View {
                             }
                         }
                     }
-                    .stroke(Color.appAccent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    .trim(from: 0, to: reveal ? 1 : 0)
+                    .stroke(Color.appAccentStrong, style: StrokeStyle(lineWidth: 2.8, lineCap: .round, lineJoin: .round))
 
                     ForEach(points) { point in
                         let position = position(for: point, in: chartRect)
@@ -677,10 +882,12 @@ private struct StageLineChart: View {
                                 .background(Color.panelBackground)
                                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                             Circle()
-                                .fill(Color.appAccent)
-                                .frame(width: 8, height: 8)
+                                .fill(Color.appAccentStrong)
+                                .frame(width: 9, height: 9)
                         }
                         .position(x: position.x, y: position.y - 13)
+                        .opacity(reveal ? 1 : 0)
+                        .scaleEffect(reveal ? 1 : 0.82)
                         .help(point.subtitle)
                     }
                 }
@@ -696,6 +903,19 @@ private struct StageLineChart: View {
                         )
                 }
             }
+        }
+        .onAppear {
+            animateReveal()
+        }
+        .onChange(of: points) { _, _ in
+            animateReveal()
+        }
+    }
+
+    private func animateReveal() {
+        reveal = false
+        withAnimation(.easeOut(duration: 0.55)) {
+            reveal = true
         }
     }
 
@@ -1163,8 +1383,11 @@ private struct StatPill: View {
 
 extension Color {
     static let appAccent = Color(red: 0.05, green: 0.45, blue: 0.42)
+    static let appAccentStrong = Color(red: 0.03, green: 0.36, blue: 0.34)
+    static let appTextOnAccent = Color.white
     static let appText = Color(red: 0.08, green: 0.09, blue: 0.10)
     static let appTextSecondary = Color(red: 0.34, green: 0.38, blue: 0.42)
+    static let appPlaceholder = Color(red: 0.48, green: 0.52, blue: 0.55)
     static let appCanvas = Color(red: 0.96, green: 0.96, blue: 0.95)
     static let sidebarBackground = Color(red: 0.985, green: 0.985, blue: 0.975)
     static let panelBackground = Color.white
@@ -1172,6 +1395,12 @@ extension Color {
     static let selectionBackground = Color(red: 0.88, green: 0.95, blue: 0.94)
     static let headerBackground = Color(red: 0.91, green: 0.92, blue: 0.91)
     static let statBackground = Color(red: 0.95, green: 0.96, blue: 0.95)
+    static let inputBackground = Color(red: 1.0, green: 1.0, blue: 0.99)
+    static let chartSurface = Color(red: 0.94, green: 0.965, blue: 0.958)
+    static let stageCurrentBackground = Color(red: 0.90, green: 0.965, blue: 0.955)
+    static let stageFutureBackground = Color(red: 0.975, green: 0.965, blue: 0.93)
+    static let stageFutureBorder = Color(red: 0.72, green: 0.63, blue: 0.38)
+    static let stageFutureAccent = Color(red: 0.58, green: 0.47, blue: 0.20)
     static let sidebarInset = Color(red: 0.95, green: 0.96, blue: 0.95)
     static let downloadPanelBackground = Color(red: 0.975, green: 0.975, blue: 0.965)
 }
