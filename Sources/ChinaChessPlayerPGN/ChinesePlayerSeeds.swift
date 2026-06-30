@@ -34,6 +34,7 @@ enum ChinesePlayerSeeds {
         .init(fideID: "8618020", chineseName: "鹿妙夷", pinyinName: "lu miaoyi", englishName: "Lu, Miaoyi", federation: "CHN", aliases: ["鹿妙夷", "lumiaoyi", "Lu Miaoyi", "Miaoyi Lu", "Lu, Miaoyi"]),
         .init(fideID: "8632200", chineseName: "孔祥睿", pinyinName: "kong xiangrui", englishName: "Kong, Xiangrui", federation: "CHN", aliases: ["孔祥睿", "kongxiangrui", "Kong Xiangrui", "Xiangrui Kong", "Kong, Xiangrui"]),
         .init(fideID: "8620946", chineseName: "陈一宁", pinyinName: "chen yining", englishName: "Chen, Yining", federation: "CHN", aliases: ["陈一宁", "chenyining", "Chen Yining", "Yining Chen", "Chen, Yining"]),
-        .init(fideID: "8627215", chineseName: "姜天瑜", pinyinName: "jiang tianyu", englishName: "Jiang, Tianyu", federation: "CHN", aliases: ["姜天瑜", "jiangtianyu", "Jiang Tianyu", "Tianyu Jiang", "Jiang, Tianyu"])
+        .init(fideID: "8627215", chineseName: "姜天瑜", pinyinName: "jiang tianyu", englishName: "Jiang, Tianyu", federation: "CHN", aliases: ["姜天瑜", "jiangtianyu", "Jiang Tianyu", "Tianyu Jiang", "Jiang, Tianyu"]),
+        .init(fideID: "8657238", chineseName: "", pinyinName: "yan xuan", englishName: "Yan, Xuan", federation: "CHN", aliases: ["yanxuan", "Yan Xuan", "Xuan Yan", "Yan, Xuan"])
     ]
 }

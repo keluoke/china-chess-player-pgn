@@ -22,6 +22,7 @@ final class AppStore: ObservableObject {
     @Published var selectedDashboardStats = PlayerDashboardStats()
 
     private let client = ChessResultsClient()
+    private let fideClient = FIDEPlayerClient()
     private let repository = LocalChessRepository()
     private var latestMergedPGN = ""
 
@@ -319,44 +320,139 @@ final class AppStore: ObservableObject {
         hintedFideIDs: [String],
         window: (start: Date, end: Date)
     ) async throws -> [PlayerCandidate] {
-        let fideIDs = Array(Set(hintedFideIDs + localCandidates.compactMap(\.fideID))).sorted()
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let explicitFideID = trimmedQuery.allSatisfy(\.isNumber) ? trimmedQuery : nil
+        let fideIDs = Array(Set(hintedFideIDs + localCandidates.compactMap(\.fideID) + [explicitFideID].compactMap { $0 })).sorted()
+        var candidatesByID: [PlayerCandidate.ID: PlayerCandidate] = [:]
+        var chessResultsError: Error?
+
         if !fideIDs.isEmpty {
-            var candidates: [PlayerCandidate] = []
             for fideID in fideIDs.prefix(20) {
-                let events = try await client.searchEvents(
+                let events = (try? await client.searchEvents(
                     fideID: fideID,
                     from: window.start,
                     to: window.end,
                     includeLikelyTestEvents: includeLikelyTestEvents
-                )
+                )) ?? []
+                let profile = try? await fideClient.player(fideID: fideID)
                 let base = localCandidates.first { $0.fideID == fideID }
-                let displayName = base?.displayName ?? events.first?.playerName ?? "FIDE \(fideID)"
-                let federation = base?.federation ?? events.first?.federation ?? "CHN"
-                let aliases = ((base?.nameVariants ?? []) + events.map(\.playerName)).filter { !$0.isEmpty }
-                candidates.append(
+                merge(
                     PlayerCandidate(
                         id: "fide-\(fideID)",
-                        displayName: displayName,
+                        displayName: base?.displayName ?? profile?.name ?? events.first?.playerName ?? "FIDE \(fideID)",
                         fideID: fideID,
-                        federation: federation,
+                        federation: base?.federation ?? profile?.federation ?? events.first?.federation ?? "CHN",
                         clubs: base?.clubs ?? [],
-                        nameVariants: Array(Set(aliases)).sorted(),
+                        nameVariants: Array(((base?.nameVariants ?? []) + (profile?.aliases ?? []) + events.map(\.playerName)).filter { !$0.isEmpty }.orderedUnique().prefix(12)),
                         latestEventDate: events.first?.endDate ?? base?.latestEventDate,
                         eventCount: events.count,
-                        source: "Chess-Results",
+                        source: profile == nil ? "Chess-Results" : "Chess-Results + FIDE",
                         events: events
-                    )
+                    ),
+                    into: &candidatesByID
                 )
             }
-            return candidates
         }
 
-        return try await client.searchPlayers(
-            pinyinName: query,
-            from: window.start,
-            to: window.end,
-            includeLikelyTestEvents: includeLikelyTestEvents
+        do {
+            let chessResultsCandidates = try await client.searchPlayers(
+                pinyinName: query,
+                from: window.start,
+                to: window.end,
+                includeLikelyTestEvents: includeLikelyTestEvents
+            )
+            for candidate in chessResultsCandidates {
+                merge(candidate, into: &candidatesByID)
+            }
+        } catch {
+            chessResultsError = error
+        }
+
+        let fideCandidates: [PlayerCandidate]
+        do {
+            fideCandidates = try await fideClient.searchPlayers(query: query, federation: "CHN")
+        } catch {
+            if candidatesByID.isEmpty {
+                throw chessResultsError ?? error
+            }
+            fideCandidates = []
+        }
+
+        for fideCandidate in fideCandidates {
+            let events: [TournamentEvent]
+            if let fideID = fideCandidate.fideID {
+                events = (try? await client.searchEvents(
+                    fideID: fideID,
+                    from: window.start,
+                    to: window.end,
+                    includeLikelyTestEvents: includeLikelyTestEvents
+                )) ?? []
+            } else {
+                events = []
+            }
+            var enriched = fideCandidate
+            enriched.events = events
+            enriched.latestEventDate = events.first?.endDate
+            enriched.eventCount = events.count
+            enriched.source = events.isEmpty ? "FIDE" : "Chess-Results + FIDE"
+            enriched.clubs = events.map(\.club).filter { !$0.isEmpty }.orderedUnique()
+            enriched.nameVariants = (fideCandidate.nameVariants + events.map(\.playerName)).orderedUnique()
+            merge(enriched, into: &candidatesByID)
+        }
+
+        let result = candidatesByID.values.sorted {
+            if ($0.latestEventDate ?? .distantPast) != ($1.latestEventDate ?? .distantPast) {
+                return ($0.latestEventDate ?? .distantPast) > ($1.latestEventDate ?? .distantPast)
+            }
+            if $0.eventCount != $1.eventCount {
+                return $0.eventCount > $1.eventCount
+            }
+            return $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
+        }
+
+        if result.isEmpty, let chessResultsError {
+            throw chessResultsError
+        }
+        return result
+    }
+
+    private func merge(_ candidate: PlayerCandidate, into candidatesByID: inout [PlayerCandidate.ID: PlayerCandidate]) {
+        guard let existing = candidatesByID[candidate.id] else {
+            candidatesByID[candidate.id] = candidate
+            return
+        }
+
+        let events = (existing.events + candidate.events)
+            .reduce(into: [TournamentEvent.ID: TournamentEvent]()) { partialResult, event in
+                partialResult[event.id] = event
+            }
+            .values
+            .sorted { ($0.endDate ?? .distantPast) > ($1.endDate ?? .distantPast) }
+
+        candidatesByID[candidate.id] = PlayerCandidate(
+            id: candidate.id,
+            displayName: existing.displayName.hasPrefix("FIDE ") ? candidate.displayName : existing.displayName,
+            fideID: existing.fideID ?? candidate.fideID,
+            federation: existing.federation.isEmpty ? candidate.federation : existing.federation,
+            clubs: (existing.clubs + candidate.clubs).orderedUnique(),
+            nameVariants: (existing.nameVariants + candidate.nameVariants).orderedUnique(),
+            latestEventDate: events.first?.endDate ?? existing.latestEventDate ?? candidate.latestEventDate,
+            eventCount: events.count,
+            source: [existing.source, candidate.source].orderedUnique().joined(separator: " + "),
+            events: events
         )
+    }
+}
+
+private extension Array where Element: Hashable {
+    func orderedUnique() -> [Element] {
+        var seen: Set<Element> = []
+        var result: [Element] = []
+        for value in self where !seen.contains(value) {
+            seen.insert(value)
+            result.append(value)
+        }
+        return result
     }
 }
 
