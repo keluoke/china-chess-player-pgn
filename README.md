@@ -24,6 +24,8 @@ python3 -m http.server 4173 -d docs
 
 GitHub Pages 是静态托管，不运行服务器进程。网页版不能稳定地替用户实时抓取 Chess-Results PGN；未归档的 PGN 需要先通过 macOS 版或后续 GitHub Actions 数据同步写入 `docs/data/pgn/`。
 
+网页版同时读取 `docs/data/bulk/` 的百万级压缩分片。当前 bulk 层镜像 Lichess official broadcast PGN archive：77 个 `.pgn.zst` 分片、1,109,301 盘棋，并从中生成 U8/U10/U12/U14/U16/U18 中国青少年对局 PGN 包，首页可按年龄段一键下载。
+
 ## PGN 静态归档
 
 仓库内的 PGN 采用可被多个前端直接读取的静态结构：
@@ -72,6 +74,27 @@ TWIC、Lichess、Chess.com 和国内赛事官网先进入本地侦察兵；只�
 
 GitHub Actions 里也有 `Update static PGN archive` workflow，可在 GitHub 页面手动运行；填 FIDE ID 时只更新该棋手，不填则按当前索引批量尝试；数据源可选 `all` 或 `chess-results`。workflow 成功后会自动提交 `docs/data/` 的变化。
 另有 `Promote public PGN` workflow，用于按 FIDE ID 触发 Chess-Results 全局 PGN 搜索并提交新增静态 PGN。
+
+## 百万级 bulk PGN
+
+Lichess broadcast bulk 层使用压缩分片，避免把百万盘棋拆成百万个小文件：
+
+```text
+docs/data/bulk/manifest.json
+docs/data/bulk/lichess-broadcast/shards/*.pgn.zst
+docs/data/bulk/youth/manifest.json
+docs/data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn
+docs/data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn
+...
+```
+
+更新 bulk 层：
+
+```bash
+python3 Scripts/sync_lichess_broadcast_bulk.py --metadata-only --mirror --index-youth
+```
+
+GitHub Actions 里有 `Update Lichess broadcast bulk archive` workflow，会按月刷新分片和青少年年龄段 PGN 包。Lichess broadcast 数据按 CC BY-SA 4.0 发布，授权说明保存在 `docs/data/bulk/NOTICE.md`。
 
 ## 中国棋手全量注册表
 

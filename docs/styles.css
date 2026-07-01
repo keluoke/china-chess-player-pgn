@@ -417,6 +417,65 @@ input {
   margin-bottom: 20px;
 }
 
+.bulk-youth {
+  margin-top: 22px;
+}
+
+.bulk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.bulk-stage-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.bulk-stage-card strong,
+.bulk-stage-card span {
+  display: block;
+}
+
+.bulk-stage-card strong {
+  color: var(--accent-strong);
+  font-size: 22px;
+}
+
+.bulk-stage-card span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bulk-stage-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bulk-stage-metrics span {
+  min-width: 0;
+  padding: 5px 8px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  font-weight: 650;
+}
+
+.bulk-stage-card .primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+}
+
 .result-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

@@ -21,6 +21,7 @@
 | 中文名/拼音/别名 | 人工审核 CSV、既有种子、赛事名单 | 随 PR 更新 | `data/manual/player-aliases.csv` |
 | 赛事索引 | Chess-Results、国内赛事官网、亚洲/世界青少年赛事页 | 每周或按赛事 | `docs/data/index/` |
 | PGN | Chess-Results Game Database、赛事官网 PGN、手工导入 | 每周或按赛事 | `docs/data/pgn/` |
+| 百万级 bulk PGN | Lichess official broadcast archive | 每月 | `docs/data/bulk/` |
 
 FIDE 月度榜单用 legacy XML 版本，因为它包含未定级棋手；普通 rating list 只适合排行榜，不适合作为完整身份库。
 
@@ -150,6 +151,7 @@ python3 Scripts/sync_static_pgn.py --from-local-cache
 python3 Scripts/sync_static_pgn.py --fetch-missing --max-downloads 50
 python3 Scripts/promote_public_pgn.py --scan-chess-results --max-players 25
 python3 Scripts/promote_public_pgn.py --promote-scout --source lichess
+python3 Scripts/sync_lichess_broadcast_bulk.py --metadata-only --mirror --index-youth
 ```
 
 GitHub 页面上有两个可手动运行的 workflow：
@@ -158,6 +160,22 @@ GitHub 页面上有两个可手动运行的 workflow：
 - `Update domestic player registry`：根据手工赛事名单和身份链接刷新国内临时身份层。
 - `Update static PGN archive`：刷新已登记赛事的 PGN。
 - `Promote public PGN`：按 FIDE ID 扫 Chess-Results 全局 PGN 搜索，并把新增合格 PGN 晋升到静态归档。
+- `Update Lichess broadcast bulk archive`：刷新百万级 Lichess broadcast 压缩分片，并重建 U8-U18 青少年 PGN 包。
+
+## 百万级 bulk 与青少年筛选
+
+百万级数据不拆成每盘一个文件，采用压缩分片：
+
+```text
+docs/data/bulk/manifest.json
+docs/data/bulk/lichess-broadcast/shards/lichess_db_broadcast_YYYY-MM.pgn.zst
+docs/data/bulk/youth/manifest.json
+docs/data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn
+```
+
+Lichess broadcast archive 当前包含 77 个官方直播 PGN 分片、1,109,301 盘。原始 `.pgn.zst` 用作百万级静态资产；网页端首屏只加载 manifest，不展开百万盘棋。青少年筛选由脚本流式扫描分片生成：用赛事年份减棋手出生年份，按李成智杯 U8/U10/U12/U14/U16/U18 年龄段归类。这样每个年龄段都有一个可直接下载的 PGN 包。
+
+Lichess broadcast 数据按 CC BY-SA 4.0 发布，仓库保留 `docs/data/bulk/NOTICE.md` 作为授权说明。TWIC、Chess.com 和国内官网仍按 `data/manual/public-pgn-sources.csv` 审核后再晋升。
 
 ## 中文名补全流程
 

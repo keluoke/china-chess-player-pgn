@@ -1,0 +1,78 @@
+name: Update Lichess broadcast bulk archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      mirror:
+        description: "Mirror Lichess broadcast .pgn.zst shards"
+        required: true
+        default: true
+        type: boolean
+      index_youth:
+        description: "Rebuild U8-U18 youth PGN packs"
+        required: true
+        default: true
+        type: boolean
+      max_shards:
+        description: "Limit newest shards; 0 means all"
+        required: true
+        default: "0"
+        type: string
+  schedule:
+    - cron: "42 18 7 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-lichess-broadcast-bulk
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sync Lichess broadcast bulk archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mirror="${{ inputs.mirror }}"
+          index_youth="${{ inputs.index_youth }}"
+          max_shards="${{ inputs.max_shards }}"
+          if [ -z "$mirror" ]; then
+            mirror=true
+          fi
+          if [ -z "$index_youth" ]; then
+            index_youth=true
+          fi
+          if [ -z "$max_shards" ]; then
+            max_shards=0
+          fi
+
+          args=(--metadata-only --max-shards "$max_shards")
+          if [ "$mirror" = "true" ]; then
+            args+=(--mirror)
+          fi
+          if [ "$index_youth" = "true" ]; then
+            args+=(--index-youth)
+          fi
+
+          python3 Scripts/sync_lichess_broadcast_bulk.py "${args[@]}"
+
+      - name: Commit updated bulk archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/bulk
+          if git diff --cached --quiet; then
+            echo "No bulk archive changes."
+          else
+            git commit -m "Update Lichess broadcast bulk archive"
+            git push
+          fi

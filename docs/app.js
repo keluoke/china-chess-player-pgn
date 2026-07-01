@@ -10,6 +10,7 @@ const els = {
   playerCount: document.querySelector("#playerCount"),
   stageCount: document.querySelector("#stageCount"),
   eventCount: document.querySelector("#eventCount"),
+  bulkGameCount: document.querySelector("#bulkGameCount"),
   ageRuleText: document.querySelector("#ageRuleText"),
   stageTabs: document.querySelector("#stageTabs"),
   leaderboardGrid: document.querySelector("#leaderboardGrid"),
@@ -18,7 +19,9 @@ const els = {
   searchResultsSection: document.querySelector("#searchResultsSection"),
   searchResults: document.querySelector("#searchResults"),
   searchCount: document.querySelector("#searchCount"),
-  rankingMeta: document.querySelector("#rankingMeta")
+  rankingMeta: document.querySelector("#rankingMeta"),
+  bulkYouthMeta: document.querySelector("#bulkYouthMeta"),
+  bulkYouthGrid: document.querySelector("#bulkYouthGrid")
 };
 
 const data = await loadData();
@@ -32,16 +35,20 @@ initialize();
 async function loadData() {
   try {
     const youth = await fetchJSON("./data/youth-leaderboards.json", true);
-    const [manifest, indexedPlayers, registryManifest, registryPlayers] = await Promise.all([
+    const [manifest, indexedPlayers, registryManifest, registryPlayers, bulkManifest, bulkYouthManifest] = await Promise.all([
       fetchJSON("./data/index/manifest.json", false),
       fetchJSON("./data/index/players.json", false),
       fetchJSON("./data/registry/manifest.json", false),
-      fetchJSON("./data/registry/players.json", false)
+      fetchJSON("./data/registry/players.json", false),
+      fetchJSON("./data/bulk/manifest.json", false),
+      fetchJSON("./data/bulk/youth/manifest.json", false)
     ]);
     return {
       ...youth,
       manifest,
       registryManifest,
+      bulkManifest,
+      bulkYouthManifest,
       players: mergePlayers(youth.players ?? [], indexedPlayers ?? [], registryPlayers ?? [])
     };
   } catch (error) {
@@ -123,11 +130,14 @@ function render() {
   els.playerCount.textContent = String(data.registryManifest?.totals?.players ?? data.manifest?.totals?.players ?? players.length);
   els.stageCount.textContent = String(stages.length);
   els.eventCount.textContent = String(eventCount);
+  els.bulkGameCount.textContent = compactNumber(data.bulkManifest?.totals?.mirroredGames ?? data.bulkManifest?.totals?.games ?? 0);
   els.ageRuleText.textContent = ageRuleText();
   els.rankingMeta.textContent = `${data.competitionYear} 年 · ${state.activeStage === "ALL" ? "全组" : state.activeStage}`;
+  els.bulkYouthMeta.textContent = bulkYouthMeta();
 
   renderTabs();
   renderLeaderboards();
+  renderBulkYouth();
   renderSearch();
   renderDetail();
 }
@@ -203,6 +213,27 @@ function leaderboardCard(stage) {
       </table>
     </article>
   `;
+}
+
+function renderBulkYouth() {
+  const manifest = data.bulkYouthManifest;
+  if (!manifest?.stages?.length) {
+    els.bulkYouthGrid.innerHTML = `<div class="empty-state">暂无青少年 bulk 索引</div>`;
+    return;
+  }
+  els.bulkYouthGrid.innerHTML = manifest.stages.map(stage => `
+    <article class="bulk-stage-card">
+      <div>
+        <strong>${escapeHTML(stage.id)}</strong>
+        <span>${escapeHTML(stage.lowerAge)}-${escapeHTML(stage.upperAge)} 岁</span>
+      </div>
+      <div class="bulk-stage-metrics">
+        <span>${compactNumber(stage.games)} 盘</span>
+        <span>${compactNumber(stage.players)} 人</span>
+      </div>
+      <a class="primary-action" href="${escapeAttribute(stage.pgnPath)}" download>下载 PGN</a>
+    </article>
+  `).join("");
 }
 
 function renderSearch() {
@@ -561,6 +592,19 @@ function ageRuleText() {
     .map(stage => `${stage.id}=${stage.birthYears} 出生`)
     .join(" · ");
   return `${data.ageRule.title}：${data.ageRule.description}${data.competitionYear} 年口径为 ${ranges}。`;
+}
+
+function bulkYouthMeta() {
+  const totals = data.bulkYouthManifest?.totals;
+  if (!totals) return "等待 bulk 索引";
+  return `${compactNumber(totals.games)} 盘 · ${compactNumber(totals.players)} 名棋手`;
+}
+
+function compactNumber(value) {
+  const number = Number(value) || 0;
+  if (number >= 1000000) return `${(number / 1000000).toFixed(number >= 10000000 ? 0 : 1)}M`;
+  if (number >= 10000) return `${(number / 10000).toFixed(number >= 100000 ? 0 : 1)}万`;
+  return String(number);
 }
 
 function normalize(value) {
