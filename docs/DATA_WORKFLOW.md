@@ -5,21 +5,78 @@
 “中国棋手全数据库”分三层建设：
 
 1. 身份层：所有 FIDE federation 为 `CHN` 的棋手，唯一主键为 FIDE ID。
-2. 中文检索层：在 FIDE 英文名之外，持续补充中文名、拼音名和常见别名。
-3. 赛事与棋局层：将 Chess-Results、国内赛事官网、李成智杯、世界/亚洲青少年赛等赛事记录和 PGN 挂到同一个 FIDE ID 下。
+2. 国内临时身份层：李成智杯、棋协大师赛一级组/候补组等无 FIDE ID 棋手，先以赛事名单 sighting 建临时身份。
+3. 中文检索层：在 FIDE 英文名之外，持续补充中文名、拼音名和常见别名。
+4. 赛事与棋局层：将 Chess-Results、国内赛事官网、李成智杯、世界/亚洲青少年赛等赛事记录和 PGN 挂到同一个 canonical player ID 下。
 
-第一优先级是身份层完整，因为它决定同名棋手不会错合并。中文名和 PGN 可以逐步提高覆盖率，但必须挂到唯一 FIDE ID。
+第一优先级是身份层完整，因为它决定同名棋手不会错合并。FIDE ID 是最强身份；没有 FIDE ID 时，不能按姓名直接合并，只能先进入国内临时身份层，后续用证据链接到 FIDE ID。
 
 ## 数据源分工
 
 | 数据层 | 主数据源 | 更新频率 | 写入位置 |
 | --- | --- | --- | --- |
 | 棋手身份 | FIDE rating list legacy XML, not-rated included | 每月 | `docs/data/registry/` |
+| 国内临时身份 | 李成智杯、棋协大师赛、国内青少年赛事名单 | 按赛事 | `data/manual/domestic-player-sightings.csv` |
+| 身份链接证据 | 后续 FIDE ID、同赛事跨年名单、出生年/省队/证书号 | 随审核 | `data/manual/player-identity-links.csv` |
 | 中文名/拼音/别名 | 人工审核 CSV、既有种子、赛事名单 | 随 PR 更新 | `data/manual/player-aliases.csv` |
 | 赛事索引 | Chess-Results、国内赛事官网、亚洲/世界青少年赛事页 | 每周或按赛事 | `docs/data/index/` |
 | PGN | Chess-Results Game Database、赛事官网 PGN、手工导入 | 每周或按赛事 | `docs/data/pgn/` |
 
 FIDE 月度榜单用 legacy XML 版本，因为它包含未定级棋手；普通 rating list 只适合排行榜，不适合作为完整身份库。
+
+## 无 FIDE ID 棋手处理
+
+李成智杯、棋协大师赛一级组/候补组、低年龄组经常出现三种情况：
+
+- 当年没有 FIDE ID。
+- 名单只有中文名、省队/棋校和组别。
+- 低年龄组无 FIDE ID，几年后升组或出国参赛后获得 FIDE ID。
+
+这部分不能放进 FIDE registry，也不能只靠姓名合并。采用两阶段模型：
+
+1. `sighting`：某个赛事名单里的某一行，保留原始证据。
+2. `domestic player`：由一个或多个 sighting 组成的国内临时身份。
+3. `identity link`：人工审核后，把 sighting/domestic player 链接到 FIDE ID。
+
+手工录入位置：
+
+```text
+data/manual/domestic-player-sightings.csv
+data/manual/player-identity-links.csv
+```
+
+生成的静态输出：
+
+```text
+docs/data/registry/domestic/manifest.json
+docs/data/registry/domestic/players.json
+docs/data/registry/domestic/sightings.json
+docs/data/registry/domestic/identity-links.json
+```
+
+生成命令：
+
+```bash
+python3 Scripts/sync_domestic_players.py
+```
+
+ID 规则：
+
+- FIDE 棋手：`fide-<FIDE_ID>`。
+- 国内临时棋手：`domestic-<hash>`。
+- 赛事出现记录：`sighting-<hash>`。
+
+默认不跨赛事自动合并，只保留单条 sighting 生成的 `domestic-*`。即使姓名、出生年、省队/棋校相同，也先保守拆开；只有出现出生年、省队/棋校、证书号、后续 FIDE ID 等强证据并经过人工审核时，才通过 `player-identity-links.csv` 合并。
+
+`player-identity-links.csv` 示例语义：
+
+```text
+from_type=sighting, from_id=sighting-xxx, to_type=fide, to_id=8657238
+from_type=sighting, from_id=sighting-aaa, to_type=domestic, to_id=domestic-bbb
+from_type=domestic, from_id=domestic-bbb, to_type=fide, to_id=8657238
+```
+
+这样低年龄组历史成绩可以先挂在 `domestic-*` 下；一旦确认后来的 FIDE ID，所有历史成绩通过 identity link 归并到 `fide-*`，不需要改历史原始记录。
 
 ## 本地原始 PGN 侦察兵
 
@@ -96,6 +153,7 @@ python3 Scripts/sync_static_pgn.py --fetch-missing --max-downloads 50
 GitHub 页面上有两个可手动运行的 workflow：
 
 - `Update Chinese player registry`：刷新 FIDE CHN 棋手身份库。
+- `Update domestic player registry`：根据手工赛事名单和身份链接刷新国内临时身份层。
 - `Update static PGN archive`：刷新已登记赛事的 PGN。
 
 ## 中文名补全流程

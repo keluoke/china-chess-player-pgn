@@ -1,0 +1,42 @@
+name: Update domestic player registry
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "data/manual/domestic-player-sightings.csv"
+      - "data/manual/player-identity-links.csv"
+      - "Scripts/sync_domestic_players.py"
+      - ".github/workflows/update-domestic-registry.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-domestic-player-registry
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sync domestic player registry
+        run: python3 Scripts/sync_domestic_players.py
+
+      - name: Commit updated domestic registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/registry/domestic
+          if git diff --cached --quiet; then
+            echo "No domestic registry changes."
+          else
+            git commit -m "Update domestic player registry"
+            git push
+          fi

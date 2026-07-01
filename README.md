@@ -82,6 +82,22 @@ docs/data/registry/shards/fide-prefix-<first3>.json
 
 中文名、拼音和常见别名维护在 `data/manual/player-aliases.csv`，只作为 alias 挂到 FIDE ID，不能作为唯一身份。GitHub Actions 里有 `Update Chinese player registry` workflow，可手动或按月刷新全量 CHN 棋手注册表。
 
+李成智杯、棋协大师赛一级组/候补组等无 FIDE ID 棋手不要硬塞进 FIDE 表。先录入：
+
+```text
+data/manual/domestic-player-sightings.csv
+data/manual/player-identity-links.csv
+```
+
+再生成国内临时身份层：
+
+```bash
+python3 Scripts/sync_domestic_players.py
+```
+
+输出在 `docs/data/registry/domestic/`。未来确认 FIDE ID 后，只在 `player-identity-links.csv` 里加证据链接，历史低龄组成绩会归并到同一 canonical player。
+GitHub Actions 里的 `Update domestic player registry` workflow 会在这些 CSV 更新后重生成静态 domestic registry。
+
 完整工作机制见 [docs/DATA_WORKFLOW.md](docs/DATA_WORKFLOW.md)。
 
 ## 本地 PGN 侦察兵

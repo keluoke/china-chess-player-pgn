@@ -7,7 +7,7 @@
 核心原则：
 
 - 用户可以用中文名、拼音、英文 PGN 名或 FIDE ID 查询同一名棋手。
-- 棋手唯一身份使用本地 `player_id`，有 FIDE ID 时固定为 `fide-<FIDE_ID>`。
+- 棋手唯一身份使用本地 `player_id`，有 FIDE ID 时固定为 `fide-<FIDE_ID>`；无 FIDE ID 的国内赛事棋手使用 `domestic-<hash>` 临时身份。
 - PGN 下载后进入本地统一归档，下次查询优先使用本地缓存。
 - 数据源可扩展，Chess-Results 只是第一批 provider。
 - 默认查询本地优先，不在已有本地赛事时强制联网。
@@ -47,11 +47,30 @@ docs/data/registry/shards/fide-prefix-860.json
 
 中文名、拼音和别名来自 `data/manual/player-aliases.csv`。这些字段只作为查询 alias，不参与唯一性判断；同名棋手必须保留为不同 FIDE ID。
 
+## 国内临时身份注册表
+
+李成智杯和中国棋协大师赛的低龄组、一级组、候补组经常有无 FIDE ID 棋手。它们进入独立的 domestic registry：
+
+```text
+data/manual/domestic-player-sightings.csv
+data/manual/player-identity-links.csv
+docs/data/registry/domestic/players.json
+```
+
+`domestic-player-sightings.csv` 一行对应一份赛事名单中的一名棋手，是不可变证据。默认一条 sighting 生成一个 `domestic-*`，不靠姓名自动跨赛事合并。`player-identity-links.csv` 保存人工审核后的链接，例如某个 `sighting-*` 后来确认等于 `fide-8657238`，或多个 `sighting-*` 先合并成同一个 `domestic-*`。
+
+查询和展示时使用 canonical ID：
+
+- 已确认 FIDE：`fide-<FIDE_ID>`。
+- 未确认 FIDE：`domestic-<hash>`。
+
+这样低年龄组历史成绩不会丢；确认 FIDE ID 后，只新增链接，不改原始历史记录。
+
 ## SQLite 表
 
 `players`
 
-保存唯一棋手身份。`id` 是应用内部主键，`fide_id` 有值时唯一。
+保存唯一棋手身份。`id` 是应用内部主键，`fide_id` 有值时唯一。无 FIDE ID 棋手可以使用 `domestic-<hash>` 作为 `id`，`fide_id` 为空。
 
 `player_aliases`
 
