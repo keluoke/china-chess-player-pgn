@@ -21,6 +21,31 @@
 
 FIDE 月度榜单用 legacy XML 版本，因为它包含未定级棋手；普通 rating list 只适合排行榜，不适合作为完整身份库。
 
+## 本地原始 PGN 侦察兵
+
+所有来源不明、体量较大、授权需要复核或质量未确认的 PGN，先进入本地侦察兵资产库：
+
+```bash
+python3 Scripts/pgn_scout.py init
+```
+
+默认路径：
+
+```text
+~/Library/Application Support/ChinaChessPlayerPGN/RawPGNScout/
+```
+
+侦察兵负责：
+
+- Chess-Results TournamentID/FIDE ID 撞库。
+- Lichess broadcast 和开放数据库 PGN/ZST 下载。
+- Chess.com Public API 月度 PGN 和国家用户列表侦察。
+- TWIC issue ZIP 下载、解压和中国相关棋局过滤。
+- ChessBase Mega Database 导出的本地 PGN 导入。
+- 协会官网、Wayback、国内直播 H5 抓包后的 PGN/ZIP 导入。
+
+侦察兵不直接发布数据到 GitHub Pages。只有明确可公开分发、能挂到 FIDE ID 和赛事 ID、且通过 PGN header 校验的文件，才进入 `docs/data/pgn/`。
+
 ## 仓库存储
 
 棋手身份库不拆成每人一个文件，避免几千个小 JSON 文件难以维护；采用总表加分片：

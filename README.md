@@ -84,6 +84,20 @@ docs/data/registry/shards/fide-prefix-<first3>.json
 
 完整工作机制见 [docs/DATA_WORKFLOW.md](docs/DATA_WORKFLOW.md)。
 
+## 本地 PGN 侦察兵
+
+原始 PGN、TWIC ZIP、Lichess `.pgn.zst`、ChessBase 导出和国内直播抓包文件，先进入本机侦察兵资产库：
+
+```bash
+python3 Scripts/pgn_scout.py init
+python3 Scripts/pgn_scout.py seed-chess-results-targets
+python3 Scripts/pgn_scout.py fetch-chess-results --max-requests 50
+python3 Scripts/pgn_scout.py fetch-lichess --database-broadcasts --year 2025 --max-downloads 3 --extract
+python3 Scripts/pgn_scout.py ingest ~/Downloads/Historical_CHN_Base.pgn --source chessbase-mega
+```
+
+默认目录是 `~/Library/Application Support/ChinaChessPlayerPGN/RawPGNScout/`，不会提交进仓库。操作手册见 [docs/PGN_SCOUT.md](docs/PGN_SCOUT.md)。
+
 ## 打包
 
 ```bash
