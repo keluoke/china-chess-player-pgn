@@ -1,6 +1,8 @@
 const state = {
   activeStage: "ALL",
   selectedFideID: null,
+  selectedEventIDs: new Set(),
+  downloadStatus: "",
   query: ""
 };
 
@@ -38,6 +40,7 @@ async function loadData() {
 
 function initialize() {
   state.selectedFideID = rankingsForStage("U18")[0]?.fideID ?? players[0]?.fideID ?? null;
+  resetSelectedEvents();
   els.searchInput.addEventListener("input", event => {
     state.query = event.target.value.trim();
     renderSearch();
@@ -163,6 +166,10 @@ function renderDetail() {
   const stage = stageForPlayer(player);
   const note = stage ? liChengzhiNote(player, stage.id) : null;
   const events = [...(player.events ?? [])].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  const pgnEvents = events.filter(event => event.pgnPath);
+  const selectedEvents = pgnEvents.filter(event => state.selectedEventIDs.has(eventKey(event)));
+  const totalGames = pgnEvents.reduce((sum, event) => sum + (Number(event.gameCount) || 0), 0);
+  const topThree = events.filter(event => Number(event.rank) > 0 && Number(event.rank) <= 3).length;
 
   els.detailPane.innerHTML = `
     <div class="detail-title">
@@ -181,16 +188,33 @@ function renderDetail() {
       ${ratingCard("BLZ", player.blitz)}
     </div>
 
+    <div class="dashboard-grid">
+      ${metricTile("赛事", events.length)}
+      ${metricTile("PGN", pgnEvents.length)}
+      ${metricTile("棋局", totalGames)}
+      ${metricTile("前三", topThree)}
+    </div>
+
+    <div class="stage-strip">
+      ${stages.map(stageItem => stageTile(player, stageItem)).join("")}
+    </div>
+
     <div class="detail-actions">
+      <button class="primary-action" type="button" id="downloadSelectedPGN" ${selectedEvents.length ? "" : "disabled"}>↓ 下载选中 PGN</button>
+      <button class="tool-button" type="button" id="selectAllPGN" ${pgnEvents.length ? "" : "disabled"}>全选 PGN</button>
+      <button class="tool-button" type="button" id="clearPGNSelection" ${selectedEvents.length ? "" : "disabled"}>清空</button>
       <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">↗ FIDE</a>
       <a class="action-link" href="https://lichess.org/fide/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">↗ Lichess FIDE</a>
-      <a class="action-link" href="data/youth-leaderboards.json" download>↓ 数据 JSON</a>
     </div>
+
+    <div class="download-status" aria-live="polite">${escapeHTML(downloadLine(selectedEvents, pgnEvents))}</div>
 
     <div class="event-list">
       ${events.length ? events.map(eventRow).join("") : `<div class="event-row"><strong>暂无本地赛事种子</strong><span>macOS 版可继续联网补齐 Chess-Results 和 PGN 缓存。</span></div>`}
     </div>
   `;
+
+  wireDetailActions(player, pgnEvents);
 }
 
 function ratingCard(label, value) {
@@ -202,19 +226,145 @@ function ratingCard(label, value) {
   `;
 }
 
-function eventRow(event) {
-  const rank = event.rank ? `第 ${event.rank}` : "-";
-  const size = event.rounds && event.participants ? `${event.rounds} 轮 · ${event.participants} 人` : "";
+function metricTile(title, value) {
   return `
-    <div class="event-row">
-      <strong>${escapeHTML(event.name)}</strong>
-      <span>${escapeHTML(event.date ?? "未知日期")} · ${escapeHTML(rank)} · ${escapeHTML(size)}</span>
+    <div class="metric-tile">
+      <span>${escapeHTML(title)}</span>
+      <strong>${escapeHTML(value)}</strong>
     </div>
   `;
 }
 
+function stageTile(player, stage) {
+  const age = data.competitionYear - player.birthYear;
+  const status = age > stage.upperAge ? "已完成" : age >= stage.lowerAge ? "进行中" : "未完待续";
+  const events = (player.events ?? []).filter(event => stageForEvent(player, event)?.id === stage.id);
+  const bestRank = events
+    .map(event => Number(event.rank))
+    .filter(rank => Number.isFinite(rank) && rank > 0)
+    .sort((a, b) => a - b)[0];
+  const active = stageForPlayer(player)?.id === stage.id;
+  return `
+    <div class="stage-tile ${active ? "active" : ""}">
+      <strong>${escapeHTML(stage.id)}</strong>
+      <span>${escapeHTML(status)}</span>
+      <small>${bestRank ? `最好第 ${bestRank}` : `${events.length} 赛`}</small>
+    </div>
+  `;
+}
+
+function eventRow(event) {
+  const rank = event.rank ? `第 ${event.rank}` : "-";
+  const size = event.rounds && event.participants ? `${event.rounds} 轮 · ${event.participants} 人` : "";
+  const key = eventKey(event);
+  const hasPGN = Boolean(event.pgnPath);
+  const checked = state.selectedEventIDs.has(key);
+  return `
+    <label class="event-row ${hasPGN ? "has-pgn" : ""}">
+      <input class="event-check" type="checkbox" data-event-id="${escapeAttribute(key)}" ${checked ? "checked" : ""} ${hasPGN ? "" : "disabled"}>
+      <span class="event-copy">
+        <strong>${escapeHTML(event.name)}</strong>
+        <span>${escapeHTML(event.date ?? "未知日期")} · ${escapeHTML(rank)} · ${escapeHTML(size)}</span>
+        <em>${hasPGN ? `${event.gameCount ?? "?"} 盘 PGN 已缓存` : "暂无静态 PGN"}</em>
+      </span>
+    </label>
+  `;
+}
+
+function wireDetailActions(player, pgnEvents) {
+  document.querySelector("#downloadSelectedPGN")?.addEventListener("click", () => {
+    downloadSelectedPGN(player).catch(error => {
+      state.downloadStatus = `PGN 下载失败：${error.message}`;
+      renderDetail();
+    });
+  });
+  document.querySelector("#selectAllPGN")?.addEventListener("click", () => {
+    state.selectedEventIDs = new Set(pgnEvents.map(eventKey));
+    state.downloadStatus = "";
+    renderDetail();
+  });
+  document.querySelector("#clearPGNSelection")?.addEventListener("click", () => {
+    state.selectedEventIDs = new Set();
+    state.downloadStatus = "";
+    renderDetail();
+  });
+  document.querySelectorAll(".event-check").forEach(input => {
+    input.addEventListener("change", () => {
+      if (input.checked) {
+        state.selectedEventIDs.add(input.dataset.eventId);
+      } else {
+        state.selectedEventIDs.delete(input.dataset.eventId);
+      }
+      state.downloadStatus = "";
+      renderDetail();
+    });
+  });
+}
+
+async function downloadSelectedPGN(player) {
+  const events = (player.events ?? [])
+    .filter(event => event.pgnPath && state.selectedEventIDs.has(eventKey(event)));
+  if (!events.length) {
+    state.downloadStatus = "没有选中的可下载 PGN。";
+    renderDetail();
+    return;
+  }
+
+  state.downloadStatus = `正在合并 ${events.length} 个 PGN...`;
+  renderDetail();
+
+  const parts = [];
+  let gameCount = 0;
+  for (const event of events) {
+    const response = await fetch(event.pgnPath, { cache: "no-store" });
+    if (!response.ok) throw new Error(`${event.name} HTTP ${response.status}`);
+    const text = await response.text();
+    parts.push(text.trim());
+    gameCount += countPGNGames(text);
+  }
+
+  const merged = parts.filter(Boolean).join("\n\n") + "\n";
+  const fileName = `${slug(displayName(player))}-${data.competitionYear}-merged.pgn`;
+  triggerDownload(fileName, merged, "application/x-chess-pgn;charset=utf-8");
+  state.downloadStatus = `已生成 ${events.length} 个赛事、${gameCount} 盘棋的合并 PGN。`;
+  renderDetail();
+}
+
+function downloadLine(selectedEvents, pgnEvents) {
+  if (state.downloadStatus) return state.downloadStatus;
+  if (!pgnEvents.length) return "当前棋手暂无静态 PGN。GitHub Pages 只能下载仓库内已归档的 PGN。";
+  return `已选择 ${selectedEvents.length}/${pgnEvents.length} 个可下载赛事。`;
+}
+
+function triggerDownload(fileName, text, type) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function countPGNGames(text) {
+  return (text.match(/^\[Event\s+"/gm) ?? []).length;
+}
+
+function eventKey(event) {
+  return event.id ?? `${event.source ?? "event"}:${event.tournamentID ?? event.name}:${event.date ?? ""}`;
+}
+
+function resetSelectedEvents() {
+  const player = players.find(item => item.fideID === state.selectedFideID);
+  state.selectedEventIDs = new Set((player?.events ?? []).filter(event => event.pgnPath).map(eventKey));
+}
+
 function selectPlayer(fideID) {
   state.selectedFideID = fideID;
+  state.downloadStatus = "";
+  resetSelectedEvents();
   renderDetail();
 }
 
@@ -306,6 +456,11 @@ function normalize(value) {
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[\s,.'’"()，。·_\-]+/g, "");
+}
+
+function slug(value) {
+  const normalized = normalize(value).replace(/[^a-z0-9]+/g, "-");
+  return normalized || "player";
 }
 
 function escapeHTML(value) {

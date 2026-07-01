@@ -127,6 +127,9 @@ docs/index.html
 docs/styles.css
 docs/app.js
 docs/data/youth-leaderboards.json
+docs/data/pgn/
 ```
 
-它不读取用户本机 SQLite，也不直接写 PGN 归档；这些仍由 macOS 版负责。网页端使用静态 JSON 展示 U8-U18 排行榜、中文/拼音/FIDE ID 搜索和棋手看板。GitHub Actions 的 `Pages` workflow 会直接发布 `docs/`，不需要 Node、Vite 或后端服务。
+它不读取用户本机 SQLite，也不直接写用户本地 PGN 归档；这些仍由 macOS 版负责。网页端使用静态 JSON 展示 U8-U18 排行榜、中文/拼音/FIDE ID 搜索和棋手看板，并从 `docs/data/pgn/` 读取已经归档的 PGN，在浏览器里合并生成下载文件。GitHub Actions 的 `Pages` workflow 会直接发布 `docs/`，不需要 Node、Vite 或后端服务。
+
+GitHub Pages 的限制是只能托管静态文件，不能运行长期后端，也不能绕过第三方站点的浏览器 CORS 限制。因此网页版的 PGN 下载策略是“静态归档优先”：macOS 版或未来的数据同步 workflow 负责把真实 PGN 写入仓库，Pages 前端负责展示、选择和合并下载。

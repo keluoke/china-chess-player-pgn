@@ -20,7 +20,9 @@ swift run
 python3 -m http.server 4173 -d docs
 ```
 
-本地打开 `http://localhost:4173/`。推送到 GitHub 后，仓库已包含 Pages workflow，会把 `docs/` 作为静态站点发布。网页版读取 `docs/data/youth-leaderboards.json`，用于公开榜单、搜索和棋手看板；macOS 版继续负责本地 SQLite、联网补齐和 PGN 合并下载。
+本地打开 `http://localhost:4173/`。推送到 GitHub 后，仓库已包含 Pages workflow，会把 `docs/` 作为静态站点发布。网页版读取 `docs/data/youth-leaderboards.json`，用于公开榜单、搜索和棋手看板；也可以勾选 `docs/data/pgn/` 中已经归档的静态 PGN 并在浏览器里合并下载。macOS 版继续负责本地 SQLite、联网补齐和把更多 PGN 同步进静态归档。
+
+GitHub Pages 是静态托管，不运行服务器进程。网页版不能稳定地替用户实时抓取 Chess-Results PGN；未归档的 PGN 需要先通过 macOS 版或后续 GitHub Actions 数据同步写入 `docs/data/pgn/`。
 
 ## 打包
 
