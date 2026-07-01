@@ -117,3 +117,16 @@ PGNArchive/chess-results/tnr935824/fide-8601429-935824.pgn
 3. 中国甲级联赛和全国锦标赛。
 4. 世界/亚洲青少年比赛。
 5. TWIC、FIDE、赛事官网、手工 PGN 导入。
+
+## GitHub Pages 网页版
+
+网页版是纯静态前端，文件位于 `docs/`：
+
+```text
+docs/index.html
+docs/styles.css
+docs/app.js
+docs/data/youth-leaderboards.json
+```
+
+它不读取用户本机 SQLite，也不直接写 PGN 归档；这些仍由 macOS 版负责。网页端使用静态 JSON 展示 U8-U18 排行榜、中文/拼音/FIDE ID 搜索和棋手看板。GitHub Actions 的 `Pages` workflow 会直接发布 `docs/`，不需要 Node、Vite 或后端服务。

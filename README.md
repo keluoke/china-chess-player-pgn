@@ -12,6 +12,16 @@
 swift run
 ```
 
+## 网页版
+
+静态网页版在 `docs/` 目录，可直接用于 GitHub Pages：
+
+```bash
+python3 -m http.server 4173 -d docs
+```
+
+本地打开 `http://localhost:4173/`。推送到 GitHub 后，仓库已包含 Pages workflow，会把 `docs/` 作为静态站点发布。网页版读取 `docs/data/youth-leaderboards.json`，用于公开榜单、搜索和棋手看板；macOS 版继续负责本地 SQLite、联网补齐和 PGN 合并下载。
+
 ## 打包
 
 ```bash
