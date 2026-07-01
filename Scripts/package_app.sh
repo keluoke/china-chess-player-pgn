@@ -15,6 +15,7 @@ BUILD_DIR="$(swift build -c release --show-bin-path)"
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$BUILD_DIR/$EXECUTABLE_NAME" "$APP_DIR/Contents/MacOS/$APP_NAME"
+cp -R "$ROOT_DIR/docs/data" "$APP_DIR/Contents/Resources/data"
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

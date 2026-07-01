@@ -20,11 +20,11 @@ swift run
 python3 -m http.server 4173 -d docs
 ```
 
-本地打开 `http://localhost:4173/`。推送到 GitHub 后，仓库已包含 Pages workflow，会把 `docs/` 作为静态站点发布。网页版读取 `docs/data/youth-leaderboards.json` 和 `docs/data/index/`，用于公开榜单、搜索和棋手看板；点进棋手时再加载单棋手明细 JSON。用户可以勾选 `docs/data/pgn/` 中已经归档的静态 PGN，并在浏览器里合并下载。macOS 版继续负责本地 SQLite、联网补齐和把更多 PGN 同步进静态归档。
+本地打开 `http://localhost:4173/`。推送到 GitHub 后，仓库已包含 Pages workflow，会把 `docs/` 作为静态站点发布。网页版读取 `docs/data/youth-leaderboards.json`、`docs/data/registry/`、`docs/data/index/` 和 `docs/data/index/by-player/`，用于公开榜单、搜索和棋手看板；点进棋手时再加载单棋手明细 JSON。下载 PGN 时优先读取 `docs/data/pgn/by-player/fide-<FIDE_ID>/all.pgn`，没有按棋手聚合包时才回退到已归档赛事 PGN 或 bulk 青少年包。macOS 版继续负责本地 SQLite、联网补齐和把更多 PGN 同步进静态归档。
 
 GitHub Pages 是静态托管，不运行服务器进程。网页版不能稳定地替用户实时抓取 Chess-Results PGN；未归档的 PGN 需要先通过 macOS 版或后续 GitHub Actions 数据同步写入 `docs/data/pgn/`。
 
-网页版同时读取 `docs/data/bulk/` 的百万级压缩分片。当前 bulk 层镜像 Lichess official broadcast PGN archive：77 个 `.pgn.zst` 分片、1,109,301 盘棋，并从中生成 U8/U10/U12/U14/U16/U18 中国青少年对局 PGN 包，首页可按年龄段一键下载。
+网页版同时读取 `docs/data/bulk/` 的百万级压缩分片。当前 bulk 层镜像 Lichess official broadcast PGN archive：77 个 `.pgn.zst` 分片、1,109,301 盘棋，并从中生成 U8/U10/U12/U14/U16/U18 中国青少年对局 PGN 包。首页可按年龄段一键下载；`by-player` 派生层会把这些青少年包进一步整理成按棋手下载的 PGN。
 
 ## PGN 静态归档
 
@@ -39,6 +39,20 @@ docs/data/index/players/fide-<fideID>.json
 ```
 
 `players.json` 是轻量总表，适合首页和搜索；`players/fide-*.json` 是单棋手完整赛事、名次、PGN 路径和校验信息；`manifest.json` 记录总量、路径规则和来源。当前仓库已从本机缓存同步有效 PGN，脚本会排除 Chess-Results 返回的 HTML 错误页，只有能解析出 PGN header 的文件才进入索引。
+
+统一按棋手聚合层由 `Scripts/build_static_player_pgn.py` 生成：
+
+```text
+docs/data/index/by-player/manifest.json
+docs/data/index/by-player/players.json
+docs/data/index/by-player/fide-<fideID>.json
+docs/data/pgn/by-player/fide-<fideID>/all.pgn
+docs/data/pgn/by-player/fide-<fideID>/U8.pgn
+docs/data/pgn/by-player/fide-<fideID>/U10.pgn
+...
+```
+
+该层只从已经入库的公开 PGN 派生，不联网抓取。macOS 版和网页版搜索到棋手后都优先读取这里的 `all.pgn`；U8-U18 单独包用于青少年阶段筛选。当前派生层覆盖 1,287 名棋手、22,110 盘去重对局、2,854 个 PGN 包。
 
 从 macOS 本地缓存同步到仓库：
 
@@ -74,6 +88,7 @@ TWIC、Lichess、Chess.com 和国内赛事官网先进入本地侦察兵；只�
 
 GitHub Actions 里也有 `Update static PGN archive` workflow，可在 GitHub 页面手动运行；填 FIDE ID 时只更新该棋手，不填则按当前索引批量尝试；数据源可选 `all` 或 `chess-results`。workflow 成功后会自动提交 `docs/data/` 的变化。
 另有 `Promote public PGN` workflow，用于按 FIDE ID 触发 Chess-Results 全局 PGN 搜索并提交新增静态 PGN。
+这些 workflow 会在提交前自动运行 `Scripts/build_static_player_pgn.py`，确保 `by-player` 查询层同步更新。
 
 ## 百万级 bulk PGN
 
@@ -95,6 +110,8 @@ python3 Scripts/sync_lichess_broadcast_bulk.py --metadata-only --mirror --index-
 ```
 
 GitHub Actions 里有 `Update Lichess broadcast bulk archive` workflow，会按月刷新分片和青少年年龄段 PGN 包。Lichess broadcast 数据按 CC BY-SA 4.0 发布，授权说明保存在 `docs/data/bulk/NOTICE.md`。
+
+macOS 版也会读取同一套 `docs/data/`：开发运行时从仓库 `docs/data` 发现数据；打包后的 `.app` 从 `Contents/Resources/data` 读取。首页会显示 bulk 总量、按棋手 PGN 总量和 U8-U18 分段包；棋手看板会优先使用 `by-player` 统一棋手 PGN，缺失时才回退到本地青少年 bulk 抽取。
 
 ## 中国棋手全量注册表
 
@@ -154,6 +171,8 @@ Scripts/package_app.sh
 
 打包结果在 `dist/中国棋手 PGN.app`。
 
+打包脚本会把 `docs/data` 复制到 app 的 `Contents/Resources/data`，所以 mac 版离线启动后也能使用百万级 bulk manifest、青少年索引、分段 PGN 包和按棋手聚合的 `by-player` PGN。
+
 ## 本地数据库
 
 运行后本地资料保存在：
@@ -179,7 +198,7 @@ Scripts/package_app.sh
 - 一批国内顶级赛事、中国甲级联赛、全国冠军赛、女子/男子世界顶级赛事的 Chess-Results 赛事索引。
 - U8/U10/U12/U14/U16/U18 中国青少年 FIDE 排行榜种子，包含 FIDE ID、英文名、出生年和 standard/rapid/blitz 分。
 
-种子库只包含索引和身份映射，不内置大批 PGN 正文。PGN 正文会在用户下载或后续导入后进入 `PGNArchive/`，之后同一赛事会直接读本地缓存。
+SQLite 种子库只包含索引和身份映射；随仓库/随 app 分发的静态资产放在 `docs/data/` 或 app 的 `Contents/Resources/data/`，其中 `data/pgn/by-player/` 是 UI 优先读取的按棋手 PGN 层。用户通过 Chess-Results 下载或后续导入的 PGN 仍会进入 `PGNArchive/`，之后同一赛事会直接读本地缓存，并可通过同步脚本晋升到仓库静态层。
 
 ## 数据源
 

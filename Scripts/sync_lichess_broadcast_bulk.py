@@ -298,6 +298,7 @@ def build_youth_index(shards: list[BroadcastShard], dry_run: bool) -> dict[str, 
     by_stage: dict[str, list[str]] = {stage["id"]: [] for stage in stage_rules()["stages"]}
     index_by_stage: dict[str, list[dict[str, Any]]] = {stage["id"]: [] for stage in stage_rules()["stages"]}
     seen_by_stage: dict[str, set[str]] = {stage["id"]: set() for stage in stage_rules()["stages"]}
+    seen_index_by_stage: dict[str, set[tuple[str, str, str]]] = {stage["id"]: set() for stage in stage_rules()["stages"]}
     scanned_games = 0
 
     for shard in shards:
@@ -315,10 +316,13 @@ def build_youth_index(shards: list[BroadcastShard], dry_run: bool) -> dict[str, 
             game_hash = stable_game_hash(game)
             for match in matches:
                 stage_id = match["stage"]
-                if game_hash in seen_by_stage[stage_id]:
+                if game_hash not in seen_by_stage[stage_id]:
+                    seen_by_stage[stage_id].add(game_hash)
+                    by_stage[stage_id].append(game.strip())
+                index_marker = (game_hash, match["fideID"], match["role"])
+                if index_marker in seen_index_by_stage[stage_id]:
                     continue
-                seen_by_stage[stage_id].add(game_hash)
-                by_stage[stage_id].append(game.strip())
+                seen_index_by_stage[stage_id].add(index_marker)
                 index_by_stage[stage_id].append(
                     {
                         "fideID": match["fideID"],

@@ -166,11 +166,11 @@ docs/data/pgn/
 docs/data/bulk/
 ```
 
-它不读取用户本机 SQLite，也不直接写用户本地 PGN 归档；这些仍由 macOS 版和同步脚本负责。网页端使用静态 JSON 展示 U8-U18 排行榜、中文/拼音/FIDE ID 搜索和棋手看板，并从 `docs/data/pgn/` 读取已经归档的 PGN，在浏览器里合并生成下载文件。GitHub Actions 的 `Pages` workflow 会直接发布 `docs/`，不需要 Node、Vite 或后端服务。
+它不读取用户本机 SQLite，也不直接写用户本地 PGN 归档；这些仍由 macOS 版和同步脚本负责。网页端使用静态 JSON 展示 U8-U18 排行榜、中文/拼音/FIDE ID 搜索和棋手看板，并优先从 `docs/data/pgn/by-player/` 读取按棋手聚合好的 PGN。GitHub Actions 的 `Pages` workflow 会直接发布 `docs/`，不需要 Node、Vite 或后端服务。
 
 GitHub Pages 的限制是只能托管静态文件，不能运行长期后端，也不能绕过第三方站点的浏览器 CORS 限制。因此网页版的 PGN 下载策略是“静态归档优先”：macOS 版或未来的数据同步 workflow 负责把真实 PGN 写入仓库，Pages 前端负责展示、选择和合并下载。
 
-百万级数据使用 `docs/data/bulk/` 压缩分片。Lichess broadcast 原始数据按月保存为 `.pgn.zst`，首屏只读取 manifest；青少年年龄段筛选使用预生成的 U8-U18 PGN 包，避免浏览器实时解压百万盘棋。
+百万级数据使用 `docs/data/bulk/` 压缩分片。Lichess broadcast 原始数据按月保存为 `.pgn.zst`，首屏只读取 manifest；青少年年龄段筛选使用预生成的 U8-U18 PGN 包，避免浏览器实时解压百万盘棋。随后 `Scripts/build_static_player_pgn.py` 会把赛事 PGN 和 bulk 青少年 PGN 派生成 `by-player` 查询层，供网页和 macOS 版直接按 FIDE ID 下载。
 
 ## 静态 PGN 数据层
 
@@ -178,6 +178,8 @@ GitHub Pages 的限制是只能托管静态文件，不能运行长期后端，�
 
 ```text
 docs/data/pgn/chess-results/tnr1210266/fide-8657238-1210266.pgn
+docs/data/pgn/by-player/fide-8657238/all.pgn
+docs/data/pgn/by-player/fide-8657238/U12.pgn
 ```
 
 这样做有几个好处：
@@ -186,17 +188,21 @@ docs/data/pgn/chess-results/tnr1210266/fide-8657238-1210266.pgn
 - GitHub Pages 可以直接按 URL 提供单个 PGN，浏览器只下载用户勾选的赛事。
 - 后续 macOS、网页版、移动端或脚本都能复用同一套路径规则。
 - 每个文件可以独立记录 SHA256、字节数和棋局数，便于发现源站返回 HTML 或空文件。
+- UI 可以优先读取按棋手聚合包，不需要每次临时扫赛事包或 bulk 年龄包。
 
-静态索引分三层：
+静态索引分为底层赛事索引和上层棋手 PGN 索引：
 
 ```text
 docs/data/index/manifest.json
 docs/data/index/players.json
 docs/data/index/events.json
 docs/data/index/players/fide-<fideID>.json
+docs/data/index/by-player/manifest.json
+docs/data/index/by-player/players.json
+docs/data/index/by-player/fide-<fideID>.json
 ```
 
-`manifest.json` 只放总量、路径规则和来源；`players.json` 是轻量棋手总表，用于首页和搜索；`events.json` 是赛事总表；`players/fide-*.json` 是单棋手完整明细，包含赛事、名次、PGN 路径、棋局数和 SHA256。网页首屏只加载轻量文件，点击棋手后再加载对应 `fide-*.json`，避免棋手和棋局数量变大后首屏膨胀。
+`manifest.json` 只放总量、路径规则和来源；`players.json` 是轻量棋手总表，用于首页和搜索；`events.json` 是赛事总表；`players/fide-*.json` 是单棋手赛事明细，包含赛事、名次、PGN 路径、棋局数和 SHA256。`by-player/fide-*.json` 是产品查询层，列出该棋手已经聚合好的 `all.pgn` 和 U8-U18 阶段包。网页首屏只加载轻量文件，点击棋手后再加载对应明细，避免棋手和棋局数量变大后首屏膨胀。
 
 `Scripts/sync_static_pgn.py` 是统一同步入口：
 
@@ -204,6 +210,13 @@ docs/data/index/players/fide-<fideID>.json
 - 在 GitHub Actions 上读取已提交的静态索引，按 FIDE ID 和赛事 ID 继续抓取缺失 PGN。
 - 每次同步后重新生成 manifest、棋手索引、赛事索引和首页榜单里的缓存摘要。
 - 下载或复制时会校验 PGN header；Chess-Results 返回的 HTML 页面不会进入静态索引。
+
+`Scripts/build_static_player_pgn.py` 是派生索引入口：
+
+- 读取 `docs/data/index/players/fide-*.json` 中已晋升的赛事 PGN。
+- 读取 `docs/data/bulk/youth/manifest.json`、U8-U18 index 和分段 PGN。
+- 按 FIDE ID 去重后生成 `docs/data/pgn/by-player/fide-<id>/all.pgn` 和阶段包。
+- 生成 `docs/data/index/by-player/`，让 macOS 和网页使用同一个静态查询面。
 
 `.github/workflows/update-pgn.yml` 提供 GitHub 页面上的一键更新入口，可限制最大请求数，也可指定单个 FIDE ID。成功后 workflow 会自动提交 `docs/data/` 的变化。
 

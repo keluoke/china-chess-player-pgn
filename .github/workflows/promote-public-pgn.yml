@@ -56,6 +56,7 @@ jobs:
             "${args[@]}" \
             --max-players "${{ inputs.max_players }}" \
             --max-games "${{ inputs.max_games }}"
+          python3 Scripts/build_static_player_pgn.py
 
       - name: Commit promoted PGN
         shell: bash

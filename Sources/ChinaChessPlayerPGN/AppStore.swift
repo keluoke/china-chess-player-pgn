@@ -18,6 +18,7 @@ final class AppStore: ObservableObject {
     @Published var downloadProgress = 0.0
     @Published var savedFileURL: URL?
     @Published var databaseStats = DatabaseStats()
+    @Published var bulkDataStats = BulkDataStats()
     @Published var recommendedYouthPlayers: [RecommendedYouthPlayer] = []
     @Published var youthLeaderboards: [YouthLeaderboard] = []
     @Published var selectedDashboardStats = PlayerDashboardStats()
@@ -25,10 +26,12 @@ final class AppStore: ObservableObject {
     private let client = ChessResultsClient()
     private let fideClient = FIDEPlayerClient()
     private let repository = LocalChessRepository()
+    private let staticBulkRepository = StaticBulkRepository()
     private var latestMergedPGN = ""
 
     init() {
         refreshDatabaseStats()
+        loadBulkData()
         loadHomepage()
     }
 
@@ -161,6 +164,7 @@ final class AppStore: ObservableObject {
         savedFileURL = nil
         statusText = "首页"
         refreshDatabaseStats()
+        loadBulkData()
         loadHomepage()
     }
 
@@ -305,8 +309,71 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func loadBulkData() {
+        do {
+            bulkDataStats = try staticBulkRepository.stats()
+        } catch {
+            bulkDataStats = BulkDataStats()
+            statusText = "bulk 静态数据加载失败：\(error.localizedDescription)"
+        }
+    }
+
     func revealDatabaseFolder() {
         NSWorkspace.shared.activateFileViewerSelecting([repository.databaseLocation])
+    }
+
+    func revealStaticDataFolder() {
+        guard let url = bulkDataStats.rootURL else {
+            statusText = "未找到本地静态数据目录"
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    func saveBulkYouthStagePGN(_ stage: BulkYouthStagePack) {
+        guard let sourceURL = staticBulkRepository.stagePGNURL(for: stage) else {
+            statusText = "未找到 \(stage.id) 青少年 PGN 包"
+            return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pgn]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "china-youth-\(stage.id)-lichess-broadcast.pgn"
+        panel.title = "保存 \(stage.id) 青少年 PGN"
+        guard panel.runModal() == .OK, let destinationURL = panel.url else { return }
+
+        do {
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                try FileManager.default.removeItem(at: destinationURL)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
+            savedFileURL = destinationURL
+            statusText = "已保存 \(stage.id) 青少年 PGN"
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func saveSelectedBulkYouthPGN() {
+        guard let candidate = selectedCandidate else {
+            statusText = "请先选择棋手"
+            return
+        }
+
+        do {
+            let pgn = try staticBulkRepository.pgnForPlayer(
+                fideID: candidate.fideID,
+                displayName: candidate.displayName
+            )
+            guard PGNTools.gameCount(in: pgn) > 0 else {
+                statusText = "本地 bulk 青少年包未命中该棋手"
+                return
+            }
+            latestMergedPGN = pgn
+            saveMergedPGN(for: candidate)
+        } catch {
+            statusText = "导出本地 bulk PGN 失败：\(error.localizedDescription)"
+        }
     }
 
     private func applyDefaultSelection(_ candidate: PlayerCandidate?) {
@@ -321,7 +388,10 @@ final class AppStore: ObservableObject {
 
     private func updateDashboard(for candidate: PlayerCandidate) {
         do {
-            selectedDashboardStats = try repository.dashboardStats(for: candidate)
+            var stats = try repository.dashboardStats(for: candidate)
+            stats.bulkYouthStages = (try? staticBulkRepository.playerSummary(fideID: candidate.fideID)) ?? []
+            stats.bulkYouthGames = stats.bulkYouthStages.reduce(0) { $0 + $1.games }
+            selectedDashboardStats = stats
         } catch {
             selectedDashboardStats = PlayerDashboardStats(eventCount: candidate.events.count)
             statusText = error.localizedDescription

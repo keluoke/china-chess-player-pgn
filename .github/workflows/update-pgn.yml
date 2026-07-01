@@ -70,6 +70,7 @@ jobs:
           fi
 
           python3 Scripts/sync_static_pgn.py "${args[@]}"
+          python3 Scripts/build_static_player_pgn.py
 
       - name: Commit updated archive
         shell: bash

@@ -85,6 +85,8 @@ struct PlayerDashboardStats: Hashable {
     var eventCount = 0
     var cachedPGNArchives = 0
     var cachedGames = 0
+    var bulkYouthGames = 0
+    var bulkYouthStages: [BulkPlayerYouthStageSummary] = []
     var firstPlaceCount = 0
     var topThreeCount = 0
     var birthYear: Int?
@@ -331,6 +333,54 @@ struct DatabaseStats: Hashable {
     var pgnSizeText: String {
         ByteCountFormatter.string(fromByteCount: Int64(pgnBytes), countStyle: .file)
     }
+}
+
+struct BulkDataStats: Hashable {
+    var isAvailable = false
+    var source = "未加载"
+    var license = ""
+    var rootURL: URL?
+    var mirroredGames = 0
+    var mirroredShards = 0
+    var mirroredBytes = 0
+    var youthGames = 0
+    var youthPlayers = 0
+    var youthStages: [BulkYouthStagePack] = []
+    var byPlayerPlayers = 0
+    var byPlayerGames = 0
+    var byPlayerPackages = 0
+
+    var mirroredSizeText: String {
+        ByteCountFormatter.string(fromByteCount: Int64(mirroredBytes), countStyle: .file)
+    }
+
+    var locationText: String {
+        rootURL?.path ?? "未找到 docs/data"
+    }
+}
+
+struct BulkYouthStagePack: Identifiable, Hashable {
+    let id: String
+    let lowerAge: Int
+    let upperAge: Int
+    let birthYears: String
+    let games: Int
+    let players: Int
+    let pgnPath: String
+    let indexPath: String
+
+    var ageBandText: String {
+        "\(lowerAge)-\(upperAge) 岁"
+    }
+}
+
+struct BulkPlayerYouthStageSummary: Identifiable, Hashable {
+    let stageID: String
+    let games: Int
+    let pgnPath: String
+    let indexPath: String
+
+    var id: String { stageID }
 }
 
 enum PGNDownloadStatus: Hashable {

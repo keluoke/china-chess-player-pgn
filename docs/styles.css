@@ -476,6 +476,73 @@ input {
   width: fit-content;
 }
 
+.bulk-player-hit {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  color: var(--text);
+  background: #edf8f5;
+  border: 1px solid rgba(18, 119, 111, 0.22);
+  border-radius: 8px;
+}
+
+.bulk-player-hit strong {
+  font-size: 0.92rem;
+}
+
+.bulk-player-hit span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.static-player-hit {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  color: var(--text);
+  background: #eef7ff;
+  border: 1px solid rgba(42, 110, 178, 0.2);
+  border-radius: 8px;
+}
+
+.static-player-hit strong,
+.static-player-hit span {
+  display: block;
+}
+
+.static-player-hit strong {
+  font-size: 0.94rem;
+}
+
+.static-player-hit span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.static-package-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.static-package-links a {
+  padding: 6px 9px;
+  color: #174b7c;
+  text-decoration: none;
+  background: #fff;
+  border: 1px solid rgba(42, 110, 178, 0.22);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.static-package-links a:hover {
+  border-color: #2a6eb2;
+}
+
 .result-list {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

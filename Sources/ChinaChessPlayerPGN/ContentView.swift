@@ -122,6 +122,10 @@ private struct SearchSidebar: View {
                     .font(.callout)
                     .foregroundStyle(Color.appTextSecondary)
                     .lineLimit(1)
+                Label("本地 bulk 静态 PGN 可离线筛选", systemImage: "externaldrive")
+                    .font(.callout)
+                    .foregroundStyle(Color.appTextSecondary)
+                    .lineLimit(1)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -304,6 +308,7 @@ private struct HomeView: View {
 
                     Button {
                         store.refreshDatabaseStats()
+                        store.loadBulkData()
                         store.loadHomepage()
                     } label: {
                         Image(systemName: "arrow.clockwise")
@@ -314,6 +319,7 @@ private struct HomeView: View {
                 }
 
                 HomeCacheSummaryView()
+                HomeBulkSummaryView()
 
                 YouthLeaderboardsSection()
             }
@@ -356,6 +362,128 @@ private struct HomeCacheSummaryView: View {
         }
         .padding(16)
         .background(Color.panelBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct HomeBulkSummaryView: View {
+    @EnvironmentObject private var store: AppStore
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+
+    private let stageColumns = [
+        GridItem(.adaptive(minimum: 180), spacing: 10)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("静态 bulk 数据")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.appText)
+                    Text(store.bulkDataStats.isAvailable ? store.bulkDataStats.source : "未找到本地 docs/data/bulk")
+                        .font(.caption)
+                        .foregroundStyle(Color.appTextSecondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Button {
+                    store.revealStaticDataFolder()
+                } label: {
+                    Label("目录", systemImage: "externaldrive")
+                }
+                .buttonStyle(.bordered)
+                .disabled(!store.bulkDataStats.isAvailable)
+            }
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                DashboardMetricCard(title: "bulk 对局", value: compactCount(store.bulkDataStats.mirroredGames), subtitle: "压缩静态库", symbol: "shippingbox")
+                DashboardMetricCard(title: "分片", value: "\(store.bulkDataStats.mirroredShards)", subtitle: store.bulkDataStats.mirroredSizeText, symbol: "square.stack.3d.up")
+                DashboardMetricCard(title: "棋手 PGN", value: compactCount(store.bulkDataStats.byPlayerGames), subtitle: "\(store.bulkDataStats.byPlayerPlayers) 名 / \(store.bulkDataStats.byPlayerPackages) 包", symbol: "person.text.rectangle")
+                DashboardMetricCard(title: "青少年", value: compactCount(store.bulkDataStats.youthGames), subtitle: "\(store.bulkDataStats.youthPlayers) 名", symbol: "person.3")
+                DashboardMetricCard(title: "年龄组", value: "\(store.bulkDataStats.youthStages.count)", subtitle: "U8-U18", symbol: "slider.horizontal.3")
+            }
+
+            if store.bulkDataStats.youthStages.isEmpty {
+                Text("青少年分段包待生成")
+                    .font(.callout)
+                    .foregroundStyle(Color.appTextSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 70)
+                    .background(Color.statBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            } else {
+                LazyVGrid(columns: stageColumns, spacing: 10) {
+                    ForEach(store.bulkDataStats.youthStages) { stage in
+                        BulkYouthStagePackCard(stage: stage)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.panelBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func compactCount(_ value: Int) -> String {
+        if value >= 1_000_000 {
+            return String(format: "%.1fM", Double(value) / 1_000_000)
+        }
+        if value >= 10_000 {
+            return "\(value / 10_000)万"
+        }
+        return "\(value)"
+    }
+}
+
+private struct BulkYouthStagePackCard: View {
+    @EnvironmentObject private var store: AppStore
+
+    let stage: BulkYouthStagePack
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(stage.id)
+                    .font(.title2.monospacedDigit().weight(.bold))
+                    .foregroundStyle(Color.appAccentStrong)
+                Spacer()
+                Text(stage.birthYears)
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+
+            HStack(spacing: 8) {
+                MiniMetric(title: "对局", value: "\(stage.games)")
+                MiniMetric(title: "棋手", value: "\(stage.players)")
+            }
+
+            Button {
+                store.saveBulkYouthStagePGN(stage)
+            } label: {
+                Label("保存 PGN", systemImage: "square.and.arrow.down")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
+        .background(Color.statBackground)
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.panelBorder)
@@ -669,6 +797,7 @@ private struct PlayerDetailView: View {
 }
 
 private struct PlayerDashboardView: View {
+    @EnvironmentObject private var store: AppStore
     @State private var chartKind: DashboardChartKind = .elo
 
     let candidate: PlayerCandidate
@@ -714,7 +843,14 @@ private struct PlayerDashboardView: View {
                 DashboardMetricCard(title: "赛事索引", value: "\(stats.eventCount)", subtitle: "近十年", symbol: "calendar")
                 DashboardMetricCard(title: "前三名", value: "\(stats.topThreeCount)", subtitle: "冠军 \(stats.firstPlaceCount)", symbol: "trophy")
                 DashboardMetricCard(title: "PGN 缓存", value: "\(stats.cachedPGNArchives)", subtitle: "\(stats.cachedGames) 盘", symbol: "archivebox")
+                DashboardMetricCard(title: "bulk 青少年", value: "\(stats.bulkYouthGames)", subtitle: bulkYouthSubtitle, symbol: "externaldrive.badge.checkmark")
                 DashboardMetricCard(title: "青少年阶段", value: stats.currentStage?.rawValue ?? "-", subtitle: youthStageSubtitle, symbol: "flag.checkered")
+            }
+
+            if stats.bulkYouthGames > 0 {
+                BulkPlayerYouthHitView(stats: stats) {
+                    store.saveSelectedBulkYouthPGN()
+                }
             }
 
             YouthStageTimelineView(stages: stats.youthStages)
@@ -736,6 +872,49 @@ private struct PlayerDashboardView: View {
             return "\(birthYear) 出生 · 未到 U8"
         }
         return "\(birthYear) 出生 · \(currentStage.ageBandText)"
+    }
+
+    private var bulkYouthSubtitle: String {
+        stats.bulkYouthStages.isEmpty
+            ? "未命中本地包"
+            : stats.bulkYouthStages.map(\.stageID).joined(separator: "/")
+    }
+}
+
+private struct BulkPlayerYouthHitView: View {
+    let stats: PlayerDashboardStats
+    let action: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "externaldrive.badge.checkmark")
+                .font(.title3)
+                .foregroundStyle(Color.appAccentStrong)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("本地青少年 bulk 命中 \(stats.bulkYouthGames) 盘")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(Color.appText)
+                Text(stats.bulkYouthStages.map { "\($0.stageID) \($0.games) 盘" }.joined(separator: " · "))
+                    .font(.caption)
+                    .foregroundStyle(Color.appTextSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button(action: action) {
+                Label("导出", systemImage: "square.and.arrow.down")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(12)
+        .background(Color.chartSurface)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.panelBorder)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
