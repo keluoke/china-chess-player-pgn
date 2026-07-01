@@ -64,6 +64,26 @@ python3 Scripts/sync_static_pgn.py --source chess-results --fetch-missing --max-
 
 GitHub Actions 里也有 `Update static PGN archive` workflow，可在 GitHub 页面手动运行；填 FIDE ID 时只更新该棋手，不填则按当前索引批量尝试；数据源可选 `all` 或 `chess-results`。workflow 成功后会自动提交 `docs/data/` 的变化。
 
+## 中国棋手全量注册表
+
+棋手身份库和 PGN 归档是两条流水线。身份库以 FIDE ID 为唯一主键，月度同步 FIDE legacy XML rating list，并按 `CHN` federation 过滤：
+
+```bash
+python3 Scripts/sync_chinese_players.py
+```
+
+脚本输出：
+
+```text
+docs/data/registry/manifest.json
+docs/data/registry/players.json
+docs/data/registry/shards/fide-prefix-<first3>.json
+```
+
+中文名、拼音和常见别名维护在 `data/manual/player-aliases.csv`，只作为 alias 挂到 FIDE ID，不能作为唯一身份。GitHub Actions 里有 `Update Chinese player registry` workflow，可手动或按月刷新全量 CHN 棋手注册表。
+
+完整工作机制见 [docs/DATA_WORKFLOW.md](docs/DATA_WORKFLOW.md)。
+
 ## 打包
 
 ```bash

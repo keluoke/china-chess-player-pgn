@@ -33,6 +33,20 @@ PGN 归档路径按来源和赛事分组：
 PGNArchive/chess-results/tnr935824/fide-8601429-935824.pgn
 ```
 
+## 全量棋手注册表
+
+仓库静态数据另有一层 FIDE CHN 棋手注册表：
+
+```text
+docs/data/registry/manifest.json
+docs/data/registry/players.json
+docs/data/registry/shards/fide-prefix-860.json
+```
+
+这层只解决“这个中国棋手是谁、FIDE ID 是什么、当前 FIDE 基础资料是什么”，不直接承担赛事和 PGN。它由 `Scripts/sync_chinese_players.py` 从 FIDE rating list legacy XML 生成，按 federation=`CHN` 过滤。legacy XML 是身份库首选，因为它包含未定级棋手；普通 rating list 更适合排行榜，不适合作为全量棋手库。
+
+中文名、拼音和别名来自 `data/manual/player-aliases.csv`。这些字段只作为查询 alias，不参与唯一性判断；同名棋手必须保留为不同 FIDE ID。
+
 ## SQLite 表
 
 `players`
@@ -127,6 +141,7 @@ docs/index.html
 docs/styles.css
 docs/app.js
 docs/data/youth-leaderboards.json
+docs/data/registry/
 docs/data/index/
 docs/data/pgn/
 ```
@@ -169,3 +184,7 @@ docs/data/index/players/fide-<fideID>.json
 - 下载或复制时会校验 PGN header；Chess-Results 返回的 HTML 页面不会进入静态索引。
 
 `.github/workflows/update-pgn.yml` 提供 GitHub 页面上的一键更新入口，可限制最大请求数，也可指定单个 FIDE ID。成功后 workflow 会自动提交 `docs/data/` 的变化。
+
+棋手身份库由 `.github/workflows/update-player-registry.yml` 更新。网页端会优先加载 `docs/data/registry/players.json` 扩展搜索范围；如果注册表还没有生成，则退回青少年榜单和赛事索引，不影响页面可用性。
+
+完整数据工作机制见 `docs/DATA_WORKFLOW.md`。

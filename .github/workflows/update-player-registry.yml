@@ -1,0 +1,63 @@
+name: Update Chinese player registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      federation:
+        description: "Federation code"
+        required: true
+        default: "CHN"
+        type: string
+      source_url:
+        description: "FIDE rating-list export URL"
+        required: true
+        default: "https://ratings.fide.com/download/players_list_xml_legacy.zip"
+        type: string
+  schedule:
+    - cron: "32 20 4 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-chinese-player-registry
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sync Chinese player registry
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          federation="${{ inputs.federation }}"
+          source_url="${{ inputs.source_url }}"
+          if [ -z "$federation" ]; then
+            federation=CHN
+          fi
+          if [ -z "$source_url" ]; then
+            source_url="https://ratings.fide.com/download/players_list_xml_legacy.zip"
+          fi
+
+          python3 Scripts/sync_chinese_players.py \
+            --federation "$federation" \
+            --url "$source_url"
+
+      - name: Commit updated registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/registry
+          if git diff --cached --quiet; then
+            echo "No player registry changes."
+          else
+            git commit -m "Update Chinese player registry"
+            git push
+          fi

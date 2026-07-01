@@ -32,14 +32,17 @@ initialize();
 async function loadData() {
   try {
     const youth = await fetchJSON("./data/youth-leaderboards.json", true);
-    const [manifest, indexedPlayers] = await Promise.all([
+    const [manifest, indexedPlayers, registryManifest, registryPlayers] = await Promise.all([
       fetchJSON("./data/index/manifest.json", false),
-      fetchJSON("./data/index/players.json", false)
+      fetchJSON("./data/index/players.json", false),
+      fetchJSON("./data/registry/manifest.json", false),
+      fetchJSON("./data/registry/players.json", false)
     ]);
     return {
       ...youth,
       manifest,
-      players: mergePlayers(youth.players ?? [], indexedPlayers ?? [])
+      registryManifest,
+      players: mergePlayers(youth.players ?? [], indexedPlayers ?? [], registryPlayers ?? [])
     };
   } catch (error) {
     document.body.innerHTML = `<main class="empty-state">无法加载静态数据：${escapeHTML(error.message)}</main>`;
@@ -56,24 +59,47 @@ async function fetchJSON(path, required) {
   return response.json();
 }
 
-function mergePlayers(leaderboardPlayers, indexedPlayers) {
+function mergePlayers(leaderboardPlayers, indexedPlayers, registryPlayers) {
   const byFide = new Map();
-  leaderboardPlayers.forEach(player => byFide.set(String(player.fideID), { ...player }));
+  registryPlayers.forEach(player => byFide.set(String(player.fideID), { ...player }));
 
   indexedPlayers.forEach(indexed => {
     const fideID = String(indexed.fideID);
     const current = byFide.get(fideID) ?? {};
     byFide.set(fideID, {
-      ...indexed,
       ...current,
+      ...indexed,
+      aliases: [...(current.aliases ?? []), ...(indexed.aliases ?? [])],
       detailPath: indexed.detailPath ?? current.detailPath,
       eventCount: indexed.eventCount ?? current.eventCount,
       pgnCount: indexed.pgnCount ?? current.pgnCount,
       gameCount: indexed.gameCount ?? current.gameCount,
-      displayName: current.displayName ?? indexed.displayName,
-      name: current.name ?? indexed.name ?? indexed.displayName ?? `FIDE ${fideID}`,
-      chineseName: current.chineseName ?? indexed.chineseName,
-      pinyin: current.pinyin ?? indexed.pinyin
+      displayName: indexed.displayName ?? current.displayName,
+      name: indexed.name ?? current.name ?? indexed.displayName ?? current.displayName ?? `FIDE ${fideID}`,
+      chineseName: indexed.chineseName ?? current.chineseName,
+      pinyin: indexed.pinyin ?? current.pinyin
+    });
+  });
+
+  leaderboardPlayers.forEach(player => {
+    const fideID = String(player.fideID);
+    const current = byFide.get(fideID) ?? {};
+    byFide.set(fideID, {
+      ...current,
+      ...player,
+      aliases: [...(current.aliases ?? []), ...(player.aliases ?? [])],
+      detailPath: current.detailPath ?? player.detailPath,
+      eventCount: current.eventCount ?? player.eventCount,
+      pgnCount: current.pgnCount ?? player.pgnCount,
+      gameCount: current.gameCount ?? player.gameCount,
+      standard: current.standard ?? player.standard,
+      rapid: current.rapid ?? player.rapid,
+      blitz: current.blitz ?? player.blitz,
+      birthYear: current.birthYear ?? player.birthYear,
+      displayName: current.displayName ?? player.displayName,
+      name: current.name ?? player.name ?? player.displayName ?? `FIDE ${fideID}`,
+      chineseName: current.chineseName ?? player.chineseName,
+      pinyin: current.pinyin ?? player.pinyin
     });
   });
 
@@ -94,7 +120,7 @@ function initialize() {
 function render() {
   const eventCount = data.manifest?.totals?.events
     ?? players.reduce((sum, player) => sum + (player.eventCount ?? player.events?.length ?? 0), 0);
-  els.playerCount.textContent = String(data.manifest?.totals?.players ?? players.length);
+  els.playerCount.textContent = String(data.registryManifest?.totals?.players ?? data.manifest?.totals?.players ?? players.length);
   els.stageCount.textContent = String(stages.length);
   els.eventCount.textContent = String(eventCount);
   els.ageRuleText.textContent = ageRuleText();
