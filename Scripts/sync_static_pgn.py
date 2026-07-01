@@ -41,11 +41,13 @@ STATIC_PGN_ROOT = DOCS_DATA / "pgn"
 INDEX_ROOT = DOCS_DATA / "index"
 PLAYER_INDEX_ROOT = INDEX_ROOT / "players"
 LEADERBOARD_JSON = DOCS_DATA / "youth-leaderboards.json"
+REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
 DEFAULT_APP_SUPPORT = pathlib.Path.home() / "Library" / "Application Support" / "ChinaChessPlayerPGN"
 DEFAULT_DB = DEFAULT_APP_SUPPORT / "china-chess-player-pgn.sqlite"
 DEFAULT_LOCAL_PGN_ROOT = DEFAULT_APP_SUPPORT / "PGNArchive"
 USER_AGENT = "ChinaChessPlayerPGNStaticSync/1.0"
 _TLS_CONTEXT: ssl.SSLContext | None = None
+_REGISTRY_PROFILES: dict[str, dict[str, Any]] | None = None
 
 
 @dataclass
@@ -78,7 +80,14 @@ class EventRecord:
     @property
     def static_relative_path(self) -> str:
         source_slug = slug(self.source)
-        return f"{source_slug}/tnr{self.tournament_id}/fide-{self.fide_id}-{self.tournament_id}.pgn"
+        event_slug = slug(self.tournament_id or self.event_id)
+        if source_slug == "chess-results" and str(self.tournament_id).isdigit():
+            event_folder = f"tnr{self.tournament_id}"
+            file_event_id = str(self.tournament_id)
+        else:
+            event_folder = event_slug
+            file_event_id = event_slug
+        return f"{source_slug}/{event_folder}/fide-{self.fide_id}-{file_event_id}.pgn"
 
     @property
     def static_path(self) -> pathlib.Path:
@@ -374,18 +383,29 @@ def merge_static_pgn_metadata(records: list[EventRecord]) -> list[EventRecord]:
         by_key[(record.fide_id, slug(record.source), record.tournament_id)] = record
 
     for path in sorted(STATIC_PGN_ROOT.glob("*/*/*.pgn")):
-        match = re.match(r"fide-(\d+)-(\d+)\.pgn$", path.name)
+        match = re.match(r"fide-(\d+)-(.+)\.pgn$", path.name)
         if not match:
             continue
-        fide_id, tournament_id = match.groups()
-        source = path.parts[-3]
-        key = (fide_id, source, tournament_id)
+        fide_id, event_key = match.groups()
+        source_slug = path.parts[-3]
+        source = display_source_name(source_slug)
+        tournament_id = event_key
+        key = (fide_id, source_slug, tournament_id)
         record = by_key.get(key)
         if record is None:
+            profile = profile_for_fide(fide_id)
             record = EventRecord(
                 fide_id=fide_id,
                 player_id=f"fide-{fide_id}",
-                display_name=f"FIDE {fide_id}",
+                display_name=str(profile.get("displayName") or profile.get("name") or f"FIDE {fide_id}"),
+                chinese_name=str(profile.get("chineseName") or ""),
+                pinyin_name=str(profile.get("pinyin") or ""),
+                english_name=str(profile.get("name") or ""),
+                federation=str(profile.get("federation") or "CHN"),
+                birth_year=profile.get("birthYear"),
+                standard_rating=profile.get("standard"),
+                rapid_rating=profile.get("rapid"),
+                blitz_rating=profile.get("blitz"),
                 source=source,
                 tournament_id=tournament_id,
                 event_id=f"{source}-{tournament_id}",
@@ -472,7 +492,7 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
         "storage": {
             "pgnRoot": "data/pgn",
             "playerIndexRoot": "data/index/players",
-            "pathPattern": "data/pgn/<source>/tnr<tournamentID>/fide-<fideID>-<tournamentID>.pgn",
+            "pathPattern": "data/pgn/<source>/<eventKey>/fide-<fideID>-<eventKey>.pgn",
         },
         "totals": {
             "players": len(by_player),
@@ -537,17 +557,53 @@ def update_leaderboard_json(records: list[EventRecord], dry_run: bool) -> None:
 
 def player_profile(records: list[EventRecord]) -> dict[str, Any]:
     first = records[0]
+    registry = profile_for_fide(first.fide_id)
     return {
-        "displayName": first.chinese_name or first.english_name or first.display_name or f"FIDE {first.fide_id}",
-        "chineseName": first.chinese_name,
-        "pinyin": first.pinyin_name,
-        "name": first.english_name or first.display_name,
-        "federation": first.federation or "CHN",
-        "birthYear": first.birth_year,
-        "standard": first.standard_rating,
-        "rapid": first.rapid_rating,
-        "blitz": first.blitz_rating,
+        "displayName": first.chinese_name
+        or first.english_name
+        or first.display_name
+        or registry.get("displayName")
+        or registry.get("name")
+        or f"FIDE {first.fide_id}",
+        "chineseName": first.chinese_name or registry.get("chineseName", ""),
+        "pinyin": first.pinyin_name or registry.get("pinyin", ""),
+        "name": first.english_name or first.display_name or registry.get("name", ""),
+        "federation": first.federation or registry.get("federation", "CHN"),
+        "birthYear": first.birth_year or registry.get("birthYear"),
+        "standard": first.standard_rating or registry.get("standard"),
+        "rapid": first.rapid_rating or registry.get("rapid"),
+        "blitz": first.blitz_rating or registry.get("blitz"),
     }
+
+
+def profile_for_fide(fide_id: str) -> dict[str, Any]:
+    return registry_profiles().get(str(fide_id), {})
+
+
+def registry_profiles() -> dict[str, dict[str, Any]]:
+    global _REGISTRY_PROFILES
+    if _REGISTRY_PROFILES is not None:
+        return _REGISTRY_PROFILES
+
+    profiles: dict[str, dict[str, Any]] = {}
+    for path in [REGISTRY_PLAYERS_JSON, LEADERBOARD_JSON, INDEX_ROOT / "players.json"]:
+        if not path.exists():
+            continue
+        data = read_json(path)
+        players = data.get("players", []) if isinstance(data, dict) else data
+        for player in players:
+            if not isinstance(player, dict):
+                continue
+            fide_id = str(player.get("fideID") or "").strip()
+            if not fide_id:
+                continue
+            current = profiles.get(fide_id, {})
+            profiles[fide_id] = {
+                **current,
+                **{key: value for key, value in player.items() if value not in (None, "")},
+            }
+    _REGISTRY_PROFILES = profiles
+    return profiles
 
 
 def event_payload(record: EventRecord) -> dict[str, Any]:
@@ -660,6 +716,18 @@ def slug(value: str) -> str:
     lowered = str(value or "").strip().lower()
     cleaned = re.sub(r"[^a-z0-9]+", "-", lowered).strip("-")
     return cleaned or "unknown"
+
+
+def display_source_name(source_slug: str) -> str:
+    if slug(source_slug) == "chess-results":
+        return "Chess-Results"
+    if slug(source_slug) == "lichess":
+        return "Lichess"
+    if slug(source_slug) == "twic":
+        return "TWIC"
+    if slug(source_slug) == "chesscom":
+        return "Chess.com"
+    return source_slug
 
 
 def is_li_chengzhi_like(name: str) -> bool:

@@ -1,6 +1,6 @@
 # 中国国际象棋 PGN 侦察兵
 
-`Scripts/pgn_scout.py` 是本地原始 PGN 资产采集器。它的职责是先把所有可能有价值的原始 PGN、ZIP、ZST 文件收进本机资产库，做拆分、索引和中国相关对局过滤；确认质量后，再用 `Scripts/sync_static_pgn.py` 晋升到 `docs/data/pgn/`。
+`Scripts/pgn_scout.py` 是本地原始 PGN 资产采集器。它的职责是先把所有可能有价值的原始 PGN、ZIP、ZST 文件收进本机资产库，做拆分、索引和中国相关对局过滤；确认质量后，再用 `Scripts/promote_public_pgn.py` 晋升到 `docs/data/pgn/`，最后由 `Scripts/sync_static_pgn.py` 重建网页索引。
 
 默认本地资产目录：
 
@@ -146,8 +146,22 @@ python3 Scripts/pgn_scout.py report --write ~/Desktop/pgn-scout-report.md
 侦察兵只负责本地原始资产。进入网页前必须满足：
 
 1. 文件是合法 PGN，不是 HTML 错误页。
-2. 来源允许公开分发。
+2. 来源在 `data/manual/public-pgn-sources.csv` 中标记为可公开分发。
 3. 可以挂到明确的 FIDE ID 和赛事 ID。
-4. 经过 `Scripts/sync_static_pgn.py` 写入 `docs/data/pgn/` 和 `docs/data/index/`。
+4. 经过 `Scripts/promote_public_pgn.py` 写入 `docs/data/pgn/`，再由 `Scripts/sync_static_pgn.py` 更新 `docs/data/index/`。
+
+按 FIDE ID 扫 Chess-Results 并按赛事拆包发布：
+
+```bash
+python3 Scripts/promote_public_pgn.py --scan-chess-results --player 8657238 --max-players 0
+```
+
+从本地侦察兵资产库晋升已允许再分发的来源：
+
+```bash
+python3 Scripts/promote_public_pgn.py --promote-scout --source lichess
+```
+
+TWIC、Chess.com 和国内官网默认只进本地侦察兵，不直接发布。只有确认某批文件允许公开再分发后，才把 `data/manual/public-pgn-sources.csv` 对应来源改为 `redistributable=yes,status=approved`，再运行晋升命令。
 
 商业库、私有抓包和授权不明确的 PGN，只做本地研究资产，不提交进 GitHub。

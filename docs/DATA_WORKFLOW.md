@@ -148,6 +148,8 @@ python3 Scripts/sync_chinese_players.py --input ~/Downloads/players_list_xml_leg
 ```bash
 python3 Scripts/sync_static_pgn.py --from-local-cache
 python3 Scripts/sync_static_pgn.py --fetch-missing --max-downloads 50
+python3 Scripts/promote_public_pgn.py --scan-chess-results --max-players 25
+python3 Scripts/promote_public_pgn.py --promote-scout --source lichess
 ```
 
 GitHub 页面上有两个可手动运行的 workflow：
@@ -155,6 +157,7 @@ GitHub 页面上有两个可手动运行的 workflow：
 - `Update Chinese player registry`：刷新 FIDE CHN 棋手身份库。
 - `Update domestic player registry`：根据手工赛事名单和身份链接刷新国内临时身份层。
 - `Update static PGN archive`：刷新已登记赛事的 PGN。
+- `Promote public PGN`：按 FIDE ID 扫 Chess-Results 全局 PGN 搜索，并把新增合格 PGN 晋升到静态归档。
 
 ## 中文名补全流程
 

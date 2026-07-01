@@ -62,7 +62,16 @@ python3 Scripts/sync_static_pgn.py --player 8657238 --fetch-missing --max-downlo
 python3 Scripts/sync_static_pgn.py --source chess-results --fetch-missing --max-downloads 50
 ```
 
+按 FIDE ID 扫 Chess-Results 全局 PGN 搜索，并把可公开分发、质量合格的新棋局按赛事晋升到静态归档：
+
+```bash
+python3 Scripts/promote_public_pgn.py --scan-chess-results --player 8657238 --max-players 0
+```
+
+TWIC、Lichess、Chess.com 和国内赛事官网先进入本地侦察兵；只有 `data/manual/public-pgn-sources.csv` 标记为可公开分发的来源，才会被 `promote_public_pgn.py --promote-scout` 发布到 `docs/data/pgn/`。
+
 GitHub Actions 里也有 `Update static PGN archive` workflow，可在 GitHub 页面手动运行；填 FIDE ID 时只更新该棋手，不填则按当前索引批量尝试；数据源可选 `all` 或 `chess-results`。workflow 成功后会自动提交 `docs/data/` 的变化。
+另有 `Promote public PGN` workflow，用于按 FIDE ID 触发 Chess-Results 全局 PGN 搜索并提交新增静态 PGN。
 
 ## 中国棋手全量注册表
 
