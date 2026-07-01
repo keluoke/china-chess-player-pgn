@@ -270,13 +270,16 @@ final class LocalChessRepository {
 
         let fileName = "fide-\(player.fideID ?? playerID)-\(event.tournamentID).pgn"
         let fileURL = sourceDirectory.appendingPathComponent(fileName)
+        let games = PGNTools.splitGames(pgn)
+        guard !games.isEmpty else {
+            throw SQLiteStoreError.invalidPGN
+        }
         try pgn.write(to: fileURL, atomically: true, encoding: .utf8)
 
         let relativePath = fileURL.path.replacingOccurrences(of: archiveRootURL.path + "/", with: "")
         let archiveID = "archive-\(Self.sha256Hex(relativePath + pgn))"
         let pgnHash = Self.sha256Hex(pgn)
         let downloadedAt = ISO8601DateFormatter().string(from: Date())
-        let games = PGNTools.splitGames(pgn)
 
         try transaction {
             try upsert(player: player)
@@ -1038,6 +1041,7 @@ enum SQLiteStoreError: LocalizedError {
     case prepareFailed(String)
     case bindFailed(String)
     case stepFailed(String)
+    case invalidPGN
 
     var errorDescription: String? {
         switch self {
@@ -1049,6 +1053,8 @@ enum SQLiteStoreError: LocalizedError {
             "绑定 SQL 参数失败：\(message)"
         case let .stepFailed(message):
             "执行 SQL 失败：\(message)"
+        case .invalidPGN:
+            "PGN 内容无有效棋局，已拒绝写入本地归档"
         }
     }
 }

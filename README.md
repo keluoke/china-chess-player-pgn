@@ -20,9 +20,49 @@ swift run
 python3 -m http.server 4173 -d docs
 ```
 
-本地打开 `http://localhost:4173/`。推送到 GitHub 后，仓库已包含 Pages workflow，会把 `docs/` 作为静态站点发布。网页版读取 `docs/data/youth-leaderboards.json`，用于公开榜单、搜索和棋手看板；也可以勾选 `docs/data/pgn/` 中已经归档的静态 PGN 并在浏览器里合并下载。macOS 版继续负责本地 SQLite、联网补齐和把更多 PGN 同步进静态归档。
+本地打开 `http://localhost:4173/`。推送到 GitHub 后，仓库已包含 Pages workflow，会把 `docs/` 作为静态站点发布。网页版读取 `docs/data/youth-leaderboards.json` 和 `docs/data/index/`，用于公开榜单、搜索和棋手看板；点进棋手时再加载单棋手明细 JSON。用户可以勾选 `docs/data/pgn/` 中已经归档的静态 PGN，并在浏览器里合并下载。macOS 版继续负责本地 SQLite、联网补齐和把更多 PGN 同步进静态归档。
 
 GitHub Pages 是静态托管，不运行服务器进程。网页版不能稳定地替用户实时抓取 Chess-Results PGN；未归档的 PGN 需要先通过 macOS 版或后续 GitHub Actions 数据同步写入 `docs/data/pgn/`。
+
+## PGN 静态归档
+
+仓库内的 PGN 采用可被多个前端直接读取的静态结构：
+
+```text
+docs/data/pgn/<source>/tnr<tournamentID>/fide-<fideID>-<tournamentID>.pgn
+docs/data/index/manifest.json
+docs/data/index/players.json
+docs/data/index/events.json
+docs/data/index/players/fide-<fideID>.json
+```
+
+`players.json` 是轻量总表，适合首页和搜索；`players/fide-*.json` 是单棋手完整赛事、名次、PGN 路径和校验信息；`manifest.json` 记录总量、路径规则和来源。当前仓库已从本机缓存同步有效 PGN，脚本会排除 Chess-Results 返回的 HTML 错误页，只有能解析出 PGN header 的文件才进入索引。
+
+从 macOS 本地缓存同步到仓库：
+
+```bash
+python3 Scripts/sync_static_pgn.py --from-local-cache
+```
+
+从已登记的静态索引继续抓取缺失 PGN：
+
+```bash
+python3 Scripts/sync_static_pgn.py --fetch-missing --max-downloads 50
+```
+
+只更新某个棋手：
+
+```bash
+python3 Scripts/sync_static_pgn.py --player 8657238 --fetch-missing --max-downloads 20
+```
+
+只从某个数据源更新：
+
+```bash
+python3 Scripts/sync_static_pgn.py --source chess-results --fetch-missing --max-downloads 50
+```
+
+GitHub Actions 里也有 `Update static PGN archive` workflow，可在 GitHub 页面手动运行；填 FIDE ID 时只更新该棋手，不填则按当前索引批量尝试；数据源可选 `all` 或 `chess-results`。workflow 成功后会自动提交 `docs/data/` 的变化。
 
 ## 打包
 

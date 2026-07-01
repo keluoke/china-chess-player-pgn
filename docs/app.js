@@ -24,18 +24,60 @@ const els = {
 const data = await loadData();
 const stages = data.ageRule.stages;
 const players = data.players.map(preparePlayer);
+const detailCache = new Map();
+const detailRequests = new Map();
 
 initialize();
 
 async function loadData() {
   try {
-    const response = await fetch("./data/youth-leaderboards.json", { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
+    const youth = await fetchJSON("./data/youth-leaderboards.json", true);
+    const [manifest, indexedPlayers] = await Promise.all([
+      fetchJSON("./data/index/manifest.json", false),
+      fetchJSON("./data/index/players.json", false)
+    ]);
+    return {
+      ...youth,
+      manifest,
+      players: mergePlayers(youth.players ?? [], indexedPlayers ?? [])
+    };
   } catch (error) {
     document.body.innerHTML = `<main class="empty-state">无法加载静态数据：${escapeHTML(error.message)}</main>`;
     throw error;
   }
+}
+
+async function fetchJSON(path, required) {
+  const response = await fetch(path, { cache: "no-store" });
+  if (!response.ok) {
+    if (!required && response.status === 404) return null;
+    throw new Error(`${path} HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function mergePlayers(leaderboardPlayers, indexedPlayers) {
+  const byFide = new Map();
+  leaderboardPlayers.forEach(player => byFide.set(String(player.fideID), { ...player }));
+
+  indexedPlayers.forEach(indexed => {
+    const fideID = String(indexed.fideID);
+    const current = byFide.get(fideID) ?? {};
+    byFide.set(fideID, {
+      ...indexed,
+      ...current,
+      detailPath: indexed.detailPath ?? current.detailPath,
+      eventCount: indexed.eventCount ?? current.eventCount,
+      pgnCount: indexed.pgnCount ?? current.pgnCount,
+      gameCount: indexed.gameCount ?? current.gameCount,
+      displayName: current.displayName ?? indexed.displayName,
+      name: current.name ?? indexed.name ?? indexed.displayName ?? `FIDE ${fideID}`,
+      chineseName: current.chineseName ?? indexed.chineseName,
+      pinyin: current.pinyin ?? indexed.pinyin
+    });
+  });
+
+  return [...byFide.values()];
 }
 
 function initialize() {
@@ -50,8 +92,9 @@ function initialize() {
 }
 
 function render() {
-  const eventCount = players.reduce((sum, player) => sum + (player.events?.length ?? 0), 0);
-  els.playerCount.textContent = String(players.length);
+  const eventCount = data.manifest?.totals?.events
+    ?? players.reduce((sum, player) => sum + (player.eventCount ?? player.events?.length ?? 0), 0);
+  els.playerCount.textContent = String(data.manifest?.totals?.players ?? players.length);
   els.stageCount.textContent = String(stages.length);
   els.eventCount.textContent = String(eventCount);
   els.ageRuleText.textContent = ageRuleText();
@@ -157,11 +200,12 @@ function renderSearch() {
 }
 
 function renderDetail() {
-  const player = players.find(item => item.fideID === state.selectedFideID);
+  const player = selectedPlayer();
   if (!player) {
     els.detailPane.innerHTML = `<div class="empty-state">请选择棋手</div>`;
     return;
   }
+  requestPlayerDetail(player);
 
   const stage = stageForPlayer(player);
   const note = stage ? liChengzhiNote(player, stage.id) : null;
@@ -215,6 +259,44 @@ function renderDetail() {
   `;
 
   wireDetailActions(player, pgnEvents);
+}
+
+function selectedPlayer() {
+  const fideID = state.selectedFideID;
+  return detailCache.get(fideID) ?? players.find(item => item.fideID === fideID);
+}
+
+function requestPlayerDetail(player) {
+  if (!player?.detailPath || detailCache.has(player.fideID) || detailRequests.has(player.fideID)) return;
+
+  const request = fetch(player.detailPath, { cache: "no-store" })
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
+    .then(detail => {
+      const prepared = preparePlayer({ ...player, ...detail });
+      detailCache.set(prepared.fideID, prepared);
+      const index = players.findIndex(item => item.fideID === prepared.fideID);
+      if (index >= 0) {
+        players[index] = prepared;
+      } else {
+        players.push(prepared);
+      }
+      if (state.selectedFideID === prepared.fideID) {
+        resetSelectedEvents();
+        render();
+      }
+    })
+    .catch(error => {
+      state.downloadStatus = `棋手明细加载失败：${error.message}`;
+      renderDetail();
+    })
+    .finally(() => {
+      detailRequests.delete(player.fideID);
+    });
+
+  detailRequests.set(player.fideID, request);
 }
 
 function ratingCard(label, value) {
@@ -349,7 +431,7 @@ function triggerDownload(fileName, text, type) {
 }
 
 function countPGNGames(text) {
-  return (text.match(/^\[Event\s+"/gm) ?? []).length;
+  return (text.match(/^\[Event\s+"/gim) ?? []).length;
 }
 
 function eventKey(event) {
@@ -357,7 +439,7 @@ function eventKey(event) {
 }
 
 function resetSelectedEvents() {
-  const player = players.find(item => item.fideID === state.selectedFideID);
+  const player = selectedPlayer();
   state.selectedEventIDs = new Set((player?.events ?? []).filter(event => event.pgnPath).map(eventKey));
 }
 
@@ -429,6 +511,7 @@ function searchPlayers(query) {
 function preparePlayer(player) {
   const values = [
     player.fideID,
+    player.displayName,
     player.name,
     player.chineseName,
     player.pinyin,
@@ -441,7 +524,10 @@ function preparePlayer(player) {
 }
 
 function displayName(player) {
-  return player.chineseName ? `${player.chineseName} · ${player.name}` : player.name;
+  if (player.chineseName && player.name && player.chineseName !== player.name) {
+    return `${player.chineseName} · ${player.name}`;
+  }
+  return player.displayName ?? player.name ?? player.chineseName ?? `FIDE ${player.fideID}`;
 }
 
 function ageRuleText() {

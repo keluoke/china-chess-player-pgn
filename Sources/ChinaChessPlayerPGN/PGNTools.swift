@@ -2,7 +2,7 @@ import Foundation
 
 enum PGNTools {
     static func gameCount(in text: String) -> Int {
-        text.components(separatedBy: "\n[Event ").count - (text.hasPrefix("[Event ") ? 0 : 1)
+        splitGames(text).count
     }
 
     static func mergedPGN(results: [PGNDownloadResult], player: PlayerCandidate) -> String {
@@ -41,12 +41,29 @@ enum PGNTools {
 
     static func splitGames(_ pgn: String) -> [String] {
         let normalized = pgn.replacingOccurrences(of: "\r\n", with: "\n")
-        let parts = normalized.components(separatedBy: "\n[Event ")
-        guard !parts.isEmpty else { return [] }
+        let pattern = #"^\[Event\s+""#
+        guard let regex = try? NSRegularExpression(
+            pattern: pattern,
+            options: [.anchorsMatchLines, .caseInsensitive]
+        ) else {
+            return []
+        }
 
-        return parts.enumerated().compactMap { index, part in
-            let game = index == 0 ? part : "[Event " + part
-            let trimmed = game.trimmingCharacters(in: .whitespacesAndNewlines)
+        let range = NSRange(normalized.startIndex..<normalized.endIndex, in: normalized)
+        let matches = regex.matches(in: normalized, range: range)
+        guard !matches.isEmpty else { return [] }
+
+        return matches.enumerated().compactMap { index, match in
+            guard let startRange = Range(match.range, in: normalized) else { return nil }
+            let start = startRange.lowerBound
+            let end: String.Index
+            if index + 1 < matches.count,
+               let nextRange = Range(matches[index + 1].range, in: normalized) {
+                end = nextRange.lowerBound
+            } else {
+                end = normalized.endIndex
+            }
+            let trimmed = normalized[start..<end].trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed
         }
     }

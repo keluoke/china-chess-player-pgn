@@ -127,9 +127,45 @@ docs/index.html
 docs/styles.css
 docs/app.js
 docs/data/youth-leaderboards.json
+docs/data/index/
 docs/data/pgn/
 ```
 
-它不读取用户本机 SQLite，也不直接写用户本地 PGN 归档；这些仍由 macOS 版负责。网页端使用静态 JSON 展示 U8-U18 排行榜、中文/拼音/FIDE ID 搜索和棋手看板，并从 `docs/data/pgn/` 读取已经归档的 PGN，在浏览器里合并生成下载文件。GitHub Actions 的 `Pages` workflow 会直接发布 `docs/`，不需要 Node、Vite 或后端服务。
+它不读取用户本机 SQLite，也不直接写用户本地 PGN 归档；这些仍由 macOS 版和同步脚本负责。网页端使用静态 JSON 展示 U8-U18 排行榜、中文/拼音/FIDE ID 搜索和棋手看板，并从 `docs/data/pgn/` 读取已经归档的 PGN，在浏览器里合并生成下载文件。GitHub Actions 的 `Pages` workflow 会直接发布 `docs/`，不需要 Node、Vite 或后端服务。
 
 GitHub Pages 的限制是只能托管静态文件，不能运行长期后端，也不能绕过第三方站点的浏览器 CORS 限制。因此网页版的 PGN 下载策略是“静态归档优先”：macOS 版或未来的数据同步 workflow 负责把真实 PGN 写入仓库，Pages 前端负责展示、选择和合并下载。
+
+## 静态 PGN 数据层
+
+仓库内 PGN 不打成一个大文件，而是按来源、赛事和棋手拆成小文件：
+
+```text
+docs/data/pgn/chess-results/tnr1210266/fide-8657238-1210266.pgn
+```
+
+这样做有几个好处：
+
+- Git diff 可读，新增或修正一个赛事不会重写整库。
+- GitHub Pages 可以直接按 URL 提供单个 PGN，浏览器只下载用户勾选的赛事。
+- 后续 macOS、网页版、移动端或脚本都能复用同一套路径规则。
+- 每个文件可以独立记录 SHA256、字节数和棋局数，便于发现源站返回 HTML 或空文件。
+
+静态索引分三层：
+
+```text
+docs/data/index/manifest.json
+docs/data/index/players.json
+docs/data/index/events.json
+docs/data/index/players/fide-<fideID>.json
+```
+
+`manifest.json` 只放总量、路径规则和来源；`players.json` 是轻量棋手总表，用于首页和搜索；`events.json` 是赛事总表；`players/fide-*.json` 是单棋手完整明细，包含赛事、名次、PGN 路径、棋局数和 SHA256。网页首屏只加载轻量文件，点击棋手后再加载对应 `fide-*.json`，避免棋手和棋局数量变大后首屏膨胀。
+
+`Scripts/sync_static_pgn.py` 是统一同步入口：
+
+- 在开发者 Mac 上读取 `~/Library/Application Support/ChinaChessPlayerPGN/china-chess-player-pgn.sqlite` 和 `PGNArchive/`，把本地有效 PGN 复制进 `docs/data/pgn/`。
+- 在 GitHub Actions 上读取已提交的静态索引，按 FIDE ID 和赛事 ID 继续抓取缺失 PGN。
+- 每次同步后重新生成 manifest、棋手索引、赛事索引和首页榜单里的缓存摘要。
+- 下载或复制时会校验 PGN header；Chess-Results 返回的 HTML 页面不会进入静态索引。
+
+`.github/workflows/update-pgn.yml` 提供 GitHub 页面上的一键更新入口，可限制最大请求数，也可指定单个 FIDE ID。成功后 workflow 会自动提交 `docs/data/` 的变化。

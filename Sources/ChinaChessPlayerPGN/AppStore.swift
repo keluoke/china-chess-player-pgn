@@ -227,16 +227,20 @@ final class AppStore: ObservableObject {
                     let cachedPGN = try repository.cachedPGN(for: event, player: candidate)
                     let pgn: String
                     let status: PGNDownloadStatus
-                    if let cachedPGN, !cachedPGN.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let cachedPGN, PGNTools.gameCount(in: cachedPGN) > 0 {
                         pgn = cachedPGN
                         status = .cached
                     } else {
-                        pgn = try await client.downloadPGN(for: event)
-                        status = pgn.isEmpty ? .empty : .success
-                        if !pgn.isEmpty {
+                        let downloadedPGN = try await client.downloadPGN(for: event)
+                        if PGNTools.gameCount(in: downloadedPGN) > 0 {
+                            pgn = downloadedPGN
+                            status = .success
                             _ = try repository.storePGN(pgn, event: event, player: candidate)
                             refreshDatabaseStats()
                             updateDashboard(for: candidate)
+                        } else {
+                            pgn = ""
+                            status = .empty
                         }
                     }
                     results.append(PGNDownloadResult(event: event, status: status, pgn: pgn))

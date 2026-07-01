@@ -1,0 +1,86 @@
+name: Update static PGN archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      player_fide_id:
+        description: "Optional FIDE ID to update one player"
+        required: false
+        type: string
+      max_downloads:
+        description: "Maximum PGN downloads in this run; 0 means no limit"
+        required: true
+        default: "50"
+        type: string
+      fetch_missing:
+        description: "Fetch missing PGNs from configured public sources"
+        required: true
+        default: true
+        type: boolean
+      source:
+        description: "Data source to update"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - chess-results
+  schedule:
+    - cron: "18 19 * * 0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-static-pgn
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sync static PGN archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          max_downloads="${{ inputs.max_downloads }}"
+          player_fide_id="${{ inputs.player_fide_id }}"
+          fetch_missing="${{ inputs.fetch_missing }}"
+          source="${{ inputs.source }}"
+          if [ -z "$max_downloads" ]; then
+            max_downloads=50
+          fi
+          if [ -z "$source" ]; then
+            source=all
+          fi
+
+          args=()
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "$fetch_missing" = "true" ]; then
+            args+=(--fetch-missing --max-downloads "$max_downloads")
+          fi
+          if [ -n "$player_fide_id" ]; then
+            args+=(--player "$player_fide_id")
+          fi
+          if [ "$source" != "all" ]; then
+            args+=(--source "$source")
+          fi
+
+          python3 Scripts/sync_static_pgn.py "${args[@]}"
+
+      - name: Commit updated archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data
+          if git diff --cached --quiet; then
+            echo "No PGN archive changes."
+          else
+            git commit -m "Update static PGN archive"
+            git push
+          fi
