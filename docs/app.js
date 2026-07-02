@@ -1,4 +1,4 @@
-import { Chess } from "./vendor/chess.js/chess.js";
+import LichessPgnViewer from "./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min.js";
 
 const state = {
   activeStage: "ALL",
@@ -11,17 +11,12 @@ const state = {
     pgnPath: "",
     status: "idle",
     gameIndex: 0,
-    ply: 0,
     orientation: "",
     error: ""
   }
 };
 
 const els = {
-  playerCount: document.querySelector("#playerCount"),
-  stageCount: document.querySelector("#stageCount"),
-  eventCount: document.querySelector("#eventCount"),
-  bulkGameCount: document.querySelector("#bulkGameCount"),
   ageRuleText: document.querySelector("#ageRuleText"),
   stageTabs: document.querySelector("#stageTabs"),
   leaderboardGrid: document.querySelector("#leaderboardGrid"),
@@ -30,9 +25,7 @@ const els = {
   searchResultsSection: document.querySelector("#searchResultsSection"),
   searchResults: document.querySelector("#searchResults"),
   searchCount: document.querySelector("#searchCount"),
-  rankingMeta: document.querySelector("#rankingMeta"),
-  bulkYouthMeta: document.querySelector("#bulkYouthMeta"),
-  bulkYouthGrid: document.querySelector("#bulkYouthGrid")
+  rankingMeta: document.querySelector("#rankingMeta")
 };
 
 const data = await loadData();
@@ -165,7 +158,7 @@ function mergePlayers(leaderboardPlayers, indexedPlayers, registryPlayers, byPla
 }
 
 function initialize() {
-  state.selectedFideID = rankingsForStage("U18")[0]?.fideID ?? players[0]?.fideID ?? null;
+  state.selectedFideID = rankingsForStage("ALL")[0]?.fideID ?? players[0]?.fideID ?? null;
   resetSelectedEvents();
   els.searchInput.addEventListener("input", event => {
     state.query = event.target.value.trim();
@@ -176,25 +169,20 @@ function initialize() {
 }
 
 function render() {
-  const eventCount = data.manifest?.totals?.events
-    ?? players.reduce((sum, player) => sum + (player.eventCount ?? player.events?.length ?? 0), 0);
-  els.playerCount.textContent = String(data.registryManifest?.totals?.players ?? data.manifest?.totals?.players ?? players.length);
-  els.stageCount.textContent = String(stages.length);
-  els.eventCount.textContent = String(eventCount);
-  els.bulkGameCount.textContent = compactNumber(data.bulkManifest?.totals?.mirroredGames ?? data.bulkManifest?.totals?.games ?? 0);
   els.ageRuleText.textContent = ageRuleText();
-  els.rankingMeta.textContent = `${data.competitionYear} 年 · ${state.activeStage === "ALL" ? "全组" : state.activeStage}`;
-  els.bulkYouthMeta.textContent = bulkYouthMeta();
-
-  renderTabs();
-  renderLeaderboards();
-  renderBulkYouth();
+  renderLeaderboardArea();
   renderSearch();
   renderDetail();
 }
 
+function renderLeaderboardArea() {
+  els.rankingMeta.textContent = `${state.activeStage === "ALL" ? "U8-U18" : state.activeStage} · Top 20`;
+  renderTabs();
+  renderLeaderboards();
+}
+
 function renderTabs() {
-  const tabs = [{ id: "ALL", label: "全部" }, ...stages.map(stage => ({ id: stage.id, label: stage.id }))];
+  const tabs = [{ id: "ALL", label: "U8-U18" }, ...stages.map(stage => ({ id: stage.id, label: stage.id }))];
   els.stageTabs.innerHTML = tabs.map(tab => `
     <button type="button" role="tab" aria-selected="${state.activeStage === tab.id}" data-stage="${tab.id}">
       ${escapeHTML(tab.label)}
@@ -204,17 +192,13 @@ function renderTabs() {
   els.stageTabs.querySelectorAll("button").forEach(button => {
     button.addEventListener("click", () => {
       state.activeStage = button.dataset.stage;
-      render();
+      renderLeaderboardArea();
     });
   });
 }
 
 function renderLeaderboards() {
-  const visibleStages = state.activeStage === "ALL"
-    ? stages
-    : stages.filter(stage => stage.id === state.activeStage);
-
-  els.leaderboardGrid.innerHTML = visibleStages.map(stage => leaderboardCard(stage)).join("");
+  els.leaderboardGrid.innerHTML = leaderboardCard(state.activeStage);
   els.leaderboardGrid.querySelectorAll("[data-fide]").forEach(row => {
     row.addEventListener("click", () => selectPlayer(row.dataset.fide));
     row.addEventListener("keydown", event => {
@@ -226,19 +210,25 @@ function renderLeaderboards() {
   });
 }
 
-function leaderboardCard(stage) {
-  const entries = rankingsForStage(stage.id);
+function leaderboardCard(stageID) {
+  const entries = rankingsForStage(stageID);
+  const stage = stages.find(item => item.id === stageID);
+  const title = stage ? stage.id : "U8-U18";
+  const subtitle = stage
+    ? `${stage.birthYears} 出生 · ${stage.lowerAge}-${stage.upperAge} 岁`
+    : `${data.competitionYear} 年李成智杯自然年龄组口径`;
   const maxRating = Math.max(...entries.map(entry => entry.rating.value), 1);
   const rows = entries.map((entry, index) => {
     const player = entry.player;
-    const note = liChengzhiNote(player, stage.id);
+    const playerStage = stageForPlayer(player);
+    const note = liChengzhiNote(player, playerStage?.id ?? stageID);
     const width = Math.max(6, Math.round((entry.rating.value / maxRating) * 100));
     return `
       <tr data-fide="${escapeAttribute(player.fideID)}" role="button" tabindex="0">
         <td class="rank-cell"><span class="rank-badge">${index + 1}</span></td>
         <td>
           <div class="player-name">${escapeHTML(displayName(player))}</div>
-          <div class="player-meta">FIDE ${escapeHTML(player.fideID)} · ${player.birthYear} 出生</div>
+          <div class="player-meta">${escapeHTML(playerStage?.id ?? "-")} · FIDE ${escapeHTML(player.fideID)} · ${player.birthYear} 出生</div>
           ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}
           <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="--bar-width: ${width}%"></div></div>
         </td>
@@ -254,37 +244,16 @@ function leaderboardCard(stage) {
     <article class="leaderboard-card">
       <div class="card-head">
         <div>
-          <h2 class="stage-title">${escapeHTML(stage.id)}</h2>
-          <div class="stage-range">${escapeHTML(stage.birthYears)} 出生 · ${stage.lowerAge}-${stage.upperAge} 岁</div>
+          <h2 class="stage-title">${escapeHTML(title)}</h2>
+          <div class="stage-range">${escapeHTML(subtitle)}</div>
         </div>
         <span class="stage-chip">FIDE</span>
       </div>
       <table class="leaderboard-table">
-        <tbody>${rows}</tbody>
+        <tbody>${rows || `<tr><td colspan="3"><div class="empty-state compact">暂无排行数据</div></td></tr>`}</tbody>
       </table>
     </article>
   `;
-}
-
-function renderBulkYouth() {
-  const manifest = data.bulkYouthManifest;
-  if (!manifest?.stages?.length) {
-    els.bulkYouthGrid.innerHTML = `<div class="empty-state">暂无青少年 bulk 索引</div>`;
-    return;
-  }
-  els.bulkYouthGrid.innerHTML = manifest.stages.map(stage => `
-    <article class="bulk-stage-card">
-      <div>
-        <strong>${escapeHTML(stage.id)}</strong>
-        <span>${escapeHTML(stage.lowerAge)}-${escapeHTML(stage.upperAge)} 岁</span>
-      </div>
-      <div class="bulk-stage-metrics">
-        <span>${compactNumber(stage.games)} 盘</span>
-        <span>${compactNumber(stage.players)} 人</span>
-      </div>
-      <a class="primary-action" href="${escapeAttribute(stage.pgnPath)}" download>下载 PGN</a>
-    </article>
-  `).join("");
 }
 
 function renderSearch() {
@@ -318,27 +287,32 @@ function renderDetail() {
 
   const stage = stageForPlayer(player);
   const note = stage ? liChengzhiNote(player, stage.id) : null;
-  const events = [...(player.events ?? [])].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  const staticInfo = staticPlayerInfo(player);
+  const eventSource = staticInfo?.events?.length ? staticInfo.events : (player.events ?? []);
+  const events = [...eventSource].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
   const pgnEvents = events.filter(event => event.pgnPath);
   const selectedEvents = pgnEvents.filter(event => state.selectedEventIDs.has(eventKey(event)));
-  const totalGames = pgnEvents.reduce((sum, event) => sum + (Number(event.gameCount) || 0), 0);
-  const topThree = events.filter(event => Number(event.rank) > 0 && Number(event.rank) <= 3).length;
-  const staticInfo = staticPlayerInfo(player);
+  const totalGames = staticInfo?.gameCount || pgnEvents.reduce((sum, event) => sum + (Number(event.gameCount) || 0), 0);
   const staticGames = staticInfo?.gameCount ?? 0;
   if (!staticGames) requestBulkPlayerDetail(player);
   const bulkInfo = bulkPlayerCache.get(String(player.fideID));
-  const bulkLoading = bulkPlayerRequests.has(String(player.fideID));
   const fallbackBulkGames = staticGames ? 0 : (bulkInfo?.totalGames ?? 0);
   const unifiedGames = staticGames || fallbackBulkGames;
+  const eventMetric = staticInfo?.eventCount || events.length;
+  const packageMetric = staticInfo?.packageCount || pgnEvents.length;
   if (staticInfo?.pgnPath) requestPGNViewer(player, staticInfo);
 
   els.detailPane.innerHTML = `
     <div class="detail-title">
       <div>
         <h2>${escapeHTML(displayName(player))}</h2>
+        ${detailChineseNameLine(player)}
         <p>FIDE ${escapeHTML(player.fideID)} · ${player.birthYear} 出生 · ${stage?.id ?? "未到 U8"}</p>
       </div>
-      <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
+      <div class="detail-title-actions">
+        <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
+        <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
+      </div>
     </div>
 
     ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}
@@ -350,27 +324,23 @@ function renderDetail() {
     </div>
 
     <div class="dashboard-grid">
-      ${metricTile("赛事", events.length)}
-      ${metricTile("PGN", pgnEvents.length)}
+      ${metricTile("赛事", eventMetric)}
+      ${metricTile("PGN包", packageMetric)}
       ${metricTile("棋局", totalGames)}
-      ${metricTile("棋手PGN", staticGames || (bulkLoading ? "..." : fallbackBulkGames))}
-      ${metricTile("前三", topThree)}
     </div>
 
     ${staticInfo?.gameCount ? staticPlayerHitBlock(staticInfo) : ""}
     ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
 
     <div class="stage-strip">
-      ${stages.map(stageItem => stageTile(player, stageItem)).join("")}
+      ${stages.map(stageItem => stageTile(player, stageItem, staticInfo)).join("")}
     </div>
 
     <div class="detail-actions">
       <button class="primary-action" type="button" id="downloadSelectedPGN" ${selectedEvents.length ? "" : "disabled"}>↓ 下载选中 PGN</button>
-      <button class="tool-button" type="button" id="downloadStaticPlayerPGN" ${unifiedGames ? "" : "disabled"}>下载棋手 PGN</button>
+      <button class="tool-button" type="button" id="downloadStaticPlayerPGN" ${unifiedGames ? "" : "disabled"}>下载全部棋局 PGN</button>
       <button class="tool-button" type="button" id="selectAllPGN" ${pgnEvents.length ? "" : "disabled"}>全选 PGN</button>
       <button class="tool-button" type="button" id="clearPGNSelection" ${selectedEvents.length ? "" : "disabled"}>清空</button>
-      <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">↗ FIDE</a>
-      <a class="action-link" href="https://lichess.org/fide/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">↗ Lichess FIDE</a>
     </div>
 
     <div class="download-status" aria-live="polite">${escapeHTML(downloadLine(selectedEvents, pgnEvents, unifiedGames))}</div>
@@ -384,6 +354,7 @@ function renderDetail() {
 
   wireDetailActions(player, pgnEvents);
   wirePGNViewerActions(player);
+  mountLichessViewer(player);
 }
 
 function selectedPlayer() {
@@ -438,7 +409,7 @@ function requestStaticPlayerDetail(player) {
       if (state.selectedFideID === fideID) renderDetail();
     })
     .catch(error => {
-      state.downloadStatus = `棋手 PGN 索引加载失败：${error.message}`;
+      state.downloadStatus = `全部棋局 PGN 索引加载失败：${error.message}`;
       if (state.selectedFideID === fideID) renderDetail();
     })
     .finally(() => {
@@ -455,8 +426,11 @@ function staticPlayerInfo(player) {
     const allPackage = (detail.packages ?? []).find(item => item.id === "all") ?? detail.packages?.[0];
     return {
       gameCount: detail.totals?.games ?? allPackage?.gameCount ?? 0,
+      eventCount: detail.totals?.events ?? detail.events?.length ?? 0,
+      packageCount: detail.totals?.packages ?? detail.packages?.length ?? 0,
       pgnPath: allPackage?.pgnPath,
       packages: detail.packages ?? [],
+      events: detail.events ?? [],
       stages: detail.totals?.stages ?? {},
       sources: allPackage?.sources ?? detail.sources ?? []
     };
@@ -464,17 +438,20 @@ function staticPlayerInfo(player) {
   if (player?.playerPgnPath) {
     return {
       gameCount: Number(player.playerPgnGameCount ?? player.gameCount ?? 0),
+      eventCount: Number(player.eventCount ?? player.events?.length ?? 0),
+      packageCount: Number(player.packageCount ?? 1),
       pgnPath: player.playerPgnPath,
       packages: [
         {
           id: "all",
-          label: "全部 PGN",
+          label: "全部棋局 PGN",
           pgnPath: player.playerPgnPath,
           gameCount: Number(player.playerPgnGameCount ?? player.gameCount ?? 0),
           stages: player.stages ?? {},
           sources: player.sources ?? []
         }
       ],
+      events: player.events ?? [],
       stages: player.stages ?? {},
       sources: player.sources ?? []
     };
@@ -542,17 +519,23 @@ function staticPlayerHitBlock(info) {
     .join(" · ");
   const packageLinks = (info.packages ?? [])
     .filter(item => item.pgnPath)
-    .map(item => `<a href="${escapeAttribute(item.pgnPath)}" download>${escapeHTML(item.label ?? item.id)} ${compactNumber(item.gameCount)} 盘</a>`)
+    .map(item => `<a href="${escapeAttribute(item.pgnPath)}" download>${escapeHTML(packageDisplayLabel(item))} ${compactNumber(item.gameCount)} 盘</a>`)
     .join("");
   return `
     <div class="static-player-hit">
       <div>
-        <strong>统一棋手 PGN 已就绪：${compactNumber(info.gameCount)} 盘</strong>
+        <strong>查询到该棋手在中国青少年棋手库中棋局数量：${compactNumber(info.gameCount)} 盘</strong>
         <span>${escapeHTML(stageLine || (info.sources ?? []).join(" · ") || "按棋手聚合静态包")}</span>
       </div>
       <div class="static-package-links">${packageLinks}</div>
     </div>
   `;
+}
+
+function packageDisplayLabel(item) {
+  const label = item?.label ?? item?.id ?? "PGN";
+  if (item?.id === "all" || normalize(label) === "全部pgn") return "全部棋局 PGN";
+  return label;
 }
 
 function requestPGNViewer(player, info) {
@@ -566,7 +549,6 @@ function requestPGNViewer(player, info) {
       pgnPath,
       status: pgnViewerCache.has(pgnPath) ? "loaded" : "idle",
       gameIndex: 0,
-      ply: 0,
       orientation: "",
       error: ""
     };
@@ -607,7 +589,6 @@ function requestPGNViewer(player, info) {
       if (state.selectedFideID === fideID && state.viewer.pgnPath === pgnPath) {
         state.viewer.status = "loaded";
         state.viewer.gameIndex = 0;
-        state.viewer.ply = 0;
         state.viewer.orientation = preferredBoardOrientation(player, games[0]);
         renderDetail();
       }
@@ -629,10 +610,10 @@ function requestPGNViewer(player, info) {
 function pgnViewerBlock(player, info) {
   if (!info?.pgnPath) {
     return `
-      <section class="pgn-viewer is-empty" aria-label="在线棋盘">
+      <section class="pgn-viewer is-empty" aria-label="Lichess 在线棋盘">
         <div class="pgn-viewer-head">
           <div>
-            <h3>在线棋盘</h3>
+            <h3>Lichess 在线棋盘</h3>
             <span>暂无可播放 PGN</span>
           </div>
         </div>
@@ -644,10 +625,10 @@ function pgnViewerBlock(player, info) {
   const cached = pgnViewerCache.get(info.pgnPath);
   if (viewer.status === "error") {
     return `
-      <section class="pgn-viewer is-empty" aria-label="在线棋盘">
+      <section class="pgn-viewer is-empty" aria-label="Lichess 在线棋盘">
         <div class="pgn-viewer-head">
           <div>
-            <h3>在线棋盘</h3>
+            <h3>Lichess 在线棋盘</h3>
             <span>${escapeHTML(viewer.error || "PGN 加载失败")}</span>
           </div>
         </div>
@@ -657,10 +638,10 @@ function pgnViewerBlock(player, info) {
 
   if (!cached || viewer.status === "loading") {
     return `
-      <section class="pgn-viewer is-loading" aria-label="在线棋盘">
+      <section class="pgn-viewer is-loading" aria-label="Lichess 在线棋盘">
         <div class="pgn-viewer-head">
           <div>
-            <h3>在线棋盘</h3>
+            <h3>Lichess 在线棋盘</h3>
             <span>正在载入 ${compactNumber(info.gameCount ?? 0)} 盘棋</span>
           </div>
           <div class="viewer-pulse" aria-hidden="true"></div>
@@ -672,11 +653,6 @@ function pgnViewerBlock(player, info) {
   const games = cached.games;
   const gameIndex = clampInt(viewer.gameIndex, 0, games.length - 1);
   const game = games[gameIndex];
-  const parsed = parsedViewerGame(game);
-  const maxPly = parsed.moves.length;
-  const ply = clampInt(viewer.ply, 0, maxPly);
-  const position = viewerPosition(parsed, ply);
-  const lastMove = ply > 0 ? parsed.moves[ply - 1] : null;
   const selectOptions = games.map((item, index) => `
     <option value="${index}" ${index === gameIndex ? "selected" : ""}>${escapeHTML(viewerGameTitle(item, index))}</option>
   `).join("");
@@ -685,10 +661,10 @@ function pgnViewerBlock(player, info) {
   const result = game.headers.Result ?? "*";
 
   return `
-    <section class="pgn-viewer" aria-label="在线棋盘">
+    <section class="pgn-viewer" aria-label="Lichess 在线棋盘">
       <div class="pgn-viewer-head">
         <div>
-          <h3>在线棋盘</h3>
+          <h3>Lichess 在线棋盘</h3>
           <span>${compactNumber(games.length)} 盘 · ${escapeHTML(white)} - ${escapeHTML(black)} · ${escapeHTML(result)}</span>
         </div>
         <button class="tool-button viewer-flip" type="button" id="viewerFlip" title="翻转棋盘" aria-label="翻转棋盘">↕</button>
@@ -699,26 +675,9 @@ function pgnViewerBlock(player, info) {
         <select id="viewerGameSelect">${selectOptions}</select>
       </label>
 
-      ${parsed.error ? `
-        <div class="viewer-error">${escapeHTML(parsed.error)}</div>
-      ` : `
-        <div class="viewer-layout">
-          <div>
-            ${renderChessBoard(position, viewer.orientation, lastMove)}
-            <div class="viewer-controls">
-              <button class="tool-button" type="button" data-viewer-action="first" ${ply === 0 ? "disabled" : ""} title="开局" aria-label="开局">⏮</button>
-              <button class="tool-button" type="button" data-viewer-action="prev" ${ply === 0 ? "disabled" : ""} title="上一步" aria-label="上一步">←</button>
-              <span>${ply}/${maxPly}</span>
-              <button class="tool-button" type="button" data-viewer-action="next" ${ply === maxPly ? "disabled" : ""} title="下一步" aria-label="下一步">→</button>
-              <button class="tool-button" type="button" data-viewer-action="last" ${ply === maxPly ? "disabled" : ""} title="终局" aria-label="终局">⏭</button>
-            </div>
-            <div class="viewer-status">${escapeHTML(viewerPositionText(position, game, ply, maxPly))}</div>
-          </div>
-          <div class="move-list" aria-label="走法列表">
-            ${renderMoveList(parsed.moves, ply)}
-          </div>
-        </div>
-      `}
+      <div class="lichess-viewer-shell">
+        <div id="lichessPgnViewer" class="lichess-viewer-host" data-viewer-ready="false"></div>
+      </div>
     </section>
   `;
 }
@@ -731,7 +690,6 @@ function wirePGNViewerActions(player) {
   document.querySelector("#viewerGameSelect")?.addEventListener("change", event => {
     const gameIndex = clampInt(Number(event.target.value), 0, cached.games.length - 1);
     state.viewer.gameIndex = gameIndex;
-    state.viewer.ply = 0;
     state.viewer.orientation = preferredBoardOrientation(player, cached.games[gameIndex]);
     renderDetail();
   });
@@ -740,109 +698,39 @@ function wirePGNViewerActions(player) {
     state.viewer.orientation = state.viewer.orientation === "black" ? "white" : "black";
     renderDetail();
   });
-
-  document.querySelectorAll("[data-viewer-action]").forEach(button => {
-    button.addEventListener("click", () => {
-      const game = cached.games[state.viewer.gameIndex];
-      const parsed = parsedViewerGame(game);
-      const maxPly = parsed.moves.length;
-      const action = button.dataset.viewerAction;
-      if (action === "first") state.viewer.ply = 0;
-      if (action === "prev") state.viewer.ply = Math.max(0, state.viewer.ply - 1);
-      if (action === "next") state.viewer.ply = Math.min(maxPly, state.viewer.ply + 1);
-      if (action === "last") state.viewer.ply = maxPly;
-      renderDetail();
-    });
-  });
-
-  document.querySelectorAll("[data-viewer-ply]").forEach(button => {
-    button.addEventListener("click", () => {
-      const game = cached.games[state.viewer.gameIndex];
-      const maxPly = parsedViewerGame(game).moves.length;
-      state.viewer.ply = clampInt(Number(button.dataset.viewerPly), 0, maxPly);
-      renderDetail();
-    });
-  });
 }
 
-function parsedViewerGame(game) {
-  if (game.parsed) return game.parsed;
+function mountLichessViewer(player) {
+  const host = document.querySelector("#lichessPgnViewer");
+  const cached = pgnViewerCache.get(state.viewer.pgnPath);
+  if (!host || !cached?.games?.length) return;
+
+  const gameIndex = clampInt(state.viewer.gameIndex, 0, cached.games.length - 1);
+  const game = cached.games[gameIndex];
+  const orientation = state.viewer.orientation || preferredBoardOrientation(player, game);
+  state.viewer.orientation = orientation;
+
   try {
-    const chess = new Chess();
-    chess.loadPgn(game.pgn, { strict: false });
-    game.parsed = {
-      headers: { ...game.headers, ...withoutNullHeaders(chess.header()) },
-      moves: chess.history({ verbose: true }),
-      error: ""
-    };
+    LichessPgnViewer(host, {
+      pgn: game.pgn,
+      orientation,
+      showPlayers: true,
+      showMoves: "auto",
+      showControls: true,
+      scrollToMove: true,
+      keyboardToMove: true,
+      drawArrows: true,
+      menu: {
+        getPgn: { enabled: false },
+        practiceWithComputer: { enabled: false },
+        analysisBoard: { enabled: false }
+      },
+      lichess: "https://lichess.org"
+    });
+    host.dataset.viewerReady = "true";
   } catch (error) {
-    game.parsed = {
-      headers: game.headers,
-      moves: [],
-      error: `该对局暂时无法播放：${error.message}`
-    };
+    host.innerHTML = `<div class="viewer-error">${escapeHTML(error.message)}</div>`;
   }
-  return game.parsed;
-}
-
-function viewerPosition(parsed, ply) {
-  const move = ply > 0 ? parsed.moves[ply - 1] : null;
-  const fen = move?.after ?? parsed.moves[0]?.before ?? parsed.headers.FEN;
-  try {
-    return fen ? new Chess(fen) : new Chess();
-  } catch {
-    return new Chess();
-  }
-}
-
-function renderChessBoard(chess, orientation, lastMove) {
-  const files = orientation === "black" ? ["h", "g", "f", "e", "d", "c", "b", "a"] : ["a", "b", "c", "d", "e", "f", "g", "h"];
-  const ranks = orientation === "black" ? [1, 2, 3, 4, 5, 6, 7, 8] : [8, 7, 6, 5, 4, 3, 2, 1];
-  const highlighted = new Set([lastMove?.from, lastMove?.to].filter(Boolean));
-  const cells = [];
-
-  for (const rank of ranks) {
-    for (const file of files) {
-      const square = `${file}${rank}`;
-      const piece = chess.get(square);
-      const fileNumber = file.charCodeAt(0) - 96;
-      const tone = (fileNumber + rank) % 2 === 0 ? "dark" : "light";
-      cells.push(`
-        <div class="board-square ${tone} ${highlighted.has(square) ? "is-last" : ""}" aria-label="${square}">
-          <span class="piece ${piece?.color === "b" ? "black-piece" : "white-piece"}">${piece ? pieceSymbol(piece) : ""}</span>
-          <span class="square-rank">${files[0] === file ? rank : ""}</span>
-          <span class="square-file">${ranks[ranks.length - 1] === rank ? file : ""}</span>
-        </div>
-      `);
-    }
-  }
-
-  return `<div class="chess-board" aria-label="棋盘">${cells.join("")}</div>`;
-}
-
-function renderMoveList(moves, ply) {
-  if (!moves.length) return `<div class="move-empty">无走法</div>`;
-  const rows = [];
-  for (let index = 0; index < moves.length; index += 2) {
-    const whiteMove = moves[index];
-    const blackMove = moves[index + 1];
-    rows.push(`
-      <div class="move-pair">
-        <span>${Math.floor(index / 2) + 1}</span>
-        ${moveButton(whiteMove, index + 1, ply)}
-        ${blackMove ? moveButton(blackMove, index + 2, ply) : "<i></i>"}
-      </div>
-    `);
-  }
-  return rows.join("");
-}
-
-function moveButton(move, plyValue, activePly) {
-  return `
-    <button class="move-button ${activePly === plyValue ? "active" : ""}" type="button" data-viewer-ply="${plyValue}">
-      ${escapeHTML(move.san)}
-    </button>
-  `;
 }
 
 function viewerGameTitle(game, index) {
@@ -852,16 +740,6 @@ function viewerGameTitle(game, index) {
   const black = headers.Black ?? "黑方";
   const result = headers.Result ?? "*";
   return `${index + 1}. ${date ? `${date} · ` : ""}${white} - ${black} ${result}`;
-}
-
-function viewerPositionText(chess, game, ply, maxPly) {
-  if (ply >= maxPly) {
-    return `终局 · ${game.headers.Result ?? "*"}`;
-  }
-  if (chess.isCheckmate()) return `${chess.turn() === "w" ? "白方" : "黑方"}被将死`;
-  if (chess.isDraw()) return "和棋局面";
-  if (chess.isCheck()) return `${chess.turn() === "w" ? "白方" : "黑方"}被将军`;
-  return `${chess.turn() === "w" ? "白方" : "黑方"}行棋`;
 }
 
 function preferredBoardOrientation(player, game) {
@@ -878,18 +756,6 @@ function preferredBoardOrientation(player, game) {
     return "black";
   }
   return "white";
-}
-
-function pieceSymbol(piece) {
-  const symbols = {
-    w: { k: "♔", q: "♕", r: "♖", b: "♗", n: "♘", p: "♙" },
-    b: { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" }
-  };
-  return symbols[piece.color]?.[piece.type] ?? "";
-}
-
-function withoutNullHeaders(headers) {
-  return Object.fromEntries(Object.entries(headers ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== ""));
 }
 
 function ratingCard(label, value) {
@@ -910,7 +776,7 @@ function metricTile(title, value) {
   `;
 }
 
-function stageTile(player, stage) {
+function stageTile(player, stage, staticInfo) {
   const age = data.competitionYear - player.birthYear;
   const status = age > stage.upperAge ? "已完成" : age >= stage.lowerAge ? "进行中" : "未完待续";
   const events = (player.events ?? []).filter(event => stageForEvent(player, event)?.id === stage.id);
@@ -918,12 +784,13 @@ function stageTile(player, stage) {
     .map(event => Number(event.rank))
     .filter(rank => Number.isFinite(rank) && rank > 0)
     .sort((a, b) => a - b)[0];
+  const stageGames = Number(staticInfo?.stages?.[stage.id] ?? 0);
   const active = stageForPlayer(player)?.id === stage.id;
   return `
     <div class="stage-tile ${active ? "active" : ""}">
       <strong>${escapeHTML(stage.id)}</strong>
       <span>${escapeHTML(status)}</span>
-      <small>${bestRank ? `最好第 ${bestRank}` : `${events.length} 赛`}</small>
+      <small>${stageGames ? `${compactNumber(stageGames)} 盘` : bestRank ? `最好第 ${bestRank}` : "未收录"}</small>
     </div>
   `;
 }
@@ -965,7 +832,7 @@ function wireDetailActions(player, pgnEvents) {
   });
   document.querySelector("#downloadStaticPlayerPGN")?.addEventListener("click", () => {
     downloadStaticPlayerPGN(player).catch(error => {
-      state.downloadStatus = `棋手 PGN 下载失败：${error.message}`;
+      state.downloadStatus = `全部棋局 PGN 下载失败：${error.message}`;
       renderDetail();
     });
   });
@@ -985,13 +852,13 @@ function wireDetailActions(player, pgnEvents) {
 async function downloadStaticPlayerPGN(player) {
   const info = staticPlayerInfo(player);
   if (info?.pgnPath) {
-    state.downloadStatus = `正在下载 ${info.gameCount} 盘棋手 PGN...`;
+    state.downloadStatus = `正在下载 ${info.gameCount} 盘全部棋局 PGN...`;
     renderDetail();
     const response = await fetch(info.pgnPath, { cache: "no-store" });
-    if (!response.ok) throw new Error(`统一棋手 PGN HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`全部棋局 PGN HTTP ${response.status}`);
     const text = await response.text();
     triggerDownload(`${slug(displayName(player))}-all.pgn`, text, "application/x-chess-pgn;charset=utf-8");
-    state.downloadStatus = `已下载 ${countPGNGames(text)} 盘棋手 PGN。`;
+    state.downloadStatus = `已下载 ${countPGNGames(text)} 盘全部棋局 PGN。`;
     renderDetail();
     return;
   }
@@ -1102,7 +969,7 @@ async function downloadSelectedPGN(player) {
 
 function downloadLine(selectedEvents, pgnEvents, unifiedGames) {
   if (state.downloadStatus) return state.downloadStatus;
-  if (!pgnEvents.length && unifiedGames) return `统一棋手 PGN 已缓存 ${compactNumber(unifiedGames)} 盘，可下载或在线播放。`;
+  if (!pgnEvents.length && unifiedGames) return `查询到该棋手在中国青少年棋手库中棋局数量：${compactNumber(unifiedGames)} 盘，可下载或在线播放。`;
   if (!pgnEvents.length) return "当前棋手暂无静态 PGN。GitHub Pages 只能下载仓库内已归档的 PGN。";
   return `已选择 ${selectedEvents.length}/${pgnEvents.length} 个可下载赛事。`;
 }
@@ -1183,7 +1050,6 @@ function resetPGNViewer(fideID) {
     pgnPath: "",
     status: "idle",
     gameIndex: 0,
-    ply: 0,
     orientation: "",
     error: ""
   };
@@ -1199,7 +1065,7 @@ function selectPlayer(fideID) {
 
 function rankingsForStage(stageID) {
   return players
-    .filter(player => stageForPlayer(player)?.id === stageID)
+    .filter(player => stageID === "ALL" ? Boolean(stageForPlayer(player)) : stageForPlayer(player)?.id === stageID)
     .map(player => ({ player, rating: ratingForPlayer(player) }))
     .filter(entry => entry.rating)
     .sort((a, b) => {
@@ -1207,7 +1073,7 @@ function rankingsForStage(stageID) {
       if (a.rating.priority !== b.rating.priority) return a.rating.priority - b.rating.priority;
       return displayName(a.player).localeCompare(displayName(b.player), "zh-Hans-CN");
     })
-    .slice(0, 5)
+    .slice(0, 20)
     .map(entry => ({ ...entry, fideID: entry.player.fideID }));
 }
 
@@ -1277,17 +1143,16 @@ function displayName(player) {
   return player.displayName ?? player.name ?? player.chineseName ?? `FIDE ${player.fideID}`;
 }
 
+function detailChineseNameLine(player) {
+  if (!player.chineseName || displayName(player).includes(player.chineseName)) return "";
+  return `<div class="detail-cn-name">${escapeHTML(player.chineseName)}</div>`;
+}
+
 function ageRuleText() {
   const ranges = stages
     .map(stage => `${stage.id}=${stage.birthYears} 出生`)
     .join(" · ");
   return `${data.ageRule.title}：${data.ageRule.description}${data.competitionYear} 年口径为 ${ranges}。`;
-}
-
-function bulkYouthMeta() {
-  const totals = data.bulkYouthManifest?.totals;
-  if (!totals) return "等待 bulk 索引";
-  return `${compactNumber(totals.games)} 盘 · ${compactNumber(totals.players)} 名棋手`;
 }
 
 function compactNumber(value) {

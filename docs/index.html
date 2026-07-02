@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>中国青少年棋手库</title>
     <meta name="description" content="中国国际象棋青少年 FIDE 排行榜与棋手查询。">
+    <link rel="stylesheet" href="vendor/lichess-pgn-viewer/lichess-pgn-viewer.css">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -32,30 +33,6 @@
 
       <main class="workspace">
         <section class="content-pane">
-          <section class="summary-band" aria-label="本地数据摘要">
-            <div>
-              <span class="metric-label">棋手</span>
-              <strong id="playerCount">0</strong>
-            </div>
-            <div>
-              <span class="metric-label">年龄组</span>
-              <strong id="stageCount">0</strong>
-            </div>
-            <div>
-              <span class="metric-label">重点赛事</span>
-              <strong id="eventCount">0</strong>
-            </div>
-            <div>
-              <span class="metric-label">bulk 对局</span>
-              <strong id="bulkGameCount">0</strong>
-            </div>
-          </section>
-
-          <section class="rule-band">
-            <div class="rule-icon" aria-hidden="true">◎</div>
-            <p id="ageRuleText">加载年龄组定义...</p>
-          </section>
-
           <section class="search-results" id="searchResultsSection" hidden>
             <div class="section-heading">
               <h2>搜索结果</h2>
@@ -67,18 +44,11 @@
           <section class="leaderboards" aria-label="青少年 FIDE 排行榜">
             <div class="section-heading">
               <h1>青少年 FIDE 排行榜</h1>
-              <span id="rankingMeta">U8-U18</span>
+              <span id="rankingMeta">Top 20</span>
             </div>
             <div class="stage-tabs" id="stageTabs" role="tablist" aria-label="年龄组"></div>
+            <p class="ranking-note" id="ageRuleText">加载年龄组定义...</p>
             <div class="leaderboard-grid" id="leaderboardGrid"></div>
-          </section>
-
-          <section class="bulk-youth" aria-label="青少年 bulk 对局筛选">
-            <div class="section-heading">
-              <h2>青少年对局筛选</h2>
-              <span id="bulkYouthMeta">U8-U18</span>
-            </div>
-            <div class="bulk-grid" id="bulkYouthGrid"></div>
           </section>
         </section>
 
