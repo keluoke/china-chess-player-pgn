@@ -652,9 +652,9 @@ input {
 
 .pgn-viewer {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 16px;
-  padding: 14px;
+  padding: 12px;
   color: var(--text);
   background: #f5f5f7;
   border: 1px solid #e5e5ea;
@@ -745,6 +745,9 @@ input {
 
 .lichess-viewer-shell {
   min-width: 0;
+  max-height: min(64vh, 560px);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .lichess-viewer-host {
@@ -773,9 +776,13 @@ input {
   box-shadow: none;
 }
 
+.lichess-viewer-shell .lpv--players.lpv--moves-auto {
+  grid-template-columns: minmax(220px, min(42vh, 400px)) minmax(210px, 1fr);
+}
+
 .lichess-viewer-shell .lpv__player,
 .lichess-viewer-shell .lpv__controls {
-  min-height: 38px;
+  min-height: 34px;
 }
 
 .lichess-viewer-shell .lpv__moves {
@@ -826,11 +833,13 @@ input {
   display: flex;
   gap: 9px;
   align-items: flex-start;
+  justify-content: space-between;
   padding: 11px 0;
   border-bottom: 1px solid var(--line);
 }
 
 .event-copy {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -851,6 +860,35 @@ input {
   color: var(--accent);
   font-style: normal;
   font-weight: 650;
+}
+
+.event-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 190px;
+}
+
+.event-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 8px;
+  color: var(--accent-strong);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.event-actions a:hover {
+  border-color: var(--accent);
+  background: #f5faff;
 }
 
 .empty-state {
@@ -949,6 +987,30 @@ input {
   .section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .event-row {
+    flex-direction: column;
+  }
+
+  .event-actions {
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .lichess-viewer-shell {
+    max-height: none;
+  }
+
+  .lichess-viewer-shell .lpv--players.lpv--moves-auto {
+    grid-template-areas:
+      "player-top"
+      "board"
+      "player-bot"
+      "controls"
+      "side";
+    grid-template-columns: minmax(200px, min(82vw, 400px));
+    grid-template-rows: 2em auto 2em var(--controls-height) 7.5em;
   }
 }
 

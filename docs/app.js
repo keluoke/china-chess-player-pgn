@@ -1,5 +1,8 @@
 import LichessPgnViewer from "./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min.js";
 
+const REPO_URL = "https://github.com/keluoke/china-chess-player-pgn";
+const UPDATE_PGN_WORKFLOW_URL = `${REPO_URL}/actions/workflows/update-pgn.yml`;
+
 const state = {
   activeStage: "ALL",
   selectedFideID: null,
@@ -327,6 +330,7 @@ function renderDetail() {
       <div class="detail-title-actions">
         <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
+        <a class="action-link" href="${escapeAttribute(updatePGNWorkflowURL(player))}" target="_blank" rel="noreferrer">更新 PGN</a>
       </div>
     </div>
 
@@ -352,7 +356,7 @@ function renderDetail() {
     ${pgnViewerBlock(player, staticInfo)}
 
     <div class="event-list">
-      ${events.length ? events.map(eventRow).join("") : `<div class="event-row"><strong>暂无本地赛事种子</strong><span>macOS 版可继续联网补齐 Chess-Results 和 PGN 缓存。</span></div>`}
+      ${events.length ? events.map(event => eventRow(player, event)).join("") : `<div class="event-row"><strong>暂无本地赛事种子</strong><span>macOS 版可继续联网补齐 Chess-Results 和 PGN 缓存。</span></div>`}
     </div>
   `;
 
@@ -599,12 +603,15 @@ function requestPGNViewer(player, info) {
       return response.text();
     })
     .then(text => {
-      const games = splitPGNGames(text).map((pgn, index) => ({
-        index,
-        pgn,
-        headers: parsePGNHeaders(pgn),
-        parsed: null
-      }));
+      const games = splitPGNGames(text).map((rawPGN, index) => {
+        const pgn = repairPGNText(rawPGN);
+        return {
+          index,
+          pgn,
+          headers: parsePGNHeaders(pgn),
+          parsed: null
+        };
+      });
       if (!games.length) throw new Error("PGN 中没有可解析对局");
       pgnViewerCache.set(pgnPath, {
         pgnPath,
@@ -678,9 +685,9 @@ function pgnViewerBlock(player, info) {
   const selectOptions = games.map((item, index) => `
     <option value="${index}" ${index === gameIndex ? "selected" : ""}>${escapeHTML(viewerGameTitle(item, index))}</option>
   `).join("");
-  const white = game.headers.White ?? "白方";
-  const black = game.headers.Black ?? "黑方";
-  const result = game.headers.Result ?? "*";
+  const white = displayText(game.headers.White ?? "白方");
+  const black = displayText(game.headers.Black ?? "黑方");
+  const result = displayText(game.headers.Result ?? "*");
 
   return `
     <section class="pgn-viewer" aria-label="${escapeAttribute(title)}">
@@ -815,10 +822,10 @@ function stopViewerAutoplay() {
 
 function viewerGameTitle(game, index) {
   const headers = game.headers;
-  const date = headers.EventDate ?? headers.Date ?? "";
-  const white = headers.White ?? "白方";
-  const black = headers.Black ?? "黑方";
-  const result = headers.Result ?? "*";
+  const date = displayText(headers.EventDate ?? headers.Date ?? "");
+  const white = displayText(headers.White ?? "白方");
+  const black = displayText(headers.Black ?? "黑方");
+  const result = displayText(headers.Result ?? "*");
   return `${index + 1}. ${date ? `${date} · ` : ""}${white} - ${black} ${result}`;
 }
 
@@ -856,19 +863,74 @@ function metricTile(title, value) {
   `;
 }
 
-function eventRow(event) {
+function eventRow(player, event) {
   const rank = event.rank ? `第 ${event.rank}` : "-";
   const size = event.rounds && event.participants ? `${event.rounds} 轮 · ${event.participants} 人` : "";
   const hasPGN = Boolean(event.pgnPath);
+  const eventName = displayText(event.name || "未命名赛事");
+  const source = displayText(event.source || "");
+  const status = hasPGN
+    ? `${event.gameCount ?? "?"} 盘 PGN 已缓存`
+    : `${event.tournamentID ? "未入库 PGN · 可在线抓取" : "未入库 PGN · 待补源"}`;
   return `
     <div class="event-row ${hasPGN ? "has-pgn" : ""}">
       <span class="event-copy">
-        <strong>${escapeHTML(event.name)}</strong>
-        <span>${escapeHTML(event.date ?? "未知日期")} · ${escapeHTML(rank)} · ${escapeHTML(size)}</span>
-        <em>${hasPGN ? `${event.gameCount ?? "?"} 盘 PGN 已缓存` : "暂无静态 PGN"}</em>
+        <strong>${escapeHTML(eventName)}</strong>
+        <span>${escapeHTML(event.date ?? "未知日期")} · ${escapeHTML(rank)}${size ? ` · ${escapeHTML(size)}` : ""}${source ? ` · ${escapeHTML(source)}` : ""}</span>
+        <em>${escapeHTML(status)}</em>
       </span>
+      ${hasPGN ? "" : missingPGNActions(player, event, eventName)}
     </div>
   `;
+}
+
+function missingPGNActions(player, event, eventName) {
+  return `
+    <div class="event-actions" aria-label="PGN 入库操作">
+      <a href="${escapeAttribute(missingPGNIssueURL(player, event, eventName))}" target="_blank" rel="noreferrer">请求入库</a>
+      <a href="${escapeAttribute(updatePGNWorkflowURL(player))}" target="_blank" rel="noreferrer">运行更新</a>
+    </div>
+  `;
+}
+
+function missingPGNIssueURL(player, event, eventName) {
+  const fideID = String(player.fideID ?? "");
+  const source = displayText(event.source || "未知来源");
+  const tournamentID = String(event.tournamentID || event.tnr || "");
+  const suggestedSource = workflowSource(event);
+  const body = [
+    "### PGN 入库请求",
+    "",
+    `- 棋手：${displayName(player)} (FIDE ${fideID})`,
+    `- 赛事：${eventName}`,
+    `- 日期：${event.date || "未知"}`,
+    `- 来源：${source}`,
+    `- TournamentID：${tournamentID || "未知"}`,
+    "",
+    "### 建议执行",
+    "",
+    "```bash",
+    `python3 Scripts/sync_static_pgn.py --fetch-missing --player ${fideID} --source ${suggestedSource} --max-downloads 20`,
+    "python3 Scripts/build_static_player_pgn.py",
+    "```",
+    "",
+    "请 workflow 抓取公开可分发 PGN，和现有仓库 PGN 做 hash 去重、头部字段清洗、按棋手重新生成静态包。"
+  ].join("\n");
+  const params = new URLSearchParams({
+    title: `PGN 入库请求：${displayName(player)} / ${eventName}`,
+    body,
+    labels: "pgn-request"
+  });
+  return `${REPO_URL}/issues/new?${params.toString()}`;
+}
+
+function updatePGNWorkflowURL() {
+  return UPDATE_PGN_WORKFLOW_URL;
+}
+
+function workflowSource(event) {
+  const source = normalize(event?.source);
+  return event?.tournamentID || source.includes("chessresults") ? "chess-results" : "all";
 }
 
 function wireDetailActions(player, staticInfo) {
@@ -900,6 +962,17 @@ function selectPGNPackage(player, item) {
   state.downloadStatus = "";
   requestPGNViewer(player, state.viewer);
   renderDetail();
+  scrollPGNViewerIntoView();
+}
+
+function scrollPGNViewerIntoView() {
+  window.requestAnimationFrame(() => {
+    document.querySelector(".pgn-viewer")?.scrollIntoView({
+      block: "start",
+      inline: "nearest",
+      behavior: "smooth"
+    });
+  });
 }
 
 function splitPGNGames(text) {
@@ -915,9 +988,20 @@ function parsePGNHeaders(game) {
   const pattern = /^\[([A-Za-z0-9_]+)\s+"((?:\\.|[^"])*)"\]/gm;
   let match;
   while ((match = pattern.exec(game)) !== null) {
-    headers[match[1]] = match[2].replace(/\\"/g, '"');
+    headers[match[1]] = displayText(match[2].replace(/\\"/g, '"'));
   }
   return headers;
+}
+
+function repairPGNText(text) {
+  return String(text ?? "").replace(/^\[([A-Za-z0-9_]+)\s+"((?:\\.|[^"])*)"\]/gm, (_line, tag, rawValue) => {
+    const value = displayText(rawValue.replace(/\\"/g, '"'));
+    return `[${tag} "${escapePGNHeaderValue(value)}"]`;
+  });
+}
+
+function escapePGNHeaderValue(value) {
+  return String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 function resetPGNViewer(fideID) {
@@ -1051,15 +1135,18 @@ function searchValuesForPlayer(player) {
 }
 
 function displayName(player) {
+  let name = "";
   if (player.chineseName && player.name && player.chineseName !== player.name) {
-    return `${player.chineseName} · ${player.name}`;
+    name = `${player.chineseName} · ${player.name}`;
+  } else {
+    name = player.displayName ?? player.name ?? player.chineseName ?? `FIDE ${player.fideID}`;
   }
-  return player.displayName ?? player.name ?? player.chineseName ?? `FIDE ${player.fideID}`;
+  return displayText(name);
 }
 
 function detailChineseNameLine(player) {
   if (!player.chineseName || displayName(player).includes(player.chineseName)) return "";
-  return `<div class="detail-cn-name">${escapeHTML(player.chineseName)}</div>`;
+  return `<div class="detail-cn-name">${escapeHTML(displayText(player.chineseName))}</div>`;
 }
 
 function ageRuleText() {
@@ -1082,14 +1169,14 @@ function clampInt(value, min, max) {
 }
 
 function normalize(value) {
-  return String(value ?? "")
+  return displayText(value)
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[\s,.'’"()，。·_\-]+/g, "");
 }
 
 function searchTokens(value) {
-  return String(value ?? "")
+  return displayText(value)
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[,.，。'’"()·_\-]+/g, " ")
@@ -1114,4 +1201,35 @@ function escapeHTML(value) {
 
 function escapeAttribute(value) {
   return escapeHTML(value).replaceAll("`", "&#096;");
+}
+
+function displayText(value) {
+  return repairMojibake(String(value ?? ""));
+}
+
+function repairMojibake(text) {
+  if (!text || !looksLikeMojibake(text)) return text;
+  const chars = Array.from(text);
+  if (chars.some(char => char.codePointAt(0) > 255)) return text;
+  try {
+    const bytes = Uint8Array.from(chars, char => char.codePointAt(0));
+    const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    if (decoded && !decoded.includes("�") && mojibakeScore(decoded) < mojibakeScore(text)) {
+      return decoded;
+    }
+  } catch (_error) {
+    return text;
+  }
+  return text;
+}
+
+function looksLikeMojibake(text) {
+  return /[ÃÂâåæèéäï]|[\u0080-\u009f]/.test(text);
+}
+
+function mojibakeScore(text) {
+  const markerCount = (text.match(/[ÃÂâåæèéäï]|[\u0080-\u009f]/g) ?? []).length;
+  const replacementCount = (text.match(/�/g) ?? []).length;
+  const cjkCount = (text.match(/[\u4e00-\u9fff]/g) ?? []).length;
+  return markerCount * 3 + replacementCount * 20 - cjkCount;
 }

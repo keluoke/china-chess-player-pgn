@@ -167,6 +167,7 @@ def ingest_static_event_pgns(
                 continue
             pgn_text = path.read_text(encoding="utf-8", errors="replace")
             for game in split_pgn_games(pgn_text):
+                game = repair_pgn_text(game)
                 headers = pgn_headers(game)
                 date = normalize_pgn_date(headers.get("EventDate") or headers.get("Date") or clean(event.get("date")))
                 game_record = PlayerGame(
@@ -210,7 +211,7 @@ def ingest_bulk_youth_pgns(
             continue
 
         entries = read_json(index_file)
-        games = split_pgn_games(pgn_file.read_text(encoding="utf-8", errors="replace"))
+        games = [repair_pgn_text(game) for game in split_pgn_games(pgn_file.read_text(encoding="utf-8", errors="replace"))]
         games_by_key: dict[str, list[str]] = {}
         for game in games:
             key = game_key_from_headers(pgn_headers(game))
@@ -546,8 +547,18 @@ def split_pgn_games(text: str) -> list[str]:
 def pgn_headers(game: str) -> dict[str, str]:
     headers: dict[str, str] = {}
     for match in re.finditer(r'^\[([A-Za-z0-9_]+)\s+"((?:\\"|[^"])*)"\]', game, flags=re.MULTILINE):
-        headers[match.group(1)] = match.group(2).replace('\\"', '"')
+        headers[match.group(1)] = clean(match.group(2).replace('\\"', '"'))
     return headers
+
+
+def repair_pgn_text(text: str) -> str:
+    def replacement(match: re.Match[str]) -> str:
+        tag = match.group(1)
+        value = clean(match.group(2).replace('\\"', '"'))
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'[{tag} "{escaped}"]'
+
+    return re.sub(r'^\[([A-Za-z0-9_]+)\s+"((?:\\"|[^"])*)"\]', replacement, text, flags=re.MULTILINE)
 
 
 def stable_game_hash(game: str) -> str:
@@ -620,7 +631,7 @@ def date_key(value: Any) -> str:
 
 
 def normalize_key(value: Any) -> str:
-    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(value or "").casefold())
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", clean(value).casefold())
 
 
 def parse_int(value: Any) -> int | None:
@@ -652,7 +663,30 @@ def without_empty(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def clean(value: Any) -> str:
-    return re.sub(r"\s+", " ", str(value or "")).strip()
+    return repair_mojibake(re.sub(r"\s+", " ", str(value or "")).strip())
+
+
+def repair_mojibake(text: str) -> str:
+    if not text or not looks_like_mojibake(text):
+        return text
+    try:
+        decoded = text.encode("latin-1").decode("utf-8")
+    except UnicodeError:
+        return text
+    if "\ufffd" in decoded:
+        return text
+    return decoded if mojibake_score(decoded) < mojibake_score(text) else text
+
+
+def looks_like_mojibake(text: str) -> bool:
+    return bool(re.search(r"[ÃÂâåæèéäï]|[\u0080-\u009f]", text))
+
+
+def mojibake_score(text: str) -> int:
+    marker_count = len(re.findall(r"[ÃÂâåæèéäï]|[\u0080-\u009f]", text))
+    replacement_count = text.count("\ufffd")
+    cjk_count = len(re.findall(r"[\u4e00-\u9fff]", text))
+    return marker_count * 3 + replacement_count * 20 - cjk_count
 
 
 def now() -> str:
