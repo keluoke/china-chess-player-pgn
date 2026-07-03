@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>模仿引擎对弈测试 — Zhang, Hongya</title>
+<style>
+  :root { --light:#f0d9b5; --dark:#b58863; --hl:#829769; --sel:#646f40; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", sans-serif; margin: 0; background:#2b2b28; color:#eee; display:flex; justify-content:center; }
+  .wrap { display:flex; gap:24px; padding:24px; flex-wrap:wrap; }
+  #board { display:grid; grid-template-columns:repeat(8,1fr); width:min(560px, 92vw); aspect-ratio:1; border:4px solid #1e1e1c; border-radius:4px; user-select:none; }
+  .sq { display:flex; align-items:center; justify-content:center; font-size:clamp(28px, 5.4vw, 44px); cursor:pointer; position:relative; }
+  .sq.light { background:var(--light); } .sq.dark { background:var(--dark); }
+  .sq.sel { outline:3px solid var(--sel); outline-offset:-3px; }
+  .sq.dot::after { content:""; width:22%; height:22%; border-radius:50%; background:rgba(20,60,20,.45); position:absolute; }
+  .sq.cap::after { content:""; width:88%; height:88%; border-radius:50%; border:4px solid rgba(20,60,20,.45); position:absolute; }
+  .sq.last { box-shadow: inset 0 0 0 100px rgba(155,199,0,.28); }
+  .white-piece { color:#fff; text-shadow:0 1px 2px #333, 0 0 2px #333; }
+  .black-piece { color:#111; }
+  .side { width:300px; display:flex; flex-direction:column; gap:12px; }
+  h1 { font-size:17px; margin:0; } h1 small { color:#aaa; font-weight:normal; }
+  .card { background:#3a3a36; border-radius:8px; padding:12px; font-size:13px; line-height:1.5; }
+  button { background:#5b8c5a; color:#fff; border:0; border-radius:6px; padding:8px 14px; font-size:14px; cursor:pointer; }
+  button.alt { background:#666; }
+  button:disabled { opacity:.45; cursor:default; }
+  input[type=number] { width:80px; background:#2b2b28; color:#eee; border:1px solid #555; border-radius:4px; padding:4px 6px; }
+  #status { font-weight:600; min-height:20px; }
+  #source { color:#9bc700; min-height:18px; font-size:12px; }
+  #moves { font-family:ui-monospace, monospace; font-size:12.5px; max-height:220px; overflow-y:auto; white-space:pre-wrap; color:#ccc; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  label { font-size:13px; color:#bbb; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="board"></div>
+  <div class="side">
+    <h1>模仿引擎：Zhang, Hongya <small>FIDE 8640980 · 2064</small></h1>
+    <div class="card row">
+      <button id="playWhite">执白开局</button>
+      <button id="playBlack">执黑开局</button>
+      <button id="undo" class="alt">悔棋</button>
+      <label>Elo <input id="elo" type="number" value="2050" min="1320" max="3190" step="10"></label>
+    </div>
+    <div class="card">
+      <div id="status">加载引擎中…</div>
+      <div id="source"></div>
+    </div>
+    <div class="card" id="moves"></div>
+    <div class="card" style="color:#999">
+      对方按张泓雅的开局谱行棋（白 1.e4 / 黑西西里 ...e6 体系），出谱后由风格加权的限强引擎接管，并按其分阶段失误画像注入错误。升变默认后。
+    </div>
+  </div>
+</div>
+<script src="vendor/chess.js"></script>
+<script src="profile.js"></script>
+<script src="mimic_core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
