@@ -774,7 +774,7 @@ function mountLichessViewer(player) {
       pgn: game.pgn,
       orientation,
       showPlayers: true,
-      showMoves: true,
+      showMoves: "auto",
       showControls: true,
       scrollToMove: true,
       keyboardToMove: true,

@@ -802,10 +802,6 @@ input {
   grid-template-columns: minmax(220px, min(42vh, 400px)) minmax(210px, 1fr);
 }
 
-.lichess-viewer-shell .lpv--players.lpv--moves-true {
-  grid-template-columns: minmax(220px, min(42vh, 390px)) minmax(180px, 1fr);
-}
-
 .lichess-viewer-shell .lpv--moves-false {
   width: min(100%, 430px);
   margin-inline: auto;
@@ -905,6 +901,12 @@ input {
   }
 }
 
+@media (max-width: 1080px) {
+  .viewer-playback-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   body {
     overflow: auto;
@@ -958,10 +960,6 @@ input {
     max-height: none;
   }
 
-  .viewer-playback-layout {
-    grid-template-columns: 1fr;
-  }
-
   .lichess-viewer-shell .lpv--players.lpv--moves-auto {
     grid-template-areas:
       "player-top"
@@ -971,17 +969,6 @@ input {
       "side";
     grid-template-columns: minmax(200px, min(82vw, 400px));
     grid-template-rows: 2em auto 2em var(--controls-height) 7.5em;
-  }
-
-  .lichess-viewer-shell .lpv--players.lpv--moves-true {
-    grid-template-areas:
-      "player-top"
-      "board"
-      "player-bot"
-      "controls"
-      "side";
-    grid-template-columns: minmax(200px, min(82vw, 400px));
-    grid-template-rows: 2em auto 2em var(--controls-height) 9em;
   }
 
   .lichess-viewer-shell .lpv--moves-false {
