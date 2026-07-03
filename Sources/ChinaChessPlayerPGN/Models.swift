@@ -383,6 +383,128 @@ struct BulkPlayerYouthStageSummary: Identifiable, Hashable {
     var id: String { stageID }
 }
 
+enum AppPage: String, Hashable {
+    case home
+    case player
+    case manualImport
+}
+
+struct DownloadedEventPGN: Hashable {
+    let sourceURL: URL
+    let finalURL: URL
+    let tournamentID: String
+    let sourceName: String
+    let pgn: String
+}
+
+struct ManualEventImportReport: Hashable {
+    var sourceURL = ""
+    var finalURL = ""
+    var tournamentID = ""
+    var eventName = ""
+    var totalGames = 0
+    var uniqueGames = 0
+    var importedPlayers = 0
+    var importedArchives = 0
+    var importedGames = 0
+    var unresolvedNames: [String] = []
+    var playerSummaries: [ManualPlayerImportSummary] = []
+    var warnings: [String] = []
+}
+
+struct ManualPlayerImportSummary: Identifiable, Hashable {
+    let id: String
+    let displayName: String
+    let fideID: String?
+    let gameCount: Int
+    let archivePath: String
+}
+
+struct NameMappingImportReport: Hashable {
+    var rows = 0
+    var importedPlayers = 0
+    var importedAliases = 0
+    var skippedRows = 0
+    var errors: [String] = []
+}
+
+struct GitHubPublishResult: Hashable {
+    var repoPath = ""
+    var copied = 0
+    var downloaded = 0
+    var skipped = 0
+    var pgnFiles = 0
+    var games = 0
+    var committed = false
+    var pushed = false
+    var commitHash: String?
+    var message = ""
+    var warnings: [String] = []
+
+    var hasStatus: Bool {
+        !repoPath.isEmpty || !message.isEmpty || !warnings.isEmpty
+    }
+}
+
+struct UserNameMappingRow: Identifiable, Hashable {
+    let id: String
+    let playerID: String
+    let alias: String
+    let displayName: String
+    let fideID: String?
+    let chineseName: String
+    let pinyinName: String
+    let englishName: String
+    let federation: String
+    let birthYear: String
+    let standardRating: String
+    let rapidRating: String
+    let blitzRating: String
+    let source: String
+    let note: String
+}
+
+struct AliasSourceStat: Identifiable, Hashable {
+    let source: String
+    let count: Int
+
+    var id: String { source }
+}
+
+struct UserNameMappingDraft: Hashable {
+    var playerID = ""
+    var alias = ""
+    var fideID = ""
+    var displayName = ""
+    var chineseName = ""
+    var pinyinName = ""
+    var englishName = ""
+    var federation = "CHN"
+    var birthYear = ""
+    var standardRating = ""
+    var rapidRating = ""
+    var blitzRating = ""
+    var note = ""
+
+    init() {}
+
+    init(row: UserNameMappingRow) {
+        playerID = row.playerID
+        alias = row.alias
+        fideID = row.fideID ?? ""
+        displayName = row.displayName
+        chineseName = row.chineseName
+        pinyinName = row.pinyinName
+        englishName = row.englishName
+        federation = row.federation.isEmpty ? "CHN" : row.federation
+        birthYear = row.birthYear
+        standardRating = row.standardRating
+        rapidRating = row.rapidRating
+        blitzRating = row.blitzRating
+        note = row.note
+    }
+}
+
 enum PGNDownloadStatus: Hashable {
     case cached
     case success

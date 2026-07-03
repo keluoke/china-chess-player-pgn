@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-02T06:58:02+00:00",
+  "generatedAt": "2026-07-03T02:27:44+00:00",
   "player": {
     "fideID": "150109620",
     "id": "fide-150109620",
@@ -18,13 +18,13 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "events": 2,
+    "games": 4,
+    "events": 3,
     "packages": 3,
-    "bytes": 7224,
+    "bytes": 11778,
     "stages": {
       "U16": 1,
-      "U18": 1
+      "U18": 3
     }
   },
   "packages": [
@@ -32,14 +32,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-150109620/all.pgn",
-      "gameCount": 2,
-      "pgnBytes": 3546,
-      "sha256": "4ae833c111b6384d57d39587d36b3043c723dcb56bb7d3d11890614d7676aecd",
+      "gameCount": 4,
+      "pgnBytes": 5823,
+      "sha256": "131d00b91802f3955af9782c2bc2bbf1fe1932f4fea5ba14625afd56840b9263",
       "stages": {
         "U16": 1,
-        "U18": 1
+        "U18": 3
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -49,7 +50,7 @@
       "pgnPath": "data/pgn/by-player/fide-150109620/U16.pgn",
       "gameCount": 1,
       "pgnBytes": 2722,
-      "sha256": "e63c87eb786a74ed50d4a7215c61da8ceac8274f950d5f01a8d586561e802a0e",
+      "sha256": "c4595f47655b02af1380b8a3f11c429185586d7037762e19e7287811910a1d45",
       "stages": {
         "U16": 1
       },
@@ -61,18 +62,31 @@
       "id": "U18",
       "label": "U18 PGN",
       "pgnPath": "data/pgn/by-player/fide-150109620/U18.pgn",
-      "gameCount": 1,
-      "pgnBytes": 956,
-      "sha256": "92ad089eb2ae34edf515d68bfca26ff15f19b6dc097139afadf1fc15afe3b46e",
+      "gameCount": 3,
+      "pgnBytes": 3233,
+      "sha256": "979d48b2f73bff02eed90d4091e2d4892e67e6db82e0ed9947844617b18dbce0",
       "stages": {
-        "U18": 1
+        "U18": 3
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Jiaxing Station)",
+      "date": "2026-06-06",
+      "tournamentID": "1426529",
+      "stage": "U18",
+      "gameCount": 2,
+      "results": {
+        "1-0": 1,
+        "0-1": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "new tournament description",
@@ -97,6 +111,34 @@
     }
   ],
   "games": [
+    {
+      "id": "8dd4e5daf965694661b529d6d882851afb7a877f19b94003d64ede2bf63cfb0b",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Jiaxing Station)",
+      "date": "2026-06-06",
+      "white": "Yang, Siyuan",
+      "black": "Weiye, Cheng",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U18",
+      "role": "black",
+      "tournamentID": "1426529",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1426529/fide-150109620-1426529.pgn",
+      "sha256": "8dd4e5daf965694661b529d6d882851afb7a877f19b94003d64ede2bf63cfb0b"
+    },
+    {
+      "id": "566809f678091594b9bc45a171c0d313fe1dba7ff0128f42c7503a1f0cdbf44f",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Jiaxing Station)",
+      "date": "2026-06-06",
+      "white": "Weiye, Cheng",
+      "black": "Xiao, Jinghao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U18",
+      "role": "white",
+      "tournamentID": "1426529",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1426529/fide-150109620-1426529.pgn",
+      "sha256": "566809f678091594b9bc45a171c0d313fe1dba7ff0128f42c7503a1f0cdbf44f"
+    },
     {
       "id": "e90963e28856a444a5dcd444acf561eb4aace2351872d072067ff7b87c3e1108",
       "event": "new tournament description",

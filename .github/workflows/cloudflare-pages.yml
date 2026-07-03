@@ -1,0 +1,46 @@
+name: Cloudflare Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+      - ".github/workflows/cloudflare-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare Cloudflare Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .cloudflare-pages-site
+          rsync -a --delete \
+            --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
+            docs/ .cloudflare-pages-site/
+          find .cloudflare-pages-site -type f -size +25M -print -quit | grep -q . && {
+            echo "Cloudflare Pages only supports files up to 25 MiB." >&2
+            exit 1
+          } || true
+
+      - name: Deploy
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: 80b22ae648eae984f0c2678f0812cf7d
+          command: pages deploy .cloudflare-pages-site --project-name china-chess-player-pgn --branch main

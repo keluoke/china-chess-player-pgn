@@ -108,6 +108,7 @@ class SyncStats:
     manifest_players: int = 0
     manifest_events: int = 0
     manifest_pgn: int = 0
+    manifest_games: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -147,9 +148,10 @@ def main() -> int:
     stats = SyncStats()
     ensure_dirs()
 
-    records = records_from_sqlite(args.db) if args.db.exists() else []
-    if not records:
-        records = records_from_static_indexes()
+    all_records = records_from_sqlite(args.db) if args.db.exists() else []
+    if not all_records:
+        all_records = records_from_static_indexes()
+    records = all_records
     if args.player:
         allowed = {str(item) for item in args.player}
         records = [record for record in records if record.fide_id in allowed]
@@ -163,7 +165,7 @@ def main() -> int:
     if args.fetch_missing:
         fetch_missing(records, stats, args.max_downloads, args.delay, dry_run=args.dry_run)
 
-    manifest_records = merge_static_pgn_metadata(records)
+    manifest_records = merge_static_pgn_metadata(all_records)
     write_indexes(manifest_records, stats, dry_run=args.dry_run)
     update_leaderboard_json(manifest_records, dry_run=args.dry_run)
 
@@ -507,6 +509,7 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
     stats.manifest_players = len(by_player)
     stats.manifest_events = len(by_event)
     stats.manifest_pgn = len(pgn_records)
+    stats.manifest_games = sum(record.game_count for record in pgn_records)
 
     if not dry_run:
         write_json(INDEX_ROOT / "manifest.json", manifest)

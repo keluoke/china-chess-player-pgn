@@ -1,0 +1,160 @@
+name: Reconcile PGN sources
+
+on:
+  workflow_dispatch:
+    inputs:
+      player_fide_id:
+        description: "Optional FIDE ID to scan first"
+        required: false
+        type: string
+      discover_chess_results:
+        description: "Probe Chess-Results known gaps and neighbor TournamentIDs"
+        required: true
+        default: true
+        type: boolean
+      promote_public_pgn:
+        description: "Promote Chess-Results PGN for the staged player batch"
+        required: true
+        default: true
+        type: boolean
+      max_players:
+        description: "Chess-Results player batch size"
+        required: true
+        default: "120"
+        type: string
+      max_known_missing:
+        description: "Known missing Chess-Results pairs to probe/fetch"
+        required: true
+        default: "80"
+        type: string
+      max_neighbor_ids:
+        description: "Neighbor TournamentID pages to probe"
+        required: true
+        default: "80"
+        type: string
+      max_games:
+        description: "Maximum new games to promote; 0 means no limit"
+        required: true
+        default: "0"
+        type: string
+      delay:
+        description: "Delay between Chess-Results requests"
+        required: true
+        default: "1.2"
+        type: string
+  schedule:
+    - cron: "42 18 * * 2"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reconcile-pgn-sources
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install runtime dependencies
+        run: python3 -m pip install --upgrade certifi
+
+      - name: Reconcile and optionally promote PGN
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          player_fide_id="${{ inputs.player_fide_id }}"
+          discover_chess_results="${{ inputs.discover_chess_results }}"
+          promote_public_pgn="${{ inputs.promote_public_pgn }}"
+          max_players="${{ inputs.max_players }}"
+          max_known_missing="${{ inputs.max_known_missing }}"
+          max_neighbor_ids="${{ inputs.max_neighbor_ids }}"
+          max_games="${{ inputs.max_games }}"
+          delay="${{ inputs.delay }}"
+
+          if [ -z "$discover_chess_results" ]; then discover_chess_results=true; fi
+          if [ -z "$promote_public_pgn" ]; then promote_public_pgn=true; fi
+          if [ -z "$max_players" ]; then max_players=120; fi
+          if [ -z "$max_known_missing" ]; then max_known_missing=80; fi
+          if [ -z "$max_neighbor_ids" ]; then max_neighbor_ids=80; fi
+          if [ -z "$max_games" ]; then max_games=0; fi
+          if [ -z "$delay" ]; then delay=1.2; fi
+
+          reconcile_args=(--write-audit --delay "$delay")
+          if [ "$discover_chess_results" = "true" ]; then
+            reconcile_args+=(
+              --discover-chess-results
+              --max-players "$max_players"
+              --max-known-missing "$max_known_missing"
+              --max-neighbor-ids "$max_neighbor_ids"
+            )
+          fi
+          if [ -n "$player_fide_id" ]; then
+            reconcile_args+=(--player "$player_fide_id")
+          fi
+
+          python3 Scripts/reconcile_pgn_sources.py "${reconcile_args[@]}"
+
+          if [ "$promote_public_pgn" = "true" ]; then
+            player_args=()
+            if [ -f docs/data/audit/chess-results-player-batch.csv ]; then
+              while IFS= read -r fide_id; do
+                if [ -n "$fide_id" ]; then
+                  player_args+=(--player "$fide_id")
+                fi
+              done < <(python3 - <<'PY'
+import csv
+from pathlib import Path
+path = Path("docs/data/audit/chess-results-player-batch.csv")
+if path.exists():
+    for row in csv.DictReader(path.open(encoding="utf-8")):
+        fide_id = (row.get("fideID") or "").strip()
+        if fide_id:
+            print(fide_id)
+PY
+)
+            fi
+
+            if [ "${#player_args[@]}" -gt 0 ]; then
+              python3 Scripts/promote_public_pgn.py \
+                --scan-chess-results \
+                "${player_args[@]}" \
+                --max-players 0 \
+                --max-games "$max_games" \
+                --delay "$delay" \
+                --skip-index
+            else
+              echo "No staged Chess-Results player batch to promote."
+            fi
+
+            python3 Scripts/sync_static_pgn.py \
+              --fetch-missing \
+              --source chess-results \
+              --max-downloads "$max_known_missing" \
+              --delay "$delay"
+            python3 Scripts/build_static_player_pgn.py
+            python3 Scripts/reconcile_pgn_sources.py --write-audit
+          fi
+
+      - name: Commit reconciled data
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data
+          if git diff --cached --quiet; then
+            echo "No PGN reconciliation changes."
+          else
+            git commit -m "Reconcile PGN source coverage"
+            git push
+          fi

@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 final class AppStore: ObservableObject {
     @Published var query = ""
     @Published var includeLikelyTestEvents = false
-    @Published var autoRefreshOnline = false
+    @Published var autoRefreshOnline = true
     @Published var candidates: [PlayerCandidate] = []
     @Published var selectedCandidateID: PlayerCandidate.ID?
     @Published var selectedEventIDs: Set<TournamentEvent.ID> = []
@@ -22,11 +22,24 @@ final class AppStore: ObservableObject {
     @Published var recommendedYouthPlayers: [RecommendedYouthPlayer] = []
     @Published var youthLeaderboards: [YouthLeaderboard] = []
     @Published var selectedDashboardStats = PlayerDashboardStats()
+    @Published var activePage: AppPage = .home
+    @Published var manualEventURL = ""
+    @Published var manualImportAllowsChinaEventFallback = true
+    @Published var isManualImporting = false
+    @Published var manualImportResult = ManualEventImportReport()
+    @Published var githubPublishResult = GitHubPublishResult()
+    @Published var nameMappingRows: [UserNameMappingRow] = []
+    @Published var allNameMappingRows: [UserNameMappingRow] = []
+    @Published var aliasSourceStats: [AliasSourceStat] = []
+    @Published var selectedNameMappingID: UserNameMappingRow.ID?
+    @Published var nameMappingDraft = UserNameMappingDraft()
+    @Published var lastNameMappingImportReport = NameMappingImportReport()
 
     private let client = ChessResultsClient()
     private let fideClient = FIDEPlayerClient()
     private let repository = LocalChessRepository()
     private let staticBulkRepository = StaticBulkRepository()
+    private let githubPublisher = GitHubDataPublisher()
     private var latestMergedPGN = ""
 
     init() {
@@ -132,9 +145,40 @@ final class AppStore: ObservableObject {
                 let found = refreshedLocal.isEmpty ? online : refreshedLocal
                 candidates = found
                 applyDefaultSelection(found.first)
+                activePage = found.isEmpty ? .home : .player
                 refreshDatabaseStats()
                 loadHomepage()
-                statusText = found.isEmpty ? "未找到匹配棋手" : "找到 \(found.count) 个候选棋手，本地库已更新"
+                if found.isEmpty {
+                    statusText = "未找到匹配棋手"
+                } else if autoRefreshOnline || local.isEmpty {
+                    statusText = "找到 \(found.count) 个候选棋手，正在补齐 PGN"
+                    let pgnRefresh = await cacheMissingPGNsForOnlineRefresh(found)
+                    if pgnRefresh.archives > 0 {
+                        refreshDatabaseStats()
+                        loadHomepage()
+                        if let selectedCandidate {
+                            updateDashboard(for: selectedCandidate)
+                        }
+                        statusText = "已补齐 \(pgnRefresh.archives) 个 PGN、\(pgnRefresh.games) 盘棋，正在同步 GitHub"
+                        do {
+                            let publish = try await githubPublisher.publishLocalPGNCache()
+                            githubPublishResult = publish
+                            statusText = publish.pushed
+                                ? "联网补齐完成并已推送 GitHub：\(pgnRefresh.games) 盘棋"
+                                : "联网补齐完成；GitHub 静态库无新增提交"
+                        } catch {
+                            githubPublishResult = GitHubPublishResult(
+                                message: "联网补齐 PGN 已写入本地，但 GitHub 同步失败。",
+                                warnings: [error.localizedDescription]
+                            )
+                            statusText = "联网补齐 PGN 已写入本地；GitHub 同步失败"
+                        }
+                    } else {
+                        statusText = "找到 \(found.count) 个候选棋手，本地库已更新；没有新增可下载 PGN"
+                    }
+                } else {
+                    statusText = "找到 \(found.count) 个候选棋手，本地库已更新"
+                }
             } catch {
                 statusText = error.localizedDescription
             }
@@ -156,6 +200,7 @@ final class AppStore: ObservableObject {
     }
 
     func showHome() {
+        activePage = .home
         selectedCandidateID = nil
         selectedEventIDs = []
         selectedDashboardStats = PlayerDashboardStats()
@@ -168,7 +213,20 @@ final class AppStore: ObservableObject {
         loadHomepage()
     }
 
+    func showManualImport() {
+        activePage = .manualImport
+        selectedCandidateID = nil
+        selectedEventIDs = []
+        downloadResults = []
+        latestMergedPGN = ""
+        savedFileURL = nil
+        statusText = "手工赛事入库"
+        githubPublishResult = GitHubPublishResult()
+        loadNameMappings()
+    }
+
     func selectCandidate(_ candidate: PlayerCandidate) {
+        activePage = .player
         if !candidates.contains(where: { $0.id == candidate.id }) {
             candidates.insert(candidate, at: 0)
         }
@@ -322,6 +380,156 @@ final class AppStore: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([repository.databaseLocation])
     }
 
+    func openNameMappingFile() {
+        do {
+            let url = try repository.ensureUserNameMappingTemplate()
+            NSWorkspace.shared.open(url)
+            statusText = "已打开用户名称映射表"
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func revealNameMappingFile() {
+        do {
+            let url = try repository.ensureUserNameMappingTemplate()
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+            statusText = "已定位用户名称映射表"
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func importDefaultNameMappingFile() {
+        do {
+            let url = try repository.ensureUserNameMappingTemplate()
+            lastNameMappingImportReport = try repository.importUserNameMappings(from: url)
+            loadNameMappings()
+            refreshDatabaseStats()
+            statusText = "映射表已导入：\(lastNameMappingImportReport.importedPlayers) 名棋手，\(lastNameMappingImportReport.importedAliases) 条别名"
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func chooseAndImportNameMappingFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.commaSeparatedText, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.title = "选择用户名称映射 CSV"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            lastNameMappingImportReport = try repository.importUserNameMappings(from: url)
+            loadNameMappings()
+            refreshDatabaseStats()
+            statusText = "映射表已导入：\(lastNameMappingImportReport.importedPlayers) 名棋手，\(lastNameMappingImportReport.importedAliases) 条别名"
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func loadNameMappings() {
+        do {
+            _ = try repository.ensureUserNameMappingTemplate()
+            nameMappingRows = try repository.userNameMappings()
+            allNameMappingRows = try repository.allNameMappings()
+            aliasSourceStats = try repository.aliasSourceStats()
+        } catch {
+            nameMappingRows = []
+            allNameMappingRows = []
+            aliasSourceStats = []
+            statusText = error.localizedDescription
+        }
+    }
+
+    func exportAllNameMappings() {
+        do {
+            let url = try repository.exportAllNameMappingsCSV()
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+            statusText = "已导出全部名称映射：\(url.lastPathComponent)"
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func selectNameMapping(_ row: UserNameMappingRow) {
+        selectedNameMappingID = row.id
+        nameMappingDraft = UserNameMappingDraft(row: row)
+        statusText = "正在编辑映射：\(row.alias)"
+    }
+
+    func clearNameMappingDraft() {
+        selectedNameMappingID = nil
+        nameMappingDraft = UserNameMappingDraft()
+        statusText = "新建映射"
+    }
+
+    func saveNameMappingDraft() {
+        do {
+            lastNameMappingImportReport = try repository.saveUserNameMapping(nameMappingDraft)
+            loadNameMappings()
+            refreshDatabaseStats()
+            if let row = nameMappingRows.first(where: { $0.alias == nameMappingDraft.alias }) {
+                selectedNameMappingID = row.id
+                nameMappingDraft = UserNameMappingDraft(row: row)
+            }
+            statusText = "映射已保存：\(lastNameMappingImportReport.importedPlayers) 名棋手，\(lastNameMappingImportReport.importedAliases) 条别名"
+        } catch {
+            statusText = error.localizedDescription
+        }
+    }
+
+    func importManualEventLink() {
+        let trimmed = manualEventURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            statusText = "请输入赛事链接"
+            return
+        }
+
+        activePage = .manualImport
+        isManualImporting = true
+        manualImportResult = ManualEventImportReport()
+        githubPublishResult = GitHubPublishResult()
+        statusText = "正在分析赛事链接"
+
+        Task {
+            do {
+                let downloaded = try await client.downloadEventPGN(from: trimmed)
+                statusText = "已下载 \(PGNTools.gameCount(in: downloaded.pgn)) 盘，正在清洗入库"
+                let report = try repository.importEventPGN(
+                    downloaded,
+                    allowChinaEventNameFallback: manualImportAllowsChinaEventFallback
+                )
+                manualImportResult = report
+                refreshDatabaseStats()
+                loadHomepage()
+                loadNameMappings()
+                statusText = "手工入库完成，正在同步 GitHub 数据仓库"
+                do {
+                    let publish = try await githubPublisher.publishManualImport()
+                    githubPublishResult = publish
+                    if publish.pushed {
+                        statusText = "已入库并推送 GitHub：\(report.importedPlayers) 名棋手，\(report.importedGames) 盘棋"
+                    } else {
+                        statusText = "已入库；GitHub 静态库无新增提交"
+                    }
+                } catch {
+                    githubPublishResult = GitHubPublishResult(
+                        message: "本地入库已完成，但 GitHub 同步失败。",
+                        warnings: [error.localizedDescription]
+                    )
+                    statusText = "本地入库完成；GitHub 同步失败"
+                }
+            } catch {
+                statusText = error.localizedDescription
+                manualImportResult = ManualEventImportReport(warnings: [error.localizedDescription])
+            }
+            isManualImporting = false
+        }
+    }
+
     func revealStaticDataFolder() {
         guard let url = bulkDataStats.rootURL else {
             statusText = "未找到本地静态数据目录"
@@ -380,6 +588,7 @@ final class AppStore: ObservableObject {
         selectedCandidateID = candidate?.id
         selectedEventIDs = Set(candidate?.events.prefix(8).map(\.id) ?? [])
         if let candidate {
+            activePage = .player
             updateDashboard(for: candidate)
         } else {
             selectedDashboardStats = PlayerDashboardStats()
@@ -538,6 +747,39 @@ final class AppStore: ObservableObject {
             throw chessResultsError
         }
         return result
+    }
+
+    private func cacheMissingPGNsForOnlineRefresh(_ candidates: [PlayerCandidate]) async -> (archives: Int, games: Int) {
+        var archives = 0
+        var games = 0
+        var checkedEvents = 0
+        let maxCandidates = 3
+        let maxEvents = 60
+
+        for candidate in candidates.prefix(maxCandidates) {
+            guard candidate.fideID?.isEmpty == false else { continue }
+            for event in candidate.events {
+                guard checkedEvents < maxEvents else { return (archives, games) }
+                checkedEvents += 1
+                if let cached = try? repository.cachedPGN(for: event, player: candidate),
+                   PGNTools.gameCount(in: cached) > 0 {
+                    continue
+                }
+
+                do {
+                    let downloaded = try await client.downloadPGN(for: event)
+                    let gameCount = PGNTools.gameCount(in: downloaded)
+                    guard gameCount > 0 else { continue }
+                    _ = try repository.storePGN(downloaded, event: event, player: candidate)
+                    archives += 1
+                    games += gameCount
+                } catch {
+                    continue
+                }
+            }
+        }
+
+        return (archives, games)
     }
 
     private func merge(_ candidate: PlayerCandidate, into candidatesByID: inout [PlayerCandidate.ID: PlayerCandidate]) {

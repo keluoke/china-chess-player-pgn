@@ -38,6 +38,7 @@ private struct SearchSidebar: View {
             .padding(.top, 8)
 
             HomeSidebarButton()
+            ManualImportSidebarButton()
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("棋手搜索")
@@ -199,15 +200,47 @@ private struct HomeSidebarButton: View {
             .foregroundStyle(Color.appText)
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(store.selectedCandidateID == nil ? Color.selectionBackground : Color.panelBackground)
+            .background(store.activePage == .home ? Color.selectionBackground : Color.panelBackground)
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(store.selectedCandidateID == nil ? Color.appAccent : Color.panelBorder)
+                    .stroke(store.activePage == .home ? Color.appAccent : Color.panelBorder)
             )
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
         .help("首页")
+    }
+}
+
+private struct ManualImportSidebarButton: View {
+    @EnvironmentObject private var store: AppStore
+
+    var body: some View {
+        Button {
+            store.showManualImport()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "tray.and.arrow.down")
+                    .frame(width: 20)
+                Text("手工入库")
+                    .font(.callout.weight(.medium))
+                Spacer()
+                Image(systemName: "link.badge.plus")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+            .foregroundStyle(Color.appText)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(store.activePage == .manualImport ? Color.selectionBackground : Color.panelBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(store.activePage == .manualImport ? Color.appAccent : Color.panelBorder)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help("手工提交赛事链接并清洗入库")
     }
 }
 
@@ -278,9 +311,12 @@ private struct EventListView: View {
 
     var body: some View {
         Group {
-            if store.selectedCandidate == nil {
+            switch store.activePage {
+            case .manualImport:
+                ManualImportView()
+            case .home:
                 HomeView()
-            } else {
+            case .player:
                 PlayerDetailView()
             }
         }

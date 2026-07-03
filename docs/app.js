@@ -1,8 +1,5 @@
 import LichessPgnViewer from "./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min.js";
 
-const REPO_URL = "https://github.com/keluoke/china-chess-player-pgn";
-const UPDATE_PGN_WORKFLOW_URL = `${REPO_URL}/actions/workflows/update-pgn.yml`;
-
 const state = {
   activeStage: "ALL",
   selectedFideID: null,
@@ -307,15 +304,9 @@ function renderDetail() {
   const stage = stageForPlayer(player);
   const note = stage ? liChengzhiNote(player, stage.id) : null;
   const staticInfo = staticPlayerInfo(player);
-  const eventSource = staticInfo?.events?.length ? staticInfo.events : (player.events ?? []);
-  const events = [...eventSource].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
-  const pgnEvents = events.filter(event => event.pgnPath);
-  const totalGames = staticInfo?.gameCount || pgnEvents.reduce((sum, event) => sum + (Number(event.gameCount) || 0), 0);
   const staticGames = staticInfo?.gameCount ?? 0;
   if (!staticGames) requestBulkPlayerDetail(player);
   const bulkInfo = bulkPlayerCache.get(String(player.fideID));
-  const eventMetric = staticInfo?.eventCount || events.length;
-  const packageMetric = staticInfo?.packageCount || pgnEvents.length;
   if (state.viewer.visible && state.viewer.fideID === String(player.fideID) && state.viewer.pgnPath) {
     requestPGNViewer(player, state.viewer);
   }
@@ -330,7 +321,6 @@ function renderDetail() {
       <div class="detail-title-actions">
         <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
-        <a class="action-link" href="${escapeAttribute(updatePGNWorkflowURL(player))}" target="_blank" rel="noreferrer">更新 PGN</a>
       </div>
     </div>
 
@@ -342,22 +332,12 @@ function renderDetail() {
       ${ratingCard("BLITZ", player.blitz)}
     </div>
 
-    <div class="dashboard-grid">
-      ${metricTile("赛事", eventMetric)}
-      ${metricTile("PGN包", packageMetric)}
-      ${metricTile("棋局", totalGames)}
-    </div>
-
     ${staticInfo?.gameCount ? staticPlayerHitBlock(player, staticInfo) : ""}
     ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
 
     ${state.downloadStatus ? `<div class="download-status" aria-live="polite">${escapeHTML(state.downloadStatus)}</div>` : ""}
 
     ${pgnViewerBlock(player, staticInfo)}
-
-    <div class="event-list">
-      ${events.length ? events.map(event => eventRow(player, event)).join("") : `<div class="event-row"><strong>暂无本地赛事种子</strong><span>macOS 版可继续联网补齐 Chess-Results 和 PGN 缓存。</span></div>`}
-    </div>
   `;
 
   wireDetailActions(player, staticInfo);
@@ -688,6 +668,7 @@ function pgnViewerBlock(player, info) {
   const white = displayText(game.headers.White ?? "白方");
   const black = displayText(game.headers.Black ?? "黑方");
   const result = displayText(game.headers.Result ?? "*");
+  const gameInfo = viewerGameInfo(game);
 
   return `
     <section class="pgn-viewer" aria-label="${escapeAttribute(title)}">
@@ -706,11 +687,47 @@ function pgnViewerBlock(player, info) {
         <select id="viewerGameSelect">${selectOptions}</select>
       </label>
 
-      <div class="lichess-viewer-shell">
-        <div id="lichessPgnViewer" class="lichess-viewer-host" data-viewer-ready="false"></div>
+      <div class="viewer-playback-layout">
+        <div class="lichess-viewer-shell">
+          <div id="lichessPgnViewer" class="lichess-viewer-host" data-viewer-ready="false"></div>
+        </div>
+        <aside class="viewer-game-side">
+          <h4>棋局信息</h4>
+          <dl>${gameInfo}</dl>
+        </aside>
       </div>
     </section>
   `;
+}
+
+function viewerGameInfo(game) {
+  const headers = game.headers ?? {};
+  const items = [
+    ["赛事", headers.Event],
+    ["轮次", headers.Round],
+    ["时间", headers.EventDate ?? headers.Date],
+    ["地点", headers.Site],
+    ["结果", headers.Result],
+    ["白方", playerLine(headers, "White")],
+    ["黑方", playerLine(headers, "Black")],
+    ["ECO", headers.ECO],
+    ["时限", headers.TimeControl]
+  ].filter(([, value]) => displayText(value ?? "") && displayText(value ?? "") !== "?");
+
+  return items.map(([label, value]) => `
+    <div>
+      <dt>${escapeHTML(label)}</dt>
+      <dd>${escapeHTML(displayText(value))}</dd>
+    </div>
+  `).join("");
+}
+
+function playerLine(headers, side) {
+  const name = displayText(headers[side] ?? "");
+  const elo = displayText(headers[`${side}Elo`] ?? "");
+  const title = displayText(headers[`${side}Title`] ?? "");
+  const fed = displayText(headers[`${side}Fed`] ?? headers[`${side}Federation`] ?? "");
+  return [title, name, elo ? elo : "", fed].filter(Boolean).join(" · ");
 }
 
 function selectedViewerPackage(info) {
@@ -757,9 +774,9 @@ function mountLichessViewer(player) {
       pgn: game.pgn,
       orientation,
       showPlayers: true,
-      showMoves: "auto",
+      showMoves: true,
       showControls: true,
-      scrollToMove: false,
+      scrollToMove: true,
       keyboardToMove: true,
       drawArrows: true,
       menu: {
@@ -852,85 +869,6 @@ function ratingCard(label, value) {
       <strong>${value ?? "-"}</strong>
     </div>
   `;
-}
-
-function metricTile(title, value) {
-  return `
-    <div class="metric-tile">
-      <span>${escapeHTML(title)}</span>
-      <strong>${escapeHTML(value)}</strong>
-    </div>
-  `;
-}
-
-function eventRow(player, event) {
-  const rank = event.rank ? `第 ${event.rank}` : "-";
-  const size = event.rounds && event.participants ? `${event.rounds} 轮 · ${event.participants} 人` : "";
-  const hasPGN = Boolean(event.pgnPath);
-  const eventName = displayText(event.name || "未命名赛事");
-  const source = displayText(event.source || "");
-  const status = hasPGN
-    ? `${event.gameCount ?? "?"} 盘 PGN 已缓存`
-    : `${event.tournamentID ? "未入库 PGN · 可在线抓取" : "未入库 PGN · 待补源"}`;
-  return `
-    <div class="event-row ${hasPGN ? "has-pgn" : ""}">
-      <span class="event-copy">
-        <strong>${escapeHTML(eventName)}</strong>
-        <span>${escapeHTML(event.date ?? "未知日期")} · ${escapeHTML(rank)}${size ? ` · ${escapeHTML(size)}` : ""}${source ? ` · ${escapeHTML(source)}` : ""}</span>
-        <em>${escapeHTML(status)}</em>
-      </span>
-      ${hasPGN ? "" : missingPGNActions(player, event, eventName)}
-    </div>
-  `;
-}
-
-function missingPGNActions(player, event, eventName) {
-  return `
-    <div class="event-actions" aria-label="PGN 入库操作">
-      <a href="${escapeAttribute(missingPGNIssueURL(player, event, eventName))}" target="_blank" rel="noreferrer">请求入库</a>
-      <a href="${escapeAttribute(updatePGNWorkflowURL(player))}" target="_blank" rel="noreferrer">运行更新</a>
-    </div>
-  `;
-}
-
-function missingPGNIssueURL(player, event, eventName) {
-  const fideID = String(player.fideID ?? "");
-  const source = displayText(event.source || "未知来源");
-  const tournamentID = String(event.tournamentID || event.tnr || "");
-  const suggestedSource = workflowSource(event);
-  const body = [
-    "### PGN 入库请求",
-    "",
-    `- 棋手：${displayName(player)} (FIDE ${fideID})`,
-    `- 赛事：${eventName}`,
-    `- 日期：${event.date || "未知"}`,
-    `- 来源：${source}`,
-    `- TournamentID：${tournamentID || "未知"}`,
-    "",
-    "### 建议执行",
-    "",
-    "```bash",
-    `python3 Scripts/sync_static_pgn.py --fetch-missing --player ${fideID} --source ${suggestedSource} --max-downloads 20`,
-    "python3 Scripts/build_static_player_pgn.py",
-    "```",
-    "",
-    "请 workflow 抓取公开可分发 PGN，和现有仓库 PGN 做 hash 去重、头部字段清洗、按棋手重新生成静态包。"
-  ].join("\n");
-  const params = new URLSearchParams({
-    title: `PGN 入库请求：${displayName(player)} / ${eventName}`,
-    body,
-    labels: "pgn-request"
-  });
-  return `${REPO_URL}/issues/new?${params.toString()}`;
-}
-
-function updatePGNWorkflowURL() {
-  return UPDATE_PGN_WORKFLOW_URL;
-}
-
-function workflowSource(event) {
-  const source = normalize(event?.source);
-  return event?.tournamentID || source.includes("chessresults") ? "chess-results" : "all";
 }
 
 function wireDetailActions(player, staticInfo) {
@@ -1028,6 +966,18 @@ function selectPlayer(fideID) {
   state.downloadStatus = "";
   renderDetail();
   if (state.query) renderSearch();
+  scrollDetailIntoViewOnMobile();
+}
+
+function scrollDetailIntoViewOnMobile() {
+  if (!window.matchMedia("(max-width: 720px)").matches) return;
+  window.requestAnimationFrame(() => {
+    els.detailPane.scrollIntoView({
+      block: "start",
+      inline: "nearest",
+      behavior: "smooth"
+    });
+  });
 }
 
 function rankingsForStage(stageID) {

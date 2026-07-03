@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 actor ChessResultsClient {
@@ -100,6 +101,56 @@ actor ChessResultsClient {
             return ""
         }
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func downloadEventPGN(from link: String) async throws -> DownloadedEventPGN {
+        let trimmed = link.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else {
+            throw ChessResultsError.unsupportedEventLink
+        }
+
+        if let tournamentID = tournamentID(from: url) {
+            return try await downloadChessResultsTournamentPGN(tournamentID: tournamentID, sourceURL: url)
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Mozilla/5.0 ChinaChessPlayerPGN/1.0", forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await session.data(for: request)
+        guard let finalURL = response.url else { throw ChessResultsError.invalidResponse }
+        let text = decodeText(data)
+        guard PGNTools.gameCount(in: text) > 0 else {
+            throw ChessResultsError.noPGN
+        }
+        return DownloadedEventPGN(
+            sourceURL: url,
+            finalURL: finalURL,
+            tournamentID: "manual-\(stableHash(text).prefix(16))",
+            sourceName: "Manual PGN",
+            pgn: text.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+    }
+
+    private func downloadChessResultsTournamentPGN(tournamentID: String, sourceURL: URL) async throws -> DownloadedEventPGN {
+        let formURL = URL(string: "https://chess-results.com/PartieSuche.aspx?lan=1")!
+        let form = try await loadForm(formURL)
+        var fields = form.fields
+        fields["ctl00$P1$Txt_FideID"] = ""
+        fields["ctl00$P1$txt_dbkey"] = tournamentID
+        fields["ctl00$P1$combo_anzahl_zeilen"] = "5"
+        fields["ctl00$P1$cb_DownLoadPGN"] = "Download as PGN-File"
+
+        let (data, finalURL) = try await postWithFinalURL(form.actionURL, referer: form.baseURL, fields: fields)
+        let text = decodeText(data).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard PGNTools.gameCount(in: text) > 0 else {
+            throw ChessResultsError.noPGN
+        }
+        return DownloadedEventPGN(
+            sourceURL: sourceURL,
+            finalURL: finalURL,
+            tournamentID: tournamentID,
+            sourceName: "Chess-Results",
+            pgn: text
+        )
     }
 
     private func searchPlayerRows(
@@ -235,6 +286,10 @@ actor ChessResultsClient {
     }
 
     private func post(_ url: URL, referer: URL, fields: [String: String]) async throws -> Data {
+        try await postWithFinalURL(url, referer: referer, fields: fields).data
+    }
+
+    private func postWithFinalURL(_ url: URL, referer: URL, fields: [String: String]) async throws -> (data: Data, finalURL: URL) {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -246,7 +301,18 @@ actor ChessResultsClient {
         guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
             throw ChessResultsError.httpError
         }
-        return data
+        return (data, response.url ?? url)
+    }
+
+    private func decodeText(_ data: Data) -> String {
+        String(data: data, encoding: .utf8)
+            ?? String(data: data, encoding: .isoLatin1)
+            ?? String(decoding: data, as: UTF8.self)
+    }
+
+    private func stableHash(_ value: String) -> String {
+        let digest = SHA256.hash(data: Data(value.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 
     private func formBody(_ fields: [String: String]) -> Data {
@@ -350,6 +416,8 @@ enum ChessResultsError: LocalizedError {
     case invalidResponse
     case httpError
     case missingFIDEID
+    case unsupportedEventLink
+    case noPGN
 
     var errorDescription: String? {
         switch self {
@@ -359,6 +427,10 @@ enum ChessResultsError: LocalizedError {
             "Chess-Results 请求失败"
         case .missingFIDEID:
             "该赛事行缺少 FIDE ID，不能按棋手下载 PGN"
+        case .unsupportedEventLink:
+            "请输入 http/https 赛事链接"
+        case .noPGN:
+            "该链接未返回有效 PGN"
         }
     }
 }

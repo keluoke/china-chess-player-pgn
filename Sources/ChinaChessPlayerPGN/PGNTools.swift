@@ -68,6 +68,20 @@ enum PGNTools {
         }
     }
 
+    static func cleanedUniqueGames(_ pgn: String) -> [String] {
+        var seen: Set<String> = []
+        var games: [String] = []
+        for game in splitGames(pgn) {
+            let cleaned = cleanGame(game)
+            guard isUsableGame(cleaned) else { continue }
+            let key = stableGameKey(cleaned)
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            games.append(cleaned)
+        }
+        return games
+    }
+
     static func headers(in game: String) -> [String: String] {
         var headers: [String: String] = [:]
         let pattern = #"^\[([A-Za-z0-9_]+)\s+"(.*)"\]"#
@@ -83,5 +97,50 @@ enum PGNTools {
             headers[String(game[keyRange])] = String(game[valueRange])
         }
         return headers
+    }
+
+    private static func cleanGame(_ game: String) -> String {
+        game
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func isUsableGame(_ game: String) -> Bool {
+        let prefix = game.prefix(200).lowercased()
+        guard !prefix.contains("<html") else { return false }
+        let headers = headers(in: game)
+        guard
+            headers["Event"]?.isEmpty == false,
+            headers["White"]?.isEmpty == false,
+            headers["Black"]?.isEmpty == false
+        else {
+            return false
+        }
+        return game.contains("\n1.") || game.contains("]\n\n") || game.contains("]\n \n")
+    }
+
+    private static func stableGameKey(_ game: String) -> String {
+        let headers = headers(in: game)
+        let headerKey = [
+            headers["Event"] ?? "",
+            headers["Site"] ?? "",
+            headers["Date"] ?? "",
+            headers["Round"] ?? "",
+            headers["White"] ?? "",
+            headers["Black"] ?? "",
+            headers["Result"] ?? ""
+        ]
+        .map { $0.lowercased().replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression) }
+        .joined(separator: "|")
+        let moves = game
+            .components(separatedBy: "\n")
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("[") }
+            .joined(separator: " ")
+            .replacingOccurrences(of: "\\{[^}]*\\}", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: ";[^\\n]*", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return "\(headerKey)|\(moves)"
     }
 }

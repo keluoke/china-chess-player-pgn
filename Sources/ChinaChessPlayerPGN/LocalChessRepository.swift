@@ -301,6 +301,412 @@ final class LocalChessRepository {
         return fileURL
     }
 
+    func importEventPGN(_ source: DownloadedEventPGN, allowChinaEventNameFallback: Bool) throws -> ManualEventImportReport {
+        try ensureReady()
+        let rawGames = PGNTools.splitGames(source.pgn)
+        let games = PGNTools.cleanedUniqueGames(source.pgn)
+        guard !games.isEmpty else {
+            throw SQLiteStoreError.invalidPGN
+        }
+
+        let identities = try loadPlayerIdentityIndex()
+        var gamesByPlayerID: [String: [String]] = [:]
+        var candidatesByPlayerID: [String: PlayerCandidate] = [:]
+        var unresolved: [String: Int] = [:]
+        var warnings: [String] = []
+
+        for game in games {
+            let headers = PGNTools.headers(in: game)
+            let chinaEvent = isChinaEvent(headers)
+            for side in ["White", "Black"] {
+                let name = headers[side]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                guard !name.isEmpty else { continue }
+                let fideID = firstHeader(headers, keys: ["\(side)FideId", "\(side)FideID", "\(side)FIDEID", "\(side)Fide"])
+                let federation = firstHeader(headers, keys: ["\(side)Fed", "\(side)Federation", "\(side)Country"])
+                let identity = identity(
+                    name: name,
+                    fideID: fideID,
+                    federation: federation,
+                    chinaEvent: chinaEvent && allowChinaEventNameFallback,
+                    identities: identities
+                )
+                guard let identity else {
+                    unresolved[name, default: 0] += 1
+                    continue
+                }
+                gamesByPlayerID[identity.id, default: []].append(game)
+                candidatesByPlayerID[identity.id] = identity.candidate
+            }
+        }
+
+        if gamesByPlayerID.isEmpty {
+            warnings.append("未识别到可入库棋手。请先在用户名称映射表中补 alias/fide_id 后重试。")
+        }
+
+        let firstHeaders = games.first.map(PGNTools.headers(in:)) ?? [:]
+        let eventName = firstHeaders["Event"]?.nilIfBlank ?? "手工导入赛事 \(source.tournamentID)"
+        let eventDate = parsePGNDate(firstHeaders["EventDate"] ?? firstHeaders["Date"] ?? "")
+        let rounds = firstHeaders["EventRounds"] ?? ""
+        let participants = ""
+        var summaries: [ManualPlayerImportSummary] = []
+        var importedGames = 0
+        var importedArchives = 0
+
+        for (playerID, playerGames) in gamesByPlayerID.sorted(by: { $0.key < $1.key }) {
+            guard let candidate = candidatesByPlayerID[playerID] else { continue }
+            let event = TournamentEvent(
+                id: "\(source.tournamentID)-\(candidate.fideID ?? playerID)",
+                tournamentID: source.tournamentID,
+                playerSerial: nil,
+                playerName: candidate.displayName,
+                fideID: candidate.fideID,
+                club: "",
+                federation: candidate.federation,
+                name: eventName,
+                endDate: eventDate,
+                rank: "",
+                rounds: rounds,
+                participants: participants,
+                eventURL: source.sourceURL,
+                playerURL: nil,
+                source: source.sourceName,
+                isLikelyTestData: false
+            )
+            let mergedPGN = playerGames.joined(separator: "\n\n")
+            let fileURL = try storePGN(mergedPGN, event: event, player: candidate)
+            importedArchives += 1
+            importedGames += playerGames.count
+            summaries.append(
+                ManualPlayerImportSummary(
+                    id: playerID,
+                    displayName: candidate.displayName,
+                    fideID: candidate.fideID,
+                    gameCount: playerGames.count,
+                    archivePath: fileURL.path
+                )
+            )
+        }
+
+        return ManualEventImportReport(
+            sourceURL: source.sourceURL.absoluteString,
+            finalURL: source.finalURL.absoluteString,
+            tournamentID: source.tournamentID,
+            eventName: eventName,
+            totalGames: rawGames.count,
+            uniqueGames: games.count,
+            importedPlayers: summaries.count,
+            importedArchives: importedArchives,
+            importedGames: importedGames,
+            unresolvedNames: unresolved
+                .sorted { lhs, rhs in
+                    if lhs.value != rhs.value { return lhs.value > rhs.value }
+                    return lhs.key.localizedStandardCompare(rhs.key) == .orderedAscending
+                }
+                .map { "\($0.key) ×\($0.value)" },
+            playerSummaries: summaries.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending },
+            warnings: warnings
+        )
+    }
+
+    var userNameMappingLocation: URL {
+        databaseURL.deletingLastPathComponent().appendingPathComponent("user-name-mapping.csv")
+    }
+
+    func ensureUserNameMappingTemplate() throws -> URL {
+        try ensureReady()
+        let url = userNameMappingLocation
+        guard !FileManager.default.fileExists(atPath: url.path) else {
+            return url
+        }
+        try (Self.userMappingHeader.joined(separator: ",") + "\n").write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    func importUserNameMappings(from url: URL) throws -> NameMappingImportReport {
+        try ensureReady()
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let rows = Self.parseCSV(text)
+        guard let header = rows.first?.map({ $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }) else {
+            return NameMappingImportReport()
+        }
+        let records = rows.dropFirst()
+        var report = NameMappingImportReport(rows: records.count)
+        var seenPlayers: Set<String> = []
+
+        try transaction {
+            for (offset, values) in records.enumerated() {
+                let row = Dictionary(uniqueKeysWithValues: header.enumerated().map { index, key in
+                    (key, index < values.count ? values[index].trimmingCharacters(in: .whitespacesAndNewlines) : "")
+                })
+                let alias = row["alias"] ?? ""
+                let fideID = row["fide_id"] ?? ""
+                let displayName = row["display_name"] ?? ""
+                let chineseName = row["chinese_name"] ?? ""
+                let pinyinName = row["pinyin_name"] ?? ""
+                let englishName = row["english_name"] ?? ""
+                let federation = (row["federation"]?.nilIfBlank ?? "CHN")
+                let birthYear = row["birth_year"] ?? ""
+                let standardRating = row["standard_rating"] ?? ""
+                let rapidRating = row["rapid_rating"] ?? ""
+                let blitzRating = row["blitz_rating"] ?? ""
+                let bestDisplayName = displayName.nilIfBlank ?? chineseName.nilIfBlank ?? englishName.nilIfBlank ?? pinyinName.nilIfBlank ?? alias
+                guard !alias.isEmpty || !fideID.isEmpty || !bestDisplayName.isEmpty else {
+                    report.skippedRows += 1
+                    continue
+                }
+
+                let playerID: String
+                if !fideID.isEmpty {
+                    playerID = "fide-\(fideID)"
+                } else {
+                    let seed = Self.normalizedAlias(bestDisplayName.isEmpty ? alias : bestDisplayName)
+                    guard !seed.isEmpty else {
+                        report.skippedRows += 1
+                        continue
+                    }
+                    playerID = "local-\(Self.sha256Hex(seed).prefix(16))"
+                }
+
+                do {
+                    try upsertManualMappedPlayer(
+                        playerID: playerID,
+                        fideID: fideID,
+                        chineseName: chineseName,
+                        pinyinName: pinyinName,
+                        englishName: englishName.nilIfBlank ?? bestDisplayName,
+                        federation: federation,
+                        birthYear: birthYear,
+                        standardRating: standardRating,
+                        rapidRating: rapidRating,
+                        blitzRating: blitzRating
+                    )
+                    for value in [alias, bestDisplayName, chineseName, pinyinName, englishName, fideID] where !value.isEmpty {
+                        try insertAlias(value, type: "manual", source: "user-mapping", playerID: playerID)
+                        report.importedAliases += 1
+                    }
+                    seenPlayers.insert(playerID)
+                } catch {
+                    report.errors.append("第 \(offset + 2) 行：\(error.localizedDescription)")
+                }
+            }
+        }
+
+        report.importedPlayers = seenPlayers.count
+        return report
+    }
+
+    func saveUserNameMapping(_ draft: UserNameMappingDraft) throws -> NameMappingImportReport {
+        try ensureReady()
+        let alias = draft.alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fideID = draft.fideID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let displayName = draft.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chineseName = draft.chineseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pinyinName = draft.pinyinName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let englishName = draft.englishName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let federation = draft.federation.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank ?? "CHN"
+        let birthYear = draft.birthYear.trimmingCharacters(in: .whitespacesAndNewlines)
+        let standardRating = draft.standardRating.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rapidRating = draft.rapidRating.trimmingCharacters(in: .whitespacesAndNewlines)
+        let blitzRating = draft.blitzRating.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bestDisplayName = displayName.nilIfBlank ?? chineseName.nilIfBlank ?? englishName.nilIfBlank ?? pinyinName.nilIfBlank ?? alias
+        guard !alias.isEmpty || !fideID.isEmpty || !bestDisplayName.isEmpty else {
+            throw SQLiteStoreError.invalidNameMapping
+        }
+
+        let playerID: String
+        if !fideID.isEmpty {
+            playerID = "fide-\(fideID)"
+        } else if !draft.playerID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            playerID = draft.playerID.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            let seed = Self.normalizedAlias(bestDisplayName)
+            guard !seed.isEmpty else { throw SQLiteStoreError.invalidNameMapping }
+            playerID = "local-\(Self.sha256Hex(seed).prefix(16))"
+        }
+
+        var report = NameMappingImportReport(rows: 1)
+        try transaction {
+            try upsertManualMappedPlayer(
+                playerID: playerID,
+                fideID: fideID,
+                chineseName: chineseName,
+                pinyinName: pinyinName,
+                englishName: englishName.nilIfBlank ?? bestDisplayName,
+                federation: federation,
+                birthYear: birthYear,
+                standardRating: standardRating,
+                rapidRating: rapidRating,
+                blitzRating: blitzRating
+            )
+            for value in [alias, bestDisplayName, chineseName, pinyinName, englishName, fideID] where !value.isEmpty {
+                try insertAlias(value, type: "manual", source: "user-mapping", playerID: playerID)
+                report.importedAliases += 1
+            }
+        }
+        report.importedPlayers = 1
+        try persistUserNameMappingCSV(draft, bestDisplayName: bestDisplayName)
+        return report
+    }
+
+    func userNameMappings(limit: Int = 500) throws -> [UserNameMappingRow] {
+        try ensureReady()
+        let notesByAlias = (try? userMappingCSVNotesByAlias()) ?? [:]
+        return try select(
+            """
+            SELECT a.player_id, a.alias,
+                   COALESCE(NULLIF(p.chinese_name,''), NULLIF(p.english_name,''), NULLIF(p.pinyin_name,''), p.id) AS display_name,
+                   COALESCE(p.fide_id, ''),
+                   COALESCE(p.chinese_name, ''),
+                   COALESCE(p.pinyin_name, ''),
+                   COALESCE(p.english_name, ''),
+                   COALESCE(p.federation, ''),
+                   COALESCE(p.birth_year, ''),
+                   COALESCE(p.standard_rating, ''),
+                   COALESCE(p.rapid_rating, ''),
+                   COALESCE(p.blitz_rating, ''),
+                   a.source
+            FROM player_aliases a
+            JOIN players p ON p.id = a.player_id
+            WHERE a.source = 'user-mapping'
+            ORDER BY a.created_at DESC, a.alias
+            LIMIT ?
+            """,
+            ["\(limit)"]
+        )
+        .map { row in
+            let alias = row[1]
+            return UserNameMappingRow(
+                id: "\(row[0])-\(Self.normalizedAlias(alias))",
+                playerID: row[0],
+                alias: alias,
+                displayName: row[2],
+                fideID: row[3].nilIfBlank,
+                chineseName: row[4],
+                pinyinName: row[5],
+                englishName: row[6],
+                federation: row[7],
+                birthYear: row[8],
+                standardRating: row[9],
+                rapidRating: row[10],
+                blitzRating: row[11],
+                source: row[12],
+                note: notesByAlias[Self.normalizedAlias(alias)] ?? ""
+            )
+        }
+    }
+
+    func allNameMappings(limit: Int = 1000) throws -> [UserNameMappingRow] {
+        try ensureReady()
+        return try aliasMappingRows(whereClause: "", parameters: [], limit: limit)
+    }
+
+    func aliasSourceStats() throws -> [AliasSourceStat] {
+        try ensureReady()
+        return try select(
+            """
+            SELECT source, COUNT(*)
+            FROM player_aliases
+            GROUP BY source
+            ORDER BY COUNT(*) DESC, source
+            """
+        )
+        .map { row in
+            AliasSourceStat(source: row[0], count: Int(row[1]) ?? 0)
+        }
+    }
+
+    func exportAllNameMappingsCSV() throws -> URL {
+        try ensureReady()
+        let rows = try aliasMappingRows(whereClause: "", parameters: [], limit: Int.max)
+        let url = databaseURL.deletingLastPathComponent().appendingPathComponent("all-name-mappings.csv")
+        var csvRows = [[
+            "player_id",
+            "alias",
+            "source",
+            "fide_id",
+            "display_name",
+            "chinese_name",
+            "pinyin_name",
+            "english_name",
+            "federation",
+            "birth_year",
+            "standard_rating",
+            "rapid_rating",
+            "blitz_rating"
+        ]]
+        csvRows.append(contentsOf: rows.map { row in
+            [
+                row.playerID,
+                row.alias,
+                row.source,
+                row.fideID ?? "",
+                row.displayName,
+                row.chineseName,
+                row.pinyinName,
+                row.englishName,
+                row.federation,
+                row.birthYear,
+                row.standardRating,
+                row.rapidRating,
+                row.blitzRating
+            ]
+        })
+        let csv = csvRows.map(Self.csvLine).joined(separator: "\n") + "\n"
+        try csv.write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    private func aliasMappingRows(whereClause: String, parameters: [String], limit: Int) throws -> [UserNameMappingRow] {
+        let notesByAlias = (try? userMappingCSVNotesByAlias()) ?? [:]
+        let sqlLimit = limit == Int.max ? "-1" : "\(limit)"
+        return try select(
+            """
+            SELECT a.player_id, a.alias,
+                   COALESCE(NULLIF(p.chinese_name,''), NULLIF(p.english_name,''), NULLIF(p.pinyin_name,''), p.id) AS display_name,
+                   COALESCE(p.fide_id, ''),
+                   COALESCE(p.chinese_name, ''),
+                   COALESCE(p.pinyin_name, ''),
+                   COALESCE(p.english_name, ''),
+                   COALESCE(p.federation, ''),
+                   COALESCE(p.birth_year, ''),
+                   COALESCE(p.standard_rating, ''),
+                   COALESCE(p.rapid_rating, ''),
+                   COALESCE(p.blitz_rating, ''),
+                   a.source
+            FROM player_aliases a
+            JOIN players p ON p.id = a.player_id
+            \(whereClause)
+            ORDER BY a.source, a.alias
+            LIMIT ?
+            """,
+            parameters + [sqlLimit]
+        )
+        .map { row in
+            aliasMappingRow(from: row, notesByAlias: notesByAlias)
+        }
+    }
+
+    private func aliasMappingRow(from row: [String], notesByAlias: [String: String]) -> UserNameMappingRow {
+        let alias = row[1]
+        return UserNameMappingRow(
+            id: "\(row[0])-\(Self.normalizedAlias(alias))-\(row[12])",
+            playerID: row[0],
+            alias: alias,
+            displayName: row[2],
+            fideID: row[3].nilIfBlank,
+            chineseName: row[4],
+            pinyinName: row[5],
+            englishName: row[6],
+            federation: row[7],
+            birthYear: row[8],
+            standardRating: row[9],
+            rapidRating: row[10],
+            blitzRating: row[11],
+            source: row[12],
+            note: notesByAlias[Self.normalizedAlias(alias)] ?? ""
+        )
+    }
+
     var databaseLocation: URL {
         databaseURL
     }
@@ -731,6 +1137,183 @@ final class LocalChessRepository {
         )
     }
 
+    private func upsertManualMappedPlayer(
+        playerID: String,
+        fideID: String,
+        chineseName: String,
+        pinyinName: String,
+        englishName: String,
+        federation: String,
+        birthYear: String,
+        standardRating: String,
+        rapidRating: String,
+        blitzRating: String
+    ) throws {
+        try execute(
+            """
+            INSERT INTO players(id, fide_id, chinese_name, pinyin_name, english_name, federation, birth_year, standard_rating, rapid_rating, blitz_rating)
+            VALUES (?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''))
+            ON CONFLICT(id) DO UPDATE SET
+                fide_id = COALESCE(NULLIF(excluded.fide_id, ''), players.fide_id),
+                chinese_name = COALESCE(NULLIF(excluded.chinese_name, ''), players.chinese_name),
+                pinyin_name = COALESCE(NULLIF(excluded.pinyin_name, ''), players.pinyin_name),
+                english_name = COALESCE(NULLIF(excluded.english_name, ''), players.english_name),
+                federation = COALESCE(NULLIF(excluded.federation, ''), players.federation),
+                birth_year = COALESCE(excluded.birth_year, players.birth_year),
+                standard_rating = COALESCE(excluded.standard_rating, players.standard_rating),
+                rapid_rating = COALESCE(excluded.rapid_rating, players.rapid_rating),
+                blitz_rating = COALESCE(excluded.blitz_rating, players.blitz_rating),
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            [
+                playerID,
+                fideID,
+                chineseName,
+                pinyinName,
+                englishName,
+                federation,
+                birthYear,
+                standardRating,
+                rapidRating,
+                blitzRating
+            ]
+        )
+    }
+
+    private func loadPlayerIdentityIndex() throws -> PlayerIdentityIndex {
+        let playerRows = try select(
+            """
+            SELECT id, COALESCE(fide_id, ''), COALESCE(chinese_name, ''), COALESCE(pinyin_name, ''),
+                   COALESCE(english_name, ''), COALESCE(federation, 'CHN'), COALESCE(birth_year, ''),
+                   COALESCE(standard_rating, ''), COALESCE(rapid_rating, ''), COALESCE(blitz_rating, '')
+            FROM players
+            """
+        )
+        var identitiesByID: [String: StoredPlayerIdentity] = [:]
+        for row in playerRows {
+            let aliases = [row[1], row[2], row[3], row[4]].filter { !$0.isEmpty }
+            let identity = StoredPlayerIdentity(
+                id: row[0],
+                fideID: row[1].nilIfBlank,
+                displayName: Self.displayName(chinese: row[2], pinyin: row[3], english: row[4]),
+                federation: row[5].nilIfBlank ?? "CHN",
+                birthYear: Int(row[6]),
+                standardRating: Int(row[7]),
+                rapidRating: Int(row[8]),
+                blitzRating: Int(row[9]),
+                aliases: aliases
+            )
+            identitiesByID[identity.id] = identity
+        }
+
+        var byFIDEID: [String: String] = [:]
+        var aliasOwners: [String: String?] = [:]
+        let aliasRows = try select("SELECT player_id, alias FROM player_aliases")
+        for row in aliasRows {
+            guard row.count >= 2, identitiesByID[row[0]] != nil else { continue }
+            let normalized = Self.normalizedAlias(row[1])
+            guard !normalized.isEmpty else { continue }
+            if let existing = aliasOwners[normalized], existing != row[0] {
+                aliasOwners[normalized] = nil
+            } else {
+                aliasOwners[normalized] = row[0]
+            }
+        }
+        for identity in identitiesByID.values {
+            if let fideID = identity.fideID, !fideID.isEmpty {
+                byFIDEID[fideID] = identity.id
+            }
+        }
+
+        return PlayerIdentityIndex(
+            identitiesByID: identitiesByID,
+            byFIDEID: byFIDEID,
+            byNormalizedAlias: aliasOwners.compactMapValues { $0 }
+        )
+    }
+
+    private func identity(
+        name: String,
+        fideID: String?,
+        federation: String?,
+        chinaEvent: Bool,
+        identities: PlayerIdentityIndex
+    ) -> ImportPlayerIdentity? {
+        if
+            let fideID = fideID?.nilIfBlank,
+            let playerID = identities.byFIDEID[fideID],
+            let stored = identities.identitiesByID[playerID]
+        {
+            return ImportPlayerIdentity(id: playerID, candidate: stored.candidate)
+        }
+
+        let normalizedName = Self.normalizedAlias(name)
+        if
+            let playerID = identities.byNormalizedAlias[normalizedName],
+            let stored = identities.identitiesByID[playerID]
+        {
+            return ImportPlayerIdentity(id: playerID, candidate: stored.candidate)
+        }
+
+        let isChinaPlayer = (federation ?? "").uppercased() == "CHN"
+        guard isChinaPlayer || chinaEvent else { return nil }
+
+        let playerID: String
+        if let fideID = fideID?.nilIfBlank {
+            playerID = "fide-\(fideID)"
+        } else {
+            playerID = "local-\(Self.sha256Hex(normalizedName).prefix(16))"
+        }
+        let candidate = PlayerCandidate(
+            id: playerID,
+            displayName: name,
+            fideID: fideID?.nilIfBlank,
+            federation: isChinaPlayer ? "CHN" : ((federation?.nilIfBlank) ?? "CHN"),
+            clubs: [],
+            nameVariants: [name],
+            latestEventDate: nil,
+            eventCount: 0,
+            source: "手工入库",
+            events: []
+        )
+        return ImportPlayerIdentity(id: playerID, candidate: candidate)
+    }
+
+    private func firstHeader(_ headers: [String: String], keys: [String]) -> String? {
+        for key in keys {
+            if let value = headers[key]?.nilIfBlank {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func isChinaEvent(_ headers: [String: String]) -> Bool {
+        let eventCountry = (headers["EventCountry"] ?? "").uppercased()
+        if eventCountry == "CHN" {
+            return true
+        }
+        let text = [
+            headers["Event"] ?? "",
+            headers["Site"] ?? ""
+        ]
+        .joined(separator: " ")
+        .lowercased()
+        return text.contains("china")
+            || text.contains("chinese")
+            || text.contains("李成智")
+            || text.contains("全国")
+            || text.contains("棋协")
+    }
+
+    private func parsePGNDate(_ text: String) -> Date? {
+        let normalized = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ".", with: "-")
+            .replacingOccurrences(of: "??", with: "01")
+        return AppFormatters.shortDate.date(from: normalized)
+    }
+
     private func stablePlayerID(for candidate: PlayerCandidate) -> String {
         if let fideID = candidate.fideID, !fideID.isEmpty {
             return "fide-\(fideID)"
@@ -1004,6 +1587,173 @@ final class LocalChessRepository {
         SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
+    private static let userMappingHeader = [
+        "alias",
+        "fide_id",
+        "display_name",
+        "chinese_name",
+        "pinyin_name",
+        "english_name",
+        "federation",
+        "birth_year",
+        "standard_rating",
+        "rapid_rating",
+        "blitz_rating",
+        "note"
+    ]
+
+    private func persistUserNameMappingCSV(
+        _ draft: UserNameMappingDraft,
+        bestDisplayName: String
+    ) throws {
+        let url = try ensureUserNameMappingTemplate()
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let parsed = Self.parseCSV(text)
+        let header = parsed.first?.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() } ?? Self.userMappingHeader
+        let alias = draft.alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedAlias = Self.normalizedAlias(alias)
+        let fideID = draft.fideID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newRow = userMappingCSVRow(from: draft, bestDisplayName: bestDisplayName)
+
+        var outputRows = [Self.userMappingHeader]
+        var replaced = false
+        for values in parsed.dropFirst() {
+            let row = Dictionary(uniqueKeysWithValues: header.enumerated().map { index, key in
+                (key, index < values.count ? values[index].trimmingCharacters(in: .whitespacesAndNewlines) : "")
+            })
+            let sameAlias = !normalizedAlias.isEmpty && Self.normalizedAlias(row["alias"] ?? "") == normalizedAlias
+            let sameFideID = !fideID.isEmpty && row["fide_id"] == fideID
+            let sameDisplay = normalizedAlias.isEmpty && !bestDisplayName.isEmpty
+                && Self.normalizedAlias(row["display_name"] ?? "") == Self.normalizedAlias(bestDisplayName)
+            if sameAlias || sameFideID || sameDisplay {
+                if !replaced {
+                    outputRows.append(newRow)
+                    replaced = true
+                }
+            } else {
+                outputRows.append(Self.userMappingHeader.map { row[$0] ?? "" })
+            }
+        }
+        if !replaced {
+            outputRows.append(newRow)
+        }
+        let csv = outputRows.map(Self.csvLine).joined(separator: "\n") + "\n"
+        try csv.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private func userMappingCSVRow(
+        from draft: UserNameMappingDraft,
+        bestDisplayName: String
+    ) -> [String] {
+        [
+            draft.alias,
+            draft.fideID,
+            draft.displayName.nilIfBlank ?? bestDisplayName,
+            draft.chineseName,
+            draft.pinyinName,
+            draft.englishName,
+            draft.federation.nilIfBlank ?? "CHN",
+            draft.birthYear,
+            draft.standardRating,
+            draft.rapidRating,
+            draft.blitzRating,
+            draft.note
+        ].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    private func userMappingCSVNotesByAlias() throws -> [String: String] {
+        let url = try ensureUserNameMappingTemplate()
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let rows = Self.parseCSV(text)
+        guard let header = rows.first?.map({ $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }) else {
+            return [:]
+        }
+        var notes: [String: String] = [:]
+        for values in rows.dropFirst() {
+            let row = Dictionary(uniqueKeysWithValues: header.enumerated().map { index, key in
+                (key, index < values.count ? values[index].trimmingCharacters(in: .whitespacesAndNewlines) : "")
+            })
+            let aliasKey = Self.normalizedAlias(row["alias"] ?? "")
+            guard !aliasKey.isEmpty else { continue }
+            notes[aliasKey] = row["note"] ?? ""
+        }
+        return notes
+    }
+
+    private static func csvLine(_ values: [String]) -> String {
+        values.map { value in
+            let escaped = value.replacingOccurrences(of: "\"", with: "\"\"")
+            if escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n") {
+                return "\"\(escaped)\""
+            }
+            return escaped
+        }
+        .joined(separator: ",")
+    }
+
+    private static func parseCSV(_ text: String) -> [[String]] {
+        var rows: [[String]] = []
+        var row: [String] = []
+        var field = ""
+        var inQuotes = false
+        var iterator = text.makeIterator()
+
+        while let character = iterator.next() {
+            if inQuotes {
+                if character == "\"" {
+                    if let next = iterator.next() {
+                        if next == "\"" {
+                            field.append("\"")
+                        } else {
+                            inQuotes = false
+                            if next == "," {
+                                row.append(field)
+                                field = ""
+                            } else if next == "\n" {
+                                row.append(field)
+                                rows.append(row)
+                                row = []
+                                field = ""
+                            } else if next != "\r" {
+                                field.append(next)
+                            }
+                        }
+                    } else {
+                        inQuotes = false
+                    }
+                } else {
+                    field.append(character)
+                }
+                continue
+            }
+
+            switch character {
+            case "\"":
+                inQuotes = true
+            case ",":
+                row.append(field)
+                field = ""
+            case "\n":
+                row.append(field)
+                rows.append(row)
+                row = []
+                field = ""
+            case "\r":
+                continue
+            default:
+                field.append(character)
+            }
+        }
+
+        if !field.isEmpty || !row.isEmpty {
+            row.append(field)
+            rows.append(row)
+        }
+        return rows.filter { row in
+            row.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        }
+    }
+
     private static func applicationSupportURL() throws -> URL {
         let base = try FileManager.default.url(
             for: .applicationSupportDirectory,
@@ -1036,12 +1786,55 @@ final class LocalChessRepository {
     }
 }
 
+private struct StoredPlayerIdentity {
+    let id: String
+    let fideID: String?
+    let displayName: String
+    let federation: String
+    let birthYear: Int?
+    let standardRating: Int?
+    let rapidRating: Int?
+    let blitzRating: Int?
+    let aliases: [String]
+
+    var candidate: PlayerCandidate {
+        PlayerCandidate(
+            id: id,
+            displayName: displayName,
+            fideID: fideID,
+            federation: federation,
+            birthYear: birthYear,
+            standardRating: standardRating,
+            rapidRating: rapidRating,
+            blitzRating: blitzRating,
+            clubs: [],
+            nameVariants: aliases,
+            latestEventDate: nil,
+            eventCount: 0,
+            source: "本地库",
+            events: []
+        )
+    }
+}
+
+private struct PlayerIdentityIndex {
+    let identitiesByID: [String: StoredPlayerIdentity]
+    let byFIDEID: [String: String]
+    let byNormalizedAlias: [String: String]
+}
+
+private struct ImportPlayerIdentity {
+    let id: String
+    let candidate: PlayerCandidate
+}
+
 enum SQLiteStoreError: LocalizedError {
     case openFailed(String)
     case prepareFailed(String)
     case bindFailed(String)
     case stepFailed(String)
     case invalidPGN
+    case invalidNameMapping
 
     var errorDescription: String? {
         switch self {
@@ -1055,6 +1848,8 @@ enum SQLiteStoreError: LocalizedError {
             "执行 SQL 失败：\(message)"
         case .invalidPGN:
             "PGN 内容无有效棋局，已拒绝写入本地归档"
+        case .invalidNameMapping:
+            "映射行至少需要 alias、FIDE ID 或棋手显示名"
         }
     }
 }
