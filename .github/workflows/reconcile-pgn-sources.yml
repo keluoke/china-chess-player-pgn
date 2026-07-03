@@ -112,16 +112,16 @@ jobs:
                   player_args+=(--player "$fide_id")
                 fi
               done < <(python3 - <<'PY'
-import csv
-from pathlib import Path
-path = Path("docs/data/audit/chess-results-player-batch.csv")
-if path.exists():
-    for row in csv.DictReader(path.open(encoding="utf-8")):
-        fide_id = (row.get("fideID") or "").strip()
-        if fide_id:
-            print(fide_id)
-PY
-)
+          import csv
+          from pathlib import Path
+          path = Path("docs/data/audit/chess-results-player-batch.csv")
+          if path.exists():
+              for row in csv.DictReader(path.open(encoding="utf-8")):
+                  fide_id = (row.get("fideID") or "").strip()
+                  if fide_id:
+                      print(fide_id)
+          PY
+          )
             fi
 
             if [ "${#player_args[@]}" -gt 0 ]; then
