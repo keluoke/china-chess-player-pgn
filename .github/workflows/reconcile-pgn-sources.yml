@@ -72,14 +72,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          player_fide_id="${{ inputs.player_fide_id }}"
-          discover_chess_results="${{ inputs.discover_chess_results }}"
-          promote_public_pgn="${{ inputs.promote_public_pgn }}"
-          max_players="${{ inputs.max_players }}"
-          max_known_missing="${{ inputs.max_known_missing }}"
-          max_neighbor_ids="${{ inputs.max_neighbor_ids }}"
-          max_games="${{ inputs.max_games }}"
-          delay="${{ inputs.delay }}"
+          player_fide_id="${{ github.event.inputs.player_fide_id }}"
+          discover_chess_results="${{ github.event.inputs.discover_chess_results }}"
+          promote_public_pgn="${{ github.event.inputs.promote_public_pgn }}"
+          max_players="${{ github.event.inputs.max_players }}"
+          max_known_missing="${{ github.event.inputs.max_known_missing }}"
+          max_neighbor_ids="${{ github.event.inputs.max_neighbor_ids }}"
+          max_games="${{ github.event.inputs.max_games }}"
+          delay="${{ github.event.inputs.delay }}"
 
           if [ -z "$discover_chess_results" ]; then discover_chess_results=true; fi
           if [ -z "$promote_public_pgn" ]; then promote_public_pgn=true; fi
