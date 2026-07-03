@@ -32,11 +32,14 @@ jobs:
 
       - name: Sync Chinese player registry
         shell: bash
+        env:
+          FEDERATION: ${{ inputs.federation }}
+          SOURCE_URL: ${{ inputs.source_url }}
         run: |
           set -euo pipefail
 
-          federation="${{ inputs.federation }}"
-          source_url="${{ inputs.source_url }}"
+          federation="$FEDERATION"
+          source_url="$SOURCE_URL"
           if [ -z "$federation" ]; then
             federation=CHN
           fi
@@ -49,15 +52,4 @@ jobs:
             --url "$source_url"
 
       - name: Commit updated registry
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data/registry
-          if git diff --cached --quiet; then
-            echo "No player registry changes."
-          else
-            git commit -m "Update Chinese player registry"
-            git push
-          fi
+        run: bash Scripts/ci_commit_push.sh "Update Chinese player registry" docs/data/registry

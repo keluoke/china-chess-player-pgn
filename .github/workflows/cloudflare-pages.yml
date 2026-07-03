@@ -36,6 +36,11 @@ jobs:
             echo "Cloudflare Pages only supports files up to 25 MiB." >&2
             exit 1
           } || true
+          size_kib="$(du -sk .cloudflare-pages-site | awk '{print $1}')"
+          if [ "$size_kib" -gt 870400 ]; then
+            echo "Cloudflare Pages artifact is ${size_kib} KiB; keep it below 850 MiB before deploy." >&2
+            exit 1
+          fi
 
       - name: Deploy
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}

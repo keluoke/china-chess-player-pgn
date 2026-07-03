@@ -165,7 +165,7 @@ python3 Scripts/sync_static_pgn.py --from-local-cache
 python3 Scripts/sync_static_pgn.py --fetch-missing --max-downloads 50
 python3 Scripts/promote_public_pgn.py --scan-chess-results --max-players 25
 python3 Scripts/promote_public_pgn.py --promote-scout --source lichess
-python3 Scripts/sync_lichess_broadcast_bulk.py --metadata-only --mirror --index-youth
+python3 Scripts/sync_lichess_broadcast_bulk.py --metadata-only
 python3 Scripts/build_static_player_pgn.py
 ```
 
@@ -175,22 +175,21 @@ GitHub 页面上有两个可手动运行的 workflow：
 - `Update domestic player registry`：根据手工赛事名单和身份链接刷新国内临时身份层。
 - `Update static PGN archive`：刷新已登记赛事的 PGN。
 - `Promote public PGN`：按 FIDE ID 扫 Chess-Results 全局 PGN 搜索，并把新增合格 PGN 晋升到静态归档。
-- `Update Lichess broadcast bulk archive`：刷新百万级 Lichess broadcast 压缩分片，并重建 U8-U18 青少年 PGN 包。
+- `Update Lichess broadcast bulk archive`：默认只刷新 Lichess broadcast 元数据；原始 `.pgn.zst` 分片不再提交进 git。需要重建 U8-U18 青少年 PGN 包时，在本地或专用对象存储环境中显式启用 mirror/index。
 
 涉及 PGN 的 workflow 会在提交前运行 `Scripts/build_static_player_pgn.py`，把赛事 PGN 和 bulk 青少年 PGN 重新聚合成 `by-player` 查询层。
 
 ## 百万级 bulk 与青少年筛选
 
-百万级数据不拆成每盘一个文件，采用压缩分片：
+百万级原始数据不再直接托管在 git / Pages。仓库保留 Lichess broadcast 元数据、已经清洗出的青少年分段包，以及按棋手聚合后的查询层：
 
 ```text
 docs/data/bulk/manifest.json
-docs/data/bulk/lichess-broadcast/shards/lichess_db_broadcast_YYYY-MM.pgn.zst
 docs/data/bulk/youth/manifest.json
 docs/data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn
 ```
 
-Lichess broadcast archive 当前包含 77 个官方直播 PGN 分片、1,109,301 盘。原始 `.pgn.zst` 用作百万级静态资产；网页端首屏只加载 manifest，不展开百万盘棋。青少年筛选由脚本流式扫描分片生成：用赛事年份减棋手出生年份，按李成智杯 U8/U10/U12/U14/U16/U18 年龄段归类。这样每个年龄段都有一个可直接下载的 PGN 包。
+Lichess broadcast archive 当前元数据记录 78 个官方直播 PGN 分片、约 114 万盘。原始 `.pgn.zst` 应放在 GitHub Releases、Cloudflare R2 或本地数据盘，不能再进入主仓库历史。青少年筛选由脚本在有原始分片的环境中流式扫描生成：用赛事年份减棋手出生年份，按李成智杯 U8/U10/U12/U14/U16/U18 年龄段归类。这样每个年龄段都有一个可直接下载的 PGN 包。
 
 `by-player` 派生层再把青少年分段包按 FIDE ID 聚合，生成每名棋手的 `all.pgn` 和 U8-U18 阶段包。这样 UI 查询棋手时不需要扫描百万级分片，也不需要在浏览器里临时从整段年龄组 PGN 里抽取。
 

@@ -41,10 +41,13 @@ const detailRequests = new Map();
 const staticPlayerCache = new Map();
 const staticPlayerRequests = new Map();
 const bulkStageIndexCache = new Map();
+const bulkStageIndexRequests = new Map();
 const bulkPlayerCache = new Map();
 const bulkPlayerRequests = new Map();
 const pgnViewerCache = new Map();
 const pgnViewerRequests = new Map();
+const PGN_VIEWER_CACHE_MAX_ENTRIES = 3;
+const PGN_VIEWER_CACHE_MAX_BYTES = 48 * 1024 * 1024;
 let activeLichessViewer = null;
 let viewerAutoplayTimer = null;
 
@@ -88,7 +91,7 @@ async function loadData() {
 }
 
 async function fetchJSON(path, required) {
-  const response = await fetch(path, { cache: "no-store" });
+  const response = await fetch(path, { cache: "default" });
   if (!response.ok) {
     if (!required && response.status === 404) return null;
     throw new Error(`${path} HTTP ${response.status}`);
@@ -106,7 +109,7 @@ function mergePlayers(leaderboardPlayers, indexedPlayers, registryPlayers, byPla
     byFide.set(fideID, {
       ...current,
       ...indexed,
-      aliases: [...(current.aliases ?? []), ...(indexed.aliases ?? [])],
+      aliases: uniqueStrings([...(current.aliases ?? []), ...(indexed.aliases ?? [])]),
       detailPath: indexed.detailPath ?? current.detailPath,
       eventCount: indexed.eventCount ?? current.eventCount,
       pgnCount: indexed.pgnCount ?? current.pgnCount,
@@ -124,7 +127,7 @@ function mergePlayers(leaderboardPlayers, indexedPlayers, registryPlayers, byPla
     byFide.set(fideID, {
       ...current,
       ...player,
-      aliases: [...(current.aliases ?? []), ...(player.aliases ?? [])],
+      aliases: uniqueStrings([...(current.aliases ?? []), ...(player.aliases ?? [])]),
       detailPath: current.detailPath ?? player.detailPath,
       eventCount: current.eventCount ?? player.eventCount,
       pgnCount: current.pgnCount ?? player.pgnCount,
@@ -146,14 +149,14 @@ function mergePlayers(leaderboardPlayers, indexedPlayers, registryPlayers, byPla
     byFide.set(fideID, {
       ...current,
       ...player,
-      aliases: [...(current.aliases ?? []), ...(player.aliases ?? [])],
+      aliases: uniqueStrings([...(current.aliases ?? []), ...(player.aliases ?? [])]),
       eventCount: Math.max(Number(current.eventCount) || 0, Number(player.eventCount) || 0),
       gameCount: Math.max(Number(current.gameCount) || 0, Number(player.gameCount) || 0),
       playerPgnPath: player.playerPgnPath ?? current.playerPgnPath,
       playerPgnGameCount: player.playerPgnGameCount ?? current.playerPgnGameCount,
       playerIndexPath: player.playerIndexPath ?? current.playerIndexPath,
       stages: { ...(current.stages ?? {}), ...(player.stages ?? {}) },
-      sources: [...(current.sources ?? []), ...(player.sources ?? [])],
+      sources: uniqueStrings([...(current.sources ?? []), ...(player.sources ?? [])]),
       displayName: current.displayName ?? player.displayName,
       name: current.name ?? player.name ?? current.displayName ?? player.displayName ?? `FIDE ${fideID}`,
       chineseName: current.chineseName ?? player.chineseName,
@@ -194,7 +197,7 @@ function renderTabs() {
   els.stageTabs.innerHTML = rows.map(row => `
     <div class="stage-tab-row">
       ${row.map(tab => `
-        <button type="button" role="tab" aria-selected="${state.activeStage === tab.id}" data-stage="${tab.id}">
+        <button type="button" role="tab" aria-selected="${state.activeStage === tab.id}" data-stage="${escapeAttribute(tab.id)}">
           ${escapeHTML(tab.label)}
         </button>
       `).join("")}
@@ -240,13 +243,13 @@ function leaderboardCard(stageID) {
         <td class="rank-cell"><span class="rank-badge">${index + 1}</span></td>
         <td>
           <div class="player-name">${escapeHTML(displayName(player))}</div>
-          <div class="player-meta">${escapeHTML(playerStage?.id ?? "-")} · FIDE ${escapeHTML(player.fideID)} · ${player.birthYear} 出生</div>
+          <div class="player-meta">${escapeHTML(playerStage?.id ?? "-")} · FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(player.birthYear ?? "-"))} 出生</div>
           ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}
           <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="--bar-width: ${width}%"></div></div>
         </td>
         <td class="rating-cell">
-          <div class="rating-value">${entry.rating.value}</div>
-          <div class="rating-kind">${entry.rating.kind}</div>
+          <div class="rating-value">${escapeHTML(displayText(entry.rating.value))}</div>
+          <div class="rating-kind">${escapeHTML(displayText(entry.rating.kind))}</div>
         </td>
       </tr>
     `;
@@ -280,7 +283,7 @@ function renderSearch() {
     return `
       <button class="result-button" type="button" data-fide="${escapeAttribute(player.fideID)}" aria-pressed="${state.selectedFideID === player.fideID}">
         <div class="player-name">${escapeHTML(displayName(player))}</div>
-        <div class="player-meta">${stage?.id ?? "-"} · FIDE ${escapeHTML(player.fideID)} · ${rating?.value ?? "-"} ${rating?.kind ?? ""}</div>
+        <div class="player-meta">${escapeHTML(stage?.id ?? "-")} · FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(rating?.value ?? "-"))} ${escapeHTML(displayText(rating?.kind ?? ""))}</div>
       </button>
     `;
   }).join("") : `
@@ -316,7 +319,7 @@ function renderDetail() {
       <div>
         <h2>${escapeHTML(displayName(player))}</h2>
         ${detailChineseNameLine(player)}
-        <p>FIDE ${escapeHTML(player.fideID)} · ${player.birthYear} 出生 · ${stage?.id ?? "未到 U8"}</p>
+        <p>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(player.birthYear ?? "-"))} 出生 · ${escapeHTML(stage?.id ?? "未到 U8")}</p>
       </div>
       <div class="detail-title-actions">
         <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
@@ -353,7 +356,7 @@ function selectedPlayer() {
 function requestPlayerDetail(player) {
   if (!player?.detailPath || detailCache.has(player.fideID) || detailRequests.has(player.fideID)) return;
 
-  const request = fetch(player.detailPath, { cache: "no-store" })
+  const request = fetch(player.detailPath, { cache: "default" })
     .then(response => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
@@ -386,7 +389,7 @@ function requestStaticPlayerDetail(player) {
   const fideID = String(player?.fideID ?? "");
   if (!fideID || !player.playerIndexPath || staticPlayerCache.has(fideID) || staticPlayerRequests.has(fideID)) return;
 
-  const request = fetch(player.playerIndexPath, { cache: "no-store" })
+  const request = fetch(player.playerIndexPath, { cache: "default" })
     .then(response => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
@@ -484,18 +487,29 @@ function requestBulkPlayerDetail(player) {
 
 async function loadBulkStageIndex(stage) {
   if (bulkStageIndexCache.has(stage.id)) return bulkStageIndexCache.get(stage.id);
-  const response = await fetch(stage.indexPath, { cache: "no-store" });
-  if (!response.ok) throw new Error(`${stage.id} HTTP ${response.status}`);
-  const index = await response.json();
-  bulkStageIndexCache.set(stage.id, index);
-  return index;
+  if (bulkStageIndexRequests.has(stage.id)) return bulkStageIndexRequests.get(stage.id);
+
+  const request = fetch(stage.indexPath, { cache: "default" })
+    .then(response => {
+      if (!response.ok) throw new Error(`${stage.id} HTTP ${response.status}`);
+      return response.json();
+    })
+    .then(index => {
+      bulkStageIndexCache.set(stage.id, index);
+      return index;
+    })
+    .finally(() => {
+      bulkStageIndexRequests.delete(stage.id);
+    });
+  bulkStageIndexRequests.set(stage.id, request);
+  return request;
 }
 
 function bulkPlayerHitBlock(info) {
   return `
     <div class="bulk-player-hit">
       <strong>本地青少年 bulk 命中 ${compactNumber(info.totalGames)} 盘</strong>
-      <span>${info.stages.map(stage => `${stage.id} ${stage.count} 盘`).join(" · ")}</span>
+      <span>${escapeHTML(info.stages.map(stage => `${stage.id} ${stage.count} 盘`).join(" · "))}</span>
     </div>
   `;
 }
@@ -555,7 +569,7 @@ function requestPGNViewer(player, info) {
       ...state.viewer,
       fideID,
       pgnPath,
-      status: pgnViewerCache.has(pgnPath) ? "loaded" : "idle",
+      status: getCachedPGNViewerPackage(pgnPath) ? "loaded" : "idle",
       visible: true,
       gameIndex: 0,
       orientation: "",
@@ -564,7 +578,7 @@ function requestPGNViewer(player, info) {
     };
   }
 
-  const cached = pgnViewerCache.get(pgnPath);
+  const cached = getCachedPGNViewerPackage(pgnPath);
   if (cached) {
     state.viewer.status = "loaded";
     state.viewer.gameIndex = clampInt(state.viewer.gameIndex, 0, Math.max(cached.games.length - 1, 0));
@@ -577,7 +591,7 @@ function requestPGNViewer(player, info) {
 
   state.viewer.status = "loading";
   state.viewer.error = "";
-  const request = fetch(pgnPath, { cache: "no-store" })
+  const request = fetch(pgnPath, { cache: "default" })
     .then(response => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.text();
@@ -593,7 +607,7 @@ function requestPGNViewer(player, info) {
         };
       });
       if (!games.length) throw new Error("PGN 中没有可解析对局");
-      pgnViewerCache.set(pgnPath, {
+      setCachedPGNViewerPackage(pgnPath, {
         pgnPath,
         games,
         gameCount: games.length,
@@ -620,6 +634,39 @@ function requestPGNViewer(player, info) {
   pgnViewerRequests.set(pgnPath, request);
 }
 
+function getCachedPGNViewerPackage(pgnPath) {
+  const cached = pgnViewerCache.get(pgnPath);
+  if (!cached) return null;
+  pgnViewerCache.delete(pgnPath);
+  pgnViewerCache.set(pgnPath, cached);
+  return cached;
+}
+
+function setCachedPGNViewerPackage(pgnPath, cached) {
+  pgnViewerCache.delete(pgnPath);
+  pgnViewerCache.set(pgnPath, cached);
+  prunePGNViewerCache(pgnPath);
+}
+
+function prunePGNViewerCache(activePath) {
+  while (
+    pgnViewerCache.size > PGN_VIEWER_CACHE_MAX_ENTRIES
+    || pgnViewerCacheByteCount() > PGN_VIEWER_CACHE_MAX_BYTES
+  ) {
+    const evictable = [...pgnViewerCache.keys()].find(path => path !== activePath);
+    if (!evictable) break;
+    pgnViewerCache.delete(evictable);
+  }
+}
+
+function pgnViewerCacheByteCount() {
+  let total = 0;
+  for (const cached of pgnViewerCache.values()) {
+    total += Number(cached.bytes ?? 0);
+  }
+  return total;
+}
+
 function pgnViewerBlock(player, info) {
   if (!state.viewer.visible || state.viewer.fideID !== String(player.fideID) || !state.viewer.pgnPath) return "";
 
@@ -630,7 +677,7 @@ function pgnViewerBlock(player, info) {
   const title = `${displayName(player)} ${packageCollectionLabel(selectedPackage ?? viewer)}`;
   const downloadText = `点击下载 ${displayName(player)} ${packageLabel} ${compactNumber(packageGames)}局 PGN`;
   const downloadName = `${slug(displayName(player))}-${slug(packageLabel)}.pgn`;
-  const cached = pgnViewerCache.get(viewer.pgnPath);
+  const cached = getCachedPGNViewerPackage(viewer.pgnPath);
   if (viewer.status === "error") {
     return `
       <section class="pgn-viewer is-empty" aria-label="${escapeAttribute(title)}">
@@ -741,7 +788,7 @@ function packageCollectionLabel(item) {
 
 function wirePGNViewerActions(player) {
   const viewer = state.viewer;
-  const cached = pgnViewerCache.get(viewer.pgnPath);
+  const cached = getCachedPGNViewerPackage(viewer.pgnPath);
   if (!cached) return;
 
   document.querySelector("#viewerGameSelect")?.addEventListener("change", event => {
@@ -761,7 +808,7 @@ function wirePGNViewerActions(player) {
 
 function mountLichessViewer(player) {
   const host = document.querySelector("#lichessPgnViewer");
-  const cached = pgnViewerCache.get(state.viewer.pgnPath);
+  const cached = getCachedPGNViewerPackage(state.viewer.pgnPath);
   if (!host || !cached?.games?.length) return;
 
   const gameIndex = clampInt(state.viewer.gameIndex, 0, cached.games.length - 1);
@@ -865,8 +912,8 @@ function preferredBoardOrientation(player, game) {
 function ratingCard(label, value) {
   return `
     <div class="rating-card">
-      <span>${label}</span>
-      <strong>${value ?? "-"}</strong>
+      <span>${escapeHTML(label)}</span>
+      <strong>${escapeHTML(displayText(value ?? "-"))}</strong>
     </div>
   `;
 }
@@ -891,7 +938,7 @@ function selectPGNPackage(player, item) {
     packageLabel: packageShortLabel(item),
     packageGameCount: Number(item.gameCount ?? 0),
     visible: true,
-    status: pgnViewerCache.has(item.pgnPath) ? "loaded" : "idle",
+    status: getCachedPGNViewerPackage(item.pgnPath) ? "loaded" : "idle",
     gameIndex: 0,
     orientation: "",
     error: "",
@@ -1082,6 +1129,10 @@ function searchValuesForPlayer(player) {
     }
   }
   return [...new Set(values)];
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.filter(Boolean).map(String))];
 }
 
 function displayName(player) {

@@ -6,12 +6,12 @@ on:
       mirror:
         description: "Mirror Lichess broadcast .pgn.zst shards"
         required: true
-        default: true
+        default: false
         type: boolean
       index_youth:
         description: "Rebuild U8-U18 youth PGN packs"
         required: true
-        default: true
+        default: false
         type: boolean
       max_shards:
         description: "Limit newest shards; 0 means all"
@@ -37,17 +37,21 @@ jobs:
 
       - name: Sync Lichess broadcast bulk archive
         shell: bash
+        env:
+          MIRROR: ${{ inputs.mirror }}
+          INDEX_YOUTH: ${{ inputs.index_youth }}
+          MAX_SHARDS: ${{ inputs.max_shards }}
         run: |
           set -euo pipefail
 
-          mirror="${{ inputs.mirror }}"
-          index_youth="${{ inputs.index_youth }}"
-          max_shards="${{ inputs.max_shards }}"
+          mirror="$MIRROR"
+          index_youth="$INDEX_YOUTH"
+          max_shards="$MAX_SHARDS"
           if [ -z "$mirror" ]; then
-            mirror=true
+            mirror=false
           fi
           if [ -z "$index_youth" ]; then
-            index_youth=true
+            index_youth=false
           fi
           if [ -z "$max_shards" ]; then
             max_shards=0
@@ -65,15 +69,4 @@ jobs:
           python3 Scripts/build_static_player_pgn.py
 
       - name: Commit updated bulk archive
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data
-          if git diff --cached --quiet; then
-            echo "No bulk archive changes."
-          else
-            git commit -m "Update Lichess broadcast bulk archive"
-            git push
-          fi
+        run: bash Scripts/ci_commit_push.sh "Update Lichess broadcast bulk archive" docs/data

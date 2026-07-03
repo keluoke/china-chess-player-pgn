@@ -30,10 +30,28 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pages-site
+          rsync -a --delete \
+            --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
+            docs/ .pages-site/
+          find .pages-site -type f -size +24M -print -quit | grep -q . && {
+            echo "Pages artifact contains a file larger than 24 MiB; split it before deploy." >&2
+            exit 1
+          } || true
+          size_kib="$(du -sk .pages-site | awk '{print $1}')"
+          if [ "$size_kib" -gt 870400 ]; then
+            echo "Pages artifact is ${size_kib} KiB; keep it below 850 MiB before deploy." >&2
+            exit 1
+          fi
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs
+          path: .pages-site
 
       - name: Deploy
         id: deployment

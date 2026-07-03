@@ -435,9 +435,7 @@ final class LocalChessRepository {
 
         try transaction {
             for (offset, values) in records.enumerated() {
-                let row = Dictionary(uniqueKeysWithValues: header.enumerated().map { index, key in
-                    (key, index < values.count ? values[index].trimmingCharacters(in: .whitespacesAndNewlines) : "")
-                })
+                let row = Self.csvRow(header: header, values: values)
                 let alias = row["alias"] ?? ""
                 let fideID = row["fide_id"] ?? ""
                 let displayName = row["display_name"] ?? ""
@@ -1618,9 +1616,7 @@ final class LocalChessRepository {
         var outputRows = [Self.userMappingHeader]
         var replaced = false
         for values in parsed.dropFirst() {
-            let row = Dictionary(uniqueKeysWithValues: header.enumerated().map { index, key in
-                (key, index < values.count ? values[index].trimmingCharacters(in: .whitespacesAndNewlines) : "")
-            })
+            let row = Self.csvRow(header: header, values: values)
             let sameAlias = !normalizedAlias.isEmpty && Self.normalizedAlias(row["alias"] ?? "") == normalizedAlias
             let sameFideID = !fideID.isEmpty && row["fide_id"] == fideID
             let sameDisplay = normalizedAlias.isEmpty && !bestDisplayName.isEmpty
@@ -1670,14 +1666,21 @@ final class LocalChessRepository {
         }
         var notes: [String: String] = [:]
         for values in rows.dropFirst() {
-            let row = Dictionary(uniqueKeysWithValues: header.enumerated().map { index, key in
-                (key, index < values.count ? values[index].trimmingCharacters(in: .whitespacesAndNewlines) : "")
-            })
+            let row = Self.csvRow(header: header, values: values)
             let aliasKey = Self.normalizedAlias(row["alias"] ?? "")
             guard !aliasKey.isEmpty else { continue }
             notes[aliasKey] = row["note"] ?? ""
         }
         return notes
+    }
+
+    private static func csvRow(header: [String], values: [String]) -> [String: String] {
+        Dictionary(
+            header.enumerated().map { index, key in
+                (key, index < values.count ? values[index].trimmingCharacters(in: .whitespacesAndNewlines) : "")
+            },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     private static func csvLine(_ values: [String]) -> String {

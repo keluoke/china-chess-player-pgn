@@ -44,13 +44,19 @@ jobs:
 
       - name: Sync static PGN archive
         shell: bash
+        env:
+          MAX_DOWNLOADS: ${{ inputs.max_downloads }}
+          PLAYER_FIDE_ID: ${{ inputs.player_fide_id }}
+          FETCH_MISSING: ${{ inputs.fetch_missing }}
+          SOURCE: ${{ inputs.source }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
-          max_downloads="${{ inputs.max_downloads }}"
-          player_fide_id="${{ inputs.player_fide_id }}"
-          fetch_missing="${{ inputs.fetch_missing }}"
-          source="${{ inputs.source }}"
+          max_downloads="$MAX_DOWNLOADS"
+          player_fide_id="$PLAYER_FIDE_ID"
+          fetch_missing="$FETCH_MISSING"
+          source="$SOURCE"
           if [ -z "$max_downloads" ]; then
             max_downloads=50
           fi
@@ -59,7 +65,7 @@ jobs:
           fi
 
           args=()
-          if [ "${{ github.event_name }}" = "schedule" ] || [ "$fetch_missing" = "true" ]; then
+          if [ "$EVENT_NAME" = "schedule" ] || [ "$fetch_missing" = "true" ]; then
             args+=(--fetch-missing --max-downloads "$max_downloads")
           fi
           if [ -n "$player_fide_id" ]; then
@@ -73,15 +79,4 @@ jobs:
           python3 Scripts/build_static_player_pgn.py
 
       - name: Commit updated archive
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data
-          if git diff --cached --quiet; then
-            echo "No PGN archive changes."
-          else
-            git commit -m "Update static PGN archive"
-            git push
-          fi
+        run: bash Scripts/ci_commit_push.sh "Update static PGN archive" docs/data

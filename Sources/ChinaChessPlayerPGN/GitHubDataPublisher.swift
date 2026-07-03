@@ -121,8 +121,12 @@ private func findRepositoryRoot() throws -> URL {
     }
     candidates.append(URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true))
     candidates.append(Bundle.main.bundleURL)
-    candidates.append(URL(fileURLWithPath: "/Volumes/AI/code/Playground/china-chess-player-pgn", isDirectory: true))
-    candidates.append(URL(fileURLWithPath: "/Users/yan/Documents/Playground/china-chess-player-pgn", isDirectory: true))
+    if let resourceURL = Bundle.main.resourceURL {
+        candidates.append(resourceURL)
+    }
+    if let executableURL = Bundle.main.executableURL {
+        candidates.append(executableURL)
+    }
 
     var checked: Set<String> = []
     for candidate in candidates {
@@ -166,16 +170,18 @@ private func run(_ arguments: [String], in workingDirectory: URL) throws -> Comm
     process.arguments = arguments
     process.currentDirectoryURL = workingDirectory
 
-    let stdoutPipe = Pipe()
-    let stderrPipe = Pipe()
-    process.standardOutput = stdoutPipe
-    process.standardError = stderrPipe
+    let stdoutReader = PipeReader(label: "china-chess-player-pgn.stdout")
+    let stderrReader = PipeReader(label: "china-chess-player-pgn.stderr")
+    process.standardOutput = stdoutReader.pipe
+    process.standardError = stderrReader.pipe
 
     try process.run()
+    stdoutReader.start()
+    stderrReader.start()
     process.waitUntilExit()
 
-    let stdout = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    let stdout = String(data: stdoutReader.finish(), encoding: .utf8) ?? ""
+    let stderr = String(data: stderrReader.finish(), encoding: .utf8) ?? ""
     let result = CommandResult(stdout: stdout, stderr: stderr, status: process.terminationStatus)
     guard result.status == 0 else {
         let command = arguments.joined(separator: " ")
@@ -186,6 +192,30 @@ private func run(_ arguments: [String], in workingDirectory: URL) throws -> Comm
         throw GitHubPublisherError.commandFailed("命令失败：\(command)\n\(detail)")
     }
     return result
+}
+
+private final class PipeReader: @unchecked Sendable {
+    let pipe = Pipe()
+    private let queue: DispatchQueue
+    private var data = Data()
+
+    init(label: String) {
+        self.queue = DispatchQueue(label: label)
+    }
+
+    func start() {
+        let handle = pipe.fileHandleForReading
+        queue.async { [weak self, handle] in
+            let output = handle.readDataToEndOfFile()
+            self?.data = output
+        }
+    }
+
+    func finish() -> Data {
+        queue.sync {
+            data
+        }
+    }
 }
 
 private func parseSyncStats(_ text: String) -> SyncStatsSnapshot {

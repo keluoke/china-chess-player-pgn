@@ -39,35 +39,29 @@ jobs:
 
       - name: Promote public PGN
         shell: bash
+        env:
+          PLAYER_FIDE_ID: ${{ inputs.player_fide_id }}
+          MAX_PLAYERS: ${{ inputs.max_players }}
+          MAX_GAMES: ${{ inputs.max_games }}
+          SCAN_CHESS_RESULTS: ${{ inputs.scan_chess_results }}
         run: |
           set -euo pipefail
 
           args=()
-          if [ "${{ inputs.scan_chess_results }}" != "true" ]; then
+          if [ "$SCAN_CHESS_RESULTS" != "true" ]; then
             echo "No promotion source selected."
             exit 0
           fi
           args+=(--scan-chess-results)
-          if [ -n "${{ inputs.player_fide_id }}" ]; then
-            args+=(--player "${{ inputs.player_fide_id }}")
+          if [ -n "$PLAYER_FIDE_ID" ]; then
+            args+=(--player "$PLAYER_FIDE_ID")
           fi
 
           python3 Scripts/promote_public_pgn.py \
             "${args[@]}" \
-            --max-players "${{ inputs.max_players }}" \
-            --max-games "${{ inputs.max_games }}"
+            --max-players "$MAX_PLAYERS" \
+            --max-games "$MAX_GAMES"
           python3 Scripts/build_static_player_pgn.py
 
       - name: Commit promoted PGN
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data
-          if git diff --cached --quiet; then
-            echo "No promoted PGN changes."
-          else
-            git commit -m "Promote public PGN archive"
-            git push
-          fi
+        run: bash Scripts/ci_commit_push.sh "Promote public PGN archive" docs/data
