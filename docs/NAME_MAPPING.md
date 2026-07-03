@@ -51,4 +51,13 @@ ORDER BY a.source, a.alias;
 - `seed`：代码内置种子棋手和重点棋手资料。
 - `FIDE` / `Chess-Results + FIDE`：联网补齐得到的 FIDE/Chess-Results 信息。
 - `Chess-Results` / `pgn`：赛事搜索或 PGN 入库时从 PGN/赛事记录提取的名字。
+- `chess-results-starting-rank`：从 Chess-Results Starting rank 表读取，棋协大师赛等页面的 `Typ` 或中文 `Name` 列作为中文名证据。
 - `user-mapping`：你在 mac 页面或 CSV 中手工确认的映射，优先用于解决无 FIDE ID、重名、中文名/拼音/英文名不一致。
+
+批量补棋协大师赛中文名：
+
+```bash
+python3 Scripts/sync_chess_results_starting_rank_aliases.py
+python3 Scripts/sync_chinese_players.py
+python3 Scripts/sync_domestic_players.py
+```

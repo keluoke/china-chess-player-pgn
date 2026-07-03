@@ -205,6 +205,22 @@ Lichess broadcast 数据按 CC BY-SA 4.0 发布，仓库保留 `docs/data/bulk/N
 4. 不确定时保留空中文名，只填拼音和英文别名，避免错配。
 5. 合并后重新运行 `python3 Scripts/sync_chinese_players.py --input <FIDE包>`。
 
+棋协大师赛这类 Chess-Results 页面还有一条半自动补全路径：Starting rank 表的 `Typ` 列经常是中文姓名；部分低级别/候补组没有 `Typ`，中文姓名直接在 `Name` 列。先把赛事 ID 或链接登记在：
+
+```text
+data/manual/chess-results-starting-rank-sources.csv
+```
+
+然后运行：
+
+```bash
+python3 Scripts/sync_chess_results_starting_rank_aliases.py
+python3 Scripts/sync_chinese_players.py
+python3 Scripts/sync_domestic_players.py
+```
+
+这个脚本只读取公开 Starting rank 表，不申请 PGN 下载。带 FIDE ID 的行会补入 `data/manual/player-aliases.csv`；没有 FIDE ID 的行会作为原始证据写入 `data/manual/domestic-player-sightings.csv`，等待后续通过 `player-identity-links.csv` 人工链接。已有人工审核中文名不会被覆盖，冲突的抓取值只会进入别名和 notes。
+
 同名处理原则：
 
 - 同中文名不同 FIDE ID 允许共存。
