@@ -1,0 +1,83 @@
+name: Update Chinese name aliases
+
+on:
+  workflow_dispatch:
+    inputs:
+      extra_url:
+        description: "Optional extra Chess-Results player-list URL to scrape"
+        required: false
+        type: string
+      include_non_master:
+        description: "Accept pages whose title is not a known master/league event"
+        required: true
+        default: false
+        type: boolean
+  schedule:
+    - cron: "12 19 10 * *"
+  push:
+    branches: ["main"]
+    paths:
+      - "data/manual/chess-results-starting-rank-sources.csv"
+      - "Scripts/sync_chess_results_starting_rank_aliases.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-name-aliases
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install runtime dependencies
+        run: python3 -m pip install --upgrade certifi
+
+      - name: Scrape Chinese names from Chess-Results player lists
+        shell: bash
+        env:
+          EXTRA_URL: ${{ inputs.extra_url }}
+          INCLUDE_NON_MASTER: ${{ inputs.include_non_master }}
+        run: |
+          set -euo pipefail
+
+          args=()
+          if [ -n "${EXTRA_URL:-}" ]; then
+            args+=(--url "$EXTRA_URL")
+          fi
+          if [ "${INCLUDE_NON_MASTER:-false}" = "true" ]; then
+            args+=(--include-non-master)
+          fi
+          python3 Scripts/sync_chess_results_starting_rank_aliases.py "${args[@]}"
+
+      - name: Rebuild Chinese player registry with aliases
+        run: python3 Scripts/sync_chinese_players.py
+
+      - name: Rebuild domestic registry
+        run: python3 Scripts/sync_domestic_players.py
+
+      - name: Rebuild by-player static index
+        run: python3 Scripts/build_static_player_pgn.py
+
+      - name: Commit updated mappings and registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/manual docs/data
+          if git diff --cached --quiet; then
+            echo "No name-alias changes."
+          else
+            git commit -m "Update Chinese name aliases from Chess-Results"
+            git push
+          fi

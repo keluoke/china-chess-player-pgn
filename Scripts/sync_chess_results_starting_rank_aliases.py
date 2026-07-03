@@ -46,7 +46,14 @@ MASTER_TITLE_TERMS = (
     "national amateur chess master tournament",
     "全国国际象棋棋协大师赛",
     "棋协大师赛",
+    "chinese chess league",
+    "china chess league",
+    "国际象棋甲级联赛",
+    "国际象棋联赛",
 )
+# Swiss-Manager player-list views that carry the Typ column:
+# art=0 starting rank; art=15/16 alphabetical player lists on team events.
+PLAYER_LIST_ARTS = {"0", "15", "16"}
 ALIAS_FIELDS = ["fide_id", "chinese_name", "pinyin_name", "aliases", "source", "confidence", "notes"]
 SIGHTING_FIELDS = [
     "sighting_id",
@@ -390,7 +397,7 @@ def parse_starting_rank_rows(document: ChessResultsHTMLParser, url: str) -> list
                     sex=normalize_sex(field(row, columns, "sex", "gender")),
                     chinese_name=chinese_name,
                     chinese_name_source=chinese_name_source,
-                    club=field(row, columns, "clubcity", "club", "clubcitynation", "clubcityfed"),
+                    club=field(row, columns, "clubcity", "club", "clubcitynation", "clubcityfed", "team"),
                 )
             )
     return result
@@ -577,8 +584,13 @@ def normalize_starting_rank_url(url: str) -> str:
     if not parsed.scheme:
         parsed = urllib.parse.urlparse("https://" + url.strip())
     query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
-    query["lan"] = [query.get("lan", ["1"])[0] or "1"]
-    query["art"] = ["0"]
+    # Force the English UI so table headers stay parseable (Name/FideID/Typ).
+    query["lan"] = ["1"]
+    art = query.get("art", ["0"])[0]
+    query["art"] = [art if art in PLAYER_LIST_ARTS else "0"]
+    # Ask for the complete list; large events paginate otherwise.
+    query["zeilen"] = ["99999"]
+    query.pop("turdet", None)
     normalized_query = urllib.parse.urlencode({key: values[-1] for key, values in query.items()})
     return urllib.parse.urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", normalized_query, ""))
 
