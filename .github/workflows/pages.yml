@@ -21,7 +21,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,6 +53,32 @@ jobs:
         with:
           path: .pages-site
 
+      # The Pages service occasionally rejects deployments with a transient
+      # "Deployment failed, try again later" during syncing_files, so retry
+      # once after a cool-down before failing the run.
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy (retry)
+        id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      - name: Report deploy result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          first="${{ steps.deployment.outcome }}"
+          retry="${{ steps.deployment_retry.outcome }}"
+          echo "first attempt: $first, retry: $retry"
+          if [ "$first" != "success" ] && [ "$retry" != "success" ]; then
+            echo "Both deploy attempts failed." >&2
+            exit 1
+          fi

@@ -53,9 +53,12 @@
     </div>
   </div>
 </div>
-<script src="vendor/chess.js"></script>
 <script src="profile.js"></script>
 <script src="mimic_core.js"></script>
-<script src="app.js"></script>
+<script type="module">
+  import { Chess } from "./vendor/chess.js";
+  window.Chess = Chess;
+  import("./app.js");
+</script>
 </body>
 </html>
