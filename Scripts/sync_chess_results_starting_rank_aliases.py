@@ -50,6 +50,10 @@ MASTER_TITLE_TERMS = (
     "china chess league",
     "国际象棋甲级联赛",
     "国际象棋联赛",
+    "李成智",
+    "全国少年儿童冠军赛",
+    "全国国际象棋青少年锦标赛",
+    "chinese national youth chess championship",
 )
 # Swiss-Manager player-list views that carry the Typ column:
 # art=0 starting rank; art=15/16 alphabetical player lists on team events.

@@ -1,0 +1,97 @@
+name: Ingest event archive (names + PGN)
+
+on:
+  workflow_dispatch:
+    inputs:
+      category:
+        description: "sources CSV category to ingest PGN for (empty = all rows)"
+        required: false
+        default: "li-chengzhi"
+        type: string
+      neighbor_window:
+        description: "probe tournament IDs within +/-N of every source ID"
+        required: true
+        default: "8"
+        type: string
+      delay:
+        description: "seconds between Chess-Results requests"
+        required: true
+        default: "1.0"
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-event-archive
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install runtime dependencies
+        run: python3 -m pip install --upgrade certifi
+
+      - name: Scrape names from starting ranks (with neighbor probe)
+        env:
+          NEIGHBOR_WINDOW: ${{ inputs.neighbor_window }}
+          REQ_DELAY: ${{ inputs.delay }}
+        run: |
+          set -euo pipefail
+          python3 Scripts/sync_chess_results_starting_rank_aliases.py \
+            --neighbor-window "${NEIGHBOR_WINDOW:-8}" \
+            --delay "${REQ_DELAY:-1.0}"
+
+      - name: Rebuild Chinese player registry with aliases
+        id: full_rebuild
+        continue-on-error: true
+        run: python3 Scripts/sync_chinese_players.py
+
+      - name: Apply aliases offline (FIDE download fallback)
+        if: steps.full_rebuild.outcome == 'failure'
+        run: python3 Scripts/apply_aliases_to_registry.py
+
+      - name: Rebuild domestic registry
+        run: python3 Scripts/sync_domestic_players.py
+
+      - name: Fetch full-event PGN and split per player
+        env:
+          CATEGORY: ${{ inputs.category }}
+          NEIGHBOR_WINDOW: ${{ inputs.neighbor_window }}
+          REQ_DELAY: ${{ inputs.delay }}
+        run: |
+          set -euo pipefail
+          args=(--neighbor-window "${NEIGHBOR_WINDOW:-8}" --delay "${REQ_DELAY:-1.0}")
+          if [ -n "${CATEGORY:-}" ]; then
+            args+=(--category "$CATEGORY")
+          fi
+          python3 Scripts/fetch_event_pgn.py "${args[@]}"
+
+      - name: Rebuild static PGN index
+        run: python3 Scripts/sync_static_pgn.py
+
+      - name: Rebuild by-player static index
+        run: python3 Scripts/build_static_player_pgn.py
+
+      - name: Commit ingested archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/manual docs/data
+          if git diff --cached --quiet; then
+            echo "No event archive changes."
+          else
+            git commit -m "Ingest event archive names and PGN"
+            git push
+          fi
