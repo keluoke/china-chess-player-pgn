@@ -59,8 +59,16 @@ jobs:
           fi
           python3 Scripts/sync_chess_results_starting_rank_aliases.py "${args[@]}"
 
+      # ratings.fide.com is often unreachable from Actions runners; fall back
+      # to applying aliases offline against the committed registry.
       - name: Rebuild Chinese player registry with aliases
+        id: full_rebuild
+        continue-on-error: true
         run: python3 Scripts/sync_chinese_players.py
+
+      - name: Apply aliases offline (FIDE download fallback)
+        if: steps.full_rebuild.outcome == 'failure'
+        run: python3 Scripts/apply_aliases_to_registry.py
 
       - name: Rebuild domestic registry
         run: python3 Scripts/sync_domestic_players.py
