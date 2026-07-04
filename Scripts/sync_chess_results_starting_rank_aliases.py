@@ -22,6 +22,7 @@ import csv
 import datetime as dt
 import hashlib
 import html
+import http.client
 import json
 import pathlib
 import re
@@ -341,7 +342,7 @@ def fetch_text(url: str, *, timeout: float, retries: int) -> tuple[str, str]:
                 content = response.read()
                 charset = response.headers.get_content_charset() or "utf-8"
                 return content.decode(charset, errors="replace"), response.geturl()
-        except (urllib.error.URLError, TimeoutError, OSError) as error:
+        except (http.client.IncompleteRead, urllib.error.URLError, TimeoutError, OSError) as error:
             last_error = error
             if attempt < retries:
                 time.sleep(1.2 * (attempt + 1))
