@@ -87,5 +87,14 @@ jobs:
             echo "No name-alias changes."
           else
             git commit -m "Update Chinese name aliases from Chess-Results"
-            git push
+            n=0
+            until git push; do
+              n=$((n+1))
+              if [ "$n" -ge 3 ]; then
+                echo "push failed after $n attempts" >&2
+                exit 1
+              fi
+              git pull --rebase origin main
+              sleep 10
+            done
           fi

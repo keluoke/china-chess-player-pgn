@@ -21,6 +21,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: update-event-archive
@@ -83,6 +84,7 @@ jobs:
         run: python3 Scripts/build_static_player_pgn.py
 
       - name: Commit ingested archive
+        id: commit
         shell: bash
         run: |
           set -euo pipefail
@@ -93,5 +95,25 @@ jobs:
             echo "No event archive changes."
           else
             git commit -m "Ingest event archive names and PGN"
-            git push
+            n=0
+            until git push; do
+              n=$((n+1))
+              if [ "$n" -ge 3 ]; then
+                echo "push failed after $n attempts" >&2
+                exit 1
+              fi
+              git pull --rebase origin main
+              sleep 10
+            done
+            echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Bot pushes made with GITHUB_TOKEN never trigger the Pages/Cloudflare
+      # workflows, so dispatch the deploys explicitly after a real commit.
+      - name: Trigger site deploys
+        if: steps.commit.outputs.committed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run pages.yml --ref main -R "$GITHUB_REPOSITORY"
+          gh workflow run cloudflare-pages.yml --ref main -R "$GITHUB_REPOSITORY"
