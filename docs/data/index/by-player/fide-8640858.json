@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T12:37:36+00:00",
+  "generatedAt": "2026-07-05T13:19:40+00:00",
   "player": {
     "fideID": "8640858",
     "id": "fide-8640858",
@@ -19,12 +19,13 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 8004,
+    "games": 7,
+    "events": 2,
+    "packages": 3,
+    "bytes": 20252,
     "stages": {
-      "U14": 1
+      "U14": 1,
+      "U16": 6
     }
   },
   "packages": [
@@ -32,13 +33,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8640858/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 4002,
-      "sha256": "e94c10b033d94130efeb1196b0fa919903b43615b4361a066edb0ac2b824c2d3",
+      "gameCount": 7,
+      "pgnBytes": 10061,
+      "sha256": "24d714aa04ac4f4c34dabd29a6429ed37e2ede8b6f7c9b43ae5864ded3e107d5",
       "stages": {
-        "U14": 1
+        "U14": 1,
+        "U16": 6
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -48,16 +51,43 @@
       "pgnPath": "data/pgn/by-player/fide-8640858/U14.pgn",
       "gameCount": 1,
       "pgnBytes": 4002,
-      "sha256": "ef0419499b8ac1deaf01ba1893ffe76717e27b82e286d8aa51ddc61084b7d890",
+      "sha256": "840213565a162bf0456ee8c1cff9affa7e7bb67ecabc45e1ac75fff9ac6c0739",
       "stages": {
         "U14": 1
       },
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8640858/U16.pgn",
+      "gameCount": 6,
+      "pgnBytes": 6189,
+      "sha256": "a6515a4ee43b420e8872274ec3cb6e28e509a3931fc09999269f8682541c000e",
+      "stages": {
+        "U16": 6
+      },
+      "sources": [
+        "Chess-Results"
+      ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "tournamentID": "1213354",
+      "stage": "U16",
+      "gameCount": 6,
+      "results": {
+        "1/2-1/2": 3,
+        "1-0": 1,
+        "0-1": 2
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Asian Rapid Chess Team Championship 2024",
@@ -71,6 +101,90 @@
     }
   ],
   "games": [
+    {
+      "id": "a3497749b2eb03a8a5f581f56e36c84322004976eb9217e6bce4e92c621c2613",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Zhou, Chengcheng(Js)",
+      "black": "Chen, Luyu",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "black",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8640858-1213354.pgn",
+      "sha256": "a3497749b2eb03a8a5f581f56e36c84322004976eb9217e6bce4e92c621c2613"
+    },
+    {
+      "id": "2e815fe24d8859a59e579ba27c86e2f8c2c468b22f9cb88153aa50678bfd765e",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Ji, Chengxi",
+      "black": "Chen, Luyu",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "black",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8640858-1213354.pgn",
+      "sha256": "2e815fe24d8859a59e579ba27c86e2f8c2c468b22f9cb88153aa50678bfd765e"
+    },
+    {
+      "id": "b62a172b33d31ac5802aa2e3e663e32a8c6ce8d1707dbdff2519566972c43300",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Chen, Yize",
+      "black": "Chen, Luyu",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "black",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8640858-1213354.pgn",
+      "sha256": "b62a172b33d31ac5802aa2e3e663e32a8c6ce8d1707dbdff2519566972c43300"
+    },
+    {
+      "id": "a943273142f09dd2cb5140cb6ef6756c97a6d986d11a1b70b022a9fcf0e29872",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Chen, Luyu",
+      "black": "Lv, Xinze",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8640858-1213354.pgn",
+      "sha256": "a943273142f09dd2cb5140cb6ef6756c97a6d986d11a1b70b022a9fcf0e29872"
+    },
+    {
+      "id": "6ff125ae47a9df5870c381e92dd6e5bdcbd9a08b84ef9dfad8d1b328e1b22ce5",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Chen, Luyu",
+      "black": "Li, Xiangyang",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8640858-1213354.pgn",
+      "sha256": "6ff125ae47a9df5870c381e92dd6e5bdcbd9a08b84ef9dfad8d1b328e1b22ce5"
+    },
+    {
+      "id": "13041730312e1636cc1cfa9a49517d1dbf4a57cba3cf5a1cc0194de87003ca11",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Chen, Luyu",
+      "black": "Cai, Lin",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8640858-1213354.pgn",
+      "sha256": "13041730312e1636cc1cfa9a49517d1dbf4a57cba3cf5a1cc0194de87003ca11"
+    },
     {
       "id": "a81baf6bbb621fda9bae99608298789f2194bf0fb6b762bb0d93b2823bc6984c",
       "event": "Asian Rapid Chess Team Championship 2024",

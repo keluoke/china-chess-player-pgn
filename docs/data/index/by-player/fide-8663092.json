@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T12:37:36+00:00",
+  "generatedAt": "2026-07-05T13:19:40+00:00",
   "player": {
     "fideID": "8663092",
     "id": "fide-8663092",
@@ -19,11 +19,12 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 11978,
+    "games": 5,
+    "events": 2,
+    "packages": 3,
+    "bytes": 18853,
     "stages": {
+      "U8": 4,
       "U10": 1
     }
   },
@@ -32,14 +33,30 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8663092/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 5989,
-      "sha256": "63094308b22922a8f487878277d36c42ce644fb17b5a50145f97f812970ba72a",
+      "gameCount": 5,
+      "pgnBytes": 9362,
+      "sha256": "740d21fbd4af2f9fe9c369ded8bb5af0ac96b10a8f2d0b9f4002111ebc8ad6da",
       "stages": {
+        "U8": 4,
         "U10": 1
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U8",
+      "label": "U8 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8663092/U8.pgn",
+      "gameCount": 4,
+      "pgnBytes": 3502,
+      "sha256": "3afdbc1740b05aea0ff49f49d6ff52cf0a867bc7457ed650660fc92ef592c4f8",
+      "stages": {
+        "U8": 4
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
@@ -48,7 +65,7 @@
       "pgnPath": "data/pgn/by-player/fide-8663092/U10.pgn",
       "gameCount": 1,
       "pgnBytes": 5989,
-      "sha256": "23133d7c78d1ad5f6d3814a92793579b33b104c6c54a745e829dd9adfc3b3c28",
+      "sha256": "be478be452c70f037f26ae5ccb24b855d05c5570283a6c920c2a52c60a68ae53",
       "stages": {
         "U10": 1
       },
@@ -68,6 +85,18 @@
       "results": {
         "1-0": 1
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "tournamentID": "1213354",
+      "stage": "U8",
+      "gameCount": 4,
+      "results": {
+        "1-0": 1,
+        "1/2-1/2": 3
+      }
     }
   ],
   "games": [
@@ -85,6 +114,62 @@
       "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "635c93918998883cbc72c008bb5b9707af18c189da7501222771b40acfbe5d2f"
+    },
+    {
+      "id": "b2688af9d386dcf196e8b749d279c43ec22450de3493da07c0ddca8a2aa27150",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Yu, Jianbin",
+      "black": "Huang, Xingheng",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8663092-1213354.pgn",
+      "sha256": "b2688af9d386dcf196e8b749d279c43ec22450de3493da07c0ddca8a2aa27150"
+    },
+    {
+      "id": "441d6aa167ead65e14e09151e4ae767ae3b1cc9792efdb8f090977e085ed38bb",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Huang, Xingheng",
+      "black": "Chen, Xuhe",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8663092-1213354.pgn",
+      "sha256": "441d6aa167ead65e14e09151e4ae767ae3b1cc9792efdb8f090977e085ed38bb"
+    },
+    {
+      "id": "08e6bf308fc1978ffd0eb4614603e865686975dda868be6d51a9d54473c138be",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Ding, Yanwen",
+      "black": "Huang, Xingheng",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8663092-1213354.pgn",
+      "sha256": "08e6bf308fc1978ffd0eb4614603e865686975dda868be6d51a9d54473c138be"
+    },
+    {
+      "id": "daf378016c5d821e8329efb20411772253042b217e97475cc219b22ac9d5858b",
+      "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
+      "date": "2025-07-26",
+      "white": "Chen, Siyu(Zj)",
+      "black": "Huang, Xingheng",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1213354",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8663092-1213354.pgn",
+      "sha256": "daf378016c5d821e8329efb20411772253042b217e97475cc219b22ac9d5858b"
     }
   ]
 }

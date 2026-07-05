@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T12:37:36+00:00",
+  "generatedAt": "2026-07-05T13:19:40+00:00",
   "player": {
     "fideID": "8653305",
     "id": "fide-8653305",
@@ -21,13 +21,13 @@
     ]
   },
   "totals": {
-    "games": 5,
-    "events": 4,
+    "games": 7,
+    "events": 6,
     "packages": 3,
-    "bytes": 47202,
+    "bytes": 50866,
     "stages": {
-      "U12": 4,
-      "U14": 1
+      "U12": 5,
+      "U14": 2
     }
   },
   "packages": [
@@ -35,14 +35,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8653305/all.pgn",
-      "gameCount": 5,
-      "pgnBytes": 23536,
-      "sha256": "cfa83c4425063707baf71b126201297850bf0e69b6f9067da8d42b0f59c81248",
+      "gameCount": 7,
+      "pgnBytes": 25368,
+      "sha256": "6abf4282e36f14698b91328a3be53cbc8397fd4740274bf8737ed21479e48894",
       "stages": {
-        "U12": 4,
-        "U14": 1
+        "U12": 5,
+        "U14": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -50,13 +51,14 @@
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8653305/U12.pgn",
-      "gameCount": 4,
-      "pgnBytes": 18103,
-      "sha256": "9ac19c0c2eb7ca7e46dc39de6a99c0e8336e89a7ba08f7d342100bd854ab2275",
+      "gameCount": 5,
+      "pgnBytes": 18991,
+      "sha256": "a69d966e8cd3806efc9a8dbfdfc885229767eff4ce6b9fa47435ae518bba6662",
       "stages": {
-        "U12": 4
+        "U12": 5
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -64,24 +66,47 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8653305/U14.pgn",
-      "gameCount": 1,
-      "pgnBytes": 5563,
-      "sha256": "bcb662c4a279220d51e1a2c2b44cd034001e0d12fba3695f059e5ade5caf6da6",
+      "gameCount": 2,
+      "pgnBytes": 6507,
+      "sha256": "b1bb4fec299667128dd768a825e1d50922d0aa6897045c8fc7040aca40a2bda4",
       "stages": {
-        "U14": 1
+        "U14": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
     {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2026(G14)",
+      "date": "2026-02-22",
+      "tournamentID": "1356501",
+      "stage": "U14",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
       "source": "Lichess Broadcasts",
       "name": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
       "date": "2026-02-22",
       "tournamentID": "",
       "stage": "U14",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+      "date": "2025-07-12",
+      "tournamentID": "1214031",
+      "stage": "U12",
       "gameCount": 1,
       "results": {
         "1-0": 1
@@ -124,6 +149,20 @@
   ],
   "games": [
     {
+      "id": "779697c3552d56360075ed897b57d389d3ea1a6660018602b8c7a7c142d7997b",
+      "event": "Chinese National Youth Chess Championship 2026(G14)",
+      "date": "2026-02-22",
+      "white": "Deng, Mingtong",
+      "black": "Jiang, Zixian",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1356501",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1356501/fide-8653305-1356501.pgn",
+      "sha256": "779697c3552d56360075ed897b57d389d3ea1a6660018602b8c7a7c142d7997b"
+    },
+    {
       "id": "44cf078c436c892726e0b531b002e5d552bcca2d81a83919f090450976da5f7e",
       "event": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
       "date": "2026-02-22",
@@ -137,6 +176,20 @@
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "44cf078c436c892726e0b531b002e5d552bcca2d81a83919f090450976da5f7e"
+    },
+    {
+      "id": "61e4845471c66d6961731b12eb25aeccc610dde4f5c8c6e8af1e8abb4a90533c",
+      "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+      "date": "2025-07-12",
+      "white": "Gong, Yiming",
+      "black": "Jiang, Zixian",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1214031",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214031/fide-8653305-1214031.pgn",
+      "sha256": "61e4845471c66d6961731b12eb25aeccc610dde4f5c8c6e8af1e8abb4a90533c"
     },
     {
       "id": "7a7e705252d757c6d8d065dfa4ed143f39b516022188226b01295d35439e311e",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T12:37:36+00:00",
+  "generatedAt": "2026-07-05T13:19:40+00:00",
   "player": {
     "fideID": "8642214",
     "id": "fide-8642214",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 42,
-    "events": 24,
-    "packages": 2,
-    "bytes": 345432,
+    "games": 44,
+    "events": 26,
+    "packages": 3,
+    "bytes": 349694,
     "stages": {
-      "U18": 42
+      "U16": 1,
+      "U18": 43
     }
   },
   "packages": [
@@ -33,27 +34,44 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8642214/all.pgn",
-      "gameCount": 42,
-      "pgnBytes": 172716,
-      "sha256": "c7876f489c1e8f0e3ee4754280b5d3d43a8d5dec5bdd6767d145971db1008075",
+      "gameCount": 44,
+      "pgnBytes": 174782,
+      "sha256": "82a55f917aec8993d3b4a27a60b9a4b03375a140d904ba701481ed71467a5930",
       "stages": {
-        "U18": 42
+        "U16": 1,
+        "U18": 43
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8642214/U16.pgn",
+      "gameCount": 1,
+      "pgnBytes": 1139,
+      "sha256": "3feaac168ce1e85b47ddb381cb17f1ed71b1ba452c558c2cf3acb9a802683445",
+      "stages": {
+        "U16": 1
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
       "id": "U18",
       "label": "U18 PGN",
       "pgnPath": "data/pgn/by-player/fide-8642214/U18.pgn",
-      "gameCount": 42,
-      "pgnBytes": 172716,
-      "sha256": "4a4b7ca0bef984f534948b90172640a84b7222316866ec4d40a199033a779201",
+      "gameCount": 43,
+      "pgnBytes": 173773,
+      "sha256": "e59beb0f7960289836906577f7ba86977c2bc7153b7a1d283263fa590b681e98",
       "stages": {
-        "U18": 42
+        "U18": 43
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
@@ -314,6 +332,28 @@
         "1-0": 2,
         "0-1": 1,
         "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 China chess championship (Men)",
+      "date": "2025-06-23",
+      "tournamentID": "1200591",
+      "stage": "U18",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2023 Chinese Chess League Division B",
+      "date": "2023-04-17",
+      "tournamentID": "754013",
+      "stage": "U16",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
       }
     },
     {
@@ -795,6 +835,34 @@
       "sourceIndexPath": "data/bulk/youth/index/U18/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
       "sha256": "89d519e577acf6dbd87a657e1a642274e9592dc06a0703c88c12fcbd764e032f"
+    },
+    {
+      "id": "d8663620a7584e142dcc8c9808b70715c0c31a57380841e3cc69720097d8d6c3",
+      "event": "2025 China chess championship (Men)",
+      "date": "2025-06-23",
+      "white": "Zhang, Hongya",
+      "black": "Gu, Yi",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U18",
+      "role": "black",
+      "tournamentID": "1200591",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1200591/fide-8642214-1200591.pgn",
+      "sha256": "d8663620a7584e142dcc8c9808b70715c0c31a57380841e3cc69720097d8d6c3"
+    },
+    {
+      "id": "0c64377ccefddebbadaae66d63d5fdfc8100ab315f9fefe1ed7f5d14fc6e050b",
+      "event": "2023 Chinese Chess League Division B",
+      "date": "2023-04-17",
+      "white": "Gu, Yi",
+      "black": "Bai, Li",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "754013",
+      "sourcePgnPath": "data/pgn/chess-results/tnr754013/fide-8642214-754013.pgn",
+      "sha256": "0c64377ccefddebbadaae66d63d5fdfc8100ab315f9fefe1ed7f5d14fc6e050b"
     },
     {
       "id": "7ff71f0fd11ec7c57e3a84aa7b0abcde23e3f2caee6e275a409c5ee02e3572fd",

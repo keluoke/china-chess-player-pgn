@@ -168,7 +168,10 @@ function mergePlayers(leaderboardPlayers, indexedPlayers, registryPlayers, byPla
 }
 
 function initialize() {
-  state.selectedFideID = rankingsForStage("ALL")[0]?.fideID ?? players[0]?.fideID ?? null;
+  const routedFideID = initialSelectedFideID();
+  state.selectedFideID = players.some(player => player.fideID === routedFideID)
+    ? routedFideID
+    : rankingsForStage("ALL")[0]?.fideID ?? players[0]?.fideID ?? null;
   els.searchInput.addEventListener("input", event => {
     state.query = event.target.value.trim();
     renderSearch();
@@ -324,7 +327,7 @@ function renderDetail() {
       <div class="detail-title-actions">
         <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
         <a class="action-link mimic-action" href="${escapeAttribute(mimicGameHref(player))}">
-          与${escapeHTML(displayName(player))}模拟对局
+          模拟对局
           <span class="mimic-mini-badge">AI</span>
           <span class="mimic-mini-badge is-beta">BETA</span>
         </a>
@@ -1016,9 +1019,22 @@ function selectPlayer(fideID) {
   if (state.selectedFideID !== fideID) resetPGNViewer(fideID);
   state.selectedFideID = fideID;
   state.downloadStatus = "";
+  updateRouteFideID(fideID);
   renderDetail();
   if (state.query) renderSearch();
   scrollDetailIntoViewOnMobile();
+}
+
+function initialSelectedFideID() {
+  const params = new URLSearchParams(window.location.search);
+  return String(params.get("fideID") || params.get("fide") || "").replace(/\D/g, "");
+}
+
+function updateRouteFideID(fideID) {
+  if (!window.history?.replaceState || !fideID) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("fideID", fideID);
+  window.history.replaceState(null, "", url);
 }
 
 function scrollDetailIntoViewOnMobile() {

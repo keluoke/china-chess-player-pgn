@@ -24,16 +24,12 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
     copyStatus: document.getElementById("copyStatus"),
     playWhite: document.getElementById("playWhite"),
     playBlack: document.getElementById("playBlack"),
-    sampleGames: document.getElementById("sampleGames"),
-    avgPlies: document.getElementById("avgPlies"),
-    queenTrade: document.getElementById("queenTrade"),
     styleNote: document.getElementById("styleNote"),
     openingList: document.getElementById("openingList"),
     explanations: document.getElementById("explanations"),
     explainCount: document.getElementById("explainCount"),
-    profileName: document.getElementById("profileName"),
-    profileMeta: document.getElementById("profileMeta"),
     routeSummary: document.getElementById("routeSummary"),
+    routeSearchResults: document.getElementById("routeSearchResults"),
     controlMeta: document.getElementById("controlMeta"),
     bookMeta: document.getElementById("bookMeta"),
   };
@@ -49,6 +45,8 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
   let engine = null;
   let engineReady = false;
   let pendingSearch = null;
+  let searchablePlayers = [];
+  let searchBlurTimer = null;
 
   const ground = Chessground(els.board, {
     fen: game.fen(),
@@ -75,6 +73,7 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
 
   setGameHeaders("w");
   renderProfile();
+  bootPlayerSearch();
   syncBoard();
   bootEngine();
 
@@ -541,38 +540,27 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
 
   function renderProfile() {
     const style = PROFILE.style || {};
-    const sample = style.sample || {};
     const book = style.book || {};
     const openings = style.openings || {};
     const styleStats = style.style || {};
     const profileName = profileDisplayName();
     const targetName = ROUTE_TARGET.name || profileName;
     const targetFide = ROUTE_TARGET.fideID || profileFideID();
-    const matched = !ROUTE_TARGET.fideID || ROUTE_TARGET.fideID === profileFideID();
 
     document.title = `模拟对局 - ${targetName}`;
-    els.profileName.textContent = matched ? profileName : targetName;
-    els.profileMeta.textContent = matched
-      ? `FIDE ${profileFideID()} · 标准分 2064 · 2014 年生`
-      : `请求棋手 FIDE ${targetFide} · 当前可用画像：${profileName}（FIDE ${profileFideID()}）`;
-    els.routeSummary.value = `与 ${targetName} 模拟对局`;
+    els.routeSummary.value = "";
     els.controlMeta.textContent = `FIDE ${targetFide}`;
     els.bookMeta.textContent = `${book.whiteEntries || 0}/${book.blackEntries || 0} 条`;
 
-    els.sampleGames.textContent = formatNumber(sample.games);
-    els.avgPlies.textContent = formatNumber(sample.avgPlies, 1);
-    els.queenTrade.textContent = formatPercent(styleStats.queenTradeGameShare);
-
-    const whiteFirst = topEntry(openings.firstMovesAsWhite);
-    const blackFirst = topEntry(openings.firstRepliesAsBlack);
-    els.styleNote.textContent = "白棋高频 " + (whiteFirst?.name || "未知")
-      + " · 黑棋常见 ..." + (blackFirst?.name || "未知");
+    const whiteOpenings = topEntries(openings.firstMovesAsWhite, 2);
+    const blackOpenings = topEntries(openings.firstRepliesAsBlack, 2);
+    els.styleNote.textContent = `${openingSummary("白方常见", whiteOpenings, "")} · ${openingSummary("黑方常见", blackOpenings, "...")}`;
 
     const rows = [
       ["白棋开局库", book.whiteEntries, "条"],
       ["黑棋开局库", book.blackEntries, "条"],
-      ["白棋首着", whiteFirst ? whiteFirst.name + " · " + whiteFirst.count + " 局" : "暂无"],
-      ["黑棋首应", blackFirst ? "..." + blackFirst.name + " · " + blackFirst.count + " 局" : "暂无"],
+      ["白方常见开局", openingDetail(whiteOpenings, ""), ""],
+      ["黑方常见首应", openingDetail(blackOpenings, "..."), ""],
       ["长易位", formatCastleShare(styleStats.castling), ""],
     ];
     els.openingList.innerHTML = rows.map(([label, value, suffix]) => `
@@ -631,9 +619,153 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
     });
   }
 
-  function topEntry(entries) {
-    const entry = Array.isArray(entries) && entries.length ? entries[0] : null;
-    return entry ? { name: entry[0], count: entry[1] } : null;
+  function topEntries(entries, limit) {
+    if (!Array.isArray(entries)) return [];
+    return entries.slice(0, limit).map((entry) => ({
+      name: String(entry?.[0] || ""),
+      count: Number(entry?.[1] || 0),
+    })).filter((entry) => entry.name);
+  }
+
+  function openingSummary(label, entries, prefix) {
+    if (!entries.length) return `${label}：未知`;
+    return `${label}：${entries.map((entry) => `${prefix}${entry.name}`).join("、")}`;
+  }
+
+  function openingDetail(entries, prefix) {
+    if (!entries.length) return "暂无";
+    return entries.map((entry) => `${prefix}${entry.name} · ${entry.count} 局`).join(" / ");
+  }
+
+  async function bootPlayerSearch() {
+    try {
+      const response = await firstJSON(["../data/index/players.json", "../../docs/data/index/players.json"]);
+      searchablePlayers = Array.isArray(response) ? response.map(prepareSearchPlayer) : [];
+      renderPlayerSearch();
+    } catch {
+      searchablePlayers = [];
+    }
+  }
+
+  async function firstJSON(paths) {
+    for (const path of paths) {
+      try {
+        const response = await fetch(path, { cache: "default" });
+        if (response.ok) return response.json();
+      } catch {
+        // Try the next static path.
+      }
+    }
+    throw new Error("players index unavailable");
+  }
+
+  function prepareSearchPlayer(player) {
+    const values = [
+      player.fideID,
+      player.displayName,
+      player.name,
+      player.chineseName,
+      player.pinyin,
+      ...(player.aliases || []),
+    ].filter(Boolean).map(String);
+    for (const value of [...values]) {
+      const parts = searchTokens(value);
+      if (parts.length >= 2) {
+        values.push(parts.join(" "));
+        values.push(parts.slice().reverse().join(" "));
+      }
+    }
+    const uniqueValues = [...new Set(values)];
+    return {
+      ...player,
+      searchIndex: [...new Set(uniqueValues.map(normalizeSearch).filter(Boolean))],
+      searchTokens: new Set(uniqueValues.flatMap(searchTokens)),
+    };
+  }
+
+  function renderPlayerSearch() {
+    const query = els.routeSummary.value.trim();
+    const matches = searchPlayers(query);
+    if (!query) {
+      els.routeSearchResults.hidden = true;
+      els.routeSearchResults.innerHTML = "";
+      return;
+    }
+
+    els.routeSearchResults.hidden = false;
+    els.routeSearchResults.innerHTML = matches.length ? matches.map((player) => `
+      <button class="search-result" type="button" role="option" data-fide="${escapeAttribute(player.fideID)}">
+        <strong>${escapeHTML(playerDisplayName(player))}</strong>
+        <span>FIDE ${escapeHTML(player.fideID)}${player.birthYear ? ` · ${escapeHTML(player.birthYear)} 出生` : ""}</span>
+      </button>
+    `).join("") : `<div class="empty-state compact">未找到匹配棋手</div>`;
+
+    els.routeSearchResults.querySelectorAll("[data-fide]").forEach((button) => {
+      button.addEventListener("mousedown", (event) => event.preventDefault());
+      button.addEventListener("click", () => {
+        const player = searchablePlayers.find((item) => String(item.fideID) === String(button.dataset.fide));
+        if (player) window.location.href = dashboardHref(player);
+      });
+    });
+  }
+
+  function searchPlayers(query) {
+    const normalized = normalizeSearch(query);
+    const tokens = searchTokens(query);
+    const reversed = tokens.length > 1 ? tokens.slice().reverse().join("") : "";
+    if (!normalized) return [];
+    return searchablePlayers
+      .map((player) => ({ player, score: searchScore(player, normalized, tokens, reversed) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => {
+        if (a.score !== b.score) return b.score - a.score;
+        return playerDisplayName(a.player).localeCompare(playerDisplayName(b.player), "zh-Hans-CN");
+      })
+      .slice(0, 12)
+      .map((entry) => entry.player);
+  }
+
+  function searchScore(player, normalized, tokens, reversed) {
+    const terms = player.searchIndex || [];
+    if (terms.some((term) => term === normalized)) return 1000;
+    if (reversed && terms.some((term) => term === reversed)) return 960;
+    if (terms.some((term) => term.startsWith(normalized))) return 850;
+    if (terms.some((term) => term.includes(normalized))) return 700;
+    if (tokens.length && tokens.every((token) => player.searchTokens?.has(token))) return 620;
+    if (tokens.length && tokens.every((token) => terms.some((term) => term.includes(token)))) return 520;
+    return 0;
+  }
+
+  function dashboardHref(player) {
+    const brandHref = document.querySelector(".brand")?.getAttribute("href") || "../index.html";
+    const params = new URLSearchParams({ fideID: String(player.fideID) });
+    return `${brandHref}?${params.toString()}`;
+  }
+
+  function playerDisplayName(player) {
+    if (player.chineseName && player.name && player.chineseName !== player.name) {
+      return `${player.chineseName} · ${player.name}`;
+    }
+    return player.displayName || player.name || player.chineseName || `FIDE ${player.fideID}`;
+  }
+
+  function searchTokens(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[,.，。'’"()·_\-]+/g, " ")
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+  }
+
+  function normalizeSearch(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[\s,.\-_'’·()（）]+/g, "");
   }
 
   async function copyPGN() {
@@ -742,6 +874,10 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
     }[char]));
   }
 
+  function escapeAttribute(value) {
+    return escapeHTML(value);
+  }
+
   els.playWhite.addEventListener("click", () => newGame("w"));
   els.playBlack.addEventListener("click", () => newGame("b"));
   els.flipBoard.addEventListener("click", () => {
@@ -751,6 +887,14 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
   els.prevMove.addEventListener("click", () => goToPly(viewPly - 1));
   els.nextMove.addEventListener("click", () => goToPly(viewPly + 1));
   els.copyPgn.addEventListener("click", copyPGN);
+  els.routeSummary.addEventListener("input", renderPlayerSearch);
+  els.routeSummary.addEventListener("focus", renderPlayerSearch);
+  els.routeSummary.addEventListener("blur", () => {
+    if (searchBlurTimer) window.clearTimeout(searchBlurTimer);
+    searchBlurTimer = window.setTimeout(() => {
+      els.routeSearchResults.hidden = true;
+    }, 140);
+  });
   els.undo.addEventListener("click", () => {
     if (thinking || viewPly !== game.history().length) return;
     game.undo();

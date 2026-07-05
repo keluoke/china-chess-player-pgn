@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T12:37:36+00:00",
+  "generatedAt": "2026-07-05T13:19:40+00:00",
   "player": {
     "fideID": "8668558",
     "id": "fide-8668558",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 13588,
+    "games": 9,
+    "events": 3,
+    "packages": 3,
+    "bytes": 30832,
     "stages": {
-      "U12": 1
+      "U10": 3,
+      "U12": 6
     }
   },
   "packages": [
@@ -33,32 +34,61 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8668558/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 6794,
-      "sha256": "f1f2598243ffc83f7cb32d02f8d340c3959f01c4d5defbbdbb7d4d1928fe9009",
+      "gameCount": 9,
+      "pgnBytes": 15351,
+      "sha256": "b431431500c68013762376a6b9d7cd144833d681f89ad48c63236869d072a65f",
       "stages": {
-        "U12": 1
+        "U10": 3,
+        "U12": 6
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U10",
+      "label": "U10 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8668558/U10.pgn",
+      "gameCount": 3,
+      "pgnBytes": 2894,
+      "sha256": "56b9c5f3fa49030de1b5bb2699738042f7a35540e2109f391987f2d1fe10dca5",
+      "stages": {
+        "U10": 3
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8668558/U12.pgn",
-      "gameCount": 1,
-      "pgnBytes": 6794,
-      "sha256": "6c7ba37c2e438e28eb606c39a74b7c2fff85b778c555a2f26a22e8ce5160ca37",
+      "gameCount": 6,
+      "pgnBytes": 12587,
+      "sha256": "1e94bd53a0ba24eca78aec7a0e1405d610005fe0eecccde7c44bcc856b0acc23",
       "stages": {
-        "U12": 1
+        "U12": 6
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "tournamentID": "1429695",
+      "stage": "U12",
+      "gameCount": 5,
+      "results": {
+        "1-0": 1,
+        "0-1": 4
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 1: Gong, Ming - Shi, Fu",
@@ -69,9 +99,92 @@
       "results": {
         "0-1": 1
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(B10)",
+      "date": "2025-02-04",
+      "tournamentID": "1110353",
+      "stage": "U10",
+      "gameCount": 3,
+      "results": {
+        "1-0": 1,
+        "1/2-1/2": 1,
+        "0-1": 1
+      }
     }
   ],
   "games": [
+    {
+      "id": "b12357ac5a83f628e31a296e64b2e067f8a4ec11e30ac40af5a25a660c099c5e",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Zhang, Jiaxuan",
+      "black": "Shi, Fu",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8668558-1429695.pgn",
+      "sha256": "b12357ac5a83f628e31a296e64b2e067f8a4ec11e30ac40af5a25a660c099c5e"
+    },
+    {
+      "id": "d507f7ba252fa3af2d021b5f1052de8923df5f19631690e02e2e34a6c2df38bd",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Shi, Fu",
+      "black": "Yu, Zeyang",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8668558-1429695.pgn",
+      "sha256": "d507f7ba252fa3af2d021b5f1052de8923df5f19631690e02e2e34a6c2df38bd"
+    },
+    {
+      "id": "eb90014914bca67681fbd1d259ca8c33b51182d1f8e1d05493c0a74950d01c2d",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Shi, Fu",
+      "black": "Tian, Yichen",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8668558-1429695.pgn",
+      "sha256": "eb90014914bca67681fbd1d259ca8c33b51182d1f8e1d05493c0a74950d01c2d"
+    },
+    {
+      "id": "81007adfb2f9bbec1cd55c4159787c6709ef9da2e2865109b26ab6ad20d1642a",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Liu, Enlin",
+      "black": "Shi, Fu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8668558-1429695.pgn",
+      "sha256": "81007adfb2f9bbec1cd55c4159787c6709ef9da2e2865109b26ab6ad20d1642a"
+    },
+    {
+      "id": "526e135c65a7999c53cc99053f0fc5751300527dd5cf3f15e95688d8ec2a73cd",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Guo, Yihan",
+      "black": "Shi, Fu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8668558-1429695.pgn",
+      "sha256": "526e135c65a7999c53cc99053f0fc5751300527dd5cf3f15e95688d8ec2a73cd"
+    },
     {
       "id": "3d8b3106f5bd212ebf3bb68457167628201a63161866bb5e17f4a5153879d9d7",
       "event": "Round 1: Gong, Ming - Shi, Fu",
@@ -86,6 +199,48 @@
       "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "3d8b3106f5bd212ebf3bb68457167628201a63161866bb5e17f4a5153879d9d7"
+    },
+    {
+      "id": "56584302da087804e546121b462cf296a7862941b96b25dae6b420865469bc41",
+      "event": "Chinese National Youth Chess Championship 2025(B10)",
+      "date": "2025-02-04",
+      "white": "Zhao, Hongyu",
+      "black": "Shi, Fu",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1110353",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8668558-1110353.pgn",
+      "sha256": "56584302da087804e546121b462cf296a7862941b96b25dae6b420865469bc41"
+    },
+    {
+      "id": "721d38b1cb672a3a79174e962a1567098c560bb3132b948cad71822dffe3adf1",
+      "event": "Chinese National Youth Chess Championship 2025(B10)",
+      "date": "2025-02-04",
+      "white": "Shi, Fu",
+      "black": "Xu, Bofang",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1110353",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8668558-1110353.pgn",
+      "sha256": "721d38b1cb672a3a79174e962a1567098c560bb3132b948cad71822dffe3adf1"
+    },
+    {
+      "id": "31ea345a76612da051ee7383237d6594992ebd11caaf51bb5cec8059a48cba3b",
+      "event": "Chinese National Youth Chess Championship 2025(B10)",
+      "date": "2025-02-04",
+      "white": "Shi, Fu",
+      "black": "Wang, Ziqian",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1110353",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8668558-1110353.pgn",
+      "sha256": "31ea345a76612da051ee7383237d6594992ebd11caaf51bb5cec8059a48cba3b"
     }
   ]
 }

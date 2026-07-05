@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T12:37:36+00:00",
+  "generatedAt": "2026-07-05T13:19:40+00:00",
   "player": {
     "fideID": "8642869",
     "id": "fide-8642869",
@@ -21,12 +21,13 @@
     ]
   },
   "totals": {
-    "games": 16,
-    "events": 7,
-    "packages": 2,
-    "bytes": 127926,
+    "games": 17,
+    "events": 8,
+    "packages": 3,
+    "bytes": 130332,
     "stages": {
-      "U14": 16
+      "U14": 16,
+      "U16": 1
     }
   },
   "packages": [
@@ -34,13 +35,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8642869/all.pgn",
-      "gameCount": 16,
-      "pgnBytes": 63963,
-      "sha256": "ac11ace1b21a9a43e099ae728ea95d6b7cf5f6d797ba37b692fa4b5a7a058072",
+      "gameCount": 17,
+      "pgnBytes": 65101,
+      "sha256": "89d5cc7257b1c0186bed49558f5b5bf44f2d49d1ad890c91c0f1ba5b6f308dc6",
       "stages": {
-        "U14": 16
+        "U14": 16,
+        "U16": 1
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -50,16 +53,41 @@
       "pgnPath": "data/pgn/by-player/fide-8642869/U14.pgn",
       "gameCount": 16,
       "pgnBytes": 63963,
-      "sha256": "e0c8bcc319d9b83af8b6998ad84ded885263eaa4b908d6d87afcdccf0ad05e6b",
+      "sha256": "007712479546055a191ac9fb6cd782066fa8bf57f87148eca9caccfec1e85c82",
       "stages": {
         "U14": 16
       },
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8642869/U16.pgn",
+      "gameCount": 1,
+      "pgnBytes": 1268,
+      "sha256": "fd8d5d306e0f44785cae56c80d1087dda088886710005cf458edc29fc7713555",
+      "stages": {
+        "U16": 1
+      },
+      "sources": [
+        "Chess-Results"
+      ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(B18)",
+      "date": "2025-02-04",
+      "tournamentID": "1111365",
+      "stage": "U16",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 9: Zihan Cheng - Aleksey Prokhorov",
@@ -140,6 +168,20 @@
     }
   ],
   "games": [
+    {
+      "id": "e1b4fa23736b04061dfa1adef0bb4c0523b35e4c96c4e02b7b79a2d987ef19aa",
+      "event": "Chinese National Youth Chess Championship 2025(B18)",
+      "date": "2025-02-04",
+      "white": "Bai, Li",
+      "black": "Cheng, Zihan",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "black",
+      "tournamentID": "1111365",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111365/fide-8642869-1111365.pgn",
+      "sha256": "e1b4fa23736b04061dfa1adef0bb4c0523b35e4c96c4e02b7b79a2d987ef19aa"
+    },
     {
       "id": "c2f4ede4d5bfa7e840deb26af931dd7c314af058aef5fcdc20e2ea7a41eeb790",
       "event": "Round 9: Zihan Cheng - Aleksey Prokhorov",

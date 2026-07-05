@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T12:37:36+00:00",
+  "generatedAt": "2026-07-05T13:19:40+00:00",
   "player": {
     "fideID": "8669511",
     "id": "fide-8669511",
@@ -21,11 +21,12 @@
     ]
   },
   "totals": {
-    "games": 5,
-    "events": 5,
-    "packages": 2,
-    "bytes": 44452,
+    "games": 6,
+    "events": 6,
+    "packages": 3,
+    "bytes": 46062,
     "stages": {
+      "U10": 1,
       "U12": 5
     }
   },
@@ -34,14 +35,30 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8669511/all.pgn",
-      "gameCount": 5,
-      "pgnBytes": 22226,
-      "sha256": "7fe65bdda8109312d38ad11ab1e4ad656755e687a4f80a1b62997a4ab6e21d9c",
+      "gameCount": 6,
+      "pgnBytes": 22966,
+      "sha256": "a1493336fb42fbf47ce60e770e17aae9c458d6ade3e6f0fcbb742c0561346d87",
       "stages": {
+        "U10": 1,
         "U12": 5
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U10",
+      "label": "U10 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8669511/U10.pgn",
+      "gameCount": 1,
+      "pgnBytes": 870,
+      "sha256": "7f0d6ff00353acd414ca60306eb378a2b274d9b875ebb226a2a801d7cc2cf764",
+      "stages": {
+        "U10": 1
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
@@ -50,7 +67,7 @@
       "pgnPath": "data/pgn/by-player/fide-8669511/U12.pgn",
       "gameCount": 5,
       "pgnBytes": 22226,
-      "sha256": "9afeb73d8104e4014b72ee8f361a79e613b2933a7a515cd7c011344f9794bf86",
+      "sha256": "9b5de76d1315cb7dc61d7cd70d46a6e918f7979b39245bb1441d0609b5120b3a",
       "stages": {
         "U12": 5
       },
@@ -113,6 +130,17 @@
       "gameCount": 1,
       "results": {
         "0-1": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(B10)",
+      "date": "2025-02-04",
+      "tournamentID": "1110353",
+      "stage": "U10",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
       }
     }
   ],
@@ -191,6 +219,20 @@
       "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "b4ab5ad82d89956983fa3b3428cc9ccb69c3c818375c9f17af5dd83daf7df8ec"
+    },
+    {
+      "id": "97b490f8e4f96539ea21cac47942415bad0299af04145fd06677aeae6aab4d43",
+      "event": "Chinese National Youth Chess Championship 2025(B10)",
+      "date": "2025-02-04",
+      "white": "Li, Chengyue",
+      "black": "Zhao, Hongyu",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1110353",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8669511-1110353.pgn",
+      "sha256": "97b490f8e4f96539ea21cac47942415bad0299af04145fd06677aeae6aab4d43"
     }
   ]
 }

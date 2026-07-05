@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-05T12:37:36+00:00",
+  "generatedAt": "2026-07-05T13:19:40+00:00",
   "player": {
     "fideID": "8630836",
     "id": "fide-8630836",
@@ -21,13 +21,13 @@
     ]
   },
   "totals": {
-    "games": 3,
-    "events": 3,
+    "games": 17,
+    "events": 5,
     "packages": 3,
-    "bytes": 23024,
+    "bytes": 47355,
     "stages": {
-      "U14": 1,
-      "U16": 2
+      "U14": 8,
+      "U16": 9
     }
   },
   "packages": [
@@ -35,14 +35,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8630836/all.pgn",
-      "gameCount": 3,
-      "pgnBytes": 11447,
-      "sha256": "359c7f6735afd9dc22df939c6e717344b964543d6bd911c9db8c3384b8bad268",
+      "gameCount": 17,
+      "pgnBytes": 23613,
+      "sha256": "6bc15d4acf6f5d15d371081adaba66191fd59506212b1f1cdb68c7ecc6c131e1",
       "stages": {
-        "U14": 1,
-        "U16": 2
+        "U14": 8,
+        "U16": 9
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -50,13 +51,14 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8630836/U14.pgn",
-      "gameCount": 1,
-      "pgnBytes": 3542,
-      "sha256": "cc88d05d69ec2b4b1a1022b25fb16316bc97f2f73c86ff10ce78428ccfa08275",
+      "gameCount": 8,
+      "pgnBytes": 9231,
+      "sha256": "1c423cff37e5793bd02e496c12a6ea4134299eb7fb98911fb109ce10a260caf4",
       "stages": {
-        "U14": 1
+        "U14": 8
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -64,18 +66,32 @@
       "id": "U16",
       "label": "U16 PGN",
       "pgnPath": "data/pgn/by-player/fide-8630836/U16.pgn",
-      "gameCount": 2,
-      "pgnBytes": 8035,
-      "sha256": "75a7a35e3258f386c6fdc4fe75d8cdd9d9a3419d7e523e762ab35daa3c3ce2c1",
+      "gameCount": 9,
+      "pgnBytes": 14511,
+      "sha256": "50ddfe511d316b424935fb5ea69f31e9d982adae78d06aaa3d9b89ea855e9c80",
       "stages": {
-        "U16": 2
+        "U16": 9
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "tournamentID": "1429695",
+      "stage": "U16",
+      "gameCount": 7,
+      "results": {
+        "0-1": 3,
+        "1-0": 3,
+        "1/2-1/2": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
@@ -99,6 +115,19 @@
       }
     },
     {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(B14)",
+      "date": "2025-02-04",
+      "tournamentID": "1111367",
+      "stage": "U14",
+      "gameCount": 7,
+      "results": {
+        "1-0": 3,
+        "1/2-1/2": 3,
+        "0-1": 1
+      }
+    },
+    {
       "source": "Lichess Broadcasts",
       "name": "Round 1: Liu, Enlin - Li, Yiheng",
       "date": "",
@@ -111,6 +140,104 @@
     }
   ],
   "games": [
+    {
+      "id": "f1b744e68793b3c51ec5d7b4c4eaeb8b6eeb793ed4874d02704fd6b3348c9063",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Tian, Yichen",
+      "black": "Liu, Enlin",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "black",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8630836-1429695.pgn",
+      "sha256": "f1b744e68793b3c51ec5d7b4c4eaeb8b6eeb793ed4874d02704fd6b3348c9063"
+    },
+    {
+      "id": "5f2025905ba09b9675100888a14edb9e04ee350d0358818158f0af21e6187cd0",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Liu, Enlin",
+      "black": "Zhang, Xinyue(Sd)",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8630836-1429695.pgn",
+      "sha256": "5f2025905ba09b9675100888a14edb9e04ee350d0358818158f0af21e6187cd0"
+    },
+    {
+      "id": "986b3abc9f61f28cc7b1b802355e49c7bec6f03ed531464f7576f1c1309b8bfa",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Liu, Enlin",
+      "black": "Xu, Yiming",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8630836-1429695.pgn",
+      "sha256": "986b3abc9f61f28cc7b1b802355e49c7bec6f03ed531464f7576f1c1309b8bfa"
+    },
+    {
+      "id": "a42bf3dedfe5ace80fd5178b7b7beb27bc4cae53b9d186a760306d228d94b005",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Liu, Enlin",
+      "black": "Wang, Chenxiao",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8630836-1429695.pgn",
+      "sha256": "a42bf3dedfe5ace80fd5178b7b7beb27bc4cae53b9d186a760306d228d94b005"
+    },
+    {
+      "id": "81007adfb2f9bbec1cd55c4159787c6709ef9da2e2865109b26ab6ad20d1642a",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Liu, Enlin",
+      "black": "Shi, Fu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8630836-1429695.pgn",
+      "sha256": "81007adfb2f9bbec1cd55c4159787c6709ef9da2e2865109b26ab6ad20d1642a"
+    },
+    {
+      "id": "960d63082671b94c1b9fb1b32ae2a38aeab7a1a847bb070d269f43fb5e31a2c7",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Liu, Enlin",
+      "black": "Nie, Mingchen",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8630836-1429695.pgn",
+      "sha256": "960d63082671b94c1b9fb1b32ae2a38aeab7a1a847bb070d269f43fb5e31a2c7"
+    },
+    {
+      "id": "f907df16e1453cc01f2487a1bda2fc9178050de828d7300ae53f08143181b0b0",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
+      "date": "2026-06-05",
+      "white": "Lei, Muqiancheng",
+      "black": "Liu, Enlin",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "black",
+      "tournamentID": "1429695",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8630836-1429695.pgn",
+      "sha256": "f907df16e1453cc01f2487a1bda2fc9178050de828d7300ae53f08143181b0b0"
+    },
     {
       "id": "118c42e3707e85b89fa7e848243f398e49ff5d9865c8c537bc9293a33d671972",
       "event": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
@@ -140,6 +267,104 @@
       "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "dd37f59d7b50a9ef4769e8483adb01da112a2783d878ef2b439e37262b0a4fb6"
+    },
+    {
+      "id": "e6a3e873a638e84db5a435224cebb261db26755393616b99046825d7ed87839f",
+      "event": "Chinese National Youth Chess Championship 2025(B14)",
+      "date": "2025-02-04",
+      "white": "Zhou, Chen",
+      "black": "Liu, Enlin",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111367",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111367/fide-8630836-1111367.pgn",
+      "sha256": "e6a3e873a638e84db5a435224cebb261db26755393616b99046825d7ed87839f"
+    },
+    {
+      "id": "6cf06063da43ee4bc23d89c0445da171dc482c730501bb7c4e066005c66dc8dc",
+      "event": "Chinese National Youth Chess Championship 2025(B14)",
+      "date": "2025-02-04",
+      "white": "Zhang, Haoze",
+      "black": "Liu, Enlin",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111367",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111367/fide-8630836-1111367.pgn",
+      "sha256": "6cf06063da43ee4bc23d89c0445da171dc482c730501bb7c4e066005c66dc8dc"
+    },
+    {
+      "id": "ef4396a77baf77955fa307ebe885fc5793daac4d8db5435690f506a36851b160",
+      "event": "Chinese National Youth Chess Championship 2025(B14)",
+      "date": "2025-02-04",
+      "white": "Xie, Chujun",
+      "black": "Liu, Enlin",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111367",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111367/fide-8630836-1111367.pgn",
+      "sha256": "ef4396a77baf77955fa307ebe885fc5793daac4d8db5435690f506a36851b160"
+    },
+    {
+      "id": "6493400c327c52a454e72600ceae3c0808c2b095fffe88309153743e7626583f",
+      "event": "Chinese National Youth Chess Championship 2025(B14)",
+      "date": "2025-02-04",
+      "white": "Liu, Enlin",
+      "black": "Yi, Zikun",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1111367",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111367/fide-8630836-1111367.pgn",
+      "sha256": "6493400c327c52a454e72600ceae3c0808c2b095fffe88309153743e7626583f"
+    },
+    {
+      "id": "7a20b0c6047ab4e0cd57f127e08f04249a393eaeada4c0211114f121e016db83",
+      "event": "Chinese National Youth Chess Championship 2025(B14)",
+      "date": "2025-02-04",
+      "white": "Liu, Enlin",
+      "black": "Sima, Xuehan",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1111367",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111367/fide-8630836-1111367.pgn",
+      "sha256": "7a20b0c6047ab4e0cd57f127e08f04249a393eaeada4c0211114f121e016db83"
+    },
+    {
+      "id": "515647b59dcdae36726346b3323ece2d3f7ed4ce3e68af69b2d7579dbe294d67",
+      "event": "Chinese National Youth Chess Championship 2025(B14)",
+      "date": "2025-02-04",
+      "white": "Liu, Enlin",
+      "black": "Liu, Chenyuan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1111367",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111367/fide-8630836-1111367.pgn",
+      "sha256": "515647b59dcdae36726346b3323ece2d3f7ed4ce3e68af69b2d7579dbe294d67"
+    },
+    {
+      "id": "7edd4689b18fe5622eb6825511d14c2851e74d014c703917573194d4037fdaad",
+      "event": "Chinese National Youth Chess Championship 2025(B14)",
+      "date": "2025-02-04",
+      "white": "Jiang, Haochen",
+      "black": "Liu, Enlin",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111367",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111367/fide-8630836-1111367.pgn",
+      "sha256": "7edd4689b18fe5622eb6825511d14c2851e74d014c703917573194d4037fdaad"
     },
     {
       "id": "c656d194305c5d1aa7f751bbe8f277c32cf1aca8894afebb88bb290d1483db3c",

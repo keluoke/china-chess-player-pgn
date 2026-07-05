@@ -8,11 +8,6 @@ on:
         required: false
         default: "li-chengzhi"
         type: string
-      neighbor_window:
-        description: "probe tournament IDs within +/-N of every source ID"
-        required: true
-        default: "8"
-        type: string
       delay:
         description: "seconds between Chess-Results requests"
         required: true
@@ -42,14 +37,12 @@ jobs:
       - name: Install runtime dependencies
         run: python3 -m pip install --upgrade certifi
 
-      - name: Scrape names from starting ranks (with neighbor probe)
+      - name: Scrape names from starting ranks
         env:
-          NEIGHBOR_WINDOW: ${{ inputs.neighbor_window }}
           REQ_DELAY: ${{ inputs.delay }}
         run: |
           set -euo pipefail
           python3 Scripts/sync_chess_results_starting_rank_aliases.py \
-            --neighbor-window "${NEIGHBOR_WINDOW:-8}" \
             --delay "${REQ_DELAY:-1.0}"
 
       - name: Rebuild Chinese player registry with aliases
@@ -67,11 +60,9 @@ jobs:
       - name: Fetch full-event PGN and split per player
         env:
           CATEGORY: ${{ inputs.category }}
-          NEIGHBOR_WINDOW: ${{ inputs.neighbor_window }}
-          REQ_DELAY: ${{ inputs.delay }}
         run: |
           set -euo pipefail
-          args=(--neighbor-window "${NEIGHBOR_WINDOW:-8}" --delay "${REQ_DELAY:-1.0}")
+          args=(--workers 3)
           if [ -n "${CATEGORY:-}" ]; then
             args+=(--category "$CATEGORY")
           fi
