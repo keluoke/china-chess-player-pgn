@@ -6,7 +6,10 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
 
   let PROFILE = window.MIMIC_PROFILE;
   const ROUTE_TARGET = routeTarget();
-  await loadRouteProfile();
+  const routeProfile = await loadRouteProfile().catch((error) => ({
+    status: "error",
+    error: error?.message || String(error),
+  }));
   MimicCore.initRandom(window.POLYGLOT_RANDOM);
 
   const els = {
@@ -546,10 +549,15 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
     const profileName = profileDisplayName();
     const targetName = ROUTE_TARGET.name || profileName;
     const targetFide = ROUTE_TARGET.fideID || profileFideID();
+    const profileWarning = ["default", "loaded"].includes(routeProfile.status) || !ROUTE_TARGET.fideID
+      ? ""
+      : routeProfile.status === "missing"
+        ? " · 暂无该棋手画像，使用默认画像"
+        : " · 画像加载失败，使用默认画像";
 
     document.title = `模拟对局 - ${targetName}`;
     els.routeSummary.value = "";
-    els.controlMeta.textContent = `FIDE ${targetFide}`;
+    els.controlMeta.textContent = `FIDE ${targetFide}${profileWarning}`;
     els.bookMeta.textContent = `${book.whiteEntries || 0}/${book.blackEntries || 0} 条`;
 
     const whiteOpenings = topEntries(openings.firstMovesAsWhite, 2);
@@ -589,11 +597,12 @@ import { Chessground } from "./vendor/chessground/chessground.min.js";
 
   async function loadRouteProfile() {
     const fideID = ROUTE_TARGET.fideID;
-    if (!fideID || fideID === profileFideID()) return;
+    if (!fideID || fideID === profileFideID()) return { status: "default" };
     const src = `profiles/fide-${encodeURIComponent(fideID)}/profile.js`;
-    if (!(await staticFileExists(src))) return;
+    if (!(await staticFileExists(src))) return { status: "missing" };
     await loadScript(src);
     if (window.MIMIC_PROFILE) PROFILE = window.MIMIC_PROFILE;
+    return { status: "loaded" };
   }
 
   async function staticFileExists(src) {

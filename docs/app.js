@@ -1084,7 +1084,10 @@ function stageForEvent(player, event) {
 
 function liChengzhiNote(player, stageID) {
   const event = (player.events ?? [])
-    .filter(item => Number(item.rank) <= 3)
+    .filter(item => {
+      const rank = Number(item.rank);
+      return Number.isInteger(rank) && rank > 0 && rank <= 3;
+    })
     .filter(item => item.kind === "li-chengzhi" || normalize(item.name).includes("lichengzhi") || normalize(item.name).includes("nationalyouthchesschampionship"))
     .filter(item => stageForEvent(player, item)?.id === stageID)
     .sort((a, b) => Number(a.rank) - Number(b.rank))[0];
