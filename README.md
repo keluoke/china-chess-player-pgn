@@ -26,6 +26,22 @@ GitHub Pages 是静态托管，不运行服务器进程。网页版不能稳定�
 
 网页版同时读取 `docs/data/bulk/` 的百万级压缩分片。当前 bulk 层镜像 Lichess official broadcast PGN archive：77 个 `.pgn.zst` 分片、1,109,301 盘棋，并从中生成 U8/U10/U12/U14/U16/U18 中国青少年对局 PGN 包。首页可按年龄段一键下载；`by-player` 派生层会把这些青少年包进一步整理成按棋手下载的 PGN。
 
+网页版的棋手看板已接入模拟对局入口：每个棋手详情页会显示“与 XXX 模拟对局”，进入 `docs/mimic/` 后按 FIDE ID 动态加载对应画像。模拟画像由该棋手自己的开局库 + 浏览器 Stockfish 限强候选 + 风格/失误模型生成，静态 profile 位于：
+
+```text
+docs/mimic/profiles/fide-<FIDE_ID>/profile.js
+docs/mimic/profiles/manifest.json
+docs/data/mimic/profiles/manifest.json
+```
+
+批量刷新所有青少年棋手模拟 profile：
+
+```bash
+python3 Scripts/build_youth_mimic_profiles.py
+```
+
+脚本按 PGN SHA-256 跳过未变化棋手；GitHub Actions 的 `Update mimic profiles` workflow 会每周运行，`Update static PGN archive` 更新后也会触发一次 profile 刷新。
+
 ## PGN 静态归档
 
 仓库内的 PGN 采用可被多个前端直接读取的静态结构：

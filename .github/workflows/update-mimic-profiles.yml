@@ -1,0 +1,101 @@
+name: Update mimic profiles
+
+on:
+  workflow_dispatch:
+    inputs:
+      player_fide_id:
+        description: "Optional FIDE ID to rebuild one player"
+        required: false
+        type: string
+      force:
+        description: "Rebuild even when the PGN hash is unchanged"
+        required: true
+        default: false
+        type: boolean
+      max_players:
+        description: "Maximum players to rebuild; 0 means no limit"
+        required: true
+        default: "0"
+        type: string
+  schedule:
+    - cron: "38 20 * * 0"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: update-mimic-profiles
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install runtime dependencies
+        run: python3 -m pip install --upgrade chess
+
+      - name: Build youth mimic profiles
+        shell: bash
+        env:
+          PLAYER_FIDE_ID: ${{ inputs.player_fide_id }}
+          FORCE: ${{ inputs.force }}
+          MAX_PLAYERS: ${{ inputs.max_players }}
+        run: |
+          set -euo pipefail
+
+          args=()
+          if [ -n "${PLAYER_FIDE_ID:-}" ]; then
+            args+=(--player "$PLAYER_FIDE_ID")
+          fi
+          if [ "${FORCE:-false}" = "true" ]; then
+            args+=(--force)
+          fi
+          if [ -n "${MAX_PLAYERS:-}" ] && [ "$MAX_PLAYERS" != "0" ]; then
+            args+=(--max-players "$MAX_PLAYERS")
+          fi
+
+          python3 Scripts/build_youth_mimic_profiles.py "${args[@]}"
+
+      - name: Commit updated mimic profiles
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_REF_NAME:-main}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/mimic/profiles docs/data/mimic
+          if git diff --cached --quiet; then
+            echo "No mimic profile changes."
+          else
+            git commit -m "Update youth mimic profiles"
+            n=0
+            until git push origin "HEAD:${branch}"; do
+              n=$((n+1))
+              if [ "$n" -ge 3 ]; then
+                echo "push failed after $n attempts" >&2
+                exit 1
+              fi
+              git pull --rebase --autostash origin "$branch"
+              sleep 10
+            done
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Bot pushes made with GITHUB_TOKEN never trigger Pages/Cloudflare.
+      - name: Trigger site deploys
+        if: steps.commit.outputs.committed == 'true' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run pages.yml --ref main -R "$GITHUB_REPOSITORY"
+          gh workflow run cloudflare-pages.yml --ref main -R "$GITHUB_REPOSITORY"

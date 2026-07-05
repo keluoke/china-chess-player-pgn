@@ -30,6 +30,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: update-static-pgn
@@ -80,3 +81,9 @@ jobs:
 
       - name: Commit updated archive
         run: bash Scripts/ci_commit_push.sh "Update static PGN archive" docs/data
+
+      - name: Trigger mimic profile refresh
+        if: github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run update-mimic-profiles.yml --ref main -R "$GITHUB_REPOSITORY"

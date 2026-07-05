@@ -323,6 +323,11 @@ function renderDetail() {
       </div>
       <div class="detail-title-actions">
         <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
+        <a class="action-link mimic-action" href="${escapeAttribute(mimicGameHref(player))}">
+          与${escapeHTML(displayName(player))}模拟对局
+          <span class="mimic-mini-badge">AI</span>
+          <span class="mimic-mini-badge is-beta">BETA</span>
+        </a>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
       </div>
     </div>
@@ -1148,6 +1153,14 @@ function displayName(player) {
 function detailChineseNameLine(player) {
   if (!player.chineseName || displayName(player).includes(player.chineseName)) return "";
   return `<div class="detail-cn-name">${escapeHTML(displayText(player.chineseName))}</div>`;
+}
+
+function mimicGameHref(player) {
+  const params = new URLSearchParams({
+    fideID: String(player.fideID),
+    name: displayName(player)
+  });
+  return `mimic/?${params.toString()}`;
 }
 
 function ageRuleText() {

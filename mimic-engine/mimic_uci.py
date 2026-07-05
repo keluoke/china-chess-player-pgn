@@ -4,17 +4,16 @@
 Move selection:
   1. If the position is in the player's polyglot book (their own games),
      sample a book move weighted by observed frequency (temperature control).
-  2. Otherwise ask a strength-limited backend (Stockfish UCI_Elo) for
+  2. Otherwise ask a backend (Maia3 UCI or strength-limited Stockfish) for
      multiPV candidates, re-rank them with the player's style vector
      (capture / check / castling / queen-trade tendencies), then sample.
   3. Inject errors per game phase according to the player's measured
      blunder profile (analyze_phases.py), so e.g. endgames wobble the way
      the real player's endgames wobble.
 
-The Maia integration point is `backend_candidates()`: swap the Stockfish
-multiPV call for an lc0+maia policy query and everything else stays.
-
-Run:  python3 mimic_uci.py --profile profiles/fide-8640980 --stockfish /tmp/stockfish
+Run:
+  python3 mimic_uci.py --profile profiles/fide-8640980 --backend maia3
+  python3 mimic_uci.py --profile profiles/fide-8640980 --backend stockfish --stockfish /tmp/stockfish
 """
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ import json
 import math
 import pathlib
 import random
+import shlex
 import sys
 
 import chess
@@ -36,9 +36,21 @@ DEFAULT_PHASE_ERRORS = {  # fallback when style.json lacks engine stats
     "endgame": {"blunderRate": 0.08, "mistakeRate": 0.18},
 }
 
+BACKEND_STOCKFISH = "stockfish"
+BACKEND_MAIA3 = "maia3"
+BACKENDS = {BACKEND_STOCKFISH, BACKEND_MAIA3}
+
 
 class MimicEngine:
-    def __init__(self, profile_dir: pathlib.Path, stockfish_path: str):
+    def __init__(
+        self,
+        profile_dir: pathlib.Path,
+        stockfish_path: str,
+        backend_name: str,
+        maia3_command: str,
+        maia3_model: str,
+        maia3_checkpoint_path: str,
+    ):
         self.profile_dir = profile_dir
         self.style = json.loads((profile_dir / "style.json").read_text(encoding="utf-8"))
         self.books = {
@@ -46,7 +58,12 @@ class MimicEngine:
             chess.BLACK: profile_dir / "black.bin",
         }
         self.stockfish_path = stockfish_path
+        self.backend_name = normalize_backend(backend_name)
+        self.maia3_command = maia3_command
+        self.maia3_model = maia3_model
+        self.maia3_checkpoint_path = maia3_checkpoint_path
         self.backend: chess.engine.SimpleEngine | None = None
+        self.active_backend_name: str | None = None
         self.board = chess.Board()
         self.book_temp = 0.7
         self.elo = 2050
@@ -55,14 +72,48 @@ class MimicEngine:
 
     # ---- lifecycle -------------------------------------------------------
     def ensure_backend(self) -> None:
-        if self.backend is None:
-            self.backend = chess.engine.SimpleEngine.popen_uci(self.stockfish_path)
-            self.backend.configure({"Threads": 1, "Hash": 64})
+        if self.backend is not None and self.active_backend_name == self.backend_name:
+            return
+        self.close()
+        command = self.backend_command()
+        self.backend = chess.engine.SimpleEngine.popen_uci(command)
+        self.active_backend_name = self.backend_name
+        if self.backend_name == BACKEND_STOCKFISH:
+            self.safe_configure({"Threads": 1, "Hash": 64})
+
+    def backend_command(self) -> str | list[str]:
+        if self.backend_name == BACKEND_STOCKFISH:
+            return self.stockfish_path
+
+        command = shlex.split(self.maia3_command) if self.maia3_command else ["maia3-uci"]
+        if not command:
+            command = ["maia3-uci"]
+        has_model = any(arg == "--model" or arg.startswith("--model=") for arg in command)
+        has_checkpoint = any(arg == "--checkpoint-path" or arg.startswith("--checkpoint-path=") for arg in command)
+        has_history = any(arg == "--use-uci-history" for arg in command)
+        executable = pathlib.Path(command[0]).name
+        if executable == "maia3-uci":
+            if self.maia3_model and not has_model:
+                command.extend(["--model", self.maia3_model])
+            if self.maia3_checkpoint_path and not has_checkpoint:
+                command.extend(["--checkpoint-path", self.maia3_checkpoint_path])
+            if not has_history:
+                command.append("--use-uci-history")
+        return command
+
+    def safe_configure(self, options: dict) -> None:
+        if self.backend is None or not options:
+            return
+        try:
+            self.backend.configure(options)
+        except (chess.engine.EngineError, chess.engine.EngineTerminatedError) as exc:
+            print(f"info string ignored backend option(s) {sorted(options)}: {exc}", file=sys.stderr, flush=True)
 
     def close(self) -> None:
         if self.backend is not None:
             self.backend.quit()
             self.backend = None
+            self.active_backend_name = None
 
     # ---- book ------------------------------------------------------------
     def book_move(self) -> chess.Move | None:
@@ -125,18 +176,36 @@ class MimicEngine:
 
     # ---- backend selection -------------------------------------------------
     def backend_candidates(self, movetime: float) -> list[tuple[chess.Move, int]]:
-        """Candidate moves with cp scores. Maia plug-in point: replace this
-        with an lc0/maia policy query returning (move, prob→pseudo-cp)."""
+        """Candidate moves with cp-like scores from the selected UCI backend."""
         self.ensure_backend()
-        self.backend.configure({"UCI_LimitStrength": True, "UCI_Elo": max(1320, min(3190, self.elo))})
-        infos = self.backend.analyse(self.board, chess.engine.Limit(time=movetime), multipv=self.multipv)
+        if self.backend is None:
+            return []
+        if self.backend_name == BACKEND_STOCKFISH:
+            self.safe_configure({"UCI_LimitStrength": True, "UCI_Elo": max(1320, min(3190, self.elo))})
+            limit = chess.engine.Limit(time=movetime)
+        else:
+            # Maia3 is policy-first; one node is enough to expose its move ranking.
+            self.safe_configure({
+                "Elo": max(1100, min(2800, self.elo)),
+                "SelfElo": max(1100, min(2800, self.elo)),
+                "OppoElo": max(1100, min(2800, self.elo)),
+            })
+            limit = chess.engine.Limit(nodes=1)
+
+        infos = self.backend.analyse(self.board, limit, multipv=self.multipv)
         candidates = []
-        for info in infos:
+        for idx, info in enumerate(infos):
             pv = info.get("pv")
             if not pv:
                 continue
-            score = info["score"].pov(self.board.turn)
-            cp = 10000 if score.is_mate() and score.mate() > 0 else (-10000 if score.is_mate() else score.score())
+            score_info = info.get("score")
+            if score_info is None:
+                cp = (self.multipv - idx) * 20
+            else:
+                score = score_info.pov(self.board.turn)
+                cp = 10000 if score.is_mate() and score.mate() > 0 else (-10000 if score.is_mate() else score.score())
+                if cp is None:
+                    cp = (self.multipv - idx) * 20
             candidates.append((pv[0], cp))
         return candidates
 
@@ -174,11 +243,20 @@ class MimicEngine:
             if cmd == "uci":
                 print(f"id name Mimic of {name} (FIDE {player.get('fideID','?')})")
                 print("id author china-chess-player-pgn mimic prototype")
+                print(f"option name Backend type combo default {self.backend_name} var stockfish var maia3")
                 print(f"option name MimicElo type spin default {self.elo} min 1320 max 3190")
+                print(f"option name MultiPV type spin default {self.multipv} min 1 max 8")
                 print("option name BookTemp type string default 0.7")
+                print(f"option name StockfishPath type string default {self.stockfish_path}")
+                print(f"option name Maia3Command type string default {self.maia3_command}")
+                print(f"option name Maia3Model type string default {self.maia3_model}")
+                print(f"option name Maia3CheckpointPath type string default {self.maia3_checkpoint_path}")
                 print("uciok", flush=True)
             elif cmd == "isready":
-                self.ensure_backend()
+                try:
+                    self.ensure_backend()
+                except Exception as exc:
+                    print(f"info string backend not ready: {exc}", file=sys.stderr, flush=True)
                 print("readyok", flush=True)
             elif cmd == "setoption":
                 try:
@@ -190,6 +268,29 @@ class MimicEngine:
                         self.elo = int(value)
                     elif key == "booktemp":
                         self.book_temp = float(value)
+                    elif key == "multipv":
+                        self.multipv = max(1, min(8, int(value)))
+                    elif key == "backend":
+                        new_backend = normalize_backend(value)
+                        if new_backend != self.backend_name:
+                            self.backend_name = new_backend
+                            self.close()
+                    elif key == "stockfishpath":
+                        self.stockfish_path = value
+                        if self.backend_name == BACKEND_STOCKFISH:
+                            self.close()
+                    elif key == "maia3command":
+                        self.maia3_command = value
+                        if self.backend_name == BACKEND_MAIA3:
+                            self.close()
+                    elif key == "maia3model":
+                        self.maia3_model = value
+                        if self.backend_name == BACKEND_MAIA3:
+                            self.close()
+                    elif key == "maia3checkpointpath":
+                        self.maia3_checkpoint_path = value
+                        if self.backend_name == BACKEND_MAIA3:
+                            self.close()
                 except ValueError:
                     pass
             elif cmd == "ucinewgame":
@@ -200,8 +301,12 @@ class MimicEngine:
                 movetime = 0.3
                 if "movetime" in parts:
                     movetime = int(parts[parts.index("movetime") + 1]) / 1000
-                move = self.pick_move(movetime)
-                print(f"bestmove {move.uci()}", flush=True)
+                try:
+                    move = self.pick_move(movetime)
+                    print(f"bestmove {move.uci()}", flush=True)
+                except Exception as exc:
+                    print(f"info string backend error: {exc}", file=sys.stderr, flush=True)
+                    print(f"bestmove {next(iter(self.board.legal_moves)).uci()}", flush=True)
             elif cmd == "quit":
                 break
         self.close()
@@ -224,12 +329,32 @@ class MimicEngine:
                 break
 
 
+def normalize_backend(value: str) -> str:
+    normalized = (value or BACKEND_STOCKFISH).strip().casefold().replace("-", "").replace("_", "")
+    if normalized in {"maia", "maia3"}:
+        return BACKEND_MAIA3
+    if normalized == BACKEND_STOCKFISH:
+        return BACKEND_STOCKFISH
+    raise ValueError(f"unsupported backend: {value!r}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", type=pathlib.Path, required=True)
+    parser.add_argument("--backend", choices=sorted(BACKENDS), default=BACKEND_STOCKFISH)
     parser.add_argument("--stockfish", default="/tmp/stockfish")
+    parser.add_argument("--maia3-command", "--maia3", default="maia3-uci")
+    parser.add_argument("--maia3-model", default="maia3-5m")
+    parser.add_argument("--maia3-checkpoint-path", default="")
     args = parser.parse_args()
-    MimicEngine(args.profile, args.stockfish).run()
+    MimicEngine(
+        args.profile,
+        args.stockfish,
+        args.backend,
+        args.maia3_command,
+        args.maia3_model,
+        args.maia3_checkpoint_path,
+    ).run()
     return 0
 
 
