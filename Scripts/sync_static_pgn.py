@@ -9,9 +9,8 @@ docs/data/index/players.json
 docs/data/index/players/fide-<fide-id>.json
 docs/data/index/events.json
 
-When run on a developer Mac, this script can read the macOS app SQLite store and
-copy local PGN archives. When run in GitHub Actions, it can use the committed
-static indexes and fetch missing PGNs from configured public sources.
+Records are read from the committed static indexes; missing PGNs are then
+fetched from configured public sources (Chess-Results).
 """
 
 from __future__ import annotations
@@ -24,8 +23,6 @@ import json
 import os
 import pathlib
 import re
-import shutil
-import sqlite3
 import ssl
 import sys
 import time
@@ -42,9 +39,6 @@ INDEX_ROOT = DOCS_DATA / "index"
 PLAYER_INDEX_ROOT = INDEX_ROOT / "players"
 LEADERBOARD_JSON = DOCS_DATA / "youth-leaderboards.json"
 REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
-DEFAULT_APP_SUPPORT = pathlib.Path.home() / "Library" / "Application Support" / "ChinaChessPlayerPGN"
-DEFAULT_DB = DEFAULT_APP_SUPPORT / "china-chess-player-pgn.sqlite"
-DEFAULT_LOCAL_PGN_ROOT = DEFAULT_APP_SUPPORT / "PGNArchive"
 USER_AGENT = "ChinaChessPlayerPGNStaticSync/1.0"
 _TLS_CONTEXT: ssl.SSLContext | None = None
 _REGISTRY_PROFILES: dict[str, dict[str, Any]] | None = None
@@ -133,9 +127,6 @@ class FormParser(html.parser.HTMLParser):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Sync static PGN archive for GitHub Pages.")
-    parser.add_argument("--db", type=pathlib.Path, default=DEFAULT_DB, help="macOS app SQLite path")
-    parser.add_argument("--local-pgn-root", type=pathlib.Path, default=DEFAULT_LOCAL_PGN_ROOT)
-    parser.add_argument("--from-local-cache", action="store_true", help="copy PGNs from the macOS app archive")
     parser.add_argument("--fetch-missing", action="store_true", help="fetch missing PGNs from supported sources")
     parser.add_argument("--player", action="append", default=[], help="limit to one FIDE ID; repeatable")
     parser.add_argument("--source", action="append", default=[], help="limit to one source slug/name; repeatable")
@@ -148,9 +139,7 @@ def main() -> int:
     stats = SyncStats()
     ensure_dirs()
 
-    all_records = records_from_sqlite(args.db) if args.db.exists() else []
-    if not all_records:
-        all_records = records_from_static_indexes()
+    all_records = records_from_static_indexes()
     records = all_records
     if args.player:
         allowed = {str(item) for item in args.player}
@@ -158,9 +147,6 @@ def main() -> int:
     if args.source:
         allowed_sources = {slug(item) for item in args.source}
         records = [record for record in records if slug(record.source) in allowed_sources]
-
-    if args.from_local_cache or args.db.exists():
-        copy_local_archives(records, args.local_pgn_root, stats, dry_run=args.dry_run)
 
     if args.fetch_missing:
         fetch_missing(records, stats, args.max_downloads, args.delay, dry_run=args.dry_run)
@@ -176,71 +162,6 @@ def main() -> int:
 def ensure_dirs() -> None:
     STATIC_PGN_ROOT.mkdir(parents=True, exist_ok=True)
     PLAYER_INDEX_ROOT.mkdir(parents=True, exist_ok=True)
-
-
-def records_from_sqlite(db_path: pathlib.Path) -> list[EventRecord]:
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        """
-        SELECT p.id AS player_id,
-               p.fide_id,
-               COALESCE(NULLIF(p.chinese_name,''), NULLIF(p.english_name,''), NULLIF(p.pinyin_name,''), p.fide_id) AS display_name,
-               COALESCE(NULLIF(p.chinese_name,''), '') AS chinese_name,
-               COALESCE(NULLIF(p.pinyin_name,''), '') AS pinyin_name,
-               COALESCE(NULLIF(p.english_name,''), '') AS english_name,
-               COALESCE(NULLIF(p.federation,''), 'CHN') AS federation,
-               p.birth_year,
-               p.standard_rating,
-               p.rapid_rating,
-               p.blitz_rating,
-               e.id AS event_id,
-               e.source,
-               e.source_event_id AS tournament_id,
-               e.name AS event_name,
-               e.end_date,
-               pe.rank,
-               e.rounds,
-               e.participants,
-               e.url AS source_url,
-               COALESCE(pa.relative_path, '') AS pgn_path,
-               COALESCE(pa.game_count, 0) AS game_count
-        FROM player_events pe
-        JOIN players p ON p.id = pe.player_id
-        JOIN events e ON e.id = pe.event_id
-        LEFT JOIN pgn_archives pa ON pa.player_id = p.id AND pa.event_id = e.id
-        WHERE p.fide_id IS NOT NULL AND p.fide_id <> ''
-        ORDER BY p.fide_id, e.end_date DESC
-        """
-    ).fetchall()
-    return [record_from_row(row) for row in rows]
-
-
-def record_from_row(row: sqlite3.Row) -> EventRecord:
-    return EventRecord(
-        fide_id=str(row["fide_id"]),
-        player_id=str(row["player_id"]),
-        display_name=str(row["display_name"]),
-        chinese_name=str(row["chinese_name"] or ""),
-        pinyin_name=str(row["pinyin_name"] or ""),
-        english_name=str(row["english_name"] or ""),
-        federation=str(row["federation"] or "CHN"),
-        birth_year=int(row["birth_year"]) if row["birth_year"] is not None else None,
-        standard_rating=int(row["standard_rating"]) if row["standard_rating"] is not None else None,
-        rapid_rating=int(row["rapid_rating"]) if row["rapid_rating"] is not None else None,
-        blitz_rating=int(row["blitz_rating"]) if row["blitz_rating"] is not None else None,
-        event_id=str(row["event_id"]),
-        source=str(row["source"] or "Chess-Results"),
-        tournament_id=str(row["tournament_id"]),
-        event_name=str(row["event_name"] or ""),
-        end_date=str(row["end_date"] or ""),
-        rank=str(row["rank"] or ""),
-        rounds=str(row["rounds"] or ""),
-        participants=str(row["participants"] or ""),
-        pgn_path=str(row["pgn_path"] or ""),
-        game_count=int(row["game_count"] or 0),
-        source_url=str(row["source_url"] or ""),
-    )
 
 
 def records_from_static_indexes() -> list[EventRecord]:
@@ -275,34 +196,6 @@ def records_from_static_indexes() -> list[EventRecord]:
                 )
             )
     return [record for record in records if record.fide_id and record.tournament_id]
-
-
-def copy_local_archives(
-    records: list[EventRecord],
-    local_root: pathlib.Path,
-    stats: SyncStats,
-    dry_run: bool,
-) -> None:
-    for record in records:
-        if not record.pgn_path:
-            stats.skipped += 1
-            continue
-        source = local_root / record.pgn_path
-        if not source.exists():
-            stats.skipped += 1
-            continue
-        source_text = source.read_text(encoding="utf-8", errors="replace")
-        if count_pgn_games(source_text) == 0:
-            stats.empty += 1
-            continue
-        target = record.static_path
-        if target.exists() and sha256_file(target) == sha256_file(source):
-            stats.skipped += 1
-            continue
-        stats.copied += 1
-        if not dry_run:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
 
 
 def fetch_missing(

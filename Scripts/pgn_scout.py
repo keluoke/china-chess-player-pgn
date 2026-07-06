@@ -43,7 +43,6 @@ REGISTRY_ROOT = DOCS_DATA / "registry"
 MANUAL_ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
 DEFAULT_APP_SUPPORT = pathlib.Path.home() / "Library" / "Application Support" / "ChinaChessPlayerPGN"
 DEFAULT_ROOT = DEFAULT_APP_SUPPORT / "RawPGNScout"
-DEFAULT_APP_DB = DEFAULT_APP_SUPPORT / "china-chess-player-pgn.sqlite"
 CHESS_RESULTS_FORM_URL = "https://chess-results.com/PartieSuche.aspx?lan=1"
 LICHESS_DATABASE_URL = "https://database.lichess.org/"
 USER_AGENT = "ChinaChessPlayerPGNScout/1.0"
@@ -110,7 +109,6 @@ def main() -> int:
 
     seed_targets = subparsers.add_parser("seed-chess-results-targets", help="export Chess-Results targets from local indexes")
     seed_targets.add_argument("--output", type=pathlib.Path)
-    seed_targets.add_argument("--db", type=pathlib.Path, default=DEFAULT_APP_DB)
 
     cr = subparsers.add_parser("fetch-chess-results", help="probe Chess-Results PGN by FIDE ID and TournamentID")
     cr.add_argument("--targets", type=pathlib.Path, help="CSV from seed-chess-results-targets")
@@ -164,7 +162,7 @@ def main() -> int:
         return 0
     if args.command == "seed-chess-results-targets":
         output = args.output or root / "manifests" / "chess-results-targets.csv"
-        targets = chess_results_targets(args.db)
+        targets = chess_results_targets()
         write_targets_csv(output, targets)
         print(json.dumps({"targets": len(targets), "output": str(output)}, ensure_ascii=False, indent=2))
         return 0
@@ -273,11 +271,9 @@ def store_summary(root: pathlib.Path) -> dict[str, Any]:
     return {"root": str(root), **dict(row), "bySource": by_source}
 
 
-def chess_results_targets(db_path: pathlib.Path) -> list[ChessResultsTarget]:
+def chess_results_targets() -> list[ChessResultsTarget]:
     targets: dict[tuple[str, str], ChessResultsTarget] = {}
     for target in static_chess_results_targets():
-        targets[(target.fide_id, target.tournament_id)] = target
-    for target in sqlite_chess_results_targets(db_path):
         targets[(target.fide_id, target.tournament_id)] = target
     return sorted(targets.values(), key=lambda item: (item.tournament_id, item.fide_id))
 
@@ -302,37 +298,6 @@ def static_chess_results_targets() -> list[ChessResultsTarget]:
                     )
                 )
     return targets
-
-
-def sqlite_chess_results_targets(db_path: pathlib.Path) -> list[ChessResultsTarget]:
-    if not db_path.exists():
-        return []
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        """
-        SELECT p.fide_id, e.source_event_id AS tournament_id, e.name AS event_name, e.url AS source_url
-        FROM player_events pe
-        JOIN players p ON p.id = pe.player_id
-        JOIN events e ON e.id = pe.event_id
-        WHERE p.fide_id IS NOT NULL
-          AND p.fide_id <> ''
-          AND lower(e.source) = 'chess-results'
-          AND e.source_event_id IS NOT NULL
-          AND e.source_event_id <> ''
-        ORDER BY e.end_date DESC
-        """
-    ).fetchall()
-    conn.close()
-    return [
-        ChessResultsTarget(
-            fide_id=str(row["fide_id"]),
-            tournament_id=str(row["tournament_id"]),
-            event_name=str(row["event_name"] or ""),
-            source_url=str(row["source_url"] or ""),
-        )
-        for row in rows
-    ]
 
 
 def write_targets_csv(path: pathlib.Path, targets: list[ChessResultsTarget]) -> None:
@@ -360,7 +325,7 @@ def read_targets_csv(path: pathlib.Path) -> list[ChessResultsTarget]:
 
 def fetch_chess_results(root: pathlib.Path, args: argparse.Namespace) -> ScoutStats:
     stats = ScoutStats()
-    targets = read_targets_csv(args.targets) if args.targets else chess_results_targets(DEFAULT_APP_DB)
+    targets = read_targets_csv(args.targets) if args.targets else chess_results_targets()
     if args.player:
         allowed = set(args.player)
         targets = [target for target in targets if target.fide_id in allowed]

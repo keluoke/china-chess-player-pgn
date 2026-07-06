@@ -20,7 +20,6 @@ import io
 import json
 import pathlib
 import re
-import sqlite3
 import ssl
 import sys
 import time
@@ -36,7 +35,6 @@ REGISTRY_ROOT = REPO_ROOT / "docs" / "data" / "registry"
 SHARD_ROOT = REGISTRY_ROOT / "shards"
 MANUAL_ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
 DEFAULT_CACHE = pathlib.Path.home() / "Library" / "Caches" / "ChinaChessPlayerPGN" / "fide"
-DEFAULT_APP_DB = pathlib.Path.home() / "Library" / "Application Support" / "ChinaChessPlayerPGN" / "china-chess-player-pgn.sqlite"
 DEFAULT_FIDE_XML_LEGACY_URL = "https://ratings.fide.com/download/players_list_xml_legacy.zip"
 USER_AGENT = "ChinaChessPlayerPGNPlayerRegistry/1.0"
 _TLS_CONTEXT: ssl.SSLContext | None = None
@@ -128,9 +126,6 @@ def main() -> int:
     parser.add_argument("--federation", default="CHN")
     parser.add_argument("--manual-aliases", type=pathlib.Path, default=MANUAL_ALIAS_CSV)
     parser.add_argument("--output-root", type=pathlib.Path, default=REGISTRY_ROOT)
-    parser.add_argument("--sqlite-db", type=pathlib.Path, help="optional macOS app SQLite DB to update")
-    parser.add_argument("--sqlite-overwrite", action="store_true", help="overwrite player names/aliases in SQLite from registry")
-    parser.add_argument("--sqlite-prune-missing", action="store_true", help="remove unreferenced SQLite FIDE players missing from this registry")
     parser.add_argument("--max-players", type=int, default=0, help="test limit after federation filtering")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -142,9 +137,6 @@ def main() -> int:
         players = players[: args.max_players]
     apply_aliases(players, aliases)
     write_registry(players, args.output_root, source_path, args.url, args.federation.upper(), args.dry_run)
-    sqlite_stats = {}
-    if args.sqlite_db:
-        sqlite_stats = write_sqlite_registry(players, args.sqlite_db, args.sqlite_overwrite, args.sqlite_prune_missing, args.dry_run)
 
     stats = {
         "players": len(players),
@@ -154,7 +146,6 @@ def main() -> int:
         "ratedBlitz": sum(1 for player in players if player.blitz is not None),
         "inactive": sum(1 for player in players if player.inactive),
         "source": str(source_path),
-        **sqlite_stats,
     }
     print(json.dumps(stats, ensure_ascii=False, indent=2))
     return 0
@@ -395,121 +386,6 @@ def write_registry(
     write_json(output_root / "players.json", compact_players)
     for prefix, shard_players in sorted(shards.items()):
         write_json(shard_root / f"fide-prefix-{prefix}.json", shard_players)
-
-
-def write_sqlite_registry(
-    players: list[RegistryPlayer],
-    db_path: pathlib.Path,
-    overwrite: bool,
-    prune_missing: bool,
-    dry_run: bool,
-) -> dict[str, int]:
-    if not db_path.exists():
-        raise FileNotFoundError(f"SQLite DB not found: {db_path}")
-    if dry_run:
-        return {
-            "sqlitePlayers": len(players),
-            "sqliteAliases": sum(len(player.aliases_for_search()) for player in players),
-            "sqlitePruned": 0,
-        }
-
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.execute("PRAGMA foreign_keys = ON")
-        registry_ids = {player.fide_id for player in players}
-        player_rows = [
-            (
-                f"fide-{player.fide_id}",
-                player.fide_id,
-                player.chinese_name,
-                player.pinyin,
-                player.name,
-                player.federation,
-                player.birth_year,
-                player.standard,
-                player.rapid,
-                player.blitz,
-            )
-            for player in players
-        ]
-
-        if overwrite:
-            conn.executemany(
-                """
-                INSERT INTO players(id, fide_id, chinese_name, pinyin_name, english_name, federation, birth_year, standard_rating, rapid_rating, blitz_rating)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    fide_id = excluded.fide_id,
-                    chinese_name = excluded.chinese_name,
-                    pinyin_name = excluded.pinyin_name,
-                    english_name = excluded.english_name,
-                    federation = excluded.federation,
-                    birth_year = excluded.birth_year,
-                    standard_rating = excluded.standard_rating,
-                    rapid_rating = excluded.rapid_rating,
-                    blitz_rating = excluded.blitz_rating
-                """,
-                player_rows,
-            )
-        else:
-            conn.executemany(
-                """
-                INSERT INTO players(id, fide_id, chinese_name, pinyin_name, english_name, federation, birth_year, standard_rating, rapid_rating, blitz_rating)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    fide_id = COALESCE(players.fide_id, excluded.fide_id),
-                    chinese_name = COALESCE(NULLIF(players.chinese_name, ''), excluded.chinese_name),
-                    pinyin_name = COALESCE(NULLIF(players.pinyin_name, ''), excluded.pinyin_name),
-                    english_name = COALESCE(NULLIF(excluded.english_name, ''), players.english_name),
-                    federation = COALESCE(NULLIF(excluded.federation, ''), players.federation),
-                    birth_year = COALESCE(excluded.birth_year, players.birth_year),
-                    standard_rating = COALESCE(excluded.standard_rating, players.standard_rating),
-                    rapid_rating = COALESCE(excluded.rapid_rating, players.rapid_rating),
-                    blitz_rating = COALESCE(excluded.blitz_rating, players.blitz_rating)
-                """,
-                player_rows,
-            )
-
-        if overwrite:
-            conn.executemany("DELETE FROM player_aliases WHERE player_id = ?", [(f"fide-{player.fide_id}",) for player in players])
-
-        alias_rows = []
-        for player in players:
-            player_id = f"fide-{player.fide_id}"
-            for alias in ordered_unique(player.aliases_for_search()):
-                normalized = normalized_alias(alias)
-                if not normalized:
-                    continue
-                alias_rows.append((player_id, alias, normalized, alias_type(alias, player), "FIDE registry"))
-        conn.executemany(
-            """
-            INSERT OR IGNORE INTO player_aliases(player_id, alias, normalized_alias, alias_type, source)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            alias_rows,
-        )
-        pruned = 0
-        if prune_missing:
-            extras = conn.execute(
-                """
-                SELECT p.id
-                FROM players p
-                LEFT JOIN player_events pe ON pe.player_id = p.id
-                LEFT JOIN pgn_archives pa ON pa.player_id = p.id
-                WHERE p.fide_id IS NOT NULL
-                  AND p.fide_id <> ''
-                  AND pe.player_id IS NULL
-                  AND pa.player_id IS NULL
-                """
-            ).fetchall()
-            prune_ids = [row[0] for row in extras if row[0].removeprefix("fide-") not in registry_ids]
-            conn.executemany("DELETE FROM player_aliases WHERE player_id = ?", [(player_id,) for player_id in prune_ids])
-            conn.executemany("DELETE FROM players WHERE id = ?", [(player_id,) for player_id in prune_ids])
-            pruned = len(prune_ids)
-        conn.commit()
-        return {"sqlitePlayers": len(player_rows), "sqliteAliases": len(alias_rows), "sqlitePruned": pruned}
-    finally:
-        conn.close()
 
 
 def pick(fields: dict[str, str], *keys: str) -> str:

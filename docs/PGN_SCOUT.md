@@ -40,7 +40,7 @@ RawPGNScout/
 
 ## Chess-Results
 
-先从当前仓库和 macOS 本地 SQLite 生成 TournamentID/FIDE ID 目标表：
+先从当前仓库索引生成 TournamentID/FIDE ID 目标表：
 
 ```bash
 python3 Scripts/pgn_scout.py seed-chess-results-targets
