@@ -5,13 +5,18 @@
 # are blocked, which is why the scraping half of the pipeline lives here instead
 # of in Actions.
 #
-# What it does:
+# What it does (NO-PULL design — this machine never pulls or rebases):
 #   1. Runs the network-dependent scraper(s) for the chosen command.
-#   2. Commits the RAW scraped data and pushes to main (as you, not the bot).
-#   3. That push triggers `rebuild-indexes.yml` on GitHub, which rebuilds every
-#      derived index (no network) and deploys the static site.
+#   2. Commits the RAW scraped data to the LOCAL history.
+#   3. Force-pushes HEAD to the single-writer branch `local-data` — a force
+#      push can never be rejected, so no pull/fetch/rebase is ever needed.
+#   4. On GitHub, `ingest-local-data.yml` mirrors that branch's data tree
+#      into main as the bot, then `rebuild-indexes.yml` rebuilds all derived
+#      indexes and deploys the static site.
 #
-# So: scraping = local; indexing + deploy = GitHub Actions.
+# So: scraping = local; merge + indexing + deploy = GitHub Actions.
+# Conflicts are structurally impossible: this machine is the only producer
+# of raw data, and it owns the local-data branch exclusively.
 #
 # Usage:
 #   Scripts/local/refresh.sh <command> [--no-push] [-- <extra args>]
@@ -26,13 +31,14 @@
 #   bulk         Mirror Lichess broadcast shards + rebuild youth packs.
 #   pgn          Fetch missing per-tournament PGN from Chess-Results.
 #   all          Routine incremental refresh: registry, then crawl.
-#   push         Re-push commits left behind by an earlier failed push.
+#   push         Re-push data left behind by an earlier failed push.
 #   reindex      LOCAL pure rebuild (indexes/registry aliases/domestic). Optional;
 #                normally Actions does this. No network.
 #
 # GitHub connectivity: scrapers always go DIRECT (residential IP required);
-# git fetch/push auto-detects a working route — direct first, then the local
-# proxy ports used by Clash/V2Ray etc. Override with GITHUB_PROXY=http://...
+# git push auto-detects a working route — direct first, then the macOS system
+# proxy (Veee/Clash/...), then well-known local proxy ports. Override with
+# GITHUB_PROXY=http://127.0.0.1:PORT.
 #
 # Options:
 #   --no-push    Commit locally but do not push (skips the Actions handoff).
@@ -173,51 +179,42 @@ xgit() {  # git remote operations, routed through the detected proxy if any
   fi
 }
 
-# Sync with origin BEFORE scraping. Every local push makes Actions commit a
-# "Rebuild derived indexes" bot commit, so the local clone is always behind by
-# the next run; without this the final `git push` would be rejected. Failure
-# here never blocks scraping — data is committed locally regardless.
-sync_with_remote() {
-  local branch
-  branch="$(git rev-parse --abbrev-ref HEAD)"
-  step "[1/3] 同步远端(git pull --rebase)"
-  detect_git_proxy || true
-  # -X theirs: when the Actions bot rebuilt the same derived/data files (e.g.
-  # registry manifests with timestamps), prefer the freshly scraped local
-  # version instead of stopping on a conflict. Local scrape is the source of
-  # truth for raw data; the bot rebuilds derived indexes again after push.
-  if xgit fetch origin "$branch" 2>/dev/null; then
-    xgit pull --rebase --autostash -X theirs origin "$branch" || {
-      xgit rebase --abort >/dev/null 2>&1 || true
-      echo "WARNING: rebase onto origin/$branch failed even with -X theirs;" >&2
-      echo "         已回滚到 rebase 前状态,请手动检查后重试。" >&2
-      exit 1
-    }
-  else
-    echo "WARNING: 连不上 origin,跳过同步继续抓取(数据会先提交在本地)。" >&2
-  fi
-}
+# NO-PULL delivery: force-push HEAD to the single-writer branch. A force push
+# to a branch only this machine writes can never be rejected, so no fetch,
+# pull or rebase is ever needed (or performed) on this machine.
+DATA_BRANCH="local-data"
+PUSH_MARKER="$(git rev-parse --git-dir)/last-local-data-push"
 
-# push_with_retries <branch> — push, rebasing onto origin between attempts.
 push_with_retries() {
-  local branch="$1" attempt
+  local attempt
+  detect_git_proxy || true
   for attempt in 1 2 3; do
-    if xgit push origin "$branch"; then return 0; fi
-    echo "Push 失败(第 $attempt 次);rebase 远端后重试。" >&2
-    xgit pull --rebase --autostash -X theirs origin "$branch" \
-      || { xgit rebase --abort >/dev/null 2>&1 || true; }
-    sleep $((attempt * 2))
+    if xgit push --force origin "HEAD:refs/heads/${DATA_BRANCH}"; then
+      git rev-parse HEAD > "$PUSH_MARKER" 2>/dev/null || true
+      return 0
+    fi
+    echo "Push 失败(第 $attempt 次),稍候重试…" >&2
+    sleep $((attempt * 3))
   done
   return 1
 }
 
 commit_and_push() {
   local message="$1"; shift
-  step "[3/3] 提交并推送"
+  step "[2/3] 提交(仅本地,不碰远端)"
   git add "$@"
   if git diff --cached --quiet; then
     echo "No changes to commit."
-    PUSH_SUMMARY="(无新数据,未推送)"
+    # Still deliver anything a previous failed push left behind.
+    if [ "$PUSH" = "true" ] && [ "$(cat "$PUSH_MARKER" 2>/dev/null)" != "$(git rev-parse HEAD)" ]; then
+      step "[3/3] 推送(补推上次遗留数据)"
+      DATA_COMMITTED=true
+      push_with_retries || exit 1
+      DATA_COMMITTED=false
+      PUSH_SUMMARY="(无新数据;已补推上次遗留提交)"
+    else
+      PUSH_SUMMARY="(无新数据,未推送)"
+    fi
     return 0
   fi
   local changed
@@ -225,31 +222,29 @@ commit_and_push() {
   git commit -m "$message"
   DATA_COMMITTED=true
   if [ "$PUSH" = "true" ]; then
-    local branch
-    branch="$(git rev-parse --abbrev-ref HEAD)"
-    # The rebuild bot may have pushed while we were scraping; rebase and retry.
-    if ! push_with_retries "$branch"; then
+    step "[3/3] 推送(免拉取,force-push 到 ${DATA_BRANCH} 分支)"
+    if ! push_with_retries; then
       echo "" >&2
       echo "⚠️  数据已安全提交在本地,只是推送没成功(网络问题居多)。" >&2
       echo "   网络/代理恢复后,双击一键抓取选「push」即可重推,无需重新抓取。" >&2
       exit 1
     fi
     PUSH_SUMMARY="已推送($changed)"
-    echo "Pushed. GitHub Actions 将重建索引并部署到 GitHub Pages + Cloudflare(约 3-5 分钟)。"
+    echo "Pushed. GitHub 将合入 main、重建索引并部署到双端(约 3-5 分钟)。"
     echo "查看进度:$(repo_web_url)/actions"
   else
     PUSH_SUMMARY="已提交,未推送(--no-push)"
-    echo "Committed locally (--no-push). Run 'git push' to trigger index rebuild + deploy."
+    echo "Committed locally (--no-push). 之后可选「push」交付。"
   fi
 }
 
-# Pull latest (incl. bot rebuild commits) before scraping/committing.
+# No pull, ever: scrape → local commit → force-push to the data branch.
 case "$command" in
   ""|-h|--help|help) : ;;
+  push) REPORT_ON_EXIT=1 ;;
   *)
     REPORT_ON_EXIT=1
-    sync_with_remote
-    step "[2/3] 抓取:$command(数据写入仓库内 docs/data/ 与 data/manual/)"
+    step "[1/3] 抓取:$command(数据写入仓库内 docs/data/ 与 data/manual/,不碰远端)"
     ;;
 esac
 
@@ -305,22 +300,21 @@ case "$command" in
     ;;
 
   push)
-    # Re-push commits left behind by an earlier failed push. No scraping.
-    branch="$(git rev-parse --abbrev-ref HEAD)"
-    ahead="$(git rev-list --count "origin/${branch}..${branch}" 2>/dev/null || echo "?")"
-    step "[2/3] 待推送提交:$ahead 个"
-    if [ "$ahead" = "0" ]; then
-      PUSH_SUMMARY="(没有待推送的提交)"
+    # Re-push data left behind by an earlier failed push. No scraping,
+    # no pull — just force-push current HEAD to the data branch.
+    if [ "$(cat "$PUSH_MARKER" 2>/dev/null)" = "$(git rev-parse HEAD)" ]; then
+      step "本地数据已全部推送过,无需重推"
+      PUSH_SUMMARY="(已是最新,未重推)"
     else
-      step "[3/3] 推送"
+      step "推送(免拉取,force-push 到 ${DATA_BRANCH} 分支)"
       DATA_COMMITTED=true
-      if ! push_with_retries "$branch"; then
+      if ! push_with_retries; then
         echo "推送仍失败,请确认代理软件已开启后重试。" >&2
         exit 1
       fi
       DATA_COMMITTED=false
-      PUSH_SUMMARY="已推送 $ahead 个提交"
-      echo "Pushed. GitHub Actions 将重建索引并部署(约 3-5 分钟)。"
+      PUSH_SUMMARY="已推送"
+      echo "Pushed. GitHub 将合入 main、重建索引并部署(约 3-5 分钟)。"
       echo "查看进度:$(repo_web_url)/actions"
     fi
     ;;

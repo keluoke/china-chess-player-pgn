@@ -1,0 +1,56 @@
+name: Ingest local data branch
+
+# The no-pull half of the pipeline. The local machine NEVER pulls or rebases:
+# it scrapes, commits to its own history, and force-pushes HEAD to the
+# single-writer branch `local-data`. This workflow mirrors that branch's data
+# tree into main as the bot, then triggers rebuild-indexes.yml (which
+# regenerates every derived index and deploys).
+#
+# Why conflicts are structurally impossible:
+#   - the local machine is the ONLY producer of raw data (all scraping
+#     workflows are self-hosted / manual);
+#   - humans never edit main's data tree directly;
+#   - bot-rebuilt derived indexes on main may be overwritten by this mirror,
+#     but rebuild-indexes regenerates them right after, deterministically.
+on:
+  push:
+    branches: ["local-data"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: ingest-local-data
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Mirror data tree from local-data
+        run: |
+          set -euo pipefail
+          git fetch origin local-data
+          # Exact mirror: main's raw-data paths := local-data's, including
+          # deletions. Derived indexes are rebuilt afterwards anyway.
+          git rm -rq --ignore-unmatch -- data/manual docs/data
+          git checkout origin/local-data -- data/manual docs/data
+
+      - name: Commit as bot
+        id: commit
+        run: bash Scripts/ci_commit_push.sh "Ingest local scraped data" data/manual docs/data
+
+      - name: Trigger index rebuild + deploy
+        if: steps.commit.outputs.committed == 'true'
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}
