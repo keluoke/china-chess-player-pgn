@@ -120,6 +120,14 @@ class FormParser(html.parser.HTMLParser):
             if action:
                 self.action_url = urllib.parse.urljoin(self.base_url, action)
         if tag.lower() == "input":
+            # Never pre-collect submit-style buttons: posting two buttons at
+            # once makes ASP.NET fire the wrong handler. Chess-Results added a
+            # "Download Excel-File" button to SpielerSuche (2026-07), which
+            # turned every scripted search into an Excel download and broke
+            # the crawler with zero-row HTML parses. Callers explicitly set
+            # the one button they intend to "press".
+            if values.get("type", "").lower() in {"submit", "button", "image", "reset"}:
+                return
             name = values.get("name")
             if name:
                 self.fields[name] = values.get("value", "")
