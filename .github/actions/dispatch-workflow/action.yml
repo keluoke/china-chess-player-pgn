@@ -1,0 +1,32 @@
+name: Dispatch a workflow
+description: >-
+  Trigger another workflow in this repository via the REST API. Uses curl (not
+  the gh CLI) so it works on self-hosted runners that may not ship gh. Needed
+  because pushes made with GITHUB_TOKEN never fire push-event triggers.
+
+inputs:
+  workflow:
+    description: Workflow file name to dispatch (e.g. rebuild-indexes.yml).
+    required: true
+  ref:
+    description: Git ref to run the workflow on.
+    required: false
+    default: main
+  token:
+    description: Token with actions:write (pass ${{ github.token }}).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Dispatch ${{ inputs.workflow }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        curl -sf -X POST \
+          -H "Authorization: Bearer $GH_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${{ inputs.workflow }}/dispatches" \
+          -d "{\"ref\":\"${{ inputs.ref }}\"}"

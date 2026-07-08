@@ -1,5 +1,9 @@
 name: Promote public PGN
 
+# NETWORK / SCRAPING workflow — scans chess-results.com by FIDE ID. Self-hosted
+# (residential-IP) runner only, no schedule. Prefer the local script:
+# `Scripts/local/refresh.sh promote`. Commits RAW promoted PGN; index rebuild +
+# deploy happen in rebuild-indexes.yml.
 on:
   workflow_dispatch:
     inputs:
@@ -25,6 +29,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: promote-public-pgn
@@ -32,7 +37,7 @@ concurrency:
 
 jobs:
   promote:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -47,12 +52,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          args=()
           if [ "$SCAN_CHESS_RESULTS" != "true" ]; then
             echo "No promotion source selected."
             exit 0
           fi
-          args+=(--scan-chess-results)
+
+          args=(--scan-chess-results)
           if [ -n "$PLAYER_FIDE_ID" ]; then
             args+=(--player "$PLAYER_FIDE_ID")
           fi
@@ -60,8 +65,16 @@ jobs:
           python3 Scripts/promote_public_pgn.py \
             "${args[@]}" \
             --max-players "$MAX_PLAYERS" \
-            --max-games "$MAX_GAMES"
-          python3 Scripts/build_static_player_pgn.py
+            --max-games "$MAX_GAMES" \
+            --skip-index
 
       - name: Commit promoted PGN
+        id: commit
         run: bash Scripts/ci_commit_push.sh "Promote public PGN archive" docs/data
+
+      - name: Trigger index rebuild + deploy
+        if: steps.commit.outputs.committed == 'true'
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}

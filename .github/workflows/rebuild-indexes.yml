@@ -1,0 +1,58 @@
+name: Rebuild indexes and deploy
+
+# The "index + deploy" half of the scrape/index split. Scraping runs off-GitHub
+# (local script or self-hosted runner) and commits RAW data; this GitHub-hosted
+# workflow rebuilds every derived artifact (no network) and then deploys.
+#
+# Triggers:
+#   - push to main touching raw inputs, by a real user (local-scrape path)
+#   - workflow_dispatch, including gh-dispatch from self-hosted scrapers
+#
+# Loop guard: the job's own commit is authored by github-actions[bot]; the
+# `if` below skips bot-authored pushes so a rebuild never retriggers itself.
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "data/manual/**"
+      - "docs/data/pgn/**"
+      - "docs/data/registry/**"
+      - "docs/data/bulk/**"
+      - "Scripts/**"
+      - ".github/actions/rebuild-indexes/**"
+      - ".github/workflows/rebuild-indexes.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: rebuild-indexes
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    if: github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: ./.github/actions/setup-python-deps
+
+      - name: Rebuild derived indexes
+        uses: ./.github/actions/rebuild-indexes
+
+      - name: Commit rebuilt indexes
+        id: commit
+        run: bash Scripts/ci_commit_push.sh "Rebuild derived indexes" docs/data
+
+      # Always dispatch the deploy: even if the rebuild itself produced no new
+      # commit, the push that triggered this run already changed docs/data,
+      # and deploy.yml deliberately ignores docs/data/** pushes.
+      - name: Deploy static site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main -R "$GITHUB_REPOSITORY"

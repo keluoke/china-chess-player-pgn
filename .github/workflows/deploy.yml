@@ -1,0 +1,115 @@
+name: Deploy static site
+
+# Single deploy workflow for both targets (replaces pages.yml + cloudflare-pages.yml).
+# Triggered by:
+#   - direct human pushes to site code in docs/** (normal edits)
+#   - workflow_dispatch                           (manual / from rebuild-indexes)
+#   - workflow_call                               (reuse from other workflows)
+# docs/data/** is EXCLUDED from the push trigger: data pushes go through
+# rebuild-indexes.yml first (which rebuilds derived indexes and then dispatches
+# this workflow), so triggering here too would deploy stale indexes and run the
+# whole deploy twice. Bot commits (github-actions[bot]) do NOT fire the push
+# event, so data workflows dispatch this explicitly after committing.
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+      - "!docs/data/**"
+      - ".github/workflows/deploy.yml"
+      - ".github/actions/prepare-static-site/**"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy-static-site
+  cancel-in-progress: false
+
+jobs:
+  github-pages:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare site
+        uses: ./.github/actions/prepare-static-site
+        with:
+          output-dir: .pages-site
+          max-file-mib: "24"
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .pages-site
+
+      # The Pages service occasionally rejects deployments with a transient
+      # "Deployment failed, try again later" during syncing_files, so retry
+      # once after a cool-down before failing the run.
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy (retry)
+        id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+
+      - name: Report deploy result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          first="${{ steps.deployment.outcome }}"
+          retry="${{ steps.deployment_retry.outcome }}"
+          echo "first attempt: $first, retry: $retry"
+          if [ "$first" != "success" ] && [ "$retry" != "success" ]; then
+            echo "Both deploy attempts failed." >&2
+            exit 1
+          fi
+
+  cloudflare-pages:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare site
+        uses: ./.github/actions/prepare-static-site
+        with:
+          output-dir: .cloudflare-pages-site
+          max-file-mib: "25"
+
+      - name: Deploy
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: 80b22ae648eae984f0c2678f0812cf7d
+          command: pages deploy .cloudflare-pages-site --project-name china-chess-player-pgn --branch main
+
+      # Fail loudly instead of silently skipping, so a missing/rotated token
+      # can't leave Cloudflare quietly serving a stale site.
+      - name: Check token configured
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        run: |
+          echo "CLOUDFLARE_API_TOKEN secret is not set; Cloudflare Pages was NOT deployed." >&2
+          exit 1

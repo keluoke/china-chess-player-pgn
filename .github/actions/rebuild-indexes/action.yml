@@ -1,0 +1,42 @@
+name: Rebuild derived indexes
+description: >-
+  Rebuild every derived / index artifact from data already committed to the
+  repository. This step performs NO network access, so it is safe to run on
+  GitHub-hosted runners. It is the "index" half of the scrape/index split.
+
+inputs:
+  apply-registry-aliases:
+    description: Re-apply Chinese name aliases onto the committed registry (offline).
+    required: false
+    default: "true"
+  rebuild-domestic:
+    description: Rebuild the domestic (non-FIDE) registry from committed CSVs.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Rebuild derived indexes (offline, no network)
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        # Offline registry enrichment: patches Chinese names/aliases onto the
+        # committed registry without downloading the FIDE rating list.
+        if [ "${{ inputs.apply-registry-aliases }}" = "true" ] \
+           && [ -f docs/data/registry/players.json ]; then
+          python3 Scripts/apply_aliases_to_registry.py
+        fi
+
+        # Domestic (non-FIDE) identity layer built from reviewed CSVs.
+        if [ "${{ inputs.rebuild-domestic }}" = "true" ] \
+           && [ -f Scripts/sync_domestic_players.py ]; then
+          python3 Scripts/sync_domestic_players.py
+        fi
+
+        # Static PGN index (no --fetch-missing => pure local rebuild).
+        python3 Scripts/sync_static_pgn.py
+
+        # By-player aggregate packs consumed directly by the web frontend.
+        python3 Scripts/build_static_player_pgn.py

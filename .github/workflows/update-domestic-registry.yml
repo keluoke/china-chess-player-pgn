@@ -1,5 +1,7 @@
 name: Update domestic player registry
 
+# PURE workflow (no network): builds the domestic (non-FIDE) identity layer from
+# committed CSVs. Stays on GitHub-hosted runners. Runs on CSV changes or manually.
 on:
   push:
     branches: ["main"]
@@ -12,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: update-domestic-player-registry
@@ -19,13 +22,25 @@ concurrency:
 
 jobs:
   update:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: ./.github/actions/setup-python-deps
+
       - name: Sync domestic player registry
         run: python3 Scripts/sync_domestic_players.py
 
       - name: Commit updated domestic registry
+        id: commit
         run: bash Scripts/ci_commit_push.sh "Update domestic player registry" docs/data/registry/domestic
+
+      - name: Deploy static site
+        if: steps.commit.outputs.committed == 'true'
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: deploy.yml
+          token: ${{ github.token }}

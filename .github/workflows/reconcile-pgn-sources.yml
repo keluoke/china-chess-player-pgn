@@ -1,5 +1,10 @@
 name: Reconcile PGN sources
 
+# NETWORK / SCRAPING workflow — probes chess-results.com for coverage gaps and
+# promotes/fetches missing PGN. Self-hosted (residential-IP) runner only, no
+# schedule. Prefer the local script: `Scripts/local/refresh.sh reconcile`.
+# Commits RAW reconciled data; index rebuild + deploy happen in
+# rebuild-indexes.yml.
 on:
   workflow_dispatch:
     inputs:
@@ -42,11 +47,10 @@ on:
         required: true
         default: "1.2"
         type: string
-  schedule:
-    - cron: "42 18 * * 2"
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: reconcile-pgn-sources
@@ -54,15 +58,10 @@ concurrency:
 
 jobs:
   reconcile:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
 
       - name: Install runtime dependencies
         run: python3 -m pip install --upgrade certifi
@@ -70,33 +69,24 @@ jobs:
       - name: Reconcile and optionally promote PGN
         shell: bash
         env:
-          PLAYER_FIDE_ID: ${{ github.event.inputs.player_fide_id }}
-          DISCOVER_CHESS_RESULTS: ${{ github.event.inputs.discover_chess_results }}
-          PROMOTE_PUBLIC_PGN: ${{ github.event.inputs.promote_public_pgn }}
-          MAX_PLAYERS: ${{ github.event.inputs.max_players }}
-          MAX_KNOWN_MISSING: ${{ github.event.inputs.max_known_missing }}
-          MAX_NEIGHBOR_IDS: ${{ github.event.inputs.max_neighbor_ids }}
-          MAX_GAMES: ${{ github.event.inputs.max_games }}
-          DELAY: ${{ github.event.inputs.delay }}
+          PLAYER_FIDE_ID: ${{ inputs.player_fide_id }}
+          DISCOVER_CHESS_RESULTS: ${{ inputs.discover_chess_results }}
+          PROMOTE_PUBLIC_PGN: ${{ inputs.promote_public_pgn }}
+          MAX_PLAYERS: ${{ inputs.max_players }}
+          MAX_KNOWN_MISSING: ${{ inputs.max_known_missing }}
+          MAX_NEIGHBOR_IDS: ${{ inputs.max_neighbor_ids }}
+          MAX_GAMES: ${{ inputs.max_games }}
+          DELAY: ${{ inputs.delay }}
         run: |
           set -euo pipefail
 
-          player_fide_id="$PLAYER_FIDE_ID"
-          discover_chess_results="$DISCOVER_CHESS_RESULTS"
-          promote_public_pgn="$PROMOTE_PUBLIC_PGN"
-          max_players="$MAX_PLAYERS"
-          max_known_missing="$MAX_KNOWN_MISSING"
-          max_neighbor_ids="$MAX_NEIGHBOR_IDS"
-          max_games="$MAX_GAMES"
-          delay="$DELAY"
-
-          if [ -z "$discover_chess_results" ]; then discover_chess_results=true; fi
-          if [ -z "$promote_public_pgn" ]; then promote_public_pgn=true; fi
-          if [ -z "$max_players" ]; then max_players=120; fi
-          if [ -z "$max_known_missing" ]; then max_known_missing=80; fi
-          if [ -z "$max_neighbor_ids" ]; then max_neighbor_ids=80; fi
-          if [ -z "$max_games" ]; then max_games=0; fi
-          if [ -z "$delay" ]; then delay=1.2; fi
+          discover_chess_results="${DISCOVER_CHESS_RESULTS:-true}"
+          promote_public_pgn="${PROMOTE_PUBLIC_PGN:-true}"
+          max_players="${MAX_PLAYERS:-120}"
+          max_known_missing="${MAX_KNOWN_MISSING:-80}"
+          max_neighbor_ids="${MAX_NEIGHBOR_IDS:-80}"
+          max_games="${MAX_GAMES:-0}"
+          delay="${DELAY:-1.2}"
 
           reconcile_args=(--write-audit --delay "$delay")
           if [ "$discover_chess_results" = "true" ]; then
@@ -107,8 +97,8 @@ jobs:
               --max-neighbor-ids "$max_neighbor_ids"
             )
           fi
-          if [ -n "$player_fide_id" ]; then
-            reconcile_args+=(--player "$player_fide_id")
+          if [ -n "${PLAYER_FIDE_ID:-}" ]; then
+            reconcile_args+=(--player "$PLAYER_FIDE_ID")
           fi
 
           python3 Scripts/reconcile_pgn_sources.py "${reconcile_args[@]}"
@@ -150,9 +140,16 @@ jobs:
               --source chess-results \
               --max-downloads "$max_known_missing" \
               --delay "$delay"
-            python3 Scripts/build_static_player_pgn.py
             python3 Scripts/reconcile_pgn_sources.py --write-audit
           fi
 
       - name: Commit reconciled data
+        id: commit
         run: bash Scripts/ci_commit_push.sh "Reconcile PGN source coverage" docs/data
+
+      - name: Trigger index rebuild + deploy
+        if: steps.commit.outputs.committed == 'true'
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}

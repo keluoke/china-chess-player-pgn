@@ -2,7 +2,9 @@
 
 查询中国国际象棋棋手，聚合赛事记录，合并 PGN。
 
-数据源以 Chess-Results 为主，辅以 FIDE/Lichess 公开资料和中文别名索引。项目由 GitHub Actions 自动爬取和更新。
+数据源以 Chess-Results 为主，辅以 FIDE/Lichess 公开资料和中文别名索引。
+
+**架构：抓取与索引/部署分离。** chess-results.com 和 ratings.fide.com 会封 GitHub Actions 的数据中心 IP，因此**抓取在本地（住宅 IP）跑**，见 [`Scripts/local/refresh.sh`](Scripts/local/README.md)；**索引重建和站点部署由 GitHub Actions 完成**。本地 push 原始数据后，`rebuild-indexes.yml` 会纯计算重建全部派生索引并触发 `deploy.yml` 发布。
 
 ## 网页版
 
@@ -12,25 +14,40 @@
 python3 -m http.server 4173 -d docs
 ```
 
-打开 `http://localhost:4173/`。推送到 GitHub 后，Pages workflow 会把 `docs/` 作为静态站点发布。
+打开 `http://localhost:4173/`。推送到 GitHub 后，`deploy.yml` 会把 `docs/` 同时发布到 GitHub Pages 和 Cloudflare Pages。
 
 网页版首页展示 U8-U18 FIDE ELO 排行榜（李成智杯年龄组口径），支持中文/拼音/英文/FIDE ID 搜索，以及按棋手浏览赛事和下载 PGN。PGN 优先读取 `docs/data/pgn/by-player/` 聚合包，其次回退到赛事级 PGN 或 bulk 青少年包。
 
-## 数据同步（GitHub Actions）
+## 数据同步
 
-所有数据由 GitHub Actions 自动维护。支持的 workflow：
+分两类：**抓取类**（需住宅 IP，本地脚本或自托管 runner 手动跑）和**索引/部署类**（纯计算，GitHub-hosted Actions 自动跑）。
+
+### 抓取类（本地 / 自托管，仅手动）
+
+在本地跑 [`Scripts/local/refresh.sh`](Scripts/local/README.md)（推荐），或在挂了自托管 runner 时从 GitHub UI 手动 dispatch 对应 workflow。它们只提交**原始**数据，随后由 Actions 重建索引并部署。
+
+| workflow / 本地命令 | 数据源 | 功能 |
+|---------------------|--------|------|
+| `crawl` · Crawl player events | Chess-Results | 爬取赛事记录，生成棋手-赛事索引和中文名映射 |
+| `pgn` · Update static PGN archive | Chess-Results | 抓取缺失 PGN 到 `docs/data/pgn/` |
+| `promote` · Promote public PGN | Chess-Results | 晋升可公开分发的新棋局到静态归档 |
+| `events` · Ingest event archive | Chess-Results | 起始排名名字 + 整赛事 PGN 分棋手 |
+| `aliases` · Update name aliases | Chess-Results | 抓中文名并入注册表 |
+| `reconcile` · Reconcile PGN sources | Chess-Results | 核对覆盖、探测缺口、补抓 |
+| `registry` · Update Chinese player registry | FIDE | 从 legacy XML 同步 CHN 全量注册表 |
+| `bulk` · Update Lichess broadcast bulk | Lichess | 镜像 broadcast PGN 并生成 U8-U18 包 |
+
+### 索引/部署类（GitHub Actions，自动）
 
 | Workflow | 触发 | 功能 |
 |----------|------|------|
-| **Crawl player events** | 手动 + 每周一 03:30 UTC | 遍历 CHN FIDE ID，爬取 Chess-Results 赛事记录，生成棋手-赛事索引和中文名映射 |
-| **Update static PGN archive** | 手动 | 抓取缺失 PGN 到 `docs/data/pgn/` 并更新索引 |
-| **Promote public PGN** | 手动 | 按 FIDE ID 搜索可公开分发的新棋局并晋升到静态归档 |
-| **Update Chinese player registry** | 手动 + 每月 | 从 FIDE legacy XML 同步 CHN 棋手全量注册表 |
-| **Update domestic player registry** | 自动 | 从 CSV 生成国内临时身份层 |
-| **Update name aliases** | 自动 | 从 `data/manual/player-aliases.csv` 更新别名索引 |
-| **Update mimic profiles** | 手动 + 每周 | 刷新所有青少年棋手模拟 profile |
-| **Update Lichess broadcast bulk** | 按月 | 镜像 Lichess broadcast PGN 并生成 U8-U18 包 |
-| **Reconcile PGN sources** | 自动 | 验证 `docs/data/pgn/` 文件完整性 |
+| **Rebuild indexes and deploy** | 原始数据 push / 抓取后 dispatch | 纯计算重建全部派生索引（`sync_static_pgn`、`build_static_player_pgn`、离线注册表/别名），提交后触发部署 |
+| **Deploy static site** | `docs/**` 变化 / 被调用 | 把 `docs/` 同时发布到 GitHub Pages 和 Cloudflare Pages |
+| **Update domestic player registry** | CSV 变化 | 纯计算从 CSV 生成国内临时身份层 |
+| **Update mimic profiles** | 手动 + 每周 | 纯计算刷新青少年模拟 profile |
+| **CI** | push / PR | 字节编译脚本、校验 workflow 与 action YAML |
+
+复用逻辑收在 `.github/actions/`（`setup-python-deps`、`rebuild-indexes`、`prepare-static-site`、`dispatch-workflow`）。
 
 ## PGN 静态归档
 

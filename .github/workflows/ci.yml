@@ -14,24 +14,24 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-python-deps
         with:
-          python-version: "3.x"
+          packages: pyyaml
 
       - name: Byte-compile all scripts
         run: python3 -m compileall -q Scripts
 
-      - name: Validate workflow YAML
+      - name: Validate workflow and action YAML
         run: |
           python3 - <<'PY'
           import glob, sys, yaml
           bad = []
-          for path in glob.glob(".github/workflows/*.yml"):
+          for path in glob.glob(".github/workflows/*.yml") + glob.glob(".github/actions/*/action.yml"):
               try:
                   yaml.safe_load(open(path))
               except Exception as exc:
                   bad.append(f"{path}: {exc}")
           if bad:
               print("\n".join(bad)); sys.exit(1)
-          print("workflow YAML OK")
+          print("workflow and action YAML OK")
           PY

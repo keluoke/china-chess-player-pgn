@@ -1,5 +1,10 @@
 name: Crawl player events (SpielerSuche)
 
+# NETWORK / SCRAPING workflow — hits chess-results.com, which blocks GitHub's
+# datacenter IPs. Runs on a self-hosted (residential-IP) runner only, and never
+# on a schedule. Prefer the local script: `Scripts/local/refresh.sh crawl`.
+# It commits RAW crawl output; index rebuild + deploy happen in
+# rebuild-indexes.yml on a GitHub-hosted runner.
 on:
   workflow_dispatch:
     inputs:
@@ -28,9 +33,6 @@ on:
         required: false
         default: true
         type: boolean
-  schedule:
-    # Weekly incremental refresh, Mondays 03:30 UTC.
-    - cron: "30 3 * * 1"
 
 permissions:
   contents: write
@@ -42,15 +44,10 @@ concurrency:
 
 jobs:
   crawl:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
 
       - name: Install runtime dependencies
         run: python3 -m pip install --upgrade certifi
@@ -69,7 +66,6 @@ jobs:
             args+=(--player "$PLAYER")
           else
             args+=(--max-players "${MAX_PLAYERS:-0}")
-            # schedule runs pass refresh_days via default; dispatch honors input
             if [ -n "${REFRESH_DAYS:-}" ] && [ "${REFRESH_DAYS}" != "0" ]; then
               args+=(--refresh-days "${REFRESH_DAYS}")
             fi
@@ -79,41 +75,13 @@ jobs:
           fi
           python3 Scripts/crawl_player_events.py "${args[@]}"
 
-      - name: Rebuild static PGN index
-        run: python3 Scripts/sync_static_pgn.py
-
-      - name: Rebuild by-player static index
-        run: python3 Scripts/build_static_player_pgn.py
-
-      - name: Commit crawl output
+      - name: Commit raw crawl output
         id: commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/manual docs/data
-          if git diff --cached --quiet; then
-            echo "No player-event changes."
-          else
-            git commit -m "Crawl Chess-Results player events and rebuild indexes"
-            n=0
-            until git push; do
-              n=$((n+1))
-              if [ "$n" -ge 3 ]; then
-                echo "push failed after $n attempts" >&2
-                exit 1
-              fi
-              git pull --rebase origin main
-              sleep 10
-            done
-            echo "committed=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash Scripts/ci_commit_push.sh "Crawl Chess-Results player events" data/manual docs/data
 
-      - name: Trigger site deploys
+      - name: Trigger index rebuild + deploy
         if: steps.commit.outputs.committed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run pages.yml --ref main -R "$GITHUB_REPOSITORY"
-          gh workflow run cloudflare-pages.yml --ref main -R "$GITHUB_REPOSITORY"
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}

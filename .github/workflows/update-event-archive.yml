@@ -1,5 +1,9 @@
 name: Ingest event archive (names + PGN)
 
+# NETWORK / SCRAPING workflow — scrapes chess-results.com for names and full
+# event PGN. Self-hosted (residential-IP) runner only, no schedule. Prefer the
+# local script: `Scripts/local/refresh.sh events`. Commits RAW names + PGN;
+# index rebuild + deploy happen in rebuild-indexes.yml.
 on:
   workflow_dispatch:
     inputs:
@@ -24,15 +28,10 @@ concurrency:
 
 jobs:
   ingest:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
 
       - name: Install runtime dependencies
         run: python3 -m pip install --upgrade certifi
@@ -54,9 +53,6 @@ jobs:
         if: steps.full_rebuild.outcome == 'failure'
         run: python3 Scripts/apply_aliases_to_registry.py
 
-      - name: Rebuild domestic registry
-        run: python3 Scripts/sync_domestic_players.py
-
       - name: Fetch full-event PGN and split per player
         env:
           CATEGORY: ${{ inputs.category }}
@@ -68,43 +64,13 @@ jobs:
           fi
           python3 Scripts/fetch_event_pgn.py "${args[@]}"
 
-      - name: Rebuild static PGN index
-        run: python3 Scripts/sync_static_pgn.py
-
-      - name: Rebuild by-player static index
-        run: python3 Scripts/build_static_player_pgn.py
-
-      - name: Commit ingested archive
+      - name: Commit raw event archive
         id: commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/manual docs/data
-          if git diff --cached --quiet; then
-            echo "No event archive changes."
-          else
-            git commit -m "Ingest event archive names and PGN"
-            n=0
-            until git push; do
-              n=$((n+1))
-              if [ "$n" -ge 3 ]; then
-                echo "push failed after $n attempts" >&2
-                exit 1
-              fi
-              git pull --rebase origin main
-              sleep 10
-            done
-            echo "committed=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash Scripts/ci_commit_push.sh "Ingest event archive names and PGN" data/manual docs/data
 
-      # Bot pushes made with GITHUB_TOKEN never trigger the Pages/Cloudflare
-      # workflows, so dispatch the deploys explicitly after a real commit.
-      - name: Trigger site deploys
+      - name: Trigger index rebuild + deploy
         if: steps.commit.outputs.committed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run pages.yml --ref main -R "$GITHUB_REPOSITORY"
-          gh workflow run cloudflare-pages.yml --ref main -R "$GITHUB_REPOSITORY"
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}

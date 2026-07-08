@@ -1,0 +1,44 @@
+name: Prepare static site artifact
+description: >-
+  Build the static site payload from docs/ (excluding the multi-hundred-MB
+  Lichess bulk shards) and enforce per-file / total size limits. Shared by the
+  GitHub Pages and Cloudflare Pages deploy jobs.
+
+inputs:
+  output-dir:
+    description: Directory to assemble the site into.
+    required: false
+    default: ".static-site"
+  max-file-mib:
+    description: Reject the deploy if any single file is larger than this (MiB).
+    required: false
+    default: "24"
+  max-total-kib:
+    description: Reject the deploy if the whole artifact exceeds this (KiB).
+    required: false
+    default: "870400"
+
+runs:
+  using: composite
+  steps:
+    - name: Assemble and size-check site
+      shell: bash
+      run: |
+        set -euo pipefail
+        out="${{ inputs.output-dir }}"
+        rm -rf "$out"
+        rsync -a --delete \
+          --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
+          docs/ "$out"/
+
+        if find "$out" -type f -size +${{ inputs.max-file-mib }}M -print -quit | grep -q .; then
+          echo "Static site contains a file larger than ${{ inputs.max-file-mib }} MiB; split it before deploy." >&2
+          exit 1
+        fi
+
+        size_kib="$(du -sk "$out" | awk '{print $1}')"
+        if [ "$size_kib" -gt ${{ inputs.max-total-kib }} ]; then
+          echo "Static site artifact is ${size_kib} KiB; keep it below ${{ inputs.max-total-kib }} KiB before deploy." >&2
+          exit 1
+        fi
+        echo "Prepared $out (${size_kib} KiB)."

@@ -1,5 +1,10 @@
 name: Update Chinese name aliases
 
+# NETWORK / SCRAPING workflow — scrapes chess-results.com player lists and
+# rebuilds the FIDE registry. Self-hosted (residential-IP) runner only, no
+# schedule. Prefer the local script: `Scripts/local/refresh.sh aliases`.
+# Commits RAW aliases + registry; by-player index rebuild + deploy happen in
+# rebuild-indexes.yml.
 on:
   workflow_dispatch:
     inputs:
@@ -12,13 +17,6 @@ on:
         required: true
         default: false
         type: boolean
-  schedule:
-    - cron: "12 19 10 * *"
-  push:
-    branches: ["main"]
-    paths:
-      - "data/manual/chess-results-starting-rank-sources.csv"
-      - "Scripts/sync_chess_results_starting_rank_aliases.py"
 
 permissions:
   contents: write
@@ -30,15 +28,10 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
 
       - name: Install runtime dependencies
         run: python3 -m pip install --upgrade certifi
@@ -50,7 +43,6 @@ jobs:
           INCLUDE_NON_MASTER: ${{ inputs.include_non_master }}
         run: |
           set -euo pipefail
-
           args=()
           if [ -n "${EXTRA_URL:-}" ]; then
             args+=(--url "$EXTRA_URL")
@@ -60,7 +52,7 @@ jobs:
           fi
           python3 Scripts/sync_chess_results_starting_rank_aliases.py "${args[@]}"
 
-      # ratings.fide.com is often unreachable from Actions runners; fall back
+      # ratings.fide.com can be unreachable even from residential IPs; fall back
       # to applying aliases offline against the committed registry.
       - name: Rebuild Chinese player registry with aliases
         id: full_rebuild
@@ -71,43 +63,13 @@ jobs:
         if: steps.full_rebuild.outcome == 'failure'
         run: python3 Scripts/apply_aliases_to_registry.py
 
-      - name: Rebuild domestic registry
-        run: python3 Scripts/sync_domestic_players.py
-
-      - name: Rebuild by-player static index
-        run: python3 Scripts/build_static_player_pgn.py
-
-      - name: Commit updated mappings and registry
+      - name: Commit raw aliases and registry
         id: commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/manual docs/data
-          if git diff --cached --quiet; then
-            echo "No name-alias changes."
-          else
-            git commit -m "Update Chinese name aliases from Chess-Results"
-            n=0
-            until git push; do
-              n=$((n+1))
-              if [ "$n" -ge 3 ]; then
-                echo "push failed after $n attempts" >&2
-                exit 1
-              fi
-              git pull --rebase origin main
-              sleep 10
-            done
-            echo "committed=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: bash Scripts/ci_commit_push.sh "Update Chinese name aliases from Chess-Results" data/manual docs/data/registry
 
-      # Bot pushes made with GITHUB_TOKEN never trigger the Pages/Cloudflare
-      # workflows, so dispatch the deploys explicitly after a real commit.
-      - name: Trigger site deploys
+      - name: Trigger index rebuild + deploy
         if: steps.commit.outputs.committed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run pages.yml --ref main -R "$GITHUB_REPOSITORY"
-          gh workflow run cloudflare-pages.yml --ref main -R "$GITHUB_REPOSITORY"
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}

@@ -1,5 +1,13 @@
 name: Update Chinese player registry
 
+# NETWORK / SCRAPING workflow — downloads the full FIDE rating-list XML, which
+# is often unreachable from GitHub datacenter IPs. Self-hosted (residential-IP)
+# runner only, no schedule. Prefer the local script:
+# `Scripts/local/refresh.sh registry`.
+#
+# NOTE: this step intentionally has NO offline fallback. If the FIDE download
+# fails the run fails loudly, rather than silently leaving ratings stale — the
+# offline `apply_aliases_to_registry.py` only patches names, never ratings.
 on:
   workflow_dispatch:
     inputs:
@@ -13,11 +21,10 @@ on:
         required: true
         default: "https://ratings.fide.com/download/players_list_xml_legacy.zip"
         type: string
-  schedule:
-    - cron: "32 20 4 * *"
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: update-chinese-player-registry
@@ -25,10 +32,13 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Install runtime dependencies
+        run: python3 -m pip install --upgrade certifi
 
       - name: Sync Chinese player registry
         shell: bash
@@ -37,19 +47,19 @@ jobs:
           SOURCE_URL: ${{ inputs.source_url }}
         run: |
           set -euo pipefail
-
-          federation="$FEDERATION"
-          source_url="$SOURCE_URL"
-          if [ -z "$federation" ]; then
-            federation=CHN
-          fi
-          if [ -z "$source_url" ]; then
-            source_url="https://ratings.fide.com/download/players_list_xml_legacy.zip"
-          fi
-
+          federation="${FEDERATION:-CHN}"
+          source_url="${SOURCE_URL:-https://ratings.fide.com/download/players_list_xml_legacy.zip}"
           python3 Scripts/sync_chinese_players.py \
             --federation "$federation" \
             --url "$source_url"
 
       - name: Commit updated registry
+        id: commit
         run: bash Scripts/ci_commit_push.sh "Update Chinese player registry" docs/data/registry
+
+      - name: Trigger index rebuild + deploy
+        if: steps.commit.outputs.committed == 'true'
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}

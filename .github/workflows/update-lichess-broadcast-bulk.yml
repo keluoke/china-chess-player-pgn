@@ -1,5 +1,9 @@
 name: Update Lichess broadcast bulk archive
 
+# NETWORK workflow — mirrors large Lichess broadcast .pgn.zst shards. Self-hosted
+# (residential-IP / good bandwidth) runner only, no schedule. Prefer the local
+# script: `Scripts/local/refresh.sh bulk`. Commits RAW bulk shards; youth-pack /
+# index rebuild + deploy happen in rebuild-indexes.yml.
 on:
   workflow_dispatch:
     inputs:
@@ -18,11 +22,10 @@ on:
         required: true
         default: "0"
         type: string
-  schedule:
-    - cron: "42 18 7 * *"
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: update-lichess-broadcast-bulk
@@ -30,7 +33,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -43,30 +46,22 @@ jobs:
           MAX_SHARDS: ${{ inputs.max_shards }}
         run: |
           set -euo pipefail
-
-          mirror="$MIRROR"
-          index_youth="$INDEX_YOUTH"
-          max_shards="$MAX_SHARDS"
-          if [ -z "$mirror" ]; then
-            mirror=false
-          fi
-          if [ -z "$index_youth" ]; then
-            index_youth=false
-          fi
-          if [ -z "$max_shards" ]; then
-            max_shards=0
-          fi
-
-          args=(--metadata-only --max-shards "$max_shards")
-          if [ "$mirror" = "true" ]; then
+          args=(--metadata-only --max-shards "${MAX_SHARDS:-0}")
+          if [ "${MIRROR:-false}" = "true" ]; then
             args+=(--mirror)
           fi
-          if [ "$index_youth" = "true" ]; then
+          if [ "${INDEX_YOUTH:-false}" = "true" ]; then
             args+=(--index-youth)
           fi
-
           python3 Scripts/sync_lichess_broadcast_bulk.py "${args[@]}"
-          python3 Scripts/build_static_player_pgn.py
 
       - name: Commit updated bulk archive
+        id: commit
         run: bash Scripts/ci_commit_push.sh "Update Lichess broadcast bulk archive" docs/data
+
+      - name: Trigger index rebuild + deploy
+        if: steps.commit.outputs.committed == 'true'
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}
