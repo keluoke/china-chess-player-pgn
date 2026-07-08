@@ -56,12 +56,43 @@ done
 
 py() { python3 "$@"; }
 
+# --- progress / notification helpers ---------------------------------------
+BOLD=$'\033[1m'; GREEN=$'\033[32m'; RED=$'\033[31m'; CYAN=$'\033[36m'; RESET=$'\033[0m'
+step() { printf '\n%s==> %s%s\n' "${BOLD}${CYAN}" "$*" "$RESET"; }
+
+notify_mac() {  # notify_mac <message> — macOS notification, no-op elsewhere
+  command -v osascript >/dev/null 2>&1 || return 0
+  osascript -e "display notification \"$1\" with title \"棋手数据刷新\" sound name \"Glass\"" >/dev/null 2>&1 || true
+}
+
+# Repo web URL for the final hint, with any embedded credential scrubbed.
+repo_web_url() {
+  git remote get-url origin 2>/dev/null \
+    | sed -E 's#https://[^@/]*@#https://#; s#\.git$##'
+}
+
+PUSH_SUMMARY=""
+on_exit() {
+  status=$?
+  # Only report for real commands (not help/usage paths).
+  [ -n "${REPORT_ON_EXIT:-}" ] || return 0
+  if [ "$status" -eq 0 ]; then
+    printf '\n%s✅ 完成:%s%s\n' "$GREEN" "$command  $PUSH_SUMMARY" "$RESET"
+    notify_mac "完成:$command ✅ $PUSH_SUMMARY"
+  else
+    printf '\n%s❌ 失败(退出码 %s):%s — 请查看上方输出定位错误%s\n' "$RED" "$status" "$command" "$RESET"
+    notify_mac "失败:$command(码 $status)❌ 详见终端输出"
+  fi
+}
+trap on_exit EXIT
+
 # Sync with origin BEFORE scraping. Every local push makes Actions commit a
 # "Rebuild derived indexes" bot commit, so the local clone is always behind by
 # the next run; without this the final `git push` would be rejected.
 sync_with_remote() {
   local branch
   branch="$(git rev-parse --abbrev-ref HEAD)"
+  step "[1/3] 同步远端(git pull --rebase)"
   if git fetch origin "$branch" 2>/dev/null; then
     git pull --rebase --autostash origin "$branch" || {
       echo "WARNING: rebase onto origin/$branch failed; resolve conflicts and re-run." >&2
@@ -74,11 +105,15 @@ sync_with_remote() {
 
 commit_and_push() {
   local message="$1"; shift
+  step "[3/3] 提交并推送"
   git add "$@"
   if git diff --cached --quiet; then
     echo "No changes to commit."
+    PUSH_SUMMARY="(无新数据,未推送)"
     return 0
   fi
+  local changed
+  changed="$(git diff --cached --stat | tail -1)"
   git commit -m "$message"
   if [ "$PUSH" = "true" ]; then
     local branch pushed=false
@@ -94,8 +129,11 @@ commit_and_push() {
       echo "ERROR: push still failing after 3 attempts; run 'git push' manually." >&2
       exit 1
     fi
-    echo "Pushed. GitHub will rebuild indexes and deploy automatically."
+    PUSH_SUMMARY="已推送($changed)"
+    echo "Pushed. GitHub Actions 将重建索引并部署到 GitHub Pages + Cloudflare(约 3-5 分钟)。"
+    echo "查看进度:$(repo_web_url)/actions"
   else
+    PUSH_SUMMARY="已提交,未推送(--no-push)"
     echo "Committed locally (--no-push). Run 'git push' to trigger index rebuild + deploy."
   fi
 }
@@ -103,7 +141,11 @@ commit_and_push() {
 # Pull latest (incl. bot rebuild commits) before scraping/committing.
 case "$command" in
   ""|-h|--help|help) : ;;
-  *) sync_with_remote ;;
+  *)
+    REPORT_ON_EXIT=1
+    sync_with_remote
+    step "[2/3] 抓取:$command(数据写入仓库内 docs/data/ 与 data/manual/)"
+    ;;
 esac
 
 case "$command" in
