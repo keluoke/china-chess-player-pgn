@@ -26,8 +26,13 @@
 #   bulk         Mirror Lichess broadcast shards + rebuild youth packs.
 #   pgn          Fetch missing per-tournament PGN from Chess-Results.
 #   all          Routine incremental refresh: registry, then crawl.
+#   push         Re-push commits left behind by an earlier failed push.
 #   reindex      LOCAL pure rebuild (indexes/registry aliases/domestic). Optional;
 #                normally Actions does this. No network.
+#
+# GitHub connectivity: scrapers always go DIRECT (residential IP required);
+# git fetch/push auto-detects a working route — direct first, then the local
+# proxy ports used by Clash/V2Ray etc. Override with GITHUB_PROXY=http://...
 #
 # Options:
 #   --no-push    Commit locally but do not push (skips the Actions handoff).
@@ -72,6 +77,7 @@ repo_web_url() {
 }
 
 PUSH_SUMMARY=""
+DATA_COMMITTED=false
 on_exit() {
   status=$?
   # Only report for real commands (not help/usage paths).
@@ -79,6 +85,9 @@ on_exit() {
   if [ "$status" -eq 0 ]; then
     printf '\n%s✅ 完成:%s%s\n' "$GREEN" "$command  $PUSH_SUMMARY" "$RESET"
     notify_mac "完成:$command ✅ $PUSH_SUMMARY"
+  elif [ "$DATA_COMMITTED" = "true" ]; then
+    printf '\n%s⚠️  抓取成功、数据已提交,但推送失败:%s — 稍后选「push」重推即可%s\n' "$RED" "$command" "$RESET"
+    notify_mac "数据已保存 ⚠️ 推送失败,稍后选 push 重推"
   else
     printf '\n%s❌ 失败(退出码 %s):%s — 请查看上方输出定位错误%s\n' "$RED" "$status" "$command" "$RESET"
     notify_mac "失败:$command(码 $status)❌ 详见终端输出"
@@ -86,21 +95,95 @@ on_exit() {
 }
 trap on_exit EXIT
 
+# --- GitHub connectivity ----------------------------------------------------
+# The scrapers (chess-results.com / ratings.fide.com) MUST go direct — they
+# block datacenter IPs, and proxy exits are datacenter IPs. But github.com is
+# often unreachable directly from mainland China, while the user's browser
+# works fine via a local proxy (Clash / V2Ray / ...). Git does not read the
+# macOS system proxy, so we probe for a working route ourselves and pass it
+# ONLY to git remote operations, never to the scrapers.
+GIT_PROXY=""
+GIT_PROXY_PROBED=false
+
+github_ok() {  # github_ok [proxy] — can we complete an HTTPS request?
+  if [ -n "$1" ]; then
+    curl -s --max-time 6 -o /dev/null -x "$1" "https://github.com/"
+  else
+    curl -s --max-time 6 -o /dev/null "https://github.com/"
+  fi
+}
+
+detect_git_proxy() {
+  [ "$GIT_PROXY_PROBED" = "true" ] && return 0
+  GIT_PROXY_PROBED=true
+  if [ -n "${GITHUB_PROXY:-}" ]; then          # explicit override wins
+    GIT_PROXY="$GITHUB_PROXY"
+    echo "git 走 GITHUB_PROXY 环境变量指定的代理:$GIT_PROXY"
+    return 0
+  fi
+  if github_ok ""; then
+    return 0                                    # direct works, no proxy
+  fi
+  local p
+  for p in "${https_proxy:-}" "${HTTPS_PROXY:-}" \
+           http://127.0.0.1:7890 http://127.0.0.1:1087 \
+           socks5h://127.0.0.1:1080 http://127.0.0.1:8118; do
+    [ -n "$p" ] || continue
+    if github_ok "$p"; then
+      GIT_PROXY="$p"
+      echo "github.com 直连失败,git 改走本地代理:$p(抓取仍直连)"
+      return 0
+    fi
+  done
+  echo "WARNING: github.com 直连和常见本地代理(7890/1087/1080/8118)均不可达。" >&2
+  echo "         可开启代理软件后重试,或用 GITHUB_PROXY=http://127.0.0.1:端口 指定。" >&2
+  return 1
+}
+
+xgit() {  # git remote operations, routed through the detected proxy if any
+  if [ -n "$GIT_PROXY" ]; then
+    git -c http.proxy="$GIT_PROXY" -c https.proxy="$GIT_PROXY" "$@"
+  else
+    git "$@"
+  fi
+}
+
 # Sync with origin BEFORE scraping. Every local push makes Actions commit a
 # "Rebuild derived indexes" bot commit, so the local clone is always behind by
-# the next run; without this the final `git push` would be rejected.
+# the next run; without this the final `git push` would be rejected. Failure
+# here never blocks scraping — data is committed locally regardless.
 sync_with_remote() {
   local branch
   branch="$(git rev-parse --abbrev-ref HEAD)"
   step "[1/3] 同步远端(git pull --rebase)"
-  if git fetch origin "$branch" 2>/dev/null; then
-    git pull --rebase --autostash origin "$branch" || {
-      echo "WARNING: rebase onto origin/$branch failed; resolve conflicts and re-run." >&2
+  detect_git_proxy || true
+  # -X theirs: when the Actions bot rebuilt the same derived/data files (e.g.
+  # registry manifests with timestamps), prefer the freshly scraped local
+  # version instead of stopping on a conflict. Local scrape is the source of
+  # truth for raw data; the bot rebuilds derived indexes again after push.
+  if xgit fetch origin "$branch" 2>/dev/null; then
+    xgit pull --rebase --autostash -X theirs origin "$branch" || {
+      xgit rebase --abort >/dev/null 2>&1 || true
+      echo "WARNING: rebase onto origin/$branch failed even with -X theirs;" >&2
+      echo "         已回滚到 rebase 前状态,请手动检查后重试。" >&2
       exit 1
     }
   else
-    echo "WARNING: cannot reach origin (offline?); continuing without sync." >&2
+    echo "WARNING: 连不上 origin,跳过同步继续抓取(数据会先提交在本地)。" >&2
   fi
+}
+
+# push_with_retries <branch> — push, rebasing onto origin between attempts.
+push_with_retries() {
+  local branch="$1" attempt
+  for attempt in 1 2 3; do
+    if xgit push origin "$branch"; then return 0; fi
+    echo "Push 失败(第 $attempt 次);rebase 远端后重试。" >&2
+    xgit pull --rebase --autostash -X theirs origin "$branch" \
+      || { xgit rebase --abort >/dev/null 2>&1 || true; }
+    sleep $((attempt * 2))
+  done
+  return 1
 }
 
 commit_and_push() {
@@ -115,18 +198,15 @@ commit_and_push() {
   local changed
   changed="$(git diff --cached --stat | tail -1)"
   git commit -m "$message"
+  DATA_COMMITTED=true
   if [ "$PUSH" = "true" ]; then
-    local branch pushed=false
+    local branch
     branch="$(git rev-parse --abbrev-ref HEAD)"
     # The rebuild bot may have pushed while we were scraping; rebase and retry.
-    for attempt in 1 2 3; do
-      if git push origin "$branch"; then pushed=true; break; fi
-      echo "Push rejected (attempt $attempt); rebasing onto origin/$branch and retrying." >&2
-      git pull --rebase --autostash origin "$branch"
-      sleep $((attempt * 2))
-    done
-    if [ "$pushed" != "true" ]; then
-      echo "ERROR: push still failing after 3 attempts; run 'git push' manually." >&2
+    if ! push_with_retries "$branch"; then
+      echo "" >&2
+      echo "⚠️  数据已安全提交在本地,只是推送没成功(网络问题居多)。" >&2
+      echo "   网络/代理恢复后,双击一键抓取选「push」即可重推,无需重新抓取。" >&2
       exit 1
     fi
     PUSH_SUMMARY="已推送($changed)"
@@ -199,6 +279,27 @@ case "$command" in
     commit_and_push "Routine local refresh (registry + crawl)" data/manual docs/data
     ;;
 
+  push)
+    # Re-push commits left behind by an earlier failed push. No scraping.
+    branch="$(git rev-parse --abbrev-ref HEAD)"
+    ahead="$(git rev-list --count "origin/${branch}..${branch}" 2>/dev/null || echo "?")"
+    step "[2/3] 待推送提交:$ahead 个"
+    if [ "$ahead" = "0" ]; then
+      PUSH_SUMMARY="(没有待推送的提交)"
+    else
+      step "[3/3] 推送"
+      DATA_COMMITTED=true
+      if ! push_with_retries "$branch"; then
+        echo "推送仍失败,请确认代理软件已开启后重试。" >&2
+        exit 1
+      fi
+      DATA_COMMITTED=false
+      PUSH_SUMMARY="已推送 $ahead 个提交"
+      echo "Pushed. GitHub Actions 将重建索引并部署(约 3-5 分钟)。"
+      echo "查看进度:$(repo_web_url)/actions"
+    fi
+    ;;
+
   reindex)
     # Pure, no network — mirrors what rebuild-indexes.yml does on Actions.
     [ -f docs/data/registry/players.json ] && py Scripts/apply_aliases_to_registry.py || true
@@ -209,7 +310,7 @@ case "$command" in
     ;;
 
   ""|-h|--help|help)
-    sed -n '2,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
 
