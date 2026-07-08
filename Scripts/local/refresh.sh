@@ -113,6 +113,28 @@ github_ok() {  # github_ok [proxy] — can we complete an HTTPS request?
   fi
 }
 
+# Proxies advertised in macOS System Settings (what Veee/Clash/V2Ray etc.
+# register as the system proxy). GUI apps use these automatically; git does
+# not, so we read them ourselves and hand them to git.
+system_proxy_candidates() {
+  command -v scutil >/dev/null 2>&1 || return 0
+  scutil --proxies 2>/dev/null | awk '
+    $1 == "HTTPSEnable" { httpsOn = $3 }
+    $1 == "HTTPSProxy"  { httpsHost = $3 }
+    $1 == "HTTPSPort"   { httpsPort = $3 }
+    $1 == "SOCKSEnable" { socksOn = $3 }
+    $1 == "SOCKSProxy"  { socksHost = $3 }
+    $1 == "SOCKSPort"   { socksPort = $3 }
+    $1 == "HTTPEnable"  { httpOn = $3 }
+    $1 == "HTTPProxy"   { httpHost = $3 }
+    $1 == "HTTPPort"    { httpPort = $3 }
+    END {
+      if (httpsOn == 1 && httpsHost != "") print "http://" httpsHost ":" httpsPort
+      if (socksOn == 1 && socksHost != "") print "socks5h://" socksHost ":" socksPort
+      if (httpOn == 1 && httpHost != "")   print "http://" httpHost ":" httpPort
+    }'
+}
+
 detect_git_proxy() {
   [ "$GIT_PROXY_PROBED" = "true" ] && return 0
   GIT_PROXY_PROBED=true
@@ -124,8 +146,11 @@ detect_git_proxy() {
   if github_ok ""; then
     return 0                                    # direct works, no proxy
   fi
+  # Try, in order: macOS system proxy (Veee/Clash/... register here), shell
+  # env proxies, then well-known local proxy ports.
   local p
-  for p in "${https_proxy:-}" "${HTTPS_PROXY:-}" \
+  for p in $(system_proxy_candidates) \
+           "${https_proxy:-}" "${HTTPS_PROXY:-}" \
            http://127.0.0.1:7890 http://127.0.0.1:1087 \
            socks5h://127.0.0.1:1080 http://127.0.0.1:8118; do
     [ -n "$p" ] || continue
