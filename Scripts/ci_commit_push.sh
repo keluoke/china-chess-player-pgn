@@ -12,7 +12,9 @@ fi
 
 message="$1"
 shift
-branch="${GITHUB_REF_NAME:-main}"
+# PUSH_BRANCH overrides the target: workflows triggered by a push to another
+# branch (e.g. ingest-local-data fires on local-data) still commit to main.
+branch="${PUSH_BRANCH:-${GITHUB_REF_NAME:-main}}"
 
 set_committed() {
   if [ -n "${GITHUB_OUTPUT:-}" ]; then
@@ -39,14 +41,17 @@ for attempt in 1 2 3; do
     break
   fi
   echo "Push failed on attempt ${attempt}; rebasing onto origin/${branch} before retry." >&2
-  git pull --rebase --autostash origin "$branch"
+  # -X theirs: these are bot data commits; on overlap (e.g. regenerated
+  # manifests) the version being committed wins over what raced onto main.
+  git pull --rebase --autostash -X theirs origin "$branch" \
+    || { git rebase --abort >/dev/null 2>&1 || true; }
   sleep $((attempt * 3))
 done
 
 if [ "$pushed" != "true" ]; then
   # Final attempt after one more rebase; if this fails, fail the job loudly
   # instead of silently reporting committed=true without a push.
-  git pull --rebase --autostash origin "$branch"
+  git pull --rebase --autostash -X theirs origin "$branch"
   git push origin "HEAD:${branch}"
 fi
 

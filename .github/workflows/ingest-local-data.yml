@@ -46,6 +46,10 @@ jobs:
 
       - name: Commit as bot
         id: commit
+        env:
+          # Triggered by a push to local-data, but the mirror commit goes to
+          # main — without this the script would push HEAD:local-data.
+          PUSH_BRANCH: main
         run: bash Scripts/ci_commit_push.sh "Ingest local scraped data" data/manual docs/data
 
       - name: Trigger index rebuild + deploy
