@@ -438,7 +438,14 @@ def update_leaderboard_json(records: list[EventRecord], dry_run: bool) -> None:
             }
             data.setdefault("players", []).append(player)
             players[fide_id] = player
-        for key in ["chineseName", "pinyin", "name", "birthYear", "standard", "rapid", "blitz"]:
+        # Ratings and birth year always refresh from the profile (which now
+        # prefers the live FIDE registry); names only fill gaps so curated
+        # Chinese names in the leaderboard are never clobbered.
+        for key in ["standard", "rapid", "blitz", "birthYear"]:
+            value = profile.get(key)
+            if value not in (None, ""):
+                player[key] = value
+        for key in ["chineseName", "pinyin", "name"]:
             value = profile.get(key)
             if value not in (None, "") and player.get(key) in (None, ""):
                 player[key] = value
@@ -473,10 +480,13 @@ def player_profile(records: list[EventRecord]) -> dict[str, Any]:
         "pinyin": first.pinyin_name or registry.get("pinyin", ""),
         "name": first.english_name or first.display_name or registry.get("name", ""),
         "federation": first.federation or registry.get("federation", "CHN"),
-        "birthYear": first.birth_year or registry.get("birthYear"),
-        "standard": first.standard_rating or registry.get("standard"),
-        "rapid": first.rapid_rating or registry.get("rapid"),
-        "blitz": first.blitz_rating or registry.get("blitz"),
+        "birthYear": registry.get("birthYear") or first.birth_year,
+        # Ratings: the registry mirrors the live FIDE rating list and must win
+        # over values read back from the previous index build, otherwise a
+        # rating never updates after it first lands in the index.
+        "standard": registry.get("standard") or first.standard_rating,
+        "rapid": registry.get("rapid") or first.rapid_rating,
+        "blitz": registry.get("blitz") or first.blitz_rating,
     }
 
 
@@ -490,7 +500,11 @@ def registry_profiles() -> dict[str, dict[str, Any]]:
         return _REGISTRY_PROFILES
 
     profiles: dict[str, dict[str, Any]] = {}
-    for path in [REGISTRY_PLAYERS_JSON, LEADERBOARD_JSON, INDEX_ROOT / "players.json"]:
+    # Merge order = ascending authority: later files override earlier ones.
+    # The FIDE registry must come LAST — it is the live source of truth for
+    # ratings. (It used to come first, so stale ratings baked into the old
+    # index/leaderboard silently overrode every fresh FIDE download.)
+    for path in [INDEX_ROOT / "players.json", LEADERBOARD_JSON, REGISTRY_PLAYERS_JSON]:
         if not path.exists():
             continue
         data = read_json(path)

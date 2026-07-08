@@ -156,7 +156,12 @@ def ingest_static_event_pgns(
         fide_id = clean(detail.get("fideID"))
         if not fide_id:
             continue
-        profile = merge_profile(profiles.get(fide_id), profile_from_static_detail(detail))
+        # The static detail file is last build's OUTPUT; the registry-backed
+        # profile (if present) must win over it, or a rating freezes at
+        # whatever value first entered the index.
+        existing = profiles.get(fide_id)
+        detail_profile = profile_from_static_detail(detail)
+        profile = merge_profile(detail_profile, existing) if existing else detail_profile
         profiles[fide_id] = profile
         for event in detail.get("events", []):
             pgn_path = clean(event.get("pgnPath"))
@@ -423,7 +428,10 @@ def stage_game_counts(games: list[PlayerGame]) -> dict[str, int]:
 
 def load_profiles() -> dict[str, PlayerProfile]:
     profiles: dict[str, PlayerProfile] = {}
-    for path in [REGISTRY_PLAYERS_JSON, LEADERBOARD_JSON]:
+    # Ascending authority: merge_profile prefers the later (incoming) value,
+    # so the live FIDE registry must be loaded LAST — otherwise stale
+    # leaderboard ratings permanently mask fresh FIDE downloads.
+    for path in [LEADERBOARD_JSON, REGISTRY_PLAYERS_JSON]:
         if not path.exists():
             continue
         data = read_json(path)
