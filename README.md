@@ -95,7 +95,7 @@ python3 Scripts/build_static_player_pgn.py
 
 ## 百万级 bulk PGN
 
-Lichess broadcast 数据压缩分片存放于 `docs/data/bulk/`，包含 77 个 `.pgn.zst` 分片、1,109,301 盘棋，并按年龄段生成 U8-U18 中国青少年对局 PGN 包。
+Lichess broadcast 数据压缩分片存放于 `docs/data/bulk/`，包含 77 个 `.pgn.zst` 分片、1,109,301 盘棋，并按年龄段生成全部 CHN 棋手对局 PGN 包(U8-U18 + 成年 19+)。
 
 ```bash
 python3 Scripts/sync_lichess_broadcast_bulk.py --metadata-only --mirror --index-youth
