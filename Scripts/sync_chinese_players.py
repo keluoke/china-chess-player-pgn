@@ -34,10 +34,18 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_ROOT = REPO_ROOT / "docs" / "data" / "registry"
 SHARD_ROOT = REGISTRY_ROOT / "shards"
 MANUAL_ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
+FEDERATION_OVERRIDES_CSV = REPO_ROOT / "data" / "community" / "federation-overrides.csv"
+SNAPSHOT_DIR = REPO_ROOT / "data" / "generated" / "federation-snapshots"
+TRANSFER_CANDIDATES_JSON = REPO_ROOT / "data" / "generated" / "transfer-candidates.json"
 DEFAULT_CACHE = pathlib.Path.home() / "Library" / "Caches" / "ChinaChessPlayerPGN" / "fide"
 DEFAULT_FIDE_XML_LEGACY_URL = "https://ratings.fide.com/download/players_list_xml_legacy.zip"
 USER_AGENT = "ChinaChessPlayerPGNPlayerRegistry/1.0"
 _TLS_CONTEXT: ssl.SSLContext | None = None
+
+# FIDE IDs that must be kept in the registry even though their CURRENT FIDE
+# federation is no longer the target one (players who transferred out of CHN).
+# Populated from data/community/federation-overrides.csv before parsing.
+EXTRA_FIDE_IDS: set[str] = set()
 
 
 @dataclass
@@ -60,6 +68,8 @@ class RegistryPlayer:
     chinese_name: str = ""
     pinyin: str = ""
     aliases: list[str] = field(default_factory=list)
+    former_federation: str = ""
+    transfer: dict[str, Any] | None = None
 
     @property
     def display_name(self) -> str:
@@ -85,6 +95,8 @@ class RegistryPlayer:
             "rapid": self.rapid,
             "blitz": self.blitz,
             "inactive": self.inactive,
+            "formerFederation": self.former_federation,
+            "transfer": self.transfer,
             "aliases": ordered_unique(self.aliases_for_search()),
             "registryShard": f"data/registry/shards/fide-prefix-{self.shard_prefix}.json",
         }
@@ -130,13 +142,21 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
+    federation = args.federation.upper()
+    overrides = load_federation_overrides(FEDERATION_OVERRIDES_CSV, federation)
+    EXTRA_FIDE_IDS.update(
+        fide_id for fide_id, o in overrides.items() if o.get("type") == "transferred_out"
+    )
+
     source_path = args.input or download_to_cache(args.url, args.cache_dir)
     aliases = load_manual_aliases(args.manual_aliases)
-    players = read_players(source_path, args.federation.upper())
+    players = read_players(source_path, federation)
     if args.max_players:
         players = players[: args.max_players]
     apply_aliases(players, aliases)
-    write_registry(players, args.output_root, source_path, args.url, args.federation.upper(), args.dry_run)
+    annotate_transfers(players, overrides, federation)
+    transfer_report = update_federation_snapshot(players, overrides, federation, args.dry_run)
+    write_registry(players, args.output_root, source_path, args.url, federation, args.dry_run)
 
     stats = {
         "players": len(players),
@@ -145,10 +165,120 @@ def main() -> int:
         "ratedRapid": sum(1 for player in players if player.rapid is not None),
         "ratedBlitz": sum(1 for player in players if player.blitz is not None),
         "inactive": sum(1 for player in players if player.inactive),
+        "transferredOut": sum(1 for player in players if (player.transfer or {}).get("type") == "transferred_out"),
+        "transferredIn": sum(1 for player in players if (player.transfer or {}).get("type") == "transferred_in"),
+        "transferCandidates": transfer_report,
         "source": str(source_path),
     }
     print(json.dumps(stats, ensure_ascii=False, indent=2))
     return 0
+
+
+def load_federation_overrides(path: pathlib.Path, federation: str) -> dict[str, dict[str, str]]:
+    """Read data/community/federation-overrides.csv.
+
+    Columns: fide_id,type,former_federation,current_federation,effective,evidence_url,notes
+      type=transferred_out  player left the target federation but stays in the
+                            registry (marked, filterable in the frontend)
+      type=transferred_in   player joined the target federation from another
+                            one; marked with formerFederation
+    """
+    overrides: dict[str, dict[str, str]] = {}
+    if not path.exists():
+        return overrides
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        for row in csv.DictReader(handle):
+            fide_id = clean_text(row.get("fide_id"))
+            kind = clean_text(row.get("type")).lower()
+            if not fide_id or kind not in {"transferred_out", "transferred_in"}:
+                continue
+            overrides[fide_id] = {
+                "type": kind,
+                "former_federation": clean_text(row.get("former_federation")).upper() or (federation if kind == "transferred_out" else ""),
+                "current_federation": clean_text(row.get("current_federation")).upper(),
+                "effective": clean_text(row.get("effective")),
+                "evidence_url": clean_text(row.get("evidence_url")),
+                "notes": clean_text(row.get("notes")),
+            }
+    return overrides
+
+
+def annotate_transfers(players: list[RegistryPlayer], overrides: dict[str, dict[str, str]], federation: str) -> None:
+    for player in players:
+        override = overrides.get(player.fide_id)
+        if not override:
+            continue
+        transfer = without_empty(
+            {
+                "type": override["type"],
+                "effective": override["effective"],
+                "evidence": override["evidence_url"],
+                "notes": override["notes"],
+            }
+        )
+        if override["type"] == "transferred_out":
+            player.former_federation = override["former_federation"] or federation
+            player.transfer = transfer
+        elif override["type"] == "transferred_in" and player.federation == federation:
+            player.former_federation = override["former_federation"]
+            player.transfer = transfer
+
+
+def update_federation_snapshot(
+    players: list[RegistryPlayer],
+    overrides: dict[str, dict[str, str]],
+    federation: str,
+    dry_run: bool,
+) -> dict[str, Any]:
+    """Keep a monthly snapshot of federation membership and diff against the
+    previous one so transfers surface automatically as review candidates."""
+    month = dt.date.today().strftime("%Y-%m")
+    current_ids = sorted(
+        (p.fide_id for p in players if p.federation == federation),
+        key=numeric_sort_key,
+    )
+
+    previous_ids: set[str] = set()
+    previous_month = ""
+    if SNAPSHOT_DIR.exists():
+        snaps = sorted(p for p in SNAPSHOT_DIR.glob("*.json") if p.stem != month)
+        if snaps:
+            data = json.loads(snaps[-1].read_text(encoding="utf-8"))
+            previous_month = data.get("month", snaps[-1].stem)
+            previous_ids = set(data.get("ids", []))
+
+    report: dict[str, Any] = {"departed": 0, "appeared": 0, "comparedTo": previous_month}
+    if previous_ids:
+        known = set(overrides)
+        departed = sorted(previous_ids - set(current_ids) - known, key=numeric_sort_key)
+        appeared = sorted(set(current_ids) - previous_ids, key=numeric_sort_key)
+        report.update({"departed": len(departed), "appeared": len(appeared)})
+        if not dry_run and (departed or appeared):
+            TRANSFER_CANDIDATES_JSON.parent.mkdir(parents=True, exist_ok=True)
+            TRANSFER_CANDIDATES_JSON.write_text(
+                json.dumps(
+                    {
+                        "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
+                        "comparedTo": previous_month,
+                        "note": "departed = was in the federation last snapshot, gone now, and not covered by federation-overrides.csv — review and add overrides; appeared = new federation members (possible transfers in or new registrations).",
+                        "departed": departed,
+                        "appeared": appeared,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+    if not dry_run:
+        SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        (SNAPSHOT_DIR / f"{month}.json").write_text(
+            json.dumps({"month": month, "federation": federation, "count": len(current_ids), "ids": current_ids}, ensure_ascii=False)
+            + "\n",
+            encoding="utf-8",
+        )
+    return report
 
 
 def download_to_cache(url: str, cache_dir: pathlib.Path) -> pathlib.Path:
@@ -212,7 +342,9 @@ def read_players_from_xml(source: pathlib.Path | io.BufferedIOBase, federation: 
         if strip_namespace(element.tag).lower() != "player":
             continue
         fields = {normalize_key(strip_namespace(child.tag)): clean_text(child.text) for child in element}
-        if pick(fields, "country", "fed", "federation") != federation:
+        if pick(fields, "country", "fed", "federation") != federation and (
+            pick(fields, "fideid", "fide_id", "idnumber", "id_number", "id") not in EXTRA_FIDE_IDS
+        ):
             element.clear()
             continue
         player = player_from_fields(fields, federation)
@@ -235,7 +367,7 @@ def read_players_from_text(text: str, federation: str) -> list[RegistryPlayer]:
                 player_from_fields({normalize_key(key): clean_text(value) for key, value in row.items()}, federation)
                 for row in rows
             ]
-            return sorted([player for player in players if player and player.federation == federation], key=lambda player: numeric_sort_key(player.fide_id))
+            return sorted([player for player in players if player and (player.federation == federation or player.fide_id in EXTRA_FIDE_IDS)], key=lambda player: numeric_sort_key(player.fide_id))
 
     players: list[RegistryPlayer] = []
     for line in stripped.splitlines():
@@ -252,7 +384,7 @@ def read_players_from_json(path: pathlib.Path, federation: str) -> list[Registry
         player_from_fields({normalize_key(key): clean_text(value) for key, value in row.items()}, federation)
         for row in rows
     ]
-    return sorted([player for player in players if player and player.federation == federation], key=lambda player: numeric_sort_key(player.fide_id))
+    return sorted([player for player in players if player and (player.federation == federation or player.fide_id in EXTRA_FIDE_IDS)], key=lambda player: numeric_sort_key(player.fide_id))
 
 
 def player_from_fixed_width_line(line: str, federation: str) -> RegistryPlayer | None:
@@ -285,7 +417,9 @@ def player_from_fields(fields: dict[str, str], federation: str) -> RegistryPlaye
     fide_id = pick(fields, "fideid", "fide_id", "idnumber", "id_number", "id")
     name = pick(fields, "name", "fullname", "full_name")
     fed = pick(fields, "country", "fed", "federation") or federation
-    if not fide_id or not name or fed != federation:
+    if not fide_id or not name:
+        return None
+    if fed != federation and fide_id not in EXTRA_FIDE_IDS:
         return None
 
     return RegistryPlayer(
