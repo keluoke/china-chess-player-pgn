@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-09T18:16:56+00:00",
   "player": {
     "fideID": "8684855",
     "id": "fide-8684855",
@@ -16,10 +16,10 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 2,
+    "events": 2,
     "packages": 2,
-    "bytes": 1860,
+    "bytes": 9998,
     "stages": {}
   },
   "packages": [
@@ -27,24 +27,26 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8684855/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 929,
-      "sha256": "8e59d328642e05bfde346d12942ed96650281b7ec9cd1bbb401fd796609c2a14",
+      "gameCount": 2,
+      "pgnBytes": 4998,
+      "sha256": "25b5892d26b1b0b02d3236ba76f68e7db313cff5cbbf0953077b3fee32114b54",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8684855/adult.pgn",
-      "gameCount": 1,
-      "pgnBytes": 931,
-      "sha256": "d9835fdac891c3bd958dfc8da5c1cd3013b3f919d293cbd62e005a50bdb86ef5",
+      "gameCount": 2,
+      "pgnBytes": 5000,
+      "sha256": "8e89bf91a71416e4d18b5eda015a302bea1097d22df658c376585b072fe78f08",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
@@ -54,6 +56,17 @@
       "name": "2025 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
       "date": "2025-08-20",
       "tournamentID": "1204657",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 2: Hu, Yi - Ailaiti, Abulimiti",
+      "date": "",
+      "tournamentID": "",
       "stage": "adult",
       "gameCount": 1,
       "results": {
@@ -75,6 +88,20 @@
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8684855-1204657.pgn",
       "sha256": "c1abae10828591d841060e9ab276375770d309d54e686b3db1b890b90b647fad"
+    },
+    {
+      "id": "ede3dedb6cc9b51f697b24a20ffe32d18774fb0865acfb68a48ddb6e383afcfa",
+      "event": "Round 2: Hu, Yi - Ailaiti, Abulimiti",
+      "white": "Hu, Yi",
+      "black": "Ailaiti, Abulimiti",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "ede3dedb6cc9b51f697b24a20ffe32d18774fb0865acfb68a48ddb6e383afcfa"
     }
   ]
 }

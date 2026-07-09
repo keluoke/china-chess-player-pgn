@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-09T18:16:56+00:00",
   "player": {
     "fideID": "8677328",
     "id": "fide-8677328",
@@ -17,12 +17,12 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 2,
+    "events": 2,
     "packages": 2,
-    "bytes": 2232,
+    "bytes": 12982,
     "stages": {
-      "U12": 1
+      "U12": 2
     }
   },
   "packages": [
@@ -30,32 +30,45 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8677328/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1116,
-      "sha256": "9ccea89f84cb0e05e0c3cd8f92d7bbcacbfbe5de986ee915cf73fb2911280db0",
+      "gameCount": 2,
+      "pgnBytes": 6491,
+      "sha256": "bdcb67e7d729749d08abc8bc60fab31aa277a31716673c2057a12ef14e21a6d4",
       "stages": {
-        "U12": 1
+        "U12": 2
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8677328/U12.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1116,
-      "sha256": "8c0fd6bf5da06d732a5fa9f9fe67a5d1fe5e03e9f8de44b03770882044f96a6c",
+      "gameCount": 2,
+      "pgnBytes": 6491,
+      "sha256": "b423f4f2a3d534d55c2ee4d186fb578c194297ca52bbbb39dfa70df7b8b12626",
       "stages": {
-        "U12": 1
+        "U12": 2
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 6: Sun, Jikai - Pan, Junxiang",
+      "date": "2026-06-06",
+      "tournamentID": "",
+      "stage": "U12",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
@@ -69,6 +82,21 @@
     }
   ],
   "games": [
+    {
+      "id": "01c83eeb49e59467a2e6073f7121a08d2851bfea48916ad66e6f8801ae13782d",
+      "event": "Round 6: Sun, Jikai - Pan, Junxiang",
+      "date": "2026-06-06",
+      "white": "Sun, Jikai",
+      "black": "Pan, Junxiang",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
+      "sha256": "01c83eeb49e59467a2e6073f7121a08d2851bfea48916ad66e6f8801ae13782d"
+    },
     {
       "id": "ee794026ceea70cf289854c79f9be08a2e5ac90bb879f340e675521fb33abaf4",
       "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",

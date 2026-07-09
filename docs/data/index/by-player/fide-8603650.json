@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-09T18:16:56+00:00",
   "player": {
     "fideID": "8603650",
     "id": "fide-8603650",
@@ -19,10 +19,10 @@
     ]
   },
   "totals": {
-    "games": 7,
-    "events": 2,
+    "games": 8,
+    "events": 3,
     "packages": 3,
-    "bytes": 16664,
+    "bytes": 24098,
     "stages": {
       "U18": 5
     }
@@ -32,14 +32,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8603650/all.pgn",
-      "gameCount": 7,
-      "pgnBytes": 8266,
-      "sha256": "bf894952c5c8f6ce594ae2bebaa9e31523ae1fafe513d3ff894cc8220967289d",
+      "gameCount": 8,
+      "pgnBytes": 11983,
+      "sha256": "d514ee5492d2af7e7064ae5ac401f27bcec0e94dda4c9eba9eabff19b1df45f0",
       "stages": {
         "U18": 5
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
@@ -48,7 +49,7 @@
       "pgnPath": "data/pgn/by-player/fide-8603650/U18.pgn",
       "gameCount": 5,
       "pgnBytes": 6730,
-      "sha256": "148dd1e8e951fcd84f22d5771c10e9a1f1efab54b01ce84660a1f03790b41ec6",
+      "sha256": "8bfa3cdd35093bd2efd2aa1ed43731e56d6c737376ab2f4682d8171df64ca1b5",
       "stages": {
         "U18": 5
       },
@@ -60,16 +61,28 @@
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8603650/adult.pgn",
-      "gameCount": 2,
-      "pgnBytes": 1668,
-      "sha256": "7f3d332f84d072e9bdcef225118385a7da06c3e3a829c159131fe64dcc96f6e5",
+      "gameCount": 3,
+      "pgnBytes": 5385,
+      "sha256": "a879a7ecbe174f8737dc7960e101e4f3fc1ba3b061f83e36b661148aeff86c34",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "new tournament description",
+      "date": "2026-04-13",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "23rd Bangkok Chess Club Open 2026 &#128052; Masters",
@@ -95,6 +108,21 @@
     }
   ],
   "games": [
+    {
+      "id": "0e626b85f051e735b1b2803b18ba5da71b69fde55998fcb8543c2ccba79ea6d9",
+      "event": "new tournament description",
+      "date": "2026-04-13",
+      "white": "Xu, Yining",
+      "black": "Shyaam Nikhil P",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-04.pgn.zst",
+      "sha256": "0e626b85f051e735b1b2803b18ba5da71b69fde55998fcb8543c2ccba79ea6d9"
+    },
     {
       "id": "00ece85c22d352d4c60d780d6fbf74d214a71b931510de4e15e0b4ecd190fbcc",
       "event": "23rd Bangkok Chess Club Open 2026 &#128052; Masters",
