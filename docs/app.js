@@ -34,7 +34,10 @@ const els = {
   dashboardSection: document.querySelector("#dashboardSection"),
   statGrid: document.querySelector("#statGrid"),
   recentEvents: document.querySelector("#recentEvents"),
-  recentEventsMeta: document.querySelector("#recentEventsMeta")
+  recentEventsMeta: document.querySelector("#recentEventsMeta"),
+  changelogList: document.querySelector("#changelogList"),
+  changelogMeta: document.querySelector("#changelogMeta"),
+  ageOverview: document.querySelector("#ageOverview")
 };
 
 const data = await loadData();
@@ -67,6 +70,8 @@ async function loadData() {
   try {
     const youth = await fetchJSON("./data/youth-leaderboards.json", true);
     const dashboard = await fetchJSON("./data/dashboard.json", false);
+    const changelog = await fetchJSON("./data/changelog.json", false);
+    const allLeaderboards = await fetchJSON("./data/leaderboards.json", false);
     const [
       manifest,
       indexedPlayers,
@@ -89,6 +94,8 @@ async function loadData() {
     return {
       ...youth,
       dashboard,
+      changelog,
+      allLeaderboards,
       manifest,
       registryManifest,
       bulkManifest,
@@ -183,12 +190,19 @@ function initialize() {
   const routedFideID = initialSelectedFideID();
   state.selectedFideID = players.some(player => player.fideID === routedFideID)
     ? routedFideID
-    : rankingsForStage("ALL")[0]?.fideID ?? players[0]?.fideID ?? null;
+    : null;
   els.searchInput.addEventListener("input", event => {
     state.query = event.target.value.trim();
     renderSearch();
   });
   document.addEventListener("keydown", handleViewerKeyboard);
+  els.detailPane.addEventListener("click", event => {
+    const back = event.target.closest('[data-action="back-to-dashboard"]');
+    if (back) {
+      event.preventDefault();
+      clearSelection();
+    }
+  });
 
   render();
 }
@@ -240,6 +254,38 @@ function renderDashboard() {
           `).join("")}
         </tbody>
       </table>` : `<div class="empty-state compact">暂无数据</div>`;
+  }
+
+  // 数据更新记录
+  const entries = (data.changelog?.entries ?? []).slice(0, 6);
+  if (els.changelogMeta) els.changelogMeta.textContent = entries.length ? `最近 ${entries.length} 次` : "";
+  if (els.changelogList) {
+    els.changelogList.innerHTML = entries.length ? entries.map(entry => {
+      const delta = entry.delta ?? {};
+      const parts = [];
+      if (delta.games) parts.push(`对局 ${delta.games > 0 ? "+" : ""}${delta.games.toLocaleString("zh-Hans-CN")}`);
+      if (delta.withChineseName) parts.push(`中文名 ${delta.withChineseName > 0 ? "+" : ""}${delta.withChineseName}`);
+      if (delta.players) parts.push(`棋手 ${delta.players > 0 ? "+" : ""}${delta.players}`);
+      return `
+        <div class="cl-row">
+          <span>${escapeHTML(parts.join(" · ") || "索引重建")}</span>
+          <span class="cl-date">${escapeHTML(String(entry.date ?? "").slice(0, 10))}</span>
+        </div>`;
+    }).join("") : `<div class="empty-state compact">暂无记录</div>`;
+  }
+
+  // 年龄组分布
+  if (els.ageOverview) {
+    const groups = (data.allLeaderboards?.groups ?? []).filter(group =>
+      ["U8", "U10", "U12", "U14", "U16", "U18", "U20", "OPEN"].includes(group.id));
+    const max = Math.max(...groups.map(group => group.totalEligible || 0), 1);
+    els.ageOverview.innerHTML = groups.length ? groups.map(group => `
+      <div class="age-row">
+        <span>${escapeHTML(group.id === "OPEN" ? "成年" : group.id)}</span>
+        <div class="age-bar-track"><div class="age-bar-fill" style="width:${Math.max(2, Math.round((group.totalEligible || 0) / max * 100))}%"></div></div>
+        <span class="age-count">${escapeHTML(String(group.totalEligible ?? 0))}</span>
+      </div>
+    `).join("") : `<div class="empty-state compact">暂无数据</div>`;
   }
 }
 
@@ -343,8 +389,8 @@ function renderSearch() {
   const matches = searchPlayers(state.query);
   const hasQuery = state.query.length > 0;
   els.searchResultsSection.hidden = !hasQuery;
-  els.leaderboards.hidden = hasQuery;
-  if (els.dashboardSection) els.dashboardSection.hidden = hasQuery;
+  if (els.dashboardSection) els.dashboardSection.hidden = hasQuery || Boolean(selectedPlayer());
+  if (els.detailPane) els.detailPane.hidden = hasQuery || !selectedPlayer();
   els.searchCount.textContent = `${matches.length} 名`;
   els.searchResults.innerHTML = matches.length ? matches.map(player => {
     const stage = stageForPlayer(player);
@@ -366,8 +412,11 @@ function renderSearch() {
 
 function renderDetail() {
   const player = selectedPlayer();
-  if (!player) {
-    els.detailPane.innerHTML = `<div class="empty-state">请选择棋手</div>`;
+  const showDetail = Boolean(player);
+  els.detailPane.hidden = !showDetail;
+  if (els.dashboardSection && !state.query) els.dashboardSection.hidden = showDetail;
+  if (!showDetail) {
+    els.detailPane.innerHTML = "";
     return;
   }
   requestPlayerDetail(player);
@@ -392,6 +441,7 @@ function renderDetail() {
       </div>
       <div class="detail-title-actions">
         <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
+        <a class="action-link" href="#" data-action="back-to-dashboard">← 返回看板</a>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
         <a class="action-link" href="https://github.com/keluoke/china-chess-player-pgn/issues/new?template=data-correction.yml&fide_id=${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">数据有误?</a>
       </div>
@@ -1082,8 +1132,12 @@ function selectPlayer(fideID) {
   state.selectedFideID = fideID;
   state.downloadStatus = "";
   updateRouteFideID(fideID);
+  if (state.query) {
+    state.query = "";
+    if (els.searchInput) els.searchInput.value = "";
+    renderSearch();
+  }
   renderDetail();
-  if (state.query) renderSearch();
   scrollDetailIntoViewOnMobile();
 }
 
@@ -1093,10 +1147,18 @@ function initialSelectedFideID() {
 }
 
 function updateRouteFideID(fideID) {
-  if (!window.history?.replaceState || !fideID) return;
+  if (!window.history?.replaceState) return;
   const url = new URL(window.location.href);
-  url.searchParams.set("fideID", fideID);
+  if (fideID) url.searchParams.set("fideID", fideID);
+  else url.searchParams.delete("fideID");
   window.history.replaceState(null, "", url);
+}
+
+function clearSelection() {
+  state.selectedFideID = null;
+  state.downloadStatus = "";
+  updateRouteFideID(null);
+  renderDetail();
 }
 
 function scrollDetailIntoViewOnMobile() {

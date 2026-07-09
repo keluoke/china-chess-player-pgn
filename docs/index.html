@@ -7,7 +7,7 @@
     <meta name="description" content="社区共建的中国国际象棋棋手数据库:全年龄组 FIDE 排行榜、棋手查询与对局 PGN。">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="vendor/lichess-pgn-viewer/lichess-pgn-viewer.css">
-    <link rel="stylesheet" href="styles.css?v=20260710-1">
+    <link rel="stylesheet" href="styles.css?v=20260710-2">
   </head>
   <body>
     <div class="app-shell">
@@ -29,23 +29,6 @@
 
       <main class="workspace">
         <section class="content-pane">
-          <section class="search-results" id="searchResultsSection" hidden>
-            <div class="section-heading">
-              <h2>搜索结果</h2>
-              <span id="searchCount">0 名</span>
-            </div>
-            <div class="result-list" id="searchResults"></div>
-          </section>
-
-          <section class="dashboard" id="dashboardSection" aria-label="数据看板">
-            <div class="stat-grid" id="statGrid"></div>
-            <div class="section-heading">
-              <h2>最新入库对局</h2>
-              <span id="recentEventsMeta"></span>
-            </div>
-            <div class="recent-events" id="recentEvents"></div>
-          </section>
-
           <section class="leaderboards" aria-label="FIDE 排行榜">
             <div class="section-heading">
               <h2>中国棋手 FIDE 积分排行榜</h2>
@@ -57,12 +40,45 @@
           </section>
         </section>
 
-        <aside class="detail-pane" id="detailPane" aria-label="棋手看板">
-          <div class="empty-state">加载棋手数据...</div>
-        </aside>
+        <section class="main-pane" id="mainPane">
+          <section class="search-results" id="searchResultsSection" hidden>
+            <div class="section-heading">
+              <h2>搜索结果</h2>
+              <span id="searchCount">0 名</span>
+            </div>
+            <div class="result-list" id="searchResults"></div>
+          </section>
+
+          <section class="dashboard" id="dashboardSection" aria-label="数据看板">
+            <div class="stat-grid" id="statGrid"></div>
+            <div class="dash-panels">
+              <section class="dash-panel">
+                <div class="section-heading">
+                  <h2>最新入库对局</h2>
+                  <span id="recentEventsMeta"></span>
+                </div>
+                <div class="recent-events" id="recentEvents"></div>
+              </section>
+              <section class="dash-panel">
+                <div class="section-heading">
+                  <h2>数据更新记录</h2>
+                  <span id="changelogMeta"></span>
+                </div>
+                <div class="changelog-list" id="changelogList"></div>
+                <div class="section-heading">
+                  <h2>年龄组棋手分布</h2>
+                  <span>现役有分棋手</span>
+                </div>
+                <div class="age-overview" id="ageOverview"></div>
+              </section>
+            </div>
+          </section>
+
+          <aside class="detail-pane" id="detailPane" aria-label="棋手看板" hidden></aside>
+        </section>
       </main>
     </div>
 
-    <script type="module" src="app.js?v=20260710-1"></script>
+    <script type="module" src="app.js?v=20260710-2"></script>
   </body>
 </html>
