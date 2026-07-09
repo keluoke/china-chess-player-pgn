@@ -150,7 +150,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Sync Lichess broadcast bulk PGN archive.")
     parser.add_argument("--metadata-only", action="store_true", help="only refresh bulk manifests")
     parser.add_argument("--mirror", action="store_true", help="download .pgn.zst shards into docs/data/bulk")
-    parser.add_argument("--index-youth", action="store_true", help="build U8-U18 youth PGN packs from mirrored shards")
+    parser.add_argument("--index-youth", action="store_true", help="build per-age CHN PGN packs (U8-U18 + adult 19+) from mirrored shards")
     parser.add_argument("--max-shards", type=int, default=0, help="limit shards for mirror/index; 0 means all")
     parser.add_argument("--delay", type=float, default=0.2)
     parser.add_argument("--force", action="store_true")
@@ -295,16 +295,16 @@ def write_bulk_manifest(shards: list[BroadcastShard], source_meta: dict[str, Any
 
 def build_youth_index(shards: list[BroadcastShard], dry_run: bool) -> dict[str, Any]:
     profiles, names = load_profiles()
-    by_stage: dict[str, list[str]] = {stage["id"]: [] for stage in stage_rules()["stages"]}
-    index_by_stage: dict[str, list[dict[str, Any]]] = {stage["id"]: [] for stage in stage_rules()["stages"]}
-    seen_by_stage: dict[str, set[str]] = {stage["id"]: set() for stage in stage_rules()["stages"]}
-    seen_index_by_stage: dict[str, set[tuple[str, str, str]]] = {stage["id"]: set() for stage in stage_rules()["stages"]}
+    by_stage: dict[str, list[str]] = {stage["id"]: [] for stage in indexed_stage_list()}
+    index_by_stage: dict[str, list[dict[str, Any]]] = {stage["id"]: [] for stage in indexed_stage_list()}
+    seen_by_stage: dict[str, set[str]] = {stage["id"]: set() for stage in indexed_stage_list()}
+    seen_index_by_stage: dict[str, set[tuple[str, str, str]]] = {stage["id"]: set() for stage in indexed_stage_list()}
     scanned_games = 0
 
     for shard in shards:
         if not shard.shard_path.exists():
             continue
-        print(f"index-youth {shard.file_name}", flush=True)
+        print(f"index-chn {shard.file_name}", flush=True)
         for game_index, game in enumerate(iter_zst_pgn_games(shard.shard_path), start=1):
             scanned_games += 1
             headers = pgn_headers(game)
@@ -342,10 +342,10 @@ def build_youth_index(shards: list[BroadcastShard], dry_run: bool) -> dict[str, 
 
     generated_at = now()
     stage_payloads = []
-    for stage in stage_rules()["stages"]:
+    for stage in indexed_stage_list():
         stage_id = stage["id"]
         games = by_stage[stage_id]
-        pgn_path = YOUTH_ROOT / "pgn" / stage_id / "lichess-broadcast-youth.pgn"
+        pgn_path = YOUTH_ROOT / "pgn" / stage_id / ("lichess-broadcast-adult.pgn" if stage_id == "adult" else "lichess-broadcast-youth.pgn")
         index_path = YOUTH_ROOT / "index" / stage_id / "games.json"
         if not dry_run:
             pgn_path.parent.mkdir(parents=True, exist_ok=True)
@@ -383,7 +383,7 @@ def build_youth_index(shards: list[BroadcastShard], dry_run: bool) -> dict[str, 
 
 
 def write_empty_youth_manifest() -> None:
-    stages = [{**stage, "games": 0, "players": 0, "pgnPath": "", "indexPath": ""} for stage in stage_rules()["stages"]]
+    stages = [{**stage, "games": 0, "players": 0, "pgnPath": "", "indexPath": ""} for stage in indexed_stage_list()]
     write_json(
         YOUTH_ROOT / "manifest.json",
         {
@@ -555,8 +555,16 @@ def stage_rules() -> dict[str, Any]:
     }
 
 
+def indexed_stage_list() -> list[dict[str, Any]]:
+    """Stages actually indexed from broadcasts: youth U8-U18 plus adult (19+),
+    so EVERY CHN player with a known birth year gets their broadcast games."""
+    return stage_rules()["stages"] + [
+        {"id": "adult", "lowerAge": 19, "upperAge": 199, "birthYears": "2007 及更早"},
+    ]
+
+
 def stage_for_age(age: int) -> str:
-    for stage in stage_rules()["stages"]:
+    for stage in indexed_stage_list():
         if stage["lowerAge"] <= age <= stage["upperAge"]:
             return stage["id"]
     return ""
