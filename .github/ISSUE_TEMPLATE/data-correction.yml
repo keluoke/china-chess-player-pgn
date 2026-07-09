@@ -1,0 +1,35 @@
+name: 数据纠错
+description: 报告棋手数据错误(中文名/等级分/出生年/转会状态等)
+labels: [data-correction]
+body:
+  - type: input
+    id: fide_id
+    attributes:
+      label: FIDE ID(或国内临时 ID)
+      placeholder: "8622388"
+    validations:
+      required: true
+  - type: input
+    id: field
+    attributes:
+      label: 有误的字段
+      placeholder: 中文名 / standard 分 / 出生年 / 联邦…
+    validations:
+      required: true
+  - type: input
+    id: correct_value
+    attributes:
+      label: 正确值
+    validations:
+      required: true
+  - type: input
+    id: evidence
+    attributes:
+      label: 证据链接(FIDE 档案页 / chess-results / 官方公告)
+      placeholder: https://ratings.fide.com/profile/8622388
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 补充说明

@@ -32,6 +32,7 @@
 #   pgn          Fetch missing per-tournament PGN from Chess-Results.
 #   all          Routine incremental refresh: registry, then crawl.
 #   push         Re-push data left behind by an earlier failed push.
+#   verify       Locally verify community evidence URLs (residential IP).
 #   reindex      LOCAL pure rebuild (indexes/registry aliases/domestic). Optional;
 #                normally Actions does this. No network.
 #
@@ -251,19 +252,19 @@ esac
 case "$command" in
   registry)
     py Scripts/sync_chinese_players.py ${EXTRA[@]+"${EXTRA[@]}"}
-    commit_and_push "Update Chinese player registry (local)" docs/data/registry
+    commit_and_push "Update Chinese player registry (local)" docs/data/registry data/generated
     ;;
 
   crawl)
     py Scripts/crawl_player_events.py --delay 1.0 --workers 2 --fetch-games ${EXTRA[@]+"${EXTRA[@]}"}
-    commit_and_push "Crawl Chess-Results player events (local)" data/manual docs/data
+    commit_and_push "Crawl Chess-Results player events (local)" data/manual data/generated docs/data
     ;;
 
   events)
     py Scripts/sync_chess_results_starting_rank_aliases.py --delay 1.0
     py Scripts/sync_chinese_players.py || py Scripts/apply_aliases_to_registry.py
     py Scripts/fetch_event_pgn.py --workers 3 --category li-chengzhi ${EXTRA[@]+"${EXTRA[@]}"}
-    commit_and_push "Ingest event archive names and PGN (local)" data/manual docs/data
+    commit_and_push "Ingest event archive names and PGN (local)" data/manual data/generated docs/data
     ;;
 
   aliases)
@@ -296,7 +297,7 @@ case "$command" in
   all)
     py Scripts/sync_chinese_players.py
     py Scripts/crawl_player_events.py --delay 1.0 --workers 2 --fetch-games
-    commit_and_push "Routine local refresh (registry + crawl)" data/manual docs/data
+    commit_and_push "Routine local refresh (registry + crawl)" data/manual data/community data/generated docs/data
     ;;
 
   push)
@@ -327,7 +328,14 @@ case "$command" in
     py Scripts/build_static_player_pgn.py
     py Scripts/build_leaderboards.py
     [ -f Scripts/build_api.py ] && py Scripts/build_api.py
+    [ -f Scripts/build_changelog.py ] && py Scripts/build_changelog.py
     commit_and_push "Rebuild derived indexes (local)" docs/data
+    ;;
+
+  verify)
+    # Locally verify community evidence URLs (CI cannot reach chess-results).
+    py Scripts/verify_community_sources.py ${EXTRA[@]+"${EXTRA[@]}"}
+    commit_and_push "Verify community source URLs (local)" data/generated
     ;;
 
   ""|-h|--help|help)

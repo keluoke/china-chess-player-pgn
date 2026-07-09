@@ -48,3 +48,8 @@ runs:
         if [ -f Scripts/build_api.py ]; then
           python3 Scripts/build_api.py
         fi
+
+        # Data changelog (appends an entry when totals move).
+        if [ -f Scripts/build_changelog.py ]; then
+          python3 Scripts/build_changelog.py
+        fi

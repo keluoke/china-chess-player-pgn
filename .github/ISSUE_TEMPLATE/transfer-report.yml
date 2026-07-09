@@ -1,0 +1,37 @@
+name: 转会申报
+description: 申报转出/转入 CHN 的棋手(将录入 federation-overrides.csv)
+labels: [transfer]
+body:
+  - type: input
+    id: fide_id
+    attributes:
+      label: FIDE ID
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: 类型
+      options:
+        - transferred_out(原 CHN 棋手转出)
+        - transferred_in(外籍棋手转入 CHN)
+    validations:
+      required: true
+  - type: input
+    id: federations
+    attributes:
+      label: 原联邦 → 现联邦
+      placeholder: CHN → SGP
+    validations:
+      required: true
+  - type: input
+    id: effective
+    attributes:
+      label: 生效年月(YYYY-MM,可留空)
+  - type: input
+    id: evidence
+    attributes:
+      label: 证据链接
+      placeholder: https://ratings.fide.com/profile/xxxx
+    validations:
+      required: true

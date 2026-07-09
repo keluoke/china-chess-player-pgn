@@ -41,8 +41,8 @@ jobs:
           git fetch origin local-data
           # Exact mirror: main's raw-data paths := local-data's, including
           # deletions. Derived indexes are rebuilt afterwards anyway.
-          git rm -rq --ignore-unmatch -- data/manual docs/data
-          git checkout origin/local-data -- data/manual docs/data
+          git rm -rq --ignore-unmatch -- data/manual data/community data/generated docs/data
+          git checkout origin/local-data -- data/manual data/community data/generated docs/data
 
       - name: Commit as bot
         id: commit
@@ -50,7 +50,7 @@ jobs:
           # Triggered by a push to local-data, but the mirror commit goes to
           # main — without this the script would push HEAD:local-data.
           PUSH_BRANCH: main
-        run: bash Scripts/ci_commit_push.sh "Ingest local scraped data" data/manual docs/data
+        run: bash Scripts/ci_commit_push.sh "Ingest local scraped data" data/manual data/community data/generated docs/data
 
       - name: Trigger index rebuild + deploy
         if: steps.commit.outputs.committed == 'true'

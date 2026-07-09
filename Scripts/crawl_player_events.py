@@ -11,7 +11,7 @@ For every Chinese player already in the data warehouse this script:
 2. Builds a per-player tournament index (CSV) and a global tnrid catalog (JSON)
    under ``docs/data/index``.
 3. Harvests any Chinese-character name variant it sees as name-mapping evidence
-   (``data/manual/chess-results-player-name-map.csv``) so the warehouse can
+   (``data/generated/chess-results-player-name-map.csv``) so the warehouse can
    reconcile FIDE-ID -> 中文名.
 4. Optionally (``--fetch-games``) feeds the freshly discovered tnrids into the
    existing per-tournament PGN pipeline (``fetch_event_pgn.process_event``),
@@ -73,11 +73,12 @@ REGISTRY_PLAYERS = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
 ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
 
 MANUAL_DIR = REPO_ROOT / "data" / "manual"
+GENERATED_DIR = REPO_ROOT / "data" / "generated"  # machine-owned outputs
 INDEX_DIR = REPO_ROOT / "docs" / "data" / "index"
 
-PLAYER_EVENTS_CSV = MANUAL_DIR / "chess-results-player-events.csv"
-NAME_MAP_CSV = MANUAL_DIR / "chess-results-player-name-map.csv"
-STATE_JSON = MANUAL_DIR / "chess-results-spielersuche-state.json"
+PLAYER_EVENTS_CSV = GENERATED_DIR / "chess-results-player-events.csv"
+NAME_MAP_CSV = GENERATED_DIR / "chess-results-player-name-map.csv"
+STATE_JSON = GENERATED_DIR / "chess-results-spielersuche-state.json"
 TOURNAMENTS_JSON = INDEX_DIR / "chess-results-tournaments.json"
 MANIFEST_JSON = INDEX_DIR / "chess-results-spielersuche-manifest.json"
 
@@ -474,10 +475,10 @@ def write_outputs(
                     "url": SPIELER_URL,
                 },
                 "storage": {
-                    "playerEvents": "data/manual/chess-results-player-events.csv",
-                    "nameMap": "data/manual/chess-results-player-name-map.csv",
+                    "playerEvents": "data/generated/chess-results-player-events.csv",
+                    "nameMap": "data/generated/chess-results-player-name-map.csv",
                     "tournamentCatalog": "docs/data/index/chess-results-tournaments.json",
-                    "crawlState": "data/manual/chess-results-spielersuche-state.json",
+                    "crawlState": "data/generated/chess-results-spielersuche-state.json",
                 },
                 "totals": totals,
             },

@@ -3,7 +3,7 @@
 
 Sources, in descending priority:
   1. data/manual/player-aliases.csv           (curated by hand)
-  2. data/manual/chess-results-player-name-map.csv
+  2. data/generated/chess-results-player-name-map.csv
      (auto-collected by crawl_player_events.py from SpielerSuche CJK
      columns; values are sanitized here — the raw cells carry trailing
      commas like "薛皓文," and the variants column can contain tournament
@@ -29,7 +29,7 @@ from typing import Any
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_ROOT = REPO_ROOT / "docs" / "data" / "registry"
 ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
-NAME_MAP_CSV = REPO_ROOT / "data" / "manual" / "chess-results-player-name-map.csv"
+NAME_MAP_CSV = REPO_ROOT / "data" / "generated" / "chess-results-player-name-map.csv"
 
 # A plausible Chinese person name: 2-6 CJK chars, optionally with the ethnic
 # middle dot (e.g. 玉素甫·艾力). Rejects tournament titles, clubs with digits,

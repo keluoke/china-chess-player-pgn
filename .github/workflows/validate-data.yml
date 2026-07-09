@@ -1,0 +1,25 @@
+name: Validate community data
+
+# Offline-only validation (chess-results blocks GitHub IPs; source
+# cross-verification runs locally via `refresh.sh verify`).
+on:
+  pull_request:
+    paths:
+      - "data/**"
+  push:
+    branches: ["main"]
+    paths:
+      - "data/manual/**"
+      - "data/community/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-deps
+      - name: Validate community data files
+        run: python3 Scripts/validate_community_data.py

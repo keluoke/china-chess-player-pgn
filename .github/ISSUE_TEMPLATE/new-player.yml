@@ -1,0 +1,31 @@
+name: 新棋手登记(无 FIDE ID)
+description: 登记尚无 FIDE ID 的小龄棋手 sighting
+labels: [sighting]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: 中文姓名
+    validations:
+      required: true
+  - type: input
+    id: event
+    attributes:
+      label: 赛事名称与年份
+      placeholder: 2026 李成智杯 U8 男子组
+    validations:
+      required: true
+  - type: input
+    id: evidence
+    attributes:
+      label: 证据链接(L1/L2:chess-results 或成绩册,必填)
+    validations:
+      required: true
+  - type: input
+    id: club
+    attributes:
+      label: 俱乐部/学校/省市(用于同名消歧)
+  - type: input
+    id: birth_year
+    attributes:
+      label: 出生年份(如已知)
