@@ -548,7 +548,7 @@ function staticPlayerHitBlock(player, info) {
   return `
     <div class="static-player-hit">
       <div>
-        <strong>查询到该棋手在中国青少年棋手库中棋局数量：${compactNumber(info.gameCount)} 盘</strong>
+        <strong>查询到该棋手在本库中的棋局数量：${compactNumber(info.gameCount)} 盘</strong>
         <span>${escapeHTML(stageLine || (info.sources ?? []).join(" · ") || "按棋手聚合静态包")}</span>
       </div>
       <div class="pgn-package-grid">${packageButtons}</div>
