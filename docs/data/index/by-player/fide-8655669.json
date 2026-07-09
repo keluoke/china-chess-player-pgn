@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T13:10:28+00:00",
   "player": {
     "fideID": "8655669",
     "id": "fide-8655669",
@@ -19,13 +19,13 @@
     ]
   },
   "totals": {
-    "games": 10,
-    "events": 8,
+    "games": 12,
+    "events": 10,
     "packages": 3,
-    "bytes": 71927,
+    "bytes": 74973,
     "stages": {
-      "U14": 7,
-      "U16": 3
+      "U14": 8,
+      "U16": 4
     }
   },
   "packages": [
@@ -33,12 +33,12 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8655669/all.pgn",
-      "gameCount": 10,
-      "pgnBytes": 35899,
-      "sha256": "d39d013d45f1f33ad192b0811bef3fb69f91e36cbce6c21861f276080a9a95b8",
+      "gameCount": 12,
+      "pgnBytes": 37422,
+      "sha256": "f69eeca4904225de0f390c6a343c736b595c6ebec6aa9c3900419afc87fba042",
       "stages": {
-        "U14": 7,
-        "U16": 3
+        "U14": 8,
+        "U16": 4
       },
       "sources": [
         "Chess-Results",
@@ -49,13 +49,14 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8655669/U14.pgn",
-      "gameCount": 7,
-      "pgnBytes": 26992,
-      "sha256": "8f5d8c073d04b0884356e2303be37d66a05109d98c6d195f3e3d2d36a59dcdd0",
+      "gameCount": 8,
+      "pgnBytes": 27662,
+      "sha256": "29ab2a5753fd62b696caff6e5ed0d900c0e06e49ffe9ae8b90bd734eb3731a8e",
       "stages": {
-        "U14": 7
+        "U14": 8
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -63,11 +64,11 @@
       "id": "U16",
       "label": "U16 PGN",
       "pgnPath": "data/pgn/by-player/fide-8655669/U16.pgn",
-      "gameCount": 3,
-      "pgnBytes": 9036,
-      "sha256": "d97fb95096f0e686a478dd9b987bbd3a890d4c505b1f3759c8d2b4d41501b99e",
+      "gameCount": 4,
+      "pgnBytes": 9889,
+      "sha256": "cdc49c9c18f22398ff54183f9e82d3fe6e460984afaab8e1c206b5f776b4f638",
       "stages": {
-        "U16": 3
+        "U16": 4
       },
       "sources": [
         "Chess-Results",
@@ -76,6 +77,17 @@
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-05",
+      "tournamentID": "1449113",
+      "stage": "U16",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2025 National Amateur Chess Master Tournament Hangzhou Station",
@@ -144,6 +156,17 @@
       }
     },
     {
+      "source": "Chess-Results",
+      "name": "HKCCFL International Blitz 2024",
+      "date": "2024-12-29",
+      "tournamentID": "1086664",
+      "stage": "U14",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
       "source": "Lichess Broadcasts",
       "name": "Hong Kong International Open 2024",
       "date": "2024-12-28",
@@ -167,6 +190,20 @@
     }
   ],
   "games": [
+    {
+      "id": "834b9fbc023e15d29bb8faac390eefc44136ce20fe4d67d8b302f0d8b4a19852",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-05",
+      "white": "Zhu, Diwen",
+      "black": "Cao, Yusen",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "black",
+      "tournamentID": "1449113",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1449113/fide-8655669-1449113.pgn",
+      "sha256": "834b9fbc023e15d29bb8faac390eefc44136ce20fe4d67d8b302f0d8b4a19852"
+    },
     {
       "id": "b1f2656f2efa2d7d1a2eaa7c2bfa92e9bd3b86dace8b98ac0ff4cadc6b7ddd03",
       "event": "2025 National Amateur Chess Master Tournament Hangzhou Station",
@@ -270,6 +307,20 @@
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2024-12.pgn.zst",
       "sha256": "df7c41db803483c61986b0023a282c7f11e91a639e46b769d82c0fe89416b5e8"
+    },
+    {
+      "id": "ec8a3d1f987be015e22a54827a667690625013e9065de65a350130ec8eded103",
+      "event": "HKCCFL International Blitz 2024",
+      "date": "2024-12-29",
+      "white": "Ibanez, Rudy",
+      "black": "Cao, Yusen",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1086664",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1086664/fide-8655669-1086664.pgn",
+      "sha256": "ec8a3d1f987be015e22a54827a667690625013e9065de65a350130ec8eded103"
     },
     {
       "id": "8279e1a1b8dcdbdcf6a3fe5d83718365e2cc8c044c0dcefcb9685098e90aa529",

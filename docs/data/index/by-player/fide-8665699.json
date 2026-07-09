@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T13:10:28+00:00",
   "player": {
     "fideID": "8665699",
     "id": "fide-8665699",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 5320,
+    "games": 6,
+    "events": 4,
+    "packages": 3,
+    "bytes": 14916,
     "stages": {
-      "U14": 1
+      "U12": 4,
+      "U14": 2
     }
   },
   "packages": [
@@ -33,32 +34,60 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8665699/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 2660,
-      "sha256": "a93a1c9929682006e395553fea1bbd429ba9d65f6e4a610f5ea1b67f7de466b3",
+      "gameCount": 6,
+      "pgnBytes": 7393,
+      "sha256": "0fe3afbd3e97f23cbbb10bbb8d241c72a1cb3c14a542b0ff56683afcae1cd849",
       "stages": {
-        "U14": 1
+        "U12": 4,
+        "U14": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U12",
+      "label": "U12 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8665699/U12.pgn",
+      "gameCount": 4,
+      "pgnBytes": 4173,
+      "sha256": "a880c790f4cf42f2a0335c9b929bceb497dd0e51e08bcffcf66c39fe8b1d037e",
+      "stages": {
+        "U12": 4
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8665699/U14.pgn",
-      "gameCount": 1,
-      "pgnBytes": 2660,
-      "sha256": "9c2648f13d0d8dbe439a8b4a380d8b7121828b2fd546302ab0c084c7b9cd1599",
+      "gameCount": 2,
+      "pgnBytes": 3350,
+      "sha256": "b82513682561e651f377bcd1d2266ab380a54234e82c8894313a03f9551181a5",
       "stages": {
-        "U14": 1
+        "U14": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-05-29",
+      "tournamentID": "1424920",
+      "stage": "U14",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 1: Ma, Qixin - Gu, Xianghan",
@@ -69,9 +98,46 @@
       "results": {
         "0-1": 1
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Team Championship 2025(G12)",
+      "date": "2025-08-25",
+      "tournamentID": "1240996",
+      "stage": "U12",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(G14)",
+      "date": "2025-02-04",
+      "tournamentID": "1111358",
+      "stage": "U12",
+      "gameCount": 3,
+      "results": {
+        "1-0": 1,
+        "1/2-1/2": 2
+      }
     }
   ],
   "games": [
+    {
+      "id": "20144228604bb28bd3cfabb1df0f0744ae20818f7e994ba4d86a3e2268997e1d",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-05-29",
+      "white": "Ma, Qixin",
+      "black": "Gu, Xianghan",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1424920",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8665699-1424920.pgn",
+      "sha256": "20144228604bb28bd3cfabb1df0f0744ae20818f7e994ba4d86a3e2268997e1d"
+    },
     {
       "id": "f13d3e8edbe9051920184818709122dd8afa2127119168a2790391ffc3ce5bb4",
       "event": "Round 1: Ma, Qixin - Gu, Xianghan",
@@ -86,6 +152,62 @@
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-05.pgn.zst",
       "sha256": "f13d3e8edbe9051920184818709122dd8afa2127119168a2790391ffc3ce5bb4"
+    },
+    {
+      "id": "2df1e170432a80000909bfc30e5ab0b3b2d9ecf2b740f2eeacd3f61514a8d480",
+      "event": "Chinese National Youth Chess Team Championship 2025(G12)",
+      "date": "2025-08-25",
+      "white": "Ding, Yanwen",
+      "black": "Ma, Qixin",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1240996",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1240996/fide-8665699-1240996.pgn",
+      "sha256": "2df1e170432a80000909bfc30e5ab0b3b2d9ecf2b740f2eeacd3f61514a8d480"
+    },
+    {
+      "id": "327c58c09c049f02374ffa7015a8f5fa84c59102b0dbb73cef051fbe5472ffbb",
+      "event": "Chinese National Youth Chess Championship 2025(G14)",
+      "date": "2025-02-04",
+      "white": "Wang, Qiyun",
+      "black": "Ma, Qixin",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1111358",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111358/fide-8665699-1111358.pgn",
+      "sha256": "327c58c09c049f02374ffa7015a8f5fa84c59102b0dbb73cef051fbe5472ffbb"
+    },
+    {
+      "id": "887fc1b63f50c12bb3b0f16fcb27ef0095a5472215ddfa64f9ce3fb3f4f4b36c",
+      "event": "Chinese National Youth Chess Championship 2025(G14)",
+      "date": "2025-02-04",
+      "white": "Ma, Qixin",
+      "black": "Ma, Zidan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1111358",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111358/fide-8665699-1111358.pgn",
+      "sha256": "887fc1b63f50c12bb3b0f16fcb27ef0095a5472215ddfa64f9ce3fb3f4f4b36c"
+    },
+    {
+      "id": "520a9346354c159083e00cef4df4ccb0baea96c05e3c60d998ce328835fe83a4",
+      "event": "Chinese National Youth Chess Championship 2025(G14)",
+      "date": "2025-02-04",
+      "white": "Fang, Yiwen",
+      "black": "Ma, Qixin",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1111358",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111358/fide-8665699-1111358.pgn",
+      "sha256": "520a9346354c159083e00cef4df4ccb0baea96c05e3c60d998ce328835fe83a4"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T13:10:28+00:00",
   "player": {
     "fideID": "8671028",
     "id": "fide-8671028",
@@ -21,13 +21,13 @@
     ]
   },
   "totals": {
-    "games": 23,
-    "events": 19,
+    "games": 35,
+    "events": 22,
     "packages": 3,
-    "bytes": 189192,
+    "bytes": 209286,
     "stages": {
-      "U12": 22,
-      "U14": 1
+      "U12": 33,
+      "U14": 2
     }
   },
   "packages": [
@@ -35,14 +35,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8671028/all.pgn",
-      "gameCount": 23,
-      "pgnBytes": 94531,
-      "sha256": "4bc5c56511fe78ac78de3e7d61192676b29e819440416846f2f18246c2dc905b",
+      "gameCount": 35,
+      "pgnBytes": 104578,
+      "sha256": "38d679c00d094a7014c84504c290704c4f4ec2260bbded3c95dc8a76a364aa35",
       "stages": {
-        "U12": 22,
-        "U14": 1
+        "U12": 33,
+        "U14": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -50,13 +51,14 @@
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8671028/U12.pgn",
-      "gameCount": 22,
-      "pgnBytes": 90580,
-      "sha256": "ef0a896f104d53b1654b0cb5a611cd37996eda94cd3d9e15921fe5b6bd3f525a",
+      "gameCount": 33,
+      "pgnBytes": 99831,
+      "sha256": "88f121e2e9f61cd36f4d3211dd9fb351062e9c18c7a5f1dae065bd78d0a50bf0",
       "stages": {
-        "U12": 22
+        "U12": 33
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -64,18 +66,30 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8671028/U14.pgn",
-      "gameCount": 1,
-      "pgnBytes": 4081,
-      "sha256": "c641245c780da34b69c70621bdcc77a63fe24af26a7c1a67fc4b97d5e17c766a",
+      "gameCount": 2,
+      "pgnBytes": 4877,
+      "sha256": "63cdb837593c33ad3352b594211d992f4566323dccce9d6f5c3e689a624a5604",
       "stages": {
-        "U14": 1
+        "U14": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-05-29",
+      "tournamentID": "1424920",
+      "stage": "U14",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 1: Jiang, Xintian - Wen, Gehua",
@@ -84,6 +98,32 @@
       "stage": "U14",
       "gameCount": 1,
       "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Team Championship 2025(G12)",
+      "date": "2025-08-25",
+      "tournamentID": "1240996",
+      "stage": "U12",
+      "gameCount": 5,
+      "results": {
+        "1-0": 2,
+        "0-1": 2,
+        "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(G12)",
+      "date": "2025-02-04",
+      "tournamentID": "1110351",
+      "stage": "U12",
+      "gameCount": 6,
+      "results": {
+        "1-0": 3,
+        "1/2-1/2": 2,
         "0-1": 1
       }
     },
@@ -290,6 +330,20 @@
   ],
   "games": [
     {
+      "id": "1c79a77eedee9fd3b6ba7185eb69f0ea89d07562045cfd6ca18ddd3d215e9560",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-05-29",
+      "white": "Jiang, Xintian",
+      "black": "Wen, Gehua",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1424920",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8671028-1424920.pgn",
+      "sha256": "1c79a77eedee9fd3b6ba7185eb69f0ea89d07562045cfd6ca18ddd3d215e9560"
+    },
+    {
       "id": "9dc518a03a8334fa7e4fefe2d3d3021f164a7eec1eb3f2fda2c2067528235775",
       "event": "Round 1: Jiang, Xintian - Wen, Gehua",
       "date": "2026-05-28",
@@ -303,6 +357,160 @@
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-05.pgn.zst",
       "sha256": "9dc518a03a8334fa7e4fefe2d3d3021f164a7eec1eb3f2fda2c2067528235775"
+    },
+    {
+      "id": "91f0a872fa3db1db307d27d81a1e71377a32286c239efb30997c1cb0c16f36f6",
+      "event": "Chinese National Youth Chess Team Championship 2025(G12)",
+      "date": "2025-08-25",
+      "white": "Liu, Yuanjia",
+      "black": "Jiang, Xintian",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1240996",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1240996/fide-8671028-1240996.pgn",
+      "sha256": "91f0a872fa3db1db307d27d81a1e71377a32286c239efb30997c1cb0c16f36f6"
+    },
+    {
+      "id": "682754438d9c73bb5afa1e1cc32bbfdbf394bf21aa9987c760b723f152de8572",
+      "event": "Chinese National Youth Chess Team Championship 2025(G12)",
+      "date": "2025-08-25",
+      "white": "Jiang, Xintian",
+      "black": "Wu, Sinian",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1240996",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1240996/fide-8671028-1240996.pgn",
+      "sha256": "682754438d9c73bb5afa1e1cc32bbfdbf394bf21aa9987c760b723f152de8572"
+    },
+    {
+      "id": "1931003e0cbd251fbdf086d8a96687f5589372f4993c20058f8a253a8d430c4c",
+      "event": "Chinese National Youth Chess Team Championship 2025(G12)",
+      "date": "2025-08-25",
+      "white": "Jiang, Xintian",
+      "black": "Peng, Shiyan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1240996",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1240996/fide-8671028-1240996.pgn",
+      "sha256": "1931003e0cbd251fbdf086d8a96687f5589372f4993c20058f8a253a8d430c4c"
+    },
+    {
+      "id": "96560f6707aee059c59082e054d98302d22d5f2789a07d2d610dc393ba121377",
+      "event": "Chinese National Youth Chess Team Championship 2025(G12)",
+      "date": "2025-08-25",
+      "white": "Jiang, Xintian",
+      "black": "Deng, Mingtong",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1240996",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1240996/fide-8671028-1240996.pgn",
+      "sha256": "96560f6707aee059c59082e054d98302d22d5f2789a07d2d610dc393ba121377"
+    },
+    {
+      "id": "bc8c4f5a1016b5e93e86e10d7dc90e0ec60aa24ae95730030c99960702811096",
+      "event": "Chinese National Youth Chess Team Championship 2025(G12)",
+      "date": "2025-08-25",
+      "white": "Chen, Xuhe",
+      "black": "Jiang, Xintian",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1240996",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1240996/fide-8671028-1240996.pgn",
+      "sha256": "bc8c4f5a1016b5e93e86e10d7dc90e0ec60aa24ae95730030c99960702811096"
+    },
+    {
+      "id": "f4443cce337b2c10b6a499806d998d430f886b7d79a67df7b803cf9757d21269",
+      "event": "Chinese National Youth Chess Championship 2025(G12)",
+      "date": "2025-02-04",
+      "white": "Xin, Yueran",
+      "black": "Jiang, Xintian",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1110351",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110351/fide-8671028-1110351.pgn",
+      "sha256": "f4443cce337b2c10b6a499806d998d430f886b7d79a67df7b803cf9757d21269"
+    },
+    {
+      "id": "d8fa0e6d49fc147ce41289b2cd1b5a8ff709f1070716ee6485a5965f5ff0005c",
+      "event": "Chinese National Youth Chess Championship 2025(G12)",
+      "date": "2025-02-04",
+      "white": "Sun, Yucan(SD)",
+      "black": "Jiang, Xintian",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1110351",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110351/fide-8671028-1110351.pgn",
+      "sha256": "d8fa0e6d49fc147ce41289b2cd1b5a8ff709f1070716ee6485a5965f5ff0005c"
+    },
+    {
+      "id": "69ac2bb3827935537d54022eab0a020b17123f8eb2d713f7108ec446e5e5e26d",
+      "event": "Chinese National Youth Chess Championship 2025(G12)",
+      "date": "2025-02-04",
+      "white": "Jiang, Zixian",
+      "black": "Jiang, Xintian",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1110351",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110351/fide-8671028-1110351.pgn",
+      "sha256": "69ac2bb3827935537d54022eab0a020b17123f8eb2d713f7108ec446e5e5e26d"
+    },
+    {
+      "id": "08156022b53a3c54b4d67e22d555e9a8a2825562bec47498948be39ba650c8af",
+      "event": "Chinese National Youth Chess Championship 2025(G12)",
+      "date": "2025-02-04",
+      "white": "Jiang, Xintian",
+      "black": "Zheng, Qingyou",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1110351",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110351/fide-8671028-1110351.pgn",
+      "sha256": "08156022b53a3c54b4d67e22d555e9a8a2825562bec47498948be39ba650c8af"
+    },
+    {
+      "id": "271da34d32d279a0279cd6285bb3b6211a199d1e34a1b0b88e4c0d0705e80683",
+      "event": "Chinese National Youth Chess Championship 2025(G12)",
+      "date": "2025-02-04",
+      "white": "Jiang, Xintian",
+      "black": "Zhang, Jianning",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1110351",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110351/fide-8671028-1110351.pgn",
+      "sha256": "271da34d32d279a0279cd6285bb3b6211a199d1e34a1b0b88e4c0d0705e80683"
+    },
+    {
+      "id": "9b3826f54ed421753fa9a16243534e7fc445eef61e845cb28d507bff7ab674d5",
+      "event": "Chinese National Youth Chess Championship 2025(G12)",
+      "date": "2025-02-04",
+      "white": "Jiang, Xintian",
+      "black": "Cao, Jingxuan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1110351",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110351/fide-8671028-1110351.pgn",
+      "sha256": "9b3826f54ed421753fa9a16243534e7fc445eef61e845cb28d507bff7ab674d5"
     },
     {
       "id": "7a5c1df0e443511829ba021c7915e617b16faf1566cdb313fa615d7d15068b25",
