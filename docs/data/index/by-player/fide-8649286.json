@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:24:50+00:00",
   "player": {
     "fideID": "8649286",
     "id": "fide-8649286",
@@ -19,13 +19,13 @@
     ]
   },
   "totals": {
-    "games": 29,
-    "events": 17,
+    "games": 38,
+    "events": 19,
     "packages": 3,
-    "bytes": 190204,
+    "bytes": 204664,
     "stages": {
       "U12": 7,
-      "U14": 22
+      "U14": 31
     }
   },
   "packages": [
@@ -33,14 +33,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8649286/all.pgn",
-      "gameCount": 29,
-      "pgnBytes": 95037,
-      "sha256": "78acbb3c2c5a3ed84ed96b3e6b57534ff8a55ab69815263f45ab2ec9c92f3bdc",
+      "gameCount": 38,
+      "pgnBytes": 102267,
+      "sha256": "555e76f47502d37993904fd86a7fb105dd5af5fe6e36aa622023d6f31cc37521",
       "stages": {
         "U12": 7,
-        "U14": 22
+        "U14": 31
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -50,7 +51,7 @@
       "pgnPath": "data/pgn/by-player/fide-8649286/U12.pgn",
       "gameCount": 7,
       "pgnBytes": 23174,
-      "sha256": "48d159c6b796fa8bf38e0771b95d71720f670da4ee1cb30f8f913e3d8c6a6e46",
+      "sha256": "806b823f582078996af8b0cf977687189609ccc31d037b30c7f8dc07cccce7c7",
       "stages": {
         "U12": 7
       },
@@ -62,13 +63,14 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8649286/U14.pgn",
-      "gameCount": 22,
-      "pgnBytes": 71993,
-      "sha256": "e17c54f210528b2c34398677f26858364796f577a52b18a7a0391a56af3ecad3",
+      "gameCount": 31,
+      "pgnBytes": 79223,
+      "sha256": "a5ba4839777843a23f447bebba9f13e6123fee9296665eb3a6b523f0f68dc08a",
       "stages": {
-        "U14": 22
+        "U14": 31
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
@@ -131,6 +133,17 @@
       }
     },
     {
+      "source": "Chess-Results",
+      "name": "HKCCFL International Blitz Championship 2025",
+      "date": "2025-12-25",
+      "tournamentID": "1318914",
+      "stage": "U14",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
       "source": "Lichess Broadcasts",
       "name": "HKIO 2025",
       "date": "2025-12-24",
@@ -140,6 +153,19 @@
       "results": {
         "1-0": 1,
         "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "tournamentID": "1316406",
+      "stage": "U14",
+      "gameCount": 8,
+      "results": {
+        "1-0": 3,
+        "0-1": 1,
+        "1/2-1/2": 4
       }
     },
     {
@@ -360,6 +386,20 @@
       "sha256": "3ce5ec4e0ff2736be45be15ebccc606209f619eccad8cae5311b0dbb760e5e9a"
     },
     {
+      "id": "a8a582eb3df2828357431c5b8280e24a9f00a2b4ea4cf98601ad82ae6daa9a89",
+      "event": "HKCCFL International Blitz Championship 2025",
+      "date": "2025-12-25",
+      "white": "Xiao, Ruhan",
+      "black": "Yu, Ting",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1318914",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1318914/fide-8649286-1318914.pgn",
+      "sha256": "a8a582eb3df2828357431c5b8280e24a9f00a2b4ea4cf98601ad82ae6daa9a89"
+    },
+    {
       "id": "e4a9c3eb3063ab56946deb735a4a7901df134628add454be9a3c17481b8a7e83",
       "event": "HKIO 2025",
       "date": "2025-12-24",
@@ -388,6 +428,118 @@
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
       "sha256": "d28cae688770b5325197a488f7a672d60d6262610746f23bd17e6610de641f71"
+    },
+    {
+      "id": "54ed732c68a846c5507da5799201ffe3451d85a5be72d6e13043f16338969960",
+      "event": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "white": "Xiao, Ruhan",
+      "black": "Wong, Hoi Cheung",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1316406",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8649286-1316406.pgn",
+      "sha256": "54ed732c68a846c5507da5799201ffe3451d85a5be72d6e13043f16338969960"
+    },
+    {
+      "id": "bf661f5e89a575bfe2440f860658d66081288577c464bde0554c602d349d3171",
+      "event": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "white": "Xiao, Ruhan",
+      "black": "Tong, Ka Yau Caspar",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1316406",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8649286-1316406.pgn",
+      "sha256": "bf661f5e89a575bfe2440f860658d66081288577c464bde0554c602d349d3171"
+    },
+    {
+      "id": "acf9e6fabfc2511444260b4589e539f7bb7176157220b667b899c5598e5e84af",
+      "event": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "white": "Xiao, Ruhan",
+      "black": "Liang, Zhuobin",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1316406",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8649286-1316406.pgn",
+      "sha256": "acf9e6fabfc2511444260b4589e539f7bb7176157220b667b899c5598e5e84af"
+    },
+    {
+      "id": "8590e6a1dac89a4bdd6fb9b2449b914483029c635fdc281dcfc43ab00f38468d",
+      "event": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "white": "Xiao, Ruhan",
+      "black": "Chan, Chi Ngo",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1316406",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8649286-1316406.pgn",
+      "sha256": "8590e6a1dac89a4bdd6fb9b2449b914483029c635fdc281dcfc43ab00f38468d"
+    },
+    {
+      "id": "ab32ca67e3ecb55871de3b1354eaf9dcdd414cbe0489a4a322bc2893478bd885",
+      "event": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "white": "Raj, Skandha",
+      "black": "Xiao, Ruhan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1316406",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8649286-1316406.pgn",
+      "sha256": "ab32ca67e3ecb55871de3b1354eaf9dcdd414cbe0489a4a322bc2893478bd885"
+    },
+    {
+      "id": "184fe100624d80c387453586f34b711a3c4e1f6a50065279768e83963e6cf03f",
+      "event": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "white": "Leung, Kwan Yat Calix",
+      "black": "Xiao, Ruhan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1316406",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8649286-1316406.pgn",
+      "sha256": "184fe100624d80c387453586f34b711a3c4e1f6a50065279768e83963e6cf03f"
+    },
+    {
+      "id": "0073094511e8264c63ec3af77bad5392a6be2180abb1815406fa34c323839af1",
+      "event": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "white": "Guo, Tailai",
+      "black": "Xiao, Ruhan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1316406",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8649286-1316406.pgn",
+      "sha256": "0073094511e8264c63ec3af77bad5392a6be2180abb1815406fa34c323839af1"
+    },
+    {
+      "id": "889036a790bb504ed338673d450e582352d529835f16e5bf1ff1af7bf3e7cf89",
+      "event": "Hong Kong International Open 2025 - Challengers",
+      "date": "2025-12-23",
+      "white": "Fu, Cheung Hin Jotham",
+      "black": "Xiao, Ruhan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1316406",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8649286-1316406.pgn",
+      "sha256": "889036a790bb504ed338673d450e582352d529835f16e5bf1ff1af7bf3e7cf89"
     },
     {
       "id": "55530248b9aca4ce29aaccf562b5ebe4294021d4b0680df37046f760429397fd",

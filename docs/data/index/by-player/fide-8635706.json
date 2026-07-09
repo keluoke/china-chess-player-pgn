@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:24:50+00:00",
   "player": {
     "fideID": "8635706",
     "id": "fide-8635706",
@@ -21,13 +21,13 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "events": 2,
+    "games": 13,
+    "events": 4,
     "packages": 3,
-    "bytes": 19364,
+    "bytes": 40524,
     "stages": {
-      "U14": 1,
-      "U16": 1
+      "U14": 11,
+      "U16": 2
     }
   },
   "packages": [
@@ -35,14 +35,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8635706/all.pgn",
-      "gameCount": 2,
-      "pgnBytes": 9617,
-      "sha256": "2c31f798f701b6d251f864297c8286cade0e1908cd5d6d9cb6bce9b3acf42ef3",
+      "gameCount": 13,
+      "pgnBytes": 20197,
+      "sha256": "1323b04840ff2803a8a1ce171a86463fe9633ef62716155f1effc1a57da318df",
       "stages": {
-        "U14": 1,
-        "U16": 1
+        "U14": 11,
+        "U16": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -50,13 +51,14 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8635706/U14.pgn",
-      "gameCount": 1,
-      "pgnBytes": 4123,
-      "sha256": "53fd22d6d1fc55356f37a3718a628153d0d6af668eb399a94844e1566b39adca",
+      "gameCount": 11,
+      "pgnBytes": 13731,
+      "sha256": "0541bf01ff2e8773ab150224f416d89a764e2796feed1b1c879957fff13c74e2",
       "stages": {
-        "U14": 1
+        "U14": 11
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -64,18 +66,30 @@
       "id": "U16",
       "label": "U16 PGN",
       "pgnPath": "data/pgn/by-player/fide-8635706/U16.pgn",
-      "gameCount": 1,
-      "pgnBytes": 5624,
-      "sha256": "86acce128145518046e7afde3b487e4b8ea9d1118b776b123de17da3f7bf8b75",
+      "gameCount": 2,
+      "pgnBytes": 6596,
+      "sha256": "ccd38aba09ad54e96b45f31675eec51b9bab4516fab429d06ae441db18344cdd",
       "stages": {
-        "U16": 1
+        "U16": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2026(B16)",
+      "date": "2026-02-22",
+      "tournamentID": "1356507",
+      "stage": "U16",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
@@ -85,6 +99,19 @@
       "gameCount": 1,
       "results": {
         "0-1": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "tournamentID": "1111366",
+      "stage": "U14",
+      "gameCount": 10,
+      "results": {
+        "0-1": 5,
+        "1-0": 4,
+        "1/2-1/2": 1
       }
     },
     {
@@ -101,6 +128,20 @@
   ],
   "games": [
     {
+      "id": "f539bdb2ab5f150dff972d573dc0acf883a7f3bde9fc3db94ad3d660d44e3e74",
+      "event": "Chinese National Youth Chess Championship 2026(B16)",
+      "date": "2026-02-22",
+      "white": "Xu, Chang(Cq)",
+      "black": "Zhang, Yuchen",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "black",
+      "tournamentID": "1356507",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1356507/fide-8635706-1356507.pgn",
+      "sha256": "f539bdb2ab5f150dff972d573dc0acf883a7f3bde9fc3db94ad3d660d44e3e74"
+    },
+    {
       "id": "4ff68f7130b0207219db727dd9a299c8dd3d8eb93a15920e99528fc621ec79cf",
       "event": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
       "date": "2026-02-22",
@@ -114,6 +155,146 @@
       "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "4ff68f7130b0207219db727dd9a299c8dd3d8eb93a15920e99528fc621ec79cf"
+    },
+    {
+      "id": "15d7b98fb62325747ffa9e3d90ac8b16e51997bd1b42173a0c031e56cfe46625",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Zhang, Yuchen",
+      "black": "Zhang, Haixin",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "15d7b98fb62325747ffa9e3d90ac8b16e51997bd1b42173a0c031e56cfe46625"
+    },
+    {
+      "id": "b2d0e0910aecd8a1683c239a055040f587ec90d6552532ca2833be16cf5680f0",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Zhang, Yuchen",
+      "black": "Yang, Zibai",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "b2d0e0910aecd8a1683c239a055040f587ec90d6552532ca2833be16cf5680f0"
+    },
+    {
+      "id": "66c461776792225855a6213da3ae5ecf499ae15bf148a6557d67badb6b3a4731",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Zhang, Yuchen",
+      "black": "Shen, Yirui",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "66c461776792225855a6213da3ae5ecf499ae15bf148a6557d67badb6b3a4731"
+    },
+    {
+      "id": "e3802d749e42fcc251659b8a0d3d7da3b7292ad0ea995b1d90bd8324ae1f39ec",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Zhang, Yuchen",
+      "black": "Peng, Zongqi",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "e3802d749e42fcc251659b8a0d3d7da3b7292ad0ea995b1d90bd8324ae1f39ec"
+    },
+    {
+      "id": "2b90f406a65c3dd9164dc99d8548f361ece7fdd9577156d3a830f81fe8ff6b7a",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Zhang, Yuchen",
+      "black": "Ling, Guohan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "2b90f406a65c3dd9164dc99d8548f361ece7fdd9577156d3a830f81fe8ff6b7a"
+    },
+    {
+      "id": "223a6fb717a1f97261968dd640c35bb8be2fe291cd8aa350b39c58c17149ed48",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Wu, Dongheng",
+      "black": "Zhang, Yuchen",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "223a6fb717a1f97261968dd640c35bb8be2fe291cd8aa350b39c58c17149ed48"
+    },
+    {
+      "id": "8b2af2f5afdfcd63bb31b7119814a3fd980a62077112ec5679059ab67f6ba9ea",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Wang, Yunzhuo",
+      "black": "Zhang, Yuchen",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "8b2af2f5afdfcd63bb31b7119814a3fd980a62077112ec5679059ab67f6ba9ea"
+    },
+    {
+      "id": "127fef3f149959d5994368fdd872df54edcbb2c1b6a617f13213ef06accec728",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Li, Yage",
+      "black": "Zhang, Yuchen",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "127fef3f149959d5994368fdd872df54edcbb2c1b6a617f13213ef06accec728"
+    },
+    {
+      "id": "2951fbff97c747d77482dbb7dc96e7b3d5ceef92d11545fb9df44404858d7df9",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Jiang, Yichen(Zj)",
+      "black": "Zhang, Yuchen",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "2951fbff97c747d77482dbb7dc96e7b3d5ceef92d11545fb9df44404858d7df9"
+    },
+    {
+      "id": "3347c5bb73648a9f585fe345c12c4a9cc501c767a4d567e433f81acceb3b780f",
+      "event": "Chinese National Youth Chess Championship 2025(B16)",
+      "date": "2025-02-04",
+      "white": "Guo, Zixuan",
+      "black": "Zhang, Yuchen",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1111366",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1111366/fide-8635706-1111366.pgn",
+      "sha256": "3347c5bb73648a9f585fe345c12c4a9cc501c767a4d567e433f81acceb3b780f"
     },
     {
       "id": "ec86327fa405f7ae3fcac5af0d2cb745d9e2d006461b8feca1d855a93bedcc99",
