@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T12:55:45+00:00",
   "player": {
     "fideID": "8677603",
     "id": "fide-8677603",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 9312,
+    "games": 22,
+    "events": 4,
+    "packages": 3,
+    "bytes": 48403,
     "stages": {
-      "U10": 1
+      "U8": 20,
+      "U10": 2
     }
   },
   "packages": [
@@ -33,27 +34,44 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8677603/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 4656,
-      "sha256": "c736f01afe7642045f381aa3ae17727ad380a00d288c70220823d95658f71344",
+      "gameCount": 22,
+      "pgnBytes": 24137,
+      "sha256": "96a36b28e9800c26f77ed2dc3c422d1169fd3a457522e60a5acd6e7e4bfc5996",
       "stages": {
-        "U10": 1
+        "U8": 20,
+        "U10": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U8",
+      "label": "U8 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8677603/U8.pgn",
+      "gameCount": 20,
+      "pgnBytes": 18771,
+      "sha256": "65c2e423bb12e9ba429c870b78e9198619bd0ddfc13f93ae3bbaab4b5602bbd3",
+      "stages": {
+        "U8": 20
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
       "id": "U10",
       "label": "U10 PGN",
       "pgnPath": "data/pgn/by-player/fide-8677603/U10.pgn",
-      "gameCount": 1,
-      "pgnBytes": 4656,
-      "sha256": "283390aaecbb3d4e65c379a393c7a3e08746783513948e611e6e6fd539630413",
+      "gameCount": 2,
+      "pgnBytes": 5495,
+      "sha256": "ec87c61ca7e97fab8ec760c3abca6dd416436275971590bf4340a3252d27029c",
       "stages": {
-        "U10": 1
+        "U10": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
@@ -68,6 +86,43 @@
       "gameCount": 1,
       "results": {
         "0-1": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Chess Open (Jian,China)",
+      "date": "2026-04-02",
+      "tournamentID": "1371093",
+      "stage": "U10",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "tournamentID": "1250419",
+      "stage": "U8",
+      "gameCount": 9,
+      "results": {
+        "0-1": 3,
+        "1/2-1/2": 2,
+        "1-0": 4
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "tournamentID": "1210268",
+      "stage": "U8",
+      "gameCount": 11,
+      "results": {
+        "0-1": 4,
+        "1-0": 6,
+        "1/2-1/2": 1
       }
     }
   ],
@@ -86,6 +141,300 @@
       "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-04.pgn.zst",
       "sha256": "25e814df21cab63da993a301c3be7defca0a78a53c64ea1d2303f6de91421320"
+    },
+    {
+      "id": "5ba41111f72fa87b24fd337f1ae078074e2567177cea93ca27d9ef48e1c32d39",
+      "event": "2026 National Chess Open (Jian,China)",
+      "date": "2026-04-02",
+      "white": "Zhang, Xuanpeng",
+      "black": "Tong, Yiyi",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1371093",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1371093/fide-8677603-1371093.pgn",
+      "sha256": "5ba41111f72fa87b24fd337f1ae078074e2567177cea93ca27d9ef48e1c32d39"
+    },
+    {
+      "id": "379870a5423ce60d40480e9a9a7ce91b91f019811184dff4493bb8fbef6f0de7",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Zhang, Xuanpeng",
+      "black": "Zhang, Yicheng(Js)",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "379870a5423ce60d40480e9a9a7ce91b91f019811184dff4493bb8fbef6f0de7"
+    },
+    {
+      "id": "06b5de245c44de84c431a163e82591dd70e4f5d9983c5a978622da55ba1f1443",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Zhang, Xuanpeng",
+      "black": "Wei, Yuren",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "06b5de245c44de84c431a163e82591dd70e4f5d9983c5a978622da55ba1f1443"
+    },
+    {
+      "id": "7514607bc04d024b6f0b2a3fc77cfd537b442046e9d4f644db7c39d8831ed15d",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Zhang, Xuanpeng",
+      "black": "Wei, Boyang",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "7514607bc04d024b6f0b2a3fc77cfd537b442046e9d4f644db7c39d8831ed15d"
+    },
+    {
+      "id": "b4a63af77a27ad582cc5d7b22a109e6b53f53e0a0648dc55432aef34618db9f6",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Zhang, Xuanpeng",
+      "black": "Chen, Yize",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "b4a63af77a27ad582cc5d7b22a109e6b53f53e0a0648dc55432aef34618db9f6"
+    },
+    {
+      "id": "771191fd14ff550c805b133b76e2ce0018c1de2c171b7ac228feba27e04f4921",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Yu, Jianbin",
+      "black": "Zhang, Xuanpeng",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "771191fd14ff550c805b133b76e2ce0018c1de2c171b7ac228feba27e04f4921"
+    },
+    {
+      "id": "1b28520803374c1e7948cbd1b59127ec0f4dfc58897cb231b854b1e54d221b74",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Yi, Ruiyu",
+      "black": "Zhang, Xuanpeng",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "1b28520803374c1e7948cbd1b59127ec0f4dfc58897cb231b854b1e54d221b74"
+    },
+    {
+      "id": "d4f8ff7ec6c87bf61ccefc43f0d2404d83325adf2e7f9fbec07613c6f6986576",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Wang, Bo(Hlj)",
+      "black": "Zhang, Xuanpeng",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "d4f8ff7ec6c87bf61ccefc43f0d2404d83325adf2e7f9fbec07613c6f6986576"
+    },
+    {
+      "id": "ecb9b53fe6a1d9ceb15abc9401434deefa693d18ca90ade627be34f7b8fe9e60",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Hu, Zixuan",
+      "black": "Zhang, Xuanpeng",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "ecb9b53fe6a1d9ceb15abc9401434deefa693d18ca90ade627be34f7b8fe9e60"
+    },
+    {
+      "id": "60df8a983f24e61fb7b3716bf939e00ed5e036e13bf0baa64a4ef5b5e5845cf1",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Ding, Aima",
+      "black": "Zhang, Xuanpeng",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8677603-1250419.pgn",
+      "sha256": "60df8a983f24e61fb7b3716bf939e00ed5e036e13bf0baa64a4ef5b5e5845cf1"
+    },
+    {
+      "id": "911ad704d759c61c8284bb2a338c82cb4c7fe0f75f9c583303442c9ffe0b3fb3",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Zhang, Xuanpeng",
+      "black": "Wang, Xun",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "911ad704d759c61c8284bb2a338c82cb4c7fe0f75f9c583303442c9ffe0b3fb3"
+    },
+    {
+      "id": "680ad3ea62b007721d0b1e34e906c21921c21a3e494577e0d0b2d292c9c5df46",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Zhang, Xuanpeng",
+      "black": "Wang, Wenkai",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "680ad3ea62b007721d0b1e34e906c21921c21a3e494577e0d0b2d292c9c5df46"
+    },
+    {
+      "id": "baa8185fd3c2eea7d378d46fbce17583598d2eb8eae336fdaee7874343462397",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Zhang, Xuanpeng",
+      "black": "Qiao, Yinhan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "baa8185fd3c2eea7d378d46fbce17583598d2eb8eae336fdaee7874343462397"
+    },
+    {
+      "id": "3447d99394e34abe5e7be3865f5dc76001479ed14383767e484e33b1cc9101a0",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Zhang, Xuanpeng",
+      "black": "Lei, Boyan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "3447d99394e34abe5e7be3865f5dc76001479ed14383767e484e33b1cc9101a0"
+    },
+    {
+      "id": "7117371d8cfc3430ba5d8c136ab0b7cec1791de70c11bf33609a42aa59dfda4a",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Zhang, Xuanpeng",
+      "black": "Huang, Kaijin",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "7117371d8cfc3430ba5d8c136ab0b7cec1791de70c11bf33609a42aa59dfda4a"
+    },
+    {
+      "id": "3750b7c384c45a1ff52db5492ba10eb1d1f60e0b50f74e095b1abd7e19c79ff6",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Zhang, Xuanpeng",
+      "black": "Han, Heming",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "white",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "3750b7c384c45a1ff52db5492ba10eb1d1f60e0b50f74e095b1abd7e19c79ff6"
+    },
+    {
+      "id": "af25c0311ba0188086fd8d5a5f4b1249f65cfd6b12716c66a5405a510feea375",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Yang, Zhizhou",
+      "black": "Zhang, Xuanpeng",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "af25c0311ba0188086fd8d5a5f4b1249f65cfd6b12716c66a5405a510feea375"
+    },
+    {
+      "id": "a64de7539424cc0e971bbd44449c72eddfa79b86a20085f8a3c6de49e987e575",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Xu, Wangrui",
+      "black": "Zhang, Xuanpeng",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "a64de7539424cc0e971bbd44449c72eddfa79b86a20085f8a3c6de49e987e575"
+    },
+    {
+      "id": "27f66bd119dd3c88a62f86128bac5d2d6121bac8d039fcca8289f7a1d904de62",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Liu, Ziche",
+      "black": "Zhang, Xuanpeng",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "27f66bd119dd3c88a62f86128bac5d2d6121bac8d039fcca8289f7a1d904de62"
+    },
+    {
+      "id": "fd7b0c9dd6802d08cd664e46383968bf298e3db5dff7d935a2f6ad3139fe19b0",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Cui, Yibo",
+      "black": "Zhang, Xuanpeng",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "fd7b0c9dd6802d08cd664e46383968bf298e3db5dff7d935a2f6ad3139fe19b0"
+    },
+    {
+      "id": "601a0716e9933b04fcf21161a65110a8e9c9420a666387f3463b6e106e898479",
+      "event": "2025 China Youth Rapid Championship(U8)",
+      "date": "2025-07-04",
+      "white": "Chen, Yang(JS)",
+      "black": "Zhang, Xuanpeng",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U8",
+      "role": "black",
+      "tournamentID": "1210268",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210268/fide-8677603-1210268.pgn",
+      "sha256": "601a0716e9933b04fcf21161a65110a8e9c9420a666387f3463b6e106e898479"
     }
   ]
 }

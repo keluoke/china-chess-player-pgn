@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T12:55:45+00:00",
   "player": {
     "fideID": "8662452",
     "id": "fide-8662452",
@@ -21,12 +21,12 @@
     ]
   },
   "totals": {
-    "games": 21,
-    "events": 14,
+    "games": 24,
+    "events": 16,
     "packages": 2,
-    "bytes": 202080,
+    "bytes": 207314,
     "stages": {
-      "U10": 21
+      "U10": 24
     }
   },
   "packages": [
@@ -34,13 +34,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8662452/all.pgn",
-      "gameCount": 21,
-      "pgnBytes": 101040,
-      "sha256": "e44b86d59a59e3055101281f6f3934ed92ae27c992b662544ab1817c117efab8",
+      "gameCount": 24,
+      "pgnBytes": 103657,
+      "sha256": "312bc1d8f87979e321a499d7d24666417895a72c6ef9c64afbf6123f45185214",
       "stages": {
-        "U10": 21
+        "U10": 24
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -48,13 +49,14 @@
       "id": "U10",
       "label": "U10 PGN",
       "pgnPath": "data/pgn/by-player/fide-8662452/U10.pgn",
-      "gameCount": 21,
-      "pgnBytes": 101040,
-      "sha256": "d922ae30f6bde67a3610700454ddd0ab263c7df7aed00da7bd3d7e542eef5ce1",
+      "gameCount": 24,
+      "pgnBytes": 103657,
+      "sha256": "6c3955052f245fc4d02ab231ac5b0de7c2b87e001c4d6e9eb3f03c15af4beb1d",
       "stages": {
-        "U10": 21
+        "U10": 24
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
@@ -65,6 +67,17 @@
       "name": "Round 2: Dai, Wenzhi - Chen, Zixi",
       "date": "2026-05-29",
       "tournamentID": "",
+      "stage": "U10",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-05-29",
+      "tournamentID": "1424920",
       "stage": "U10",
       "gameCount": 1,
       "results": {
@@ -215,6 +228,17 @@
       "results": {
         "1-0": 4
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(G10)",
+      "date": "2025-02-04",
+      "tournamentID": "1110355",
+      "stage": "U10",
+      "gameCount": 2,
+      "results": {
+        "0-1": 2
+      }
     }
   ],
   "games": [
@@ -232,6 +256,20 @@
       "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-05.pgn.zst",
       "sha256": "65312ed79ba76457530677abb65dc78ed255301da6045d2119c2561245ce6aff"
+    },
+    {
+      "id": "ed6f1e484d5b4761e762f1b13cb3a7afa206b1a88dfbb3c46250e636fa8aa0fe",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-05-29",
+      "white": "Dai, Wenzhi",
+      "black": "Chen, Zixi",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1424920",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8662452-1424920.pgn",
+      "sha256": "ed6f1e484d5b4761e762f1b13cb3a7afa206b1a88dfbb3c46250e636fa8aa0fe"
     },
     {
       "id": "da6aa1b68f37a96409b36ec548e015b21ebf5e3a8b243f00003a78644a39ce70",
@@ -532,6 +570,34 @@
       "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
       "sha256": "cd7a82f658c836810e33276a96b9e3d7d8b88e9aa8a3158768ca08f5695be085"
+    },
+    {
+      "id": "0067dd1b0f59d7b4ce9027391908707606bb88ed2d332c810becd3a05563a50e",
+      "event": "Chinese National Youth Chess Championship 2025(G10)",
+      "date": "2025-02-04",
+      "white": "Chen, Zixi",
+      "black": "Zhao, Ruoqi",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1110355",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8662452-1110355.pgn",
+      "sha256": "0067dd1b0f59d7b4ce9027391908707606bb88ed2d332c810becd3a05563a50e"
+    },
+    {
+      "id": "5c59fac1149b67aa2c1f4220c1be170c07ff8ae48e16f051ab5902c448caf984",
+      "event": "Chinese National Youth Chess Championship 2025(G10)",
+      "date": "2025-02-04",
+      "white": "Chen, Zixi",
+      "black": "Ye, Qianyu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1110355",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8662452-1110355.pgn",
+      "sha256": "5c59fac1149b67aa2c1f4220c1be170c07ff8ae48e16f051ab5902c448caf984"
     }
   ]
 }

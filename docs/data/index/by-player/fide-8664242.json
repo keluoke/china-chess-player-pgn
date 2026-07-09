@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T12:55:45+00:00",
   "player": {
     "fideID": "8664242",
     "id": "fide-8664242",
@@ -20,13 +20,13 @@
     ]
   },
   "totals": {
-    "games": 37,
-    "events": 17,
+    "games": 54,
+    "events": 20,
     "packages": 3,
-    "bytes": 318112,
+    "bytes": 348304,
     "stages": {
-      "U10": 36,
-      "U12": 1
+      "U10": 52,
+      "U12": 2
     }
   },
   "packages": [
@@ -34,12 +34,12 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8664242/all.pgn",
-      "gameCount": 37,
-      "pgnBytes": 158991,
-      "sha256": "7668ef1aec8f3af1ba9601d179897ab34b6a4015f842a85b553a7a8e744aee92",
+      "gameCount": 54,
+      "pgnBytes": 174087,
+      "sha256": "4442f1007472b687521bd418daa462411480299bcdbb5a163da6a4859c1b3a8e",
       "stages": {
-        "U10": 36,
-        "U12": 1
+        "U10": 52,
+        "U12": 2
       },
       "sources": [
         "Chess-Results",
@@ -50,11 +50,11 @@
       "id": "U10",
       "label": "U10 PGN",
       "pgnPath": "data/pgn/by-player/fide-8664242/U10.pgn",
-      "gameCount": 36,
-      "pgnBytes": 153073,
-      "sha256": "aa1c4bacd5b0ec3b13f6eb3c911804b742a4ba246c1a7721a2358ebb1f9c8df2",
+      "gameCount": 52,
+      "pgnBytes": 167173,
+      "sha256": "f9dad6fff1ea4fa5b731c9ef52dda01dcc4b042bb611c2a535cc1f7f8dd17a05",
       "stages": {
-        "U10": 36
+        "U10": 52
       },
       "sources": [
         "Chess-Results",
@@ -65,18 +65,30 @@
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8664242/U12.pgn",
-      "gameCount": 1,
-      "pgnBytes": 6048,
-      "sha256": "23d397019be3e3c340cead9939ead1278fc4339e3234aa76c6b5db26f278d4f1",
+      "gameCount": 2,
+      "pgnBytes": 7044,
+      "sha256": "41f1fb45b8fda520b4586b66a2f92389ecf29157a61b7a2e65991189cb051e1c",
       "stages": {
-        "U12": 1
+        "U12": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2026(B18)",
+      "date": "2026-02-22",
+      "tournamentID": "1356508",
+      "stage": "U12",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
@@ -115,6 +127,19 @@
       }
     },
     {
+      "source": "Chess-Results",
+      "name": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "tournamentID": "1299014",
+      "stage": "U10",
+      "gameCount": 8,
+      "results": {
+        "1/2-1/2": 1,
+        "1-0": 5,
+        "0-1": 2
+      }
+    },
+    {
       "source": "Lichess Broadcasts",
       "name": "2025年全国国际象棋棋协大师赛（重庆站）",
       "date": "2025-11-28",
@@ -147,6 +172,18 @@
       "results": {
         "0-1": 4,
         "1-0": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "tournamentID": "1214374",
+      "stage": "U10",
+      "gameCount": 8,
+      "results": {
+        "0-1": 3,
+        "1-0": 5
       }
     },
     {
@@ -274,6 +311,20 @@
     }
   ],
   "games": [
+    {
+      "id": "e330311a9228bfcd895412f74005a9e09232a89e36d9d09abc8f458845ec54f5",
+      "event": "Chinese National Youth Chess Championship 2026(B18)",
+      "date": "2026-02-22",
+      "white": "Sun, Yuxiao",
+      "black": "Fan, Jingyi",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1356508",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1356508/fide-8664242-1356508.pgn",
+      "sha256": "e330311a9228bfcd895412f74005a9e09232a89e36d9d09abc8f458845ec54f5"
+    },
     {
       "id": "a2f2ee305d5f4d5ed75e38e83a4f7c7c957bcff95b8b7cda7621ab490bf39a1f",
       "event": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
@@ -408,6 +459,118 @@
       "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
       "sha256": "e14c5ed595fdffba5009fe4ea3003e64254c9b3f1a6a567d9830b011a493a208"
+    },
+    {
+      "id": "9ac44d1499fed4f5c39b1ef90046aa71498b8ce9bf742194ec0ec05fb6dfcbd6",
+      "event": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "white": "Yu, Xi",
+      "black": "Sun, Yuxiao",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1299014",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1299014/fide-8664242-1299014.pgn",
+      "sha256": "9ac44d1499fed4f5c39b1ef90046aa71498b8ce9bf742194ec0ec05fb6dfcbd6"
+    },
+    {
+      "id": "7fc099ff4f8fd40bee2e77232dcb281cd9dafbc97af6a4a304f78b20d63075b0",
+      "event": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "white": "Sun, Yuxiao",
+      "black": "Yu, Hongxu",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1299014",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1299014/fide-8664242-1299014.pgn",
+      "sha256": "7fc099ff4f8fd40bee2e77232dcb281cd9dafbc97af6a4a304f78b20d63075b0"
+    },
+    {
+      "id": "537053481fa5c666223843c070c4d6e6761f3e59d1f194b13746dadfec469e15",
+      "event": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "white": "Sun, Yuxiao",
+      "black": "Xie, Jingzhiqi",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1299014",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1299014/fide-8664242-1299014.pgn",
+      "sha256": "537053481fa5c666223843c070c4d6e6761f3e59d1f194b13746dadfec469e15"
+    },
+    {
+      "id": "10cbcc4844f72bd5b122b7847823d7aa020f3a200893e4e76f72eaa7775bad6e",
+      "event": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "white": "Sun, Yuxiao",
+      "black": "Xia, Miaoyan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1299014",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1299014/fide-8664242-1299014.pgn",
+      "sha256": "10cbcc4844f72bd5b122b7847823d7aa020f3a200893e4e76f72eaa7775bad6e"
+    },
+    {
+      "id": "4367a884fafd95c13ab0ecc569cf90ebd6a5e30c5083ca2968b9534e736ca2c7",
+      "event": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "white": "Sun, Yuxiao",
+      "black": "Liu, Zhengcheng",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1299014",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1299014/fide-8664242-1299014.pgn",
+      "sha256": "4367a884fafd95c13ab0ecc569cf90ebd6a5e30c5083ca2968b9534e736ca2c7"
+    },
+    {
+      "id": "52311c99a726fec44aaa701053f9cb5026e95d4d7f12afa8e24b78ae0c9e19c0",
+      "event": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "white": "Sun, Yuxiao",
+      "black": "Huang, Yiduo",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1299014",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1299014/fide-8664242-1299014.pgn",
+      "sha256": "52311c99a726fec44aaa701053f9cb5026e95d4d7f12afa8e24b78ae0c9e19c0"
+    },
+    {
+      "id": "2037194fb3dae9fffc200d85d9410ababff1e9019501ee3fc214ef697bc04bfc",
+      "event": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "white": "Song, Yuzhen",
+      "black": "Sun, Yuxiao",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1299014",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1299014/fide-8664242-1299014.pgn",
+      "sha256": "2037194fb3dae9fffc200d85d9410ababff1e9019501ee3fc214ef697bc04bfc"
+    },
+    {
+      "id": "81c2a379c3785e24bce3f697bd1379dc72955338581937a87391ca0c049d0606",
+      "event": "2025 National Amateur Chess Master Tournament Chongqing Station",
+      "date": "2025-11-29",
+      "white": "Gong, Yuhan",
+      "black": "Sun, Yuxiao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1299014",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1299014/fide-8664242-1299014.pgn",
+      "sha256": "81c2a379c3785e24bce3f697bd1379dc72955338581937a87391ca0c049d0606"
     },
     {
       "id": "3e61f5d1c9b5800419dca881f80a777c5bf20b779f5aa0bda9efc309b75f921f",
@@ -558,6 +721,118 @@
       "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
       "sha256": "89364e3c8fb932bdae05a7a3e2b09c7f3a4cd39d835bff54ffc4399582fa2a8b"
+    },
+    {
+      "id": "667e8785808a67c776276905b810d754546a00f689028dd6078baeb32f3e4803",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Zhang, Mingrui(QD)",
+      "black": "Sun, Yuxiao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8664242-1214374.pgn",
+      "sha256": "667e8785808a67c776276905b810d754546a00f689028dd6078baeb32f3e4803"
+    },
+    {
+      "id": "2eb943bc2b01ef94f9ece3bd8bca09740e3638db6d6bd97283b6bf12d47fff75",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Tan, Liang Yi Belle",
+      "black": "Sun, Yuxiao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8664242-1214374.pgn",
+      "sha256": "2eb943bc2b01ef94f9ece3bd8bca09740e3638db6d6bd97283b6bf12d47fff75"
+    },
+    {
+      "id": "f8e9b5af620e038a523b16671dcd4461b9576e3e7257a41f912af354a87d9de1",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Sun, Yuxiao",
+      "black": "Tan, Ze Hao Brighton",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8664242-1214374.pgn",
+      "sha256": "f8e9b5af620e038a523b16671dcd4461b9576e3e7257a41f912af354a87d9de1"
+    },
+    {
+      "id": "439f482c7b47bfff6e25333812e822b5a36f6e3ca4b79a3700fe8ee5f30dd085",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Sun, Yuxiao",
+      "black": "Ping, Ancheng",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8664242-1214374.pgn",
+      "sha256": "439f482c7b47bfff6e25333812e822b5a36f6e3ca4b79a3700fe8ee5f30dd085"
+    },
+    {
+      "id": "98667d2af62247a07c7c144a8ab6c8c02a3a6b8f61a77de7fada7b9b32bd723b",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Sun, Yuxiao",
+      "black": "Ma, Qianxing",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8664242-1214374.pgn",
+      "sha256": "98667d2af62247a07c7c144a8ab6c8c02a3a6b8f61a77de7fada7b9b32bd723b"
+    },
+    {
+      "id": "68e252d6fe7f816797ea9a6efb54636799a32c357aaf0989c947c92f9ddc5e14",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Song, Guohe",
+      "black": "Sun, Yuxiao",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8664242-1214374.pgn",
+      "sha256": "68e252d6fe7f816797ea9a6efb54636799a32c357aaf0989c947c92f9ddc5e14"
+    },
+    {
+      "id": "2e4af56d1a95b6337aa4db5843b0d684f950758b6f17f875242ee26521e7184a",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Liu, Qikai",
+      "black": "Sun, Yuxiao",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8664242-1214374.pgn",
+      "sha256": "2e4af56d1a95b6337aa4db5843b0d684f950758b6f17f875242ee26521e7184a"
+    },
+    {
+      "id": "d0f1726eb81779ddb45f1ac4b99ce138ad102920a564896e784e958127a40aea",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Li, Chengyu",
+      "black": "Sun, Yuxiao",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8664242-1214374.pgn",
+      "sha256": "d0f1726eb81779ddb45f1ac4b99ce138ad102920a564896e784e958127a40aea"
     },
     {
       "id": "7cc4794e338d90104ebbf549f04edc1a19d6b90c75df30604c6d00ecb264b5fd",

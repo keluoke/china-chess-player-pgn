@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T12:55:45+00:00",
   "player": {
     "fideID": "8620911",
     "id": "fide-8620911",
-    "displayName": "He, Canzhou",
+    "displayName": "何璨舟",
+    "chineseName": "何璨舟",
     "name": "He, Canzhou",
     "federation": "CHN",
     "birthYear": 2007,
@@ -15,16 +16,18 @@
       "8620911",
       "He, Canzhou",
       "He Canzhou",
-      "Canzhou He"
+      "Canzhou He",
+      "何璨舟"
     ]
   },
   "totals": {
-    "games": 18,
-    "events": 15,
-    "packages": 2,
-    "bytes": 116490,
+    "games": 24,
+    "events": 17,
+    "packages": 4,
+    "bytes": 125982,
     "stages": {
-      "U16": 18
+      "U16": 18,
+      "U18": 5
     }
   },
   "packages": [
@@ -32,13 +35,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8620911/all.pgn",
-      "gameCount": 18,
-      "pgnBytes": 58245,
-      "sha256": "8e8204ad8947fc5c4a9b1c43b55785103b024023beecdf906efceffaed9a92ff",
+      "gameCount": 24,
+      "pgnBytes": 62860,
+      "sha256": "dc1d5fe8f5ec3875aeebb0238b9597b1edb418d9656a145a891bab75266a5995",
       "stages": {
-        "U16": 18
+        "U16": 18,
+        "U18": 5
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -48,16 +53,66 @@
       "pgnPath": "data/pgn/by-player/fide-8620911/U16.pgn",
       "gameCount": 18,
       "pgnBytes": 58245,
-      "sha256": "e3fb222b81ef8e0e1b9fab231c1ac16ff912fcfce5cfd8164cd441a3fd2c2396",
+      "sha256": "cfb8044026af3e7cc5047ae3ee84418c4734b4b941b53db6f42b4ddeddbbce7d",
       "stages": {
         "U16": 18
       },
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U18",
+      "label": "U18 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8620911/U18.pgn",
+      "gameCount": 5,
+      "pgnBytes": 3987,
+      "sha256": "d1cf6ed70abb0421e16311640c4bcf6ac5d0708a1d986b578fd0ee7738744b13",
+      "stages": {
+        "U18": 5
+      },
+      "sources": [
+        "Chess-Results"
+      ]
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8620911/adult.pgn",
+      "gameCount": 1,
+      "pgnBytes": 890,
+      "sha256": "1faf5f4110b489f81cd44e34c938e0df3a138dcabbb835d048526550535464d2",
+      "stages": {},
+      "sources": [
+        "Chess-Results"
+      ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "Varsity Match 2026",
+      "date": "2026-03-07",
+      "tournamentID": "1367346",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "91st Bristol Championship",
+      "date": "2025-03-28",
+      "tournamentID": "1114440",
+      "stage": "U18",
+      "gameCount": 5,
+      "results": {
+        "0-1": 1,
+        "1-0": 1,
+        "1/2-1/2": 3
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Hong Kong International Open Chess Championship 2023",
@@ -225,6 +280,90 @@
     }
   ],
   "games": [
+    {
+      "id": "5d713813c5209724d9c377a72fca32ee4e05ac7a6bd1618e8cf583e52f4d3292",
+      "event": "Varsity Match 2026",
+      "date": "2026-03-07",
+      "white": "Pacetti Terra, Nicolas",
+      "black": "He, Canzhou",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "black",
+      "tournamentID": "1367346",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1367346/fide-8620911-1367346.pgn",
+      "sha256": "5d713813c5209724d9c377a72fca32ee4e05ac7a6bd1618e8cf583e52f4d3292"
+    },
+    {
+      "id": "c7adccfee4f71ee66358f99c190dc33665457c1d8c55295b15f2fbc3d1c6106c",
+      "event": "91st Bristol Championship",
+      "date": "2025-03-28",
+      "white": "Hu, Junyan",
+      "black": "He, Canzhou",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U18",
+      "role": "black",
+      "tournamentID": "1114440",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1114440/fide-8620911-1114440.pgn",
+      "sha256": "c7adccfee4f71ee66358f99c190dc33665457c1d8c55295b15f2fbc3d1c6106c"
+    },
+    {
+      "id": "a640b9f4733530ceea0169d73789509b43659d8122b1cf81dcc6ad898dc60717",
+      "event": "91st Bristol Championship",
+      "date": "2025-03-28",
+      "white": "Hill, Alistair",
+      "black": "He, Canzhou",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U18",
+      "role": "black",
+      "tournamentID": "1114440",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1114440/fide-8620911-1114440.pgn",
+      "sha256": "a640b9f4733530ceea0169d73789509b43659d8122b1cf81dcc6ad898dc60717"
+    },
+    {
+      "id": "e2f259278d653cb3a36907cd9a02da9d12139a5732119c40ef5de0b86430c7ff",
+      "event": "91st Bristol Championship",
+      "date": "2025-03-28",
+      "white": "He, Canzhou",
+      "black": "Turner, George",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U18",
+      "role": "white",
+      "tournamentID": "1114440",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1114440/fide-8620911-1114440.pgn",
+      "sha256": "e2f259278d653cb3a36907cd9a02da9d12139a5732119c40ef5de0b86430c7ff"
+    },
+    {
+      "id": "96659aa8d946ab571e25b7df4e7ddebf8c3bbeb6f64f291b8264acfc120848f3",
+      "event": "91st Bristol Championship",
+      "date": "2025-03-28",
+      "white": "He, Canzhou",
+      "black": "Liu, Jack",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U18",
+      "role": "white",
+      "tournamentID": "1114440",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1114440/fide-8620911-1114440.pgn",
+      "sha256": "96659aa8d946ab571e25b7df4e7ddebf8c3bbeb6f64f291b8264acfc120848f3"
+    },
+    {
+      "id": "0ad483eeabcd70a76e40498f609034cea60e50e5a37ed1e28451a403f5bb2254",
+      "event": "91st Bristol Championship",
+      "date": "2025-03-28",
+      "white": "Coman, Kas",
+      "black": "He, Canzhou",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U18",
+      "role": "black",
+      "tournamentID": "1114440",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1114440/fide-8620911-1114440.pgn",
+      "sha256": "0ad483eeabcd70a76e40498f609034cea60e50e5a37ed1e28451a403f5bb2254"
+    },
     {
       "id": "46c7540d0a867df296dbe6e2aa74492bb375643c59c9a5d83e978b840c0c9565",
       "event": "Hong Kong International Open Chess Championship 2023",
