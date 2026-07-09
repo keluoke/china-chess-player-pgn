@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-09T18:32:16+00:00",
   "player": {
     "fideID": "8687838",
     "id": "fide-8687838",
@@ -18,10 +18,10 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "events": 1,
+    "games": 6,
+    "events": 4,
     "packages": 2,
-    "bytes": 5418,
+    "bytes": 39140,
     "stages": {}
   },
   "packages": [
@@ -29,28 +29,52 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8687838/all.pgn",
-      "gameCount": 2,
-      "pgnBytes": 2708,
-      "sha256": "4bc511e9d50199b6d5b78cf343dfe7280417c4d05191624ebd8865e911fb056d",
+      "gameCount": 6,
+      "pgnBytes": 19569,
+      "sha256": "eff5e76d751f25142b06afc5a20da136cba8ae094cf6eafb2ebee313b7fa2473",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8687838/adult.pgn",
-      "gameCount": 2,
-      "pgnBytes": 2710,
-      "sha256": "5c67112b35819023f43bd3b66556d83e5ac0037ca1d57d90623e1f1a0395ab3a",
+      "gameCount": 6,
+      "pgnBytes": 19571,
+      "sha256": "cfe6a7bb25246b0f83e652783a6e7fd1e7fc9ed4bbb41ad41853faa573053213",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "HKIO 2025",
+      "date": "2025-12-25",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "HKIO 2025",
+      "date": "2025-12-24",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 2,
+      "results": {
+        "1-0": 2
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "Hong Kong International Open 2025 - Challengers",
@@ -62,9 +86,65 @@
         "1/2-1/2": 1,
         "1-0": 1
       }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "HKIO 2025",
+      "date": "2025-12-23",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
     }
   ],
   "games": [
+    {
+      "id": "2b9ba54df24b579daf15dbc11ff1e074d9834c4e4ad9291e89ca881df6ee7790",
+      "event": "HKIO 2025",
+      "date": "2025-12-25",
+      "white": "Li, Chengda",
+      "black": "Lai, Siu Ming",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
+      "sha256": "2b9ba54df24b579daf15dbc11ff1e074d9834c4e4ad9291e89ca881df6ee7790"
+    },
+    {
+      "id": "756db348806cdc4dfa2ffa1a732ce697d182c06aa635c59ebcf0423a75b4871c",
+      "event": "HKIO 2025",
+      "date": "2025-12-24",
+      "white": "Wong, Chak Sum",
+      "black": "Li, Chengda",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
+      "sha256": "756db348806cdc4dfa2ffa1a732ce697d182c06aa635c59ebcf0423a75b4871c"
+    },
+    {
+      "id": "a8026ac3f89247aa4bac245bf23290b17c0e31b6a6ccfe226b71d56f20ea7bed",
+      "event": "HKIO 2025",
+      "date": "2025-12-24",
+      "white": "Leung, Yau Long Vulcan",
+      "black": "Li, Chengda",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
+      "sha256": "a8026ac3f89247aa4bac245bf23290b17c0e31b6a6ccfe226b71d56f20ea7bed"
+    },
     {
       "id": "1e0292a2f9031594a60f796b7046bc1e1ffd619d3c14e42b7922ea22ab33ab9c",
       "event": "Hong Kong International Open 2025 - Challengers",
@@ -92,6 +172,21 @@
       "tournamentID": "1316406",
       "sourcePgnPath": "data/pgn/chess-results/tnr1316406/fide-8687838-1316406.pgn",
       "sha256": "6af0faa6240684f7fe7336d19dc2d4e39575367ddcdea546ef989e2214219ffd"
+    },
+    {
+      "id": "ab3b24c6b53a93b85868597a6d9efab3334629c985fb38804318c3ad9fee8fa4",
+      "event": "HKIO 2025",
+      "date": "2025-12-23",
+      "white": "Li, Chengda",
+      "black": "Wong, Kainos",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
+      "sha256": "ab3b24c6b53a93b85868597a6d9efab3334629c985fb38804318c3ad9fee8fa4"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-09T18:32:16+00:00",
   "player": {
     "fideID": "8604410",
     "id": "fide-8604410",
@@ -17,10 +17,10 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 2,
+    "events": 2,
     "packages": 2,
-    "bytes": 2156,
+    "bytes": 4914,
     "stages": {}
   },
   "packages": [
@@ -28,24 +28,26 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8604410/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1077,
-      "sha256": "bc821986b7bf2d479230d18257d35d64f58e1c3b6ffb402d3d3733771b739408",
+      "gameCount": 2,
+      "pgnBytes": 2456,
+      "sha256": "dc03ee16c959396f3c8e41e6162f5b0f36558638112b1d44487d2993d064037c",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8604410/adult.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1079,
-      "sha256": "16752c20498931325dba071c0e2594d79a0da95be59758ce618b22a856324dcb",
+      "gameCount": 2,
+      "pgnBytes": 2458,
+      "sha256": "30ea12695863218d6e7cfa7a567e06450d8391ea9a325f5cce0c54a7ff4b38ff",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
@@ -55,6 +57,17 @@
       "name": "9th Johor International Chess Open 2025",
       "date": "2025-01-18",
       "tournamentID": "1090380",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "9th Johor International Chess Open 2025",
+      "date": "2025-01-18",
+      "tournamentID": "",
       "stage": "adult",
       "gameCount": 1,
       "results": {
@@ -76,6 +89,21 @@
       "tournamentID": "1090380",
       "sourcePgnPath": "data/pgn/chess-results/tnr1090380/fide-8604410-1090380.pgn",
       "sha256": "6c099bf8a96d1964653c4a198be625b254250c5bd3c12920c4ad37e2d1ff6e89"
+    },
+    {
+      "id": "40bea746041b33290aef2a2bda40ec0353e63928c2508dd4034648fc7f0a30a5",
+      "event": "9th Johor International Chess Open 2025",
+      "date": "2025-01-18",
+      "white": "He, Jingyang",
+      "black": "Setyaki, Azarya Jodi",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-01.pgn.zst",
+      "sha256": "40bea746041b33290aef2a2bda40ec0353e63928c2508dd4034648fc7f0a30a5"
     }
   ]
 }
