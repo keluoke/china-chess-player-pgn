@@ -83,6 +83,17 @@ MANIFEST_JSON = INDEX_DIR / "chess-results-spielersuche-manifest.json"
 
 CJK_RE = re.compile(r"[㐀-鿿豈-﫿]")
 
+# A plausible Chinese person name: 2-6 CJK chars, optional ethnic middle dot.
+# Mirrors apply_aliases_to_registry.sanitize_person_name.
+PERSON_NAME_RE = re.compile(r"^[\u3400-\u9fff]{1,3}(?:\u00b7[\u3400-\u9fff]{1,4})?[\u3400-\u9fff]{0,3}$")
+
+
+def sanitize_person_name(value: str) -> str:
+    text = " ".join(str(value or "").split()).strip(" ,\uff0c;\uff1b|\u3001.")
+    if 2 <= len(text.replace("\u00b7", "")) <= 6 and PERSON_NAME_RE.match(text):
+        return text
+    return ""
+
 _STATE_LOCK = Lock()
 
 
@@ -571,8 +582,14 @@ def crawl(args: argparse.Namespace) -> dict[str, Any]:
             stats["participations"] += 1
             stats["discoveredTnrids"].add(r["tnrid"])
 
-            # Chinese-name evidence.
-            cjk = [n for n in r["cjk_names"] if n and n != r["club"]]
+            # Chinese-name evidence. Sanitize at collection time: SpielerSuche
+            # name cells carry trailing commas ("薛皓文,") and the CJK sweep
+            # also matches tournament-title/club cells, which are not names.
+            club_clean = sanitize_person_name(r["club"])
+            cjk = [
+                v for v in (sanitize_person_name(n) for n in r["cjk_names"])
+                if v and v != club_clean
+            ]
             if cjk and fide_id not in name_map:
                 chinese = known_cn.get(fide_id) or cjk[0]
                 name_map[fide_id] = {

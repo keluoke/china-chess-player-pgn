@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Apply data/manual/player-aliases.csv to the static registry JSON in place.
+"""Apply Chinese-name sources to the static registry JSON in place.
+
+Sources, in descending priority:
+  1. data/manual/player-aliases.csv           (curated by hand)
+  2. data/manual/chess-results-player-name-map.csv
+     (auto-collected by crawl_player_events.py from SpielerSuche CJK
+     columns; values are sanitized here — the raw cells carry trailing
+     commas like "薛皓文," and the variants column can contain tournament
+     titles, so only plausible person names are accepted)
 
 Unlike sync_chinese_players.py this does NOT download the FIDE rating list; it
 surgically merges Chinese names, pinyin, and aliases into the already committed
@@ -15,15 +23,31 @@ import csv
 import datetime as dt
 import json
 import pathlib
+import re
 from typing import Any
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_ROOT = REPO_ROOT / "docs" / "data" / "registry"
 ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
+NAME_MAP_CSV = REPO_ROOT / "data" / "manual" / "chess-results-player-name-map.csv"
+
+# A plausible Chinese person name: 2-6 CJK chars, optionally with the ethnic
+# middle dot (e.g. 玉素甫·艾力). Rejects tournament titles, clubs with digits,
+# and mixed-script cells.
+PERSON_NAME_RE = re.compile(r"^[㐀-鿿]{1,3}(?:·[㐀-鿿]{1,4})?[㐀-鿿]{0,3}$")
 
 
 def clean(value: Any) -> str:
     return " ".join(str(value or "").split())
+
+
+def sanitize_person_name(value: Any) -> str:
+    """Strip the separators chess-results appends ('薛皓文,') and accept only
+    plausible person names; returns "" for junk like tournament titles."""
+    text = clean(value).strip(" ,，;；|、.")
+    if 2 <= len(text.replace("·", "")) <= 6 and PERSON_NAME_RE.match(text):
+        return text
+    return ""
 
 
 def split_pipe(value: str) -> list[str]:
@@ -88,10 +112,36 @@ def main() -> int:
             fide_id = clean(row.get("fide_id"))
             if fide_id and clean(row.get("chinese_name")):
                 entries[fide_id] = {
-                    "chinese_name": clean(row.get("chinese_name")),
+                    "chinese_name": clean(row.get("chinese_name")).strip(" ,，;；|"),
                     "pinyin_name": clean(row.get("pinyin_name")),
                     "aliases": clean(row.get("aliases")),
                 }
+
+    # Crawler-collected names fill the gaps the curated file doesn't cover.
+    # Curated entries always win; crawler values go through strict
+    # person-name sanitation because the raw SpielerSuche cells are dirty.
+    crawler_entries = 0
+    if NAME_MAP_CSV.exists():
+        with NAME_MAP_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                fide_id = clean(row.get("fide_id"))
+                if not fide_id or fide_id in entries:
+                    continue
+                chinese = sanitize_person_name(row.get("chinese_name"))
+                if not chinese:
+                    continue
+                variants = [
+                    v for v in (
+                        sanitize_person_name(part)
+                        for part in clean(row.get("name_variants")).split("|")
+                    ) if v and v != chinese
+                ]
+                entries[fide_id] = {
+                    "chinese_name": chinese,
+                    "pinyin_name": clean(row.get("pinyin_name")),
+                    "aliases": "|".join(variants),
+                }
+                crawler_entries += 1
 
     players_path = args.registry_root / "players.json"
     players = json.loads(players_path.read_text(encoding="utf-8"))
@@ -143,6 +193,7 @@ def main() -> int:
     print(json.dumps(
         {
             "aliasEntries": len(entries),
+            "fromCrawlerNameMap": crawler_entries,
             "matchedInRegistry": matched,
             "playersUpdated": updated,
             "shardPlayersUpdated": shard_updated,
