@@ -12,13 +12,13 @@
 
 ## 网页版
 
-静态网页版在 `docs/` 目录，可直接用于 GitHub Pages：
+静态网页版在 `docs/` 目录:
 
 ```bash
 python3 -m http.server 4173 -d docs
 ```
 
-打开 `http://localhost:4173/`。推送到 GitHub 后，`deploy.yml` 会把 `docs/` 同时发布到 GitHub Pages 和 Cloudflare Pages。
+打开 `http://localhost:4173/`。推送到 GitHub 后，`deploy.yml` 会把 `docs/` 发布到 Cloudflare Pages(唯一线上出口:GitHub 管代码,Cloudflare 管网页)。
 
 网页版首页展示 U8-U18 FIDE ELO 排行榜（李成智杯年龄组口径），支持中文/拼音/英文/FIDE ID 搜索，以及按棋手浏览赛事和下载 PGN。PGN 优先读取 `docs/data/pgn/by-player/` 聚合包，其次回退到赛事级 PGN 或 bulk 青少年包。
 
@@ -46,7 +46,7 @@ python3 -m http.server 4173 -d docs
 | Workflow | 触发 | 功能 |
 |----------|------|------|
 | **Rebuild indexes and deploy** | 原始数据 push / 抓取后 dispatch | 纯计算重建全部派生索引（`sync_static_pgn`、`build_static_player_pgn`、离线注册表/别名），提交后触发部署 |
-| **Deploy static site** | `docs/**` 变化 / 被调用 | 把 `docs/` 同时发布到 GitHub Pages 和 Cloudflare Pages |
+| **Deploy static site** | `docs/**` 变化 / 被调用 | 把 `docs/` 发布到 Cloudflare Pages |
 | **Update domestic player registry** | CSV 变化 | 纯计算从 CSV 生成国内临时身份层 |
 | **CI** | push / PR | 字节编译脚本、校验 workflow 与 action YAML |
 

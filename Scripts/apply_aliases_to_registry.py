@@ -30,6 +30,11 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_ROOT = REPO_ROOT / "docs" / "data" / "registry"
 ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
 NAME_MAP_CSV = REPO_ROOT / "data" / "generated" / "chess-results-player-name-map.csv"
+# Force-correction layer: authoritative fixes for past identity mistakes
+# (e.g. 8602980 mislabeled 居文君 — it is 侯逸凡; 8608288 徐翔宇 → 许翔宇).
+# Highest priority: REPLACES an existing wrong chineseName and PURGES the
+# wrong value from aliases, unlike normal entries which never overwrite.
+CORRECTIONS_CSV = REPO_ROOT / "data" / "community" / "name-corrections.csv"
 
 # A plausible Chinese person name: 2-6 CJK chars, optionally with the ethnic
 # middle dot (e.g. 玉素甫·艾力). Rejects tournament titles, clubs with digits,
@@ -69,6 +74,43 @@ def write_json(path: pathlib.Path, data: Any) -> None:
     with path.open("w", encoding="utf-8") as handle:
         json.dump(data, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
+
+
+def load_corrections() -> dict[str, dict[str, str]]:
+    corrections: dict[str, dict[str, str]] = {}
+    if not CORRECTIONS_CSV.exists():
+        return corrections
+    with CORRECTIONS_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+        for row in csv.DictReader(handle):
+            fide_id = clean(row.get("fide_id"))
+            correct = clean(row.get("correct_chinese_name"))
+            if fide_id and correct:
+                corrections[fide_id] = {
+                    "wrong": clean(row.get("wrong_chinese_name")),
+                    "correct": correct,
+                }
+    return corrections
+
+
+def apply_correction(player: dict[str, Any], correction: dict[str, str]) -> bool:
+    """Force-apply an authoritative name correction. Returns changed."""
+    changed = False
+    wrong, correct = correction["wrong"], correction["correct"]
+    if clean(player.get("chineseName")) != correct:
+        player["chineseName"] = correct
+        changed = True
+    if clean(player.get("displayName")) in ("", wrong) or clean(player.get("displayName")) == clean(player.get("name")):
+        if player.get("displayName") != correct:
+            player["displayName"] = correct
+            changed = True
+    aliases = [clean(v) for v in player.get("aliases", []) if clean(v)]
+    purged = [v for v in aliases if v != wrong]
+    if correct not in purged:
+        purged.append(correct)
+    if purged != aliases:
+        player["aliases"] = purged
+        changed = True
+    return changed
 
 
 def apply_to_player(player: dict[str, Any], entry: dict[str, str]) -> tuple[bool, bool]:
@@ -150,6 +192,7 @@ def main() -> int:
     matched = 0
     updated = 0
     conflicts = 0
+    corrected = 0
     touched_shards: set[str] = set()
     for fide_id, entry in entries.items():
         player = by_fide.get(fide_id)
@@ -164,6 +207,18 @@ def main() -> int:
             if shard:
                 touched_shards.add(shard)
 
+    # Force corrections LAST so they beat every other source.
+    corrections = load_corrections()
+    for fide_id, correction in corrections.items():
+        player = by_fide.get(fide_id)
+        if player is None:
+            continue
+        if apply_correction(player, correction):
+            corrected += 1
+            shard = clean(player.get("registryShard"))
+            if shard:
+                touched_shards.add(shard)
+
     shard_updated = 0
     for shard_rel in sorted(touched_shards):
         shard_path = REPO_ROOT / "docs" / shard_rel
@@ -172,12 +227,15 @@ def main() -> int:
         shard_players = json.loads(shard_path.read_text(encoding="utf-8"))
         shard_changed = False
         for player in shard_players:
-            entry = entries.get(clean(player.get("fideID")))
-            if entry is None:
-                continue
-            changed, _ = apply_to_player(player, entry)
-            shard_changed = shard_changed or changed
-            shard_updated += 1 if changed else 0
+            fid = clean(player.get("fideID"))
+            entry = entries.get(fid)
+            if entry is not None:
+                changed, _ = apply_to_player(player, entry)
+                shard_changed = shard_changed or changed
+                shard_updated += 1 if changed else 0
+            correction = corrections.get(fid)
+            if correction is not None and apply_correction(player, correction):
+                shard_changed = True
         if shard_changed and not args.dry_run:
             write_json(shard_path, shard_players)
 
@@ -194,6 +252,7 @@ def main() -> int:
         {
             "aliasEntries": len(entries),
             "fromCrawlerNameMap": crawler_entries,
+            "forcedCorrections": corrected,
             "matchedInRegistry": matched,
             "playersUpdated": updated,
             "shardPlayersUpdated": shard_updated,

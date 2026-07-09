@@ -119,6 +119,55 @@ def check_sightings() -> None:
                 err(path, i, f"source_url domain not allow-listed: {src!r}")
 
 
+def check_name_corrections_pinned() -> None:
+    """Pinned identity assertions: once a name mistake is corrected via
+    data/community/name-corrections.csv, no committed artifact may ever carry
+    the wrong value again (regression guard for e.g. 8602980 居文君→侯逸凡)."""
+    path = REPO_ROOT / "data" / "community" / "name-corrections.csv"
+    if not path.exists():
+        return
+    corrections: dict[str, tuple[str, str]] = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        for i, row in enumerate(csv.DictReader(fh), start=2):
+            fid = (row.get("fide_id") or "").strip()
+            wrong = (row.get("wrong_chinese_name") or "").strip()
+            correct = (row.get("correct_chinese_name") or "").strip()
+            if not fid:
+                continue
+            if not FIDE_ID_RE.match(fid):
+                err(path, i, f"invalid fide_id {fid!r}")
+                continue
+            if not correct:
+                err(path, i, "correct_chinese_name required")
+                continue
+            if not url_ok((row.get("evidence_url") or "").strip()):
+                err(path, i, "evidence_url missing or domain not allow-listed")
+            corrections[fid] = (wrong, correct)
+
+    for artifact in [
+        REPO_ROOT / "docs" / "data" / "registry" / "players.json",
+        REPO_ROOT / "docs" / "data" / "index" / "players.json",
+    ]:
+        if not artifact.exists():
+            continue
+        try:
+            players = json.loads(artifact.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{artifact.relative_to(REPO_ROOT)}: unreadable ({exc})")
+            continue
+        for player in players:
+            fid = str(player.get("fideID") or "").strip()
+            pin = corrections.get(fid)
+            if not pin:
+                continue
+            wrong, correct = pin
+            cn = str(player.get("chineseName") or "").strip()
+            if wrong and cn == wrong:
+                errors.append(
+                    f"{artifact.relative_to(REPO_ROOT)}: fide {fid} still carries corrected-away name {wrong!r} (must be {correct!r})"
+                )
+
+
 def check_generated_untouched_note() -> None:
     # Structural sanity of machine files (they can be regenerated, so only warn).
     path = REPO_ROOT / "data" / "generated" / "chess-results-player-name-map.csv"
@@ -133,6 +182,7 @@ def main() -> int:
     check_federation_overrides()
     check_player_aliases()
     check_sightings()
+    check_name_corrections_pinned()
     check_generated_untouched_note()
 
     print(json.dumps({"errors": len(errors), "warnings": len(warnings)}, ensure_ascii=False))

@@ -1,11 +1,10 @@
 # 静态数据 API v1
 
-面向外部项目(风格引擎、统计分析、App 等)的只读数据接口。所有端点是构建期生成的静态文件,由 GitHub Pages / Cloudflare Pages 提供,自带 `Access-Control-Allow-Origin: *`,无运行时、无鉴权、无频率限制(请善用缓存)。
+面向外部项目(风格引擎、统计分析、App 等)的只读数据接口。所有端点是构建期生成的静态文件,由 Cloudflare Pages 提供,自带 `Access-Control-Allow-Origin: *`,无运行时、无鉴权、无频率限制(请善用缓存)。
 
-Base URL(二选一):
+Base URL:
 
 ```
-https://keluoke.github.io/china-chess-player-pgn
 https://china-chess-player-pgn.pages.dev
 ```
 
