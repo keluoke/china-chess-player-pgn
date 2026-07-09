@@ -35,6 +35,12 @@ const els = {
 
 const data = await loadData();
 const stages = data.ageRule.stages;
+const ADULT_GROUPS = [
+  { id: "U20", label: "U20", minAge: 19, maxAge: 20, desc: "19-20 岁" },
+  { id: "OPEN", label: "成年", minAge: 19, maxAge: null, desc: "成年公开组 · 19 岁及以上" },
+  { id: "S50", label: "S50", minAge: 50, maxAge: null, desc: "元老组 · 50 岁及以上" },
+  { id: "S65", label: "S65", minAge: 65, maxAge: null, desc: "元老组 · 65 岁及以上" }
+];
 const players = data.players.map(preparePlayer);
 const detailCache = new Map();
 const detailRequests = new Map();
@@ -195,8 +201,13 @@ function renderLeaderboardArea() {
 }
 
 function renderTabs() {
-  const tabs = [{ id: "ALL", label: "U8-U18" }, ...stages.map(stage => ({ id: stage.id, label: stage.id }))];
-  const rows = [tabs.slice(0, 4), tabs.slice(4)];
+  const tabs = [
+    { id: "ALL", label: "U8-U18" },
+    ...stages.map(stage => ({ id: stage.id, label: stage.id })),
+    ...ADULT_GROUPS.map(group => ({ id: group.id, label: group.label }))
+  ];
+  const rows = [];
+  for (let i = 0; i < tabs.length; i += 4) rows.push(tabs.slice(i, i + 4));
   els.stageTabs.innerHTML = rows.map(row => `
     <div class="stage-tab-row">
       ${row.map(tab => `
@@ -231,8 +242,11 @@ function renderLeaderboards() {
 function leaderboardCard(stageID) {
   const entries = rankingsForStage(stageID);
   const stage = stages.find(item => item.id === stageID);
-  const title = stage ? stage.id : "U8-U18";
-  const subtitle = stage
+  const adultGroup = ADULT_GROUPS.find(item => item.id === stageID);
+  const title = adultGroup ? adultGroup.label : (stage ? stage.id : "U8-U18");
+  const subtitle = adultGroup
+    ? `${adultGroup.desc}(基准年 ${data.competitionYear})`
+    : stage
     ? `${stage.birthYears} 出生 · ${stage.lowerAge}-${stage.upperAge} 岁`
     : `${data.competitionYear} 年李成智杯自然年龄组口径`;
   const maxRating = Math.max(...entries.map(entry => entry.rating.value), 1);
@@ -246,8 +260,8 @@ function leaderboardCard(stageID) {
         <td class="rank-cell"><span class="rank-badge">${index + 1}</span></td>
         <td>
           <div class="player-name">${escapeHTML(displayName(player))}</div>
-          <div class="player-meta">${escapeHTML(playerStage?.id ?? "-")} · FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(player.birthYear ?? "-"))} 出生</div>
-          ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}
+          <div class="player-meta">${escapeHTML(playerStage?.id ?? "成年")} · FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(player.birthYear ?? "-"))} 出生${transferBadge(player)}</div>
+          ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}${transferBadge(player)}
           <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="--bar-width: ${width}%"></div></div>
         </td>
         <td class="rating-cell">
@@ -327,6 +341,7 @@ function renderDetail() {
       <div class="detail-title-actions">
         <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
+        <a class="action-link" href="https://github.com/keluoke/china-chess-player-pgn/issues/new?template=data-correction.yml&fide_id=${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">数据有误?</a>
       </div>
     </div>
 
@@ -1044,8 +1059,17 @@ function scrollDetailIntoViewOnMobile() {
 }
 
 function rankingsForStage(stageID) {
+  const adultGroup = ADULT_GROUPS.find(group => group.id === stageID);
+  const inAdultGroup = player => {
+    const age = data.competitionYear - player.birthYear;
+    return Number.isFinite(age) && age >= adultGroup.minAge
+      && (adultGroup.maxAge == null || age <= adultGroup.maxAge)
+      && !player.inactive;
+  };
   return players
-    .filter(player => stageID === "ALL" ? Boolean(stageForPlayer(player)) : stageForPlayer(player)?.id === stageID)
+    .filter(player => adultGroup
+      ? inAdultGroup(player)
+      : (stageID === "ALL" ? Boolean(stageForPlayer(player)) : stageForPlayer(player)?.id === stageID))
     .map(player => ({ player, rating: ratingForPlayer(player) }))
     .filter(entry => entry.rating)
     .sort((a, b) => {
@@ -1162,6 +1186,15 @@ function displayName(player) {
     name = player.displayName ?? player.name ?? player.chineseName ?? `FIDE ${player.fideID}`;
   }
   return displayText(name);
+}
+
+function transferBadge(player) {
+  if (!player.formerFederation && !player.transfer) return "";
+  const type = player.transfer?.type ?? (player.federation !== "CHN" ? "transferred_out" : "transferred_in");
+  const text = type === "transferred_out"
+    ? `已转出 CHN → ${player.federation ?? "?"}`
+    : `转入 ${player.formerFederation ?? "?"} → CHN`;
+  return ` <span class="note-pill">${escapeHTML(text)}</span>`;
 }
 
 function detailChineseNameLine(player) {

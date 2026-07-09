@@ -1,6 +1,10 @@
-# 中国棋手 PGN
+# 中国国际象棋棋手数据库
 
-查询中国国际象棋棋手，聚合赛事记录，合并 PGN。
+社区共建的开源中国国际象棋棋手数据库:全量 CHN 棋手注册表(含转出/转入棋手标注)、赛事记录、对局 PGN、全年龄组排行榜(U8-U18 / U20 / 成年 / S50 / S65),并以[静态数据 API](docs/API.md) 对外提供数据。
+
+- 贡献数据:见 [CONTRIBUTING.md](CONTRIBUTING.md)(网页上改 CSV 提 PR 即可)
+- 数据 API:见 [docs/API.md](docs/API.md)(风格引擎等外部项目请走 API,本仓库不再内置风格模拟)
+- 许可:代码 MIT,数据 CC BY 4.0(见 [LICENSE-DATA.md](LICENSE-DATA.md))
 
 数据源以 Chess-Results 为主，辅以 FIDE/Lichess 公开资料和中文别名索引。
 
