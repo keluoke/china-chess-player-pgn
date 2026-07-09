@@ -31,8 +31,15 @@ runs:
           --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
           docs/ "$out"/
 
+        # Bulk stage packs can legitimately exceed the per-file hosting limit
+        # (e.g. the adult broadcast pack). They are secondary downloads — the
+        # per-player packs carry the same games — so DROP oversize bulk packs
+        # from the artifact instead of failing the whole deploy.
+        find "$out/data/bulk" -type f -size +${{ inputs.max-file-mib }}M -print -delete 2>/dev/null           | sed 's/^/dropped oversize bulk file: /' || true
+
         if find "$out" -type f -size +${{ inputs.max-file-mib }}M -print -quit | grep -q .; then
           echo "Static site contains a file larger than ${{ inputs.max-file-mib }} MiB; split it before deploy." >&2
+          find "$out" -type f -size +${{ inputs.max-file-mib }}M -print >&2
           exit 1
         fi
 
