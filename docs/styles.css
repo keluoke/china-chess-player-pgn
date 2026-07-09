@@ -993,3 +993,37 @@ input {
     font-size: 26px;
   }
 }
+
+
+/* --- dashboard --------------------------------------------------------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.stat-card {
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #e3e8f0);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.stat-card .stat-value {
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.stat-card .stat-label {
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+  margin-top: 2px;
+}
+.recent-events { margin-bottom: 20px; }
+.recent-events table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.recent-events th, .recent-events td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line, #e8edf4);
+}
+.recent-events th { color: var(--muted, #64748b); font-weight: 600; font-size: 0.75rem; }
+.recent-events td.num, .recent-events th.num { text-align: right; }

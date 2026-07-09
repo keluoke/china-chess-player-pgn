@@ -352,6 +352,7 @@ case "$command" in
     py Scripts/build_leaderboards.py
     [ -f Scripts/build_api.py ] && py Scripts/build_api.py
     [ -f Scripts/build_changelog.py ] && py Scripts/build_changelog.py
+    [ -f Scripts/build_dashboard.py ] && py Scripts/build_dashboard.py
     commit_and_push "Rebuild derived indexes (local)" docs/data
     ;;
 
