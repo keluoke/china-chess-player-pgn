@@ -68,6 +68,27 @@ done
 
 py() { python3 "$@"; }
 
+# ensure_pymod <import-name> [pip-name] — install a Python dep if missing.
+# Tries default PyPI, then the Tsinghua mirror (mainland-friendly), with and
+# without --break-system-packages (Homebrew Python is externally managed).
+ensure_pymod() {
+  local mod="$1" pkg="${2:-$1}"
+  python3 -c "import $mod" 2>/dev/null && return 0
+  step "安装 Python 依赖:$pkg"
+  for args in "" "--break-system-packages" \
+              "-i https://pypi.tuna.tsinghua.edu.cn/simple" \
+              "-i https://pypi.tuna.tsinghua.edu.cn/simple --break-system-packages"; do
+    # shellcheck disable=SC2086
+    if python3 -m pip install --user --quiet $args "$pkg" 2>/dev/null \
+       && python3 -c "import $mod" 2>/dev/null; then
+      echo "已安装 $pkg"
+      return 0
+    fi
+  done
+  echo "无法自动安装 $pkg;请手动执行:python3 -m pip install --user $pkg" >&2
+  return 1
+}
+
 # --- progress / notification helpers ---------------------------------------
 BOLD=$'\033[1m'; GREEN=$'\033[32m'; RED=$'\033[31m'; CYAN=$'\033[36m'; RESET=$'\033[0m'
 step() { printf '\n%s==> %s%s\n' "${BOLD}${CYAN}" "$*" "$RESET"; }
@@ -285,6 +306,8 @@ case "$command" in
     ;;
 
   bulk)
+    # zst 解压依赖:优先 python 模块,装不上时脚本内部还有 zstd CLI 兜底
+    ensure_pymod zstandard || command -v zstd >/dev/null 2>&1 || exit 1
     py Scripts/sync_lichess_broadcast_bulk.py --metadata-only --mirror --index-youth ${EXTRA[@]+"${EXTRA[@]}"}
     commit_and_push "Update Lichess broadcast bulk archive (local)" docs/data
     ;;

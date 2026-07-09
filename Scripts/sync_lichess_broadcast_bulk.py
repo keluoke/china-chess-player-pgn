@@ -486,11 +486,31 @@ def load_profiles() -> tuple[dict[str, PlayerProfile], dict[str, str]]:
     return profiles, unique_names
 
 
-def iter_zst_pgn_games(path: pathlib.Path) -> Iterator[str]:
-    import zstandard as zstd  # type: ignore[import-not-found]
+def _open_zst_stream(path: pathlib.Path):
+    """Streaming .zst reader: zstandard module preferred, zstd CLI fallback."""
+    try:
+        import zstandard as zstd  # type: ignore[import-not-found]
 
-    decoder = zstd.ZstdDecompressor()
-    with path.open("rb") as raw, decoder.stream_reader(raw) as reader:
+        raw = path.open("rb")
+        return zstd.ZstdDecompressor().stream_reader(raw), raw, None
+    except ImportError:
+        import shutil
+        import subprocess
+
+        zstd_bin = shutil.which("zstd")
+        if not zstd_bin:
+            raise SystemExit(
+                "缺少 zst 解压能力:请安装 python 模块(python3 -m pip install --user zstandard)"
+                "或命令行工具(brew install zstd)后重试。"
+            )
+        proc = subprocess.Popen([zstd_bin, "-dc", str(path)], stdout=subprocess.PIPE)
+        assert proc.stdout is not None
+        return proc.stdout, proc.stdout, proc
+
+
+def iter_zst_pgn_games(path: pathlib.Path) -> Iterator[str]:
+    reader, closer, proc = _open_zst_stream(path)
+    try:
         text_reader = TextChunkReader(reader)
         buffer = ""
         while True:
@@ -508,6 +528,13 @@ def iter_zst_pgn_games(path: pathlib.Path) -> Iterator[str]:
                     yield game
         if buffer.strip():
             yield buffer.strip()
+    finally:
+        try:
+            closer.close()
+        except Exception:
+            pass
+        if proc is not None:
+            proc.wait()
 
 
 class TextChunkReader:
