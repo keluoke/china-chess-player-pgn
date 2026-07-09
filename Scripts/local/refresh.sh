@@ -325,6 +325,8 @@ case "$command" in
     py Scripts/sync_domestic_players.py
     py Scripts/sync_static_pgn.py
     py Scripts/build_static_player_pgn.py
+    py Scripts/build_leaderboards.py
+    [ -f Scripts/build_api.py ] && py Scripts/build_api.py
     commit_and_push "Rebuild derived indexes (local)" docs/data
     ;;
 

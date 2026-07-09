@@ -281,7 +281,7 @@ def write_outputs(buckets: dict[str, PlayerBucket], dry_run: bool) -> dict[str, 
         )
         packages.append(all_package)
 
-        for stage_id in ["U8", "U10", "U12", "U14", "U16", "U18"]:
+        for stage_id in ["U8", "U10", "U12", "U14", "U16", "U18", "adult"]:
             stage_games = [game for game in bucket.games if game.stage == stage_id]
             if not stage_games:
                 continue
@@ -586,6 +586,13 @@ def stage_for_player(profile: PlayerProfile, date: str, event_name: str) -> str:
 
 
 def stage_for_age(age: int) -> str:
+    # Delegates to the shared age_groups module: youth U8-U18 plus the
+    # exclusive "adult" stage (19+) so adult games get their own PGN pack.
+    from age_groups import stage_for_age as _shared
+    return _shared(age)
+
+
+def _unused_legacy_stage_for_age(age: int) -> str:
     for stage, lower, upper in [
         ("U8", 7, 8),
         ("U10", 9, 10),
