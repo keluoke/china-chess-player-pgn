@@ -1,7 +1,7 @@
 import LichessPgnViewer from "./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min.js";
 
 const state = {
-  activeStage: "ALL",
+  activeStage: "TOTAL",
   selectedFideID: null,
   downloadStatus: "",
   query: "",
@@ -30,7 +30,11 @@ const els = {
   searchResults: document.querySelector("#searchResults"),
   searchCount: document.querySelector("#searchCount"),
   rankingMeta: document.querySelector("#rankingMeta"),
-  leaderboards: document.querySelector(".leaderboards")
+  leaderboards: document.querySelector(".leaderboards"),
+  dashboardSection: document.querySelector("#dashboardSection"),
+  statGrid: document.querySelector("#statGrid"),
+  recentEvents: document.querySelector("#recentEvents"),
+  recentEventsMeta: document.querySelector("#recentEventsMeta")
 };
 
 const data = await loadData();
@@ -62,6 +66,7 @@ initialize();
 async function loadData() {
   try {
     const youth = await fetchJSON("./data/youth-leaderboards.json", true);
+    const dashboard = await fetchJSON("./data/dashboard.json", false);
     const [
       manifest,
       indexedPlayers,
@@ -83,6 +88,7 @@ async function loadData() {
     ]);
     return {
       ...youth,
+      dashboard,
       manifest,
       registryManifest,
       bulkManifest,
@@ -189,22 +195,65 @@ function initialize() {
 
 function render() {
   els.ageRuleText.textContent = ageRuleText();
+  renderDashboard();
   renderLeaderboardArea();
   renderSearch();
   renderDetail();
 }
 
+function renderDashboard() {
+  const dash = data.dashboard;
+  if (!els.statGrid) return;
+  const totals = dash?.totals ?? {};
+  const community = dash?.community ?? {};
+  const cards = [
+    { label: "收录棋手", value: totals.players ?? players.length },
+    { label: "中文名覆盖", value: totals.withChineseName },
+    { label: "收录棋局", value: totals.games },
+    { label: "收录赛事", value: totals.events },
+    { label: "社区成员", value: community.count },
+    { label: "最新贡献者", value: community.latest ? community.latest.name : null, sub: community.latest?.date }
+  ];
+  els.statGrid.innerHTML = cards
+    .filter(card => card.value !== null && card.value !== undefined)
+    .map(card => `
+      <div class="stat-card">
+        <div class="stat-value">${escapeHTML(typeof card.value === "number" ? card.value.toLocaleString("zh-Hans-CN") : String(card.value))}</div>
+        <div class="stat-label">${escapeHTML(card.label)}${card.sub ? ` · ${escapeHTML(card.sub)}` : ""}</div>
+      </div>
+    `).join("");
+
+  const events = dash?.recentEvents ?? [];
+  if (els.recentEventsMeta) els.recentEventsMeta.textContent = events.length ? `最近 ${events.length} 项` : "";
+  if (els.recentEvents) {
+    els.recentEvents.innerHTML = events.length ? `
+      <table>
+        <thead><tr><th>赛事</th><th>日期</th><th class="num">中国棋手</th><th class="num">入库对局</th></tr></thead>
+        <tbody>
+          ${events.map(event => `
+            <tr>
+              <td>${escapeHTML(event.name ?? "-")}</td>
+              <td>${escapeHTML(event.date ?? "-")}</td>
+              <td class="num">${escapeHTML(String(event.playerCount ?? "-"))}</td>
+              <td class="num">${escapeHTML(String(event.gameCount ?? "-"))}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>` : `<div class="empty-state compact">暂无数据</div>`;
+  }
+}
+
 function renderLeaderboardArea() {
-  els.rankingMeta.textContent = `${state.activeStage === "ALL" ? "U8-U18" : state.activeStage} · Top 20`;
+  els.rankingMeta.textContent = `${state.activeStage === "TOTAL" ? "总榜" : state.activeStage} · Top 20`;
   renderTabs();
   renderLeaderboards();
 }
 
 function renderTabs() {
   const tabs = [
-    { id: "ALL", label: "U8-U18" },
+    { id: "TOTAL", label: "总榜" },
     ...stages.map(stage => ({ id: stage.id, label: stage.id })),
-    ...ADULT_GROUPS.map(group => ({ id: group.id, label: group.label }))
+    { id: "U20", label: "U20" }
   ];
   const rows = [];
   for (let i = 0; i < tabs.length; i += 4) rows.push(tabs.slice(i, i + 4));
@@ -243,8 +292,10 @@ function leaderboardCard(stageID) {
   const entries = rankingsForStage(stageID);
   const stage = stages.find(item => item.id === stageID);
   const adultGroup = ADULT_GROUPS.find(item => item.id === stageID);
-  const title = adultGroup ? adultGroup.label : (stage ? stage.id : "U8-U18");
-  const subtitle = adultGroup
+  const title = stageID === "TOTAL" ? "总榜" : adultGroup ? adultGroup.label : (stage ? stage.id : "总榜");
+  const subtitle = stageID === "TOTAL"
+    ? "全部现役中国棋手 · 按 FIDE 标准分"
+    : adultGroup
     ? `${adultGroup.desc}(基准年 ${data.competitionYear})`
     : stage
     ? `${stage.birthYears} 出生 · ${stage.lowerAge}-${stage.upperAge} 岁`
@@ -293,6 +344,7 @@ function renderSearch() {
   const hasQuery = state.query.length > 0;
   els.searchResultsSection.hidden = !hasQuery;
   els.leaderboards.hidden = hasQuery;
+  if (els.dashboardSection) els.dashboardSection.hidden = hasQuery;
   els.searchCount.textContent = `${matches.length} 名`;
   els.searchResults.innerHTML = matches.length ? matches.map(player => {
     const stage = stageForPlayer(player);
@@ -1059,6 +1111,19 @@ function scrollDetailIntoViewOnMobile() {
 }
 
 function rankingsForStage(stageID) {
+  if (stageID === "TOTAL") {
+    return players
+      .filter(player => !player.inactive)
+      .map(player => ({ player, rating: ratingForPlayer(player) }))
+      .filter(entry => entry.rating)
+      .sort((a, b) => {
+        if (a.rating.value !== b.rating.value) return b.rating.value - a.rating.value;
+        if (a.rating.priority !== b.rating.priority) return a.rating.priority - b.rating.priority;
+        return displayName(a.player).localeCompare(displayName(b.player), "zh-Hans-CN");
+      })
+      .slice(0, 20)
+      .map(entry => ({ ...entry, fideID: entry.player.fideID }));
+  }
   const adultGroup = ADULT_GROUPS.find(group => group.id === stageID);
   const inAdultGroup = player => {
     const age = data.competitionYear - player.birthYear;

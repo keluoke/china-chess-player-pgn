@@ -7,7 +7,7 @@
     <meta name="description" content="社区共建的中国国际象棋棋手数据库:全年龄组 FIDE 排行榜、棋手查询与对局 PGN。">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="vendor/lichess-pgn-viewer/lichess-pgn-viewer.css">
-    <link rel="stylesheet" href="styles.css?v=20260703-2">
+    <link rel="stylesheet" href="styles.css?v=20260710-1">
   </head>
   <body>
     <div class="app-shell">
@@ -16,7 +16,7 @@
           <span class="brand-mark" aria-hidden="true">♜</span>
           <span>
             <strong>中国国际象棋棋手数据库</strong>
-            <small>FIDE ELO · 李成智杯年龄组</small>
+            <small>社区共建 · 全年龄组数据库</small>
           </span>
         </a>
 
@@ -37,9 +37,18 @@
             <div class="result-list" id="searchResults"></div>
           </section>
 
+          <section class="dashboard" id="dashboardSection" aria-label="数据看板">
+            <div class="stat-grid" id="statGrid"></div>
+            <div class="section-heading">
+              <h2>最新入库对局</h2>
+              <span id="recentEventsMeta"></span>
+            </div>
+            <div class="recent-events" id="recentEvents"></div>
+          </section>
+
           <section class="leaderboards" aria-label="FIDE 排行榜">
             <div class="section-heading">
-              <h1>FIDE 排行榜</h1>
+              <h2>中国棋手 FIDE 积分排行榜</h2>
               <span id="rankingMeta">Top 20</span>
             </div>
             <div class="stage-tabs" id="stageTabs" role="tablist" aria-label="年龄组"></div>
@@ -54,6 +63,6 @@
       </main>
     </div>
 
-    <script type="module" src="app.js?v=20260703-2"></script>
+    <script type="module" src="app.js?v=20260710-1"></script>
   </body>
 </html>

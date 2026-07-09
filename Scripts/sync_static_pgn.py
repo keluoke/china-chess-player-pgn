@@ -483,7 +483,7 @@ def player_profile(records: list[EventRecord]) -> dict[str, Any]:
         or f"FIDE {first.fide_id}",
         "chineseName": registry.get("chineseName") or first.chinese_name,
         "pinyin": registry.get("pinyin") or first.pinyin_name,
-        "name": first.english_name or first.display_name or registry.get("name", ""),
+        "name": registry.get("name") or first.english_name or first.display_name,
         "federation": first.federation or registry.get("federation", "CHN"),
         "birthYear": registry.get("birthYear") or first.birth_year,
         # Ratings: the registry mirrors the live FIDE rating list and must win
