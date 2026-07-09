@@ -44,7 +44,6 @@ python3 -m http.server 4173 -d docs
 | **Rebuild indexes and deploy** | 原始数据 push / 抓取后 dispatch | 纯计算重建全部派生索引（`sync_static_pgn`、`build_static_player_pgn`、离线注册表/别名），提交后触发部署 |
 | **Deploy static site** | `docs/**` 变化 / 被调用 | 把 `docs/` 同时发布到 GitHub Pages 和 Cloudflare Pages |
 | **Update domestic player registry** | CSV 变化 | 纯计算从 CSV 生成国内临时身份层 |
-| **Update mimic profiles** | 手动 + 每周 | 纯计算刷新青少年模拟 profile |
 | **CI** | push / PR | 字节编译脚本、校验 workflow 与 action YAML |
 
 复用逻辑收在 `.github/actions/`（`setup-python-deps`、`rebuild-indexes`、`prepare-static-site`、`dispatch-workflow`）。
@@ -88,8 +87,6 @@ python3 Scripts/sync_chinese_players.py
 # 重建 by-player 聚合层
 python3 Scripts/build_static_player_pgn.py
 
-# 刷新青少年模拟 profile
-python3 Scripts/build_youth_mimic_profiles.py
 ```
 
 ## 百万级 bulk PGN
@@ -114,14 +111,6 @@ python3 Scripts/sync_chinese_players.py
 
 ```bash
 python3 Scripts/sync_domestic_players.py
-```
-
-## 模拟对局（Mimic Engine）
-
-棋手看板可进入模拟对局，由开局库 + 浏览器 Stockfish 限强 + 风格模型生成。profile 位于：
-
-```text
-docs/mimic/profiles/fide-<FIDE_ID>/profile.js
 ```
 
 ## 数据源
