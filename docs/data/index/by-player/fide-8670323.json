@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:29:38+00:00",
   "player": {
     "fideID": "8670323",
     "id": "fide-8670323",
@@ -20,11 +20,12 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 5494,
+    "games": 5,
+    "events": 2,
+    "packages": 3,
+    "bytes": 12506,
     "stages": {
+      "U12": 4,
       "U14": 1
     }
   },
@@ -33,14 +34,30 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8670323/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 2747,
-      "sha256": "5a279aecd4f7fb45371ccfa91664e9e3c8695f5b3e10ee6966547fb4f1f9c30b",
+      "gameCount": 5,
+      "pgnBytes": 6188,
+      "sha256": "bb0f4e2b69b1fad2c83bb1668e928f92e64e1e3f5be044626329e639c3d495fb",
       "stages": {
+        "U12": 4,
         "U14": 1
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U12",
+      "label": "U12 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8670323/U12.pgn",
+      "gameCount": 4,
+      "pgnBytes": 3571,
+      "sha256": "6937d0b11efd97f2ceb3b64221f353515cefdcc41ef77618820c69644f78fffb",
+      "stages": {
+        "U12": 4
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
@@ -49,7 +66,7 @@
       "pgnPath": "data/pgn/by-player/fide-8670323/U14.pgn",
       "gameCount": 1,
       "pgnBytes": 2747,
-      "sha256": "eacef76b708dae0e628d23503ddf37e59ed129593ccf3fced9c6a45eeda8ffa9",
+      "sha256": "8f55d7a80d8da7c5153f7c5be9e428ea0ba3cc29daaf586f84f0b66e2022af1d",
       "stages": {
         "U14": 1
       },
@@ -69,6 +86,19 @@
       "results": {
         "1-0": 1
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 National Amateur Chess Master Tournament Dongtai Station",
+      "date": "2025-07-18",
+      "tournamentID": "1213349",
+      "stage": "U12",
+      "gameCount": 4,
+      "results": {
+        "1/2-1/2": 1,
+        "1-0": 2,
+        "0-1": 1
+      }
     }
   ],
   "games": [
@@ -86,6 +116,62 @@
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "61371f75d95d92bc797d527ac3a1977248772a38150d9ee1949b312e963105aa"
+    },
+    {
+      "id": "e53b2d8e082b81290400b5f97a86045dd3aa5e14860d65b60e758415164d7874",
+      "event": "2025 National Amateur Chess Master Tournament Dongtai Station",
+      "date": "2025-07-18",
+      "white": "Zhu, Xu",
+      "black": "Wang, Hejiayue",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1213349",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213349/fide-8670323-1213349.pgn",
+      "sha256": "e53b2d8e082b81290400b5f97a86045dd3aa5e14860d65b60e758415164d7874"
+    },
+    {
+      "id": "062db910a8418e27f55b08a587809b40c2c67cc829c55b73adeb2b379ca44683",
+      "event": "2025 National Amateur Chess Master Tournament Dongtai Station",
+      "date": "2025-07-18",
+      "white": "Xu, Zhaochen",
+      "black": "Zhu, Xu",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1213349",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213349/fide-8670323-1213349.pgn",
+      "sha256": "062db910a8418e27f55b08a587809b40c2c67cc829c55b73adeb2b379ca44683"
+    },
+    {
+      "id": "fc63d76cb6e578c2c85c702aca53b08faff725efd8b1a632b9ad8b6b88f58157",
+      "event": "2025 National Amateur Chess Master Tournament Dongtai Station",
+      "date": "2025-07-18",
+      "white": "Tong, Yiyi",
+      "black": "Zhu, Xu",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1213349",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213349/fide-8670323-1213349.pgn",
+      "sha256": "fc63d76cb6e578c2c85c702aca53b08faff725efd8b1a632b9ad8b6b88f58157"
+    },
+    {
+      "id": "787a464daa010a41eb78ba27151a0f329f41d2afebb1a82bfae4e33f8eda3df1",
+      "event": "2025 National Amateur Chess Master Tournament Dongtai Station",
+      "date": "2025-07-18",
+      "white": "Gu, Junliang",
+      "black": "Zhu, Xu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1213349",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1213349/fide-8670323-1213349.pgn",
+      "sha256": "787a464daa010a41eb78ba27151a0f329f41d2afebb1a82bfae4e33f8eda3df1"
     }
   ]
 }

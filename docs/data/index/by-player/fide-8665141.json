@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:29:38+00:00",
   "player": {
     "fideID": "8665141",
     "id": "fide-8665141",
@@ -21,12 +21,13 @@
     ]
   },
   "totals": {
-    "games": 7,
-    "events": 7,
-    "packages": 2,
-    "bytes": 80224,
+    "games": 23,
+    "events": 10,
+    "packages": 3,
+    "bytes": 111262,
     "stages": {
-      "U12": 7
+      "U10": 15,
+      "U12": 8
     }
   },
   "packages": [
@@ -34,32 +35,60 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8665141/all.pgn",
-      "gameCount": 7,
-      "pgnBytes": 40112,
-      "sha256": "ebda1a1fd3d26edd10b09df99d58eb9e4275b5a0bf7d5f67edbb628f25018d9a",
+      "gameCount": 23,
+      "pgnBytes": 55566,
+      "sha256": "fc65361718ed11ac4f38555ce995c49f81a3fb5ec97a700f7640dbe8241305ca",
       "stages": {
-        "U12": 7
+        "U10": 15,
+        "U12": 8
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U10",
+      "label": "U10 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8665141/U10.pgn",
+      "gameCount": 15,
+      "pgnBytes": 14587,
+      "sha256": "3a264558757ef35f87e597444201cf5a710699c53375efff313f9d1bad94b3be",
+      "stages": {
+        "U10": 15
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8665141/U12.pgn",
-      "gameCount": 7,
-      "pgnBytes": 40112,
-      "sha256": "fff870bf96b9dddb9d059d1a646ed62b2450e76b4ae6af3366bea4ae512d6325",
+      "gameCount": 8,
+      "pgnBytes": 41109,
+      "sha256": "492ccc6add1f8e7227dba5ef3cc7b94095c057e2a569d0dff712e897501dbf2f",
       "stages": {
-        "U12": 7
+        "U12": 8
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-09",
+      "tournamentID": "1451618",
+      "stage": "U12",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 7: Ye, Shuhan - Xin, Yueran",
@@ -136,9 +165,47 @@
       "results": {
         "0-1": 1
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "tournamentID": "1210271",
+      "stage": "U10",
+      "gameCount": 11,
+      "results": {
+        "1-0": 3,
+        "1/2-1/2": 4,
+        "0-1": 4
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2025(G10)",
+      "date": "2025-02-04",
+      "tournamentID": "1110355",
+      "stage": "U10",
+      "gameCount": 4,
+      "results": {
+        "0-1": 4
+      }
     }
   ],
   "games": [
+    {
+      "id": "7b9b434aa307b29fa5b8630c112dee1b5f88344d0652f7e42dfa23aa11c68e31",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-09",
+      "white": "Cheng, Gongpu",
+      "black": "Ye, Shuhan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1451618",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1451618/fide-8665141-1451618.pgn",
+      "sha256": "7b9b434aa307b29fa5b8630c112dee1b5f88344d0652f7e42dfa23aa11c68e31"
+    },
     {
       "id": "834d86fa6daafb0ba34f7ad6d84a744af429005dc01390742de448914f65e2b1",
       "event": "Round 7: Ye, Shuhan - Xin, Yueran",
@@ -243,6 +310,216 @@
       "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "aad0d49d52093d5e4c7c518b7bb652de8b6f097f26dc3b25cea4084abfbe72bf"
+    },
+    {
+      "id": "2a3aea2c5f0a415b2c14d83f558a3df30e7b1744604f9bc69475e285f27531ce",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Ye, Shuhan",
+      "black": "Liu, Zihan(QD)",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "2a3aea2c5f0a415b2c14d83f558a3df30e7b1744604f9bc69475e285f27531ce"
+    },
+    {
+      "id": "ed8c2f044bb2f2ef2989384e0edde33a7545828107055fc871aa340e4a0e5e15",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Ye, Shuhan",
+      "black": "Li, Miaoxuan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "ed8c2f044bb2f2ef2989384e0edde33a7545828107055fc871aa340e4a0e5e15"
+    },
+    {
+      "id": "70699d838ab6f3c15398cf0208aadf7fffaa65f62de0acaa6e7b3df64aea25b4",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Ye, Shuhan",
+      "black": "Ge, Yan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "70699d838ab6f3c15398cf0208aadf7fffaa65f62de0acaa6e7b3df64aea25b4"
+    },
+    {
+      "id": "cb57c00dc6257f061475cf73faf09477299c91179bd035a16a8d18ee7aa8ef52",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Ye, Shuhan",
+      "black": "Fei, Yunzhi",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "cb57c00dc6257f061475cf73faf09477299c91179bd035a16a8d18ee7aa8ef52"
+    },
+    {
+      "id": "05df9b517ebc47d7fb7409eb82e0dab4768f92492bb991719c6c1ccb8b7334b4",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Ye, Shuhan",
+      "black": "Chen, Yixin",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "05df9b517ebc47d7fb7409eb82e0dab4768f92492bb991719c6c1ccb8b7334b4"
+    },
+    {
+      "id": "7d9fb841502f60eeb04215a51c85eef9da16ee52613a0a872b42dbe263ca9876",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Ye, Shuhan",
+      "black": "Chen, Guo",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "7d9fb841502f60eeb04215a51c85eef9da16ee52613a0a872b42dbe263ca9876"
+    },
+    {
+      "id": "c4a07ba7e05b4c2607ebfa3f3da082370f1ffdde627a2e7363231f773b256a42",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Tu, Zhixin",
+      "black": "Ye, Shuhan",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "c4a07ba7e05b4c2607ebfa3f3da082370f1ffdde627a2e7363231f773b256a42"
+    },
+    {
+      "id": "e58923c952d5b76b9dcbea3880510296d66914ff594368bf7878a2a19984903f",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Qian, JiaYue",
+      "black": "Ye, Shuhan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "e58923c952d5b76b9dcbea3880510296d66914ff594368bf7878a2a19984903f"
+    },
+    {
+      "id": "18caba9825d1e82d40cada27399a7ecac7e683a28dcccf1254d93ab73e810575",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Luo, Yafei",
+      "black": "Ye, Shuhan",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "18caba9825d1e82d40cada27399a7ecac7e683a28dcccf1254d93ab73e810575"
+    },
+    {
+      "id": "7d8dd67a920f4b8dbdb03dcd99915346669a969ef66c7987b3afd3924902a930",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Lian, Xin",
+      "black": "Ye, Shuhan",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "7d8dd67a920f4b8dbdb03dcd99915346669a969ef66c7987b3afd3924902a930"
+    },
+    {
+      "id": "96d42d8aa659b90049da0ea744164d3ff7379a63a8874bb583a17cd32e25c154",
+      "event": "2025 China Youth Rapid Championship(G10)",
+      "date": "2025-07-04",
+      "white": "Jiang, Luning",
+      "black": "Ye, Shuhan",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1210271",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1210271/fide-8665141-1210271.pgn",
+      "sha256": "96d42d8aa659b90049da0ea744164d3ff7379a63a8874bb583a17cd32e25c154"
+    },
+    {
+      "id": "48a41a7b369baa5d08b7c0633f7be6780b485c735acaa7ecfc88aee6dd10df85",
+      "event": "Chinese National Youth Chess Championship 2025(G10)",
+      "date": "2025-02-04",
+      "white": "Ye, Shuhan",
+      "black": "Yi, Ruiyu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1110355",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8665141-1110355.pgn",
+      "sha256": "48a41a7b369baa5d08b7c0633f7be6780b485c735acaa7ecfc88aee6dd10df85"
+    },
+    {
+      "id": "704cb209f80e7ea32d3ee7bef1836362eed0801b26bd84c87fd904cc85843bc3",
+      "event": "Chinese National Youth Chess Championship 2025(G10)",
+      "date": "2025-02-04",
+      "white": "Ye, Shuhan",
+      "black": "Fu, Yinuo",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1110355",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8665141-1110355.pgn",
+      "sha256": "704cb209f80e7ea32d3ee7bef1836362eed0801b26bd84c87fd904cc85843bc3"
+    },
+    {
+      "id": "7b648ea91971219f8c6e03f7af697c4412d9815fbc55998cd1e6a5d53aa6dc34",
+      "event": "Chinese National Youth Chess Championship 2025(G10)",
+      "date": "2025-02-04",
+      "white": "Ye, Shuhan",
+      "black": "Chen, Linyu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "1110355",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8665141-1110355.pgn",
+      "sha256": "7b648ea91971219f8c6e03f7af697c4412d9815fbc55998cd1e6a5d53aa6dc34"
+    },
+    {
+      "id": "7f31c100c7b62fc20c09d452017309b46498ad462602eeadb44aaf009726506b",
+      "event": "Chinese National Youth Chess Championship 2025(G10)",
+      "date": "2025-02-04",
+      "white": "Jiang, Yan",
+      "black": "Ye, Shuhan",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1110355",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8665141-1110355.pgn",
+      "sha256": "7f31c100c7b62fc20c09d452017309b46498ad462602eeadb44aaf009726506b"
     }
   ]
 }

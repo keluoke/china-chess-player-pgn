@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:29:38+00:00",
   "player": {
     "fideID": "8654794",
     "id": "fide-8654794",
@@ -21,13 +21,13 @@
     ]
   },
   "totals": {
-    "games": 33,
-    "events": 17,
+    "games": 43,
+    "events": 19,
     "packages": 3,
-    "bytes": 185886,
+    "bytes": 201954,
     "stages": {
-      "U14": 32,
-      "U16": 1
+      "U14": 41,
+      "U16": 2
     }
   },
   "packages": [
@@ -35,12 +35,12 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8654794/all.pgn",
-      "gameCount": 33,
-      "pgnBytes": 92878,
-      "sha256": "2ad872d2a5007a057687e762077dc0db98a9c2a176ed01d5c88f8aaa919dbbcb",
+      "gameCount": 43,
+      "pgnBytes": 100912,
+      "sha256": "7235793ce29c9c4402b3c89b0014d984ae1ad8456a9346322bd38e125418c373",
       "stages": {
-        "U14": 32,
-        "U16": 1
+        "U14": 41,
+        "U16": 2
       },
       "sources": [
         "Chess-Results",
@@ -51,11 +51,11 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8654794/U14.pgn",
-      "gameCount": 32,
-      "pgnBytes": 88912,
-      "sha256": "39e923c063bbf35fd09f1849762d4b4cb746ded8c2a1620c8b15c7a58caee0bb",
+      "gameCount": 41,
+      "pgnBytes": 96182,
+      "sha256": "32c38667feb11581f863f13258c5679f6cda0bd1be3b093a82104a2ab9148a3f",
       "stages": {
-        "U14": 32
+        "U14": 41
       },
       "sources": [
         "Chess-Results",
@@ -66,18 +66,30 @@
       "id": "U16",
       "label": "U16 PGN",
       "pgnPath": "data/pgn/by-player/fide-8654794/U16.pgn",
-      "gameCount": 1,
-      "pgnBytes": 4096,
-      "sha256": "a30f196b2339bfa750998c8220b8fbf9c5c2368578a3e6110deecb2bf2a7d35f",
+      "gameCount": 2,
+      "pgnBytes": 4860,
+      "sha256": "dff30cdfe66ae3618af631e56c484155c1f5f7df1b4b17398bd24efb0cdc80d3",
       "stages": {
-        "U16": 1
+        "U16": 2
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "Chinese National Youth Chess Championship 2026(B16)",
+      "date": "2026-02-22",
+      "tournamentID": "1356507",
+      "stage": "U16",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
@@ -178,6 +190,19 @@
       }
     },
     {
+      "source": "Chess-Results",
+      "name": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "tournamentID": "1323488",
+      "stage": "U14",
+      "gameCount": 9,
+      "results": {
+        "1/2-1/2": 4,
+        "0-1": 4,
+        "1-0": 1
+      }
+    },
+    {
       "source": "Lichess Broadcasts",
       "name": "Round 1: Bi, Mingyuan - Fan, Boren",
       "date": "2025-12-25",
@@ -272,6 +297,20 @@
     }
   ],
   "games": [
+    {
+      "id": "78f87cb97adcafb5088765614d76f31d41b68b642acd62ec9c048f9f355f294d",
+      "event": "Chinese National Youth Chess Championship 2026(B16)",
+      "date": "2026-02-22",
+      "white": "Fan, Boren",
+      "black": "Dong, Hongfu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U16",
+      "role": "white",
+      "tournamentID": "1356507",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1356507/fide-8654794-1356507.pgn",
+      "sha256": "78f87cb97adcafb5088765614d76f31d41b68b642acd62ec9c048f9f355f294d"
+    },
     {
       "id": "3cb2e1639a0a8e9868e0412ec44ced877724bebc97c3797a894c2b1ab788dd38",
       "event": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
@@ -406,6 +445,132 @@
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
       "sha256": "1cf5c6db12c842b334539935a82f20ce92dba776c3419016d07cb17ccff2b257"
+    },
+    {
+      "id": "c8444675e2791bfe3fe0ab694cccf1defc39231f7f4f705620b0541d9d528eca",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Yang, Haozhe(Bj)",
+      "black": "Fan, Boren",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "c8444675e2791bfe3fe0ab694cccf1defc39231f7f4f705620b0541d9d528eca"
+    },
+    {
+      "id": "11e2e1f6b5cc2f1a6a1c81f51c59c33a3d63212dd95832ed85be12bb76214f07",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Wang, Xuhang",
+      "black": "Fan, Boren",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "11e2e1f6b5cc2f1a6a1c81f51c59c33a3d63212dd95832ed85be12bb76214f07"
+    },
+    {
+      "id": "bec67ba8cfabf1f596b6a94cbd7a3a49db39e0dd3cdab32e4a761ff93f459c5b",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Luo, Yichen",
+      "black": "Fan, Boren",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "bec67ba8cfabf1f596b6a94cbd7a3a49db39e0dd3cdab32e4a761ff93f459c5b"
+    },
+    {
+      "id": "91ad9a650dcb8e5d4197ac53dcfea8fefb9ad2f5cd741f4c7041da0c25e49456",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Fan, Boren",
+      "black": "Zhu, Diwen",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "91ad9a650dcb8e5d4197ac53dcfea8fefb9ad2f5cd741f4c7041da0c25e49456"
+    },
+    {
+      "id": "cb47e02549b00637b93dabe7f35ab9472e1e06965b8e739f44b19fa3127e5b54",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Fan, Boren",
+      "black": "Tong, Yiyi",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "cb47e02549b00637b93dabe7f35ab9472e1e06965b8e739f44b19fa3127e5b54"
+    },
+    {
+      "id": "fdbd97ef776975d328dadea6755f44cabe293e230255435e6447f6e2cd53f9b6",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Fan, Boren",
+      "black": "Sun, Qihang",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "fdbd97ef776975d328dadea6755f44cabe293e230255435e6447f6e2cd53f9b6"
+    },
+    {
+      "id": "4a3508a727ef582d77eee2dfe218a38482dcd45aea6dfd7343987f9839ddccd1",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Fan, Boren",
+      "black": "Fan, Jinxuan",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "white",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "4a3508a727ef582d77eee2dfe218a38482dcd45aea6dfd7343987f9839ddccd1"
+    },
+    {
+      "id": "788a092532d91292e32a5bf0c4804312052cc4def83c115a25c53cb664742316",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Cong, Guanbo",
+      "black": "Fan, Boren",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "788a092532d91292e32a5bf0c4804312052cc4def83c115a25c53cb664742316"
+    },
+    {
+      "id": "ee2baaeb51ad8d42981adf22c10ac43169b7400a38b4b7595c072ed3f11f4518",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Bi, Mingyuan",
+      "black": "Fan, Boren",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U14",
+      "role": "black",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8654794-1323488.pgn",
+      "sha256": "ee2baaeb51ad8d42981adf22c10ac43169b7400a38b4b7595c072ed3f11f4518"
     },
     {
       "id": "cde7fe4217e1b7dc668cbd64def7a5f285c6e61f6b675078c78466248a4af87c",

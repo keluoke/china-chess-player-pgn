@@ -469,15 +469,20 @@ def update_leaderboard_json(records: list[EventRecord], dry_run: bool) -> None:
 def player_profile(records: list[EventRecord]) -> dict[str, Any]:
     first = records[0]
     registry = profile_for_fide(first.fide_id)
+    # Names: the registry (curated aliases + crawler evidence + forced
+    # corrections) is authoritative. Values read back from last build's index
+    # must NOT win, or an identity mistake persists forever (8602980 was
+    # mislabeled 居文君 for months this way — it is 侯逸凡).
     return {
-        "displayName": first.chinese_name
+        "displayName": registry.get("chineseName")
+        or registry.get("displayName")
+        or first.chinese_name
         or first.english_name
         or first.display_name
-        or registry.get("displayName")
         or registry.get("name")
         or f"FIDE {first.fide_id}",
-        "chineseName": first.chinese_name or registry.get("chineseName", ""),
-        "pinyin": first.pinyin_name or registry.get("pinyin", ""),
+        "chineseName": registry.get("chineseName") or first.chinese_name,
+        "pinyin": registry.get("pinyin") or first.pinyin_name,
         "name": first.english_name or first.display_name or registry.get("name", ""),
         "federation": first.federation or registry.get("federation", "CHN"),
         "birthYear": registry.get("birthYear") or first.birth_year,

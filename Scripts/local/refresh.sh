@@ -231,7 +231,7 @@ commit_and_push() {
       exit 1
     fi
     PUSH_SUMMARY="已推送($changed)"
-    echo "Pushed. GitHub 将合入 main、重建索引并部署到双端(约 3-5 分钟)。"
+    echo "Pushed. GitHub 将合入 main、重建索引并部署到 Cloudflare(约 3-5 分钟)。"
     echo "查看进度:$(repo_web_url)/actions"
   else
     PUSH_SUMMARY="已提交,未推送(--no-push)"

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:29:38+00:00",
   "player": {
     "fideID": "8624917",
     "id": "fide-8624917",
@@ -19,10 +19,10 @@
     ]
   },
   "totals": {
-    "games": 7,
-    "events": 7,
-    "packages": 2,
-    "bytes": 51964,
+    "games": 15,
+    "events": 9,
+    "packages": 3,
+    "bytes": 68307,
     "stages": {
       "U18": 7
     }
@@ -32,13 +32,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8624917/all.pgn",
-      "gameCount": 7,
-      "pgnBytes": 25982,
-      "sha256": "23b0819ff194bdf843ddb1ac997a98281214788c32e48672659e277b837106fb",
+      "gameCount": 15,
+      "pgnBytes": 34088,
+      "sha256": "a168775a3e8c69bcc480b7458a377295f83eebc58349b3e11db09694bd856fdd",
       "stages": {
         "U18": 7
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -48,16 +49,52 @@
       "pgnPath": "data/pgn/by-player/fide-8624917/U18.pgn",
       "gameCount": 7,
       "pgnBytes": 25982,
-      "sha256": "79d2949a67b0fe257043c3d39f2c512ed98d09eac149869c614f77c6af4ccb54",
+      "sha256": "d2341fa1d6c58bc5467890eed302faa2bef043df0e637f0cc38fbe6fc778bca1",
       "stages": {
         "U18": 7
       },
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8624917/adult.pgn",
+      "gameCount": 8,
+      "pgnBytes": 8237,
+      "sha256": "9472caec4e631e4ad7774c71dcbb03e5fb08de1486d962bba2318e56084eaa81",
+      "stages": {},
+      "sources": [
+        "Chess-Results"
+      ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-09",
+      "tournamentID": "1451618",
+      "stage": "adult",
+      "gameCount": 2,
+      "results": {
+        "0-1": 1,
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2026 Chinese Chess Team Championship (men)",
+      "date": "2026-04-19",
+      "tournamentID": "1394105",
+      "stage": "adult",
+      "gameCount": 6,
+      "results": {
+        "1-0": 2,
+        "0-1": 4
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 9: Li, Chengzhang - Abudouwaili Wufuer",
@@ -137,6 +174,118 @@
     }
   ],
   "games": [
+    {
+      "id": "235ce951e0af34a1bf7cdf9e62f94777d29625b970118354cf3d28a2517ef1f4",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-09",
+      "white": "Nie, Mingchen",
+      "black": "Li, Chengzhang",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "black",
+      "tournamentID": "1451618",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1451618/fide-8624917-1451618.pgn",
+      "sha256": "235ce951e0af34a1bf7cdf9e62f94777d29625b970118354cf3d28a2517ef1f4"
+    },
+    {
+      "id": "6569a12d7caff2d0a246d3a868643bc721409b3030f5a3de1f267baedecc45ed",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-09",
+      "white": "Li, Chengzhang",
+      "black": "Zhao, Yao",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1451618",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1451618/fide-8624917-1451618.pgn",
+      "sha256": "6569a12d7caff2d0a246d3a868643bc721409b3030f5a3de1f267baedecc45ed"
+    },
+    {
+      "id": "1d0b2d572a38020e9c2956bf6cbc9b26f8353da19de19c024eec7c8f97c8ae4e",
+      "event": "2026 Chinese Chess Team Championship (men)",
+      "date": "2026-04-19",
+      "white": "Wang, Yiye",
+      "black": "Li, Chengzhang",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "black",
+      "tournamentID": "1394105",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1394105/fide-8624917-1394105.pgn",
+      "sha256": "1d0b2d572a38020e9c2956bf6cbc9b26f8353da19de19c024eec7c8f97c8ae4e"
+    },
+    {
+      "id": "dda975548b802aceb65ad3205f697015d66c4882d24b2e7712a30590c9842a73",
+      "event": "2026 Chinese Chess Team Championship (men)",
+      "date": "2026-04-19",
+      "white": "Li, Chengzhang",
+      "black": "Pang, Tao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1394105",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1394105/fide-8624917-1394105.pgn",
+      "sha256": "dda975548b802aceb65ad3205f697015d66c4882d24b2e7712a30590c9842a73"
+    },
+    {
+      "id": "b3c76256094f6b47c8e5773f52fa0885c7772dcbb37fdac18e09fefeccae4b48",
+      "event": "2026 Chinese Chess Team Championship (men)",
+      "date": "2026-04-19",
+      "white": "Li, Chengzhang",
+      "black": "Li, Guohao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1394105",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1394105/fide-8624917-1394105.pgn",
+      "sha256": "b3c76256094f6b47c8e5773f52fa0885c7772dcbb37fdac18e09fefeccae4b48"
+    },
+    {
+      "id": "f5eef7dc8532b1ac70b4d56e281c9112c574313188dedd0cbb4abe998f91145f",
+      "event": "2026 Chinese Chess Team Championship (men)",
+      "date": "2026-04-19",
+      "white": "Li, Chengzhang",
+      "black": "Li, Chao b",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1394105",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1394105/fide-8624917-1394105.pgn",
+      "sha256": "f5eef7dc8532b1ac70b4d56e281c9112c574313188dedd0cbb4abe998f91145f"
+    },
+    {
+      "id": "1cb15514625af5d942553b9927856fc815dfbc896fe22010dada8fea608c26d3",
+      "event": "2026 Chinese Chess Team Championship (men)",
+      "date": "2026-04-19",
+      "white": "Li, Chengzhang",
+      "black": "Dai, Changren",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1394105",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1394105/fide-8624917-1394105.pgn",
+      "sha256": "1cb15514625af5d942553b9927856fc815dfbc896fe22010dada8fea608c26d3"
+    },
+    {
+      "id": "bdb7ce030a4d4c3d826f503c12b69b14fd32d2f0835ff251d4ea758f23a0c037",
+      "event": "2026 Chinese Chess Team Championship (men)",
+      "date": "2026-04-19",
+      "white": "Kong, Xiangrui",
+      "black": "Li, Chengzhang",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "black",
+      "tournamentID": "1394105",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1394105/fide-8624917-1394105.pgn",
+      "sha256": "bdb7ce030a4d4c3d826f503c12b69b14fd32d2f0835ff251d4ea758f23a0c037"
+    },
     {
       "id": "876a8faa7b242ae84b0cd0fb945399ee47f6f0607bce0da3c7a7505efadc635b",
       "event": "Round 9: Li, Chengzhang - Abudouwaili Wufuer",

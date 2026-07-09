@@ -1,6 +1,7 @@
 name: Deploy static site
 
-# Single deploy workflow for both targets (replaces pages.yml + cloudflare-pages.yml).
+# Cloudflare Pages is the ONLY publishing target: GitHub manages code,
+# Cloudflare serves the site. (GitHub Pages deployment removed 2026-07.)
 # Triggered by:
 #   - direct human pushes to site code in docs/** (normal edits)
 #   - workflow_dispatch                           (manual / from rebuild-indexes)
@@ -23,67 +24,12 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: deploy-static-site
   cancel-in-progress: false
 
 jobs:
-  github-pages:
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Prepare site
-        uses: ./.github/actions/prepare-static-site
-        with:
-          output-dir: .pages-site
-          max-file-mib: "24"
-
-      - name: Upload static site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .pages-site
-
-      # The Pages service occasionally rejects deployments with a transient
-      # "Deployment failed, try again later" during syncing_files, so retry
-      # once after a cool-down before failing the run.
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
-        continue-on-error: true
-
-      - name: Wait before retry
-        if: steps.deployment.outcome == 'failure'
-        run: sleep 60
-
-      - name: Deploy (retry)
-        id: deployment_retry
-        if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
-
-      - name: Report deploy result
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          first="${{ steps.deployment.outcome }}"
-          retry="${{ steps.deployment_retry.outcome }}"
-          echo "first attempt: $first, retry: $retry"
-          if [ "$first" != "success" ] && [ "$retry" != "success" ]; then
-            echo "Both deploy attempts failed." >&2
-            exit 1
-          fi
-
   cloudflare-pages:
     runs-on: ubuntu-latest
     env:

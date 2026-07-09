@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:29:38+00:00",
   "player": {
     "fideID": "8656053",
     "id": "fide-8656053",
@@ -18,12 +18,12 @@
     ]
   },
   "totals": {
-    "games": 9,
-    "events": 3,
+    "games": 19,
+    "events": 5,
     "packages": 2,
-    "bytes": 99202,
+    "bytes": 118452,
     "stages": {
-      "U12": 9
+      "U12": 19
     }
   },
   "packages": [
@@ -31,13 +31,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8656053/all.pgn",
-      "gameCount": 9,
-      "pgnBytes": 49601,
-      "sha256": "d8c01a12b6c858c812c9678e1d88fe06b96cc6f90246802eb40b8d6893d80001",
+      "gameCount": 19,
+      "pgnBytes": 59226,
+      "sha256": "19055ddc1d67935d54e5bbe248dd429be5e335b966b50b6e896d6509195688c5",
       "stages": {
-        "U12": 9
+        "U12": 19
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -45,18 +46,30 @@
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8656053/U12.pgn",
-      "gameCount": 9,
-      "pgnBytes": 49601,
-      "sha256": "825ff01636c2dbfc0b4347d9bc312ff5319e458c5cce2e6b5a3159ad5d137764",
+      "gameCount": 19,
+      "pgnBytes": 59226,
+      "sha256": "e74fda7b981c7b77fdad2e305b0b350d9a10839e0f2cc77b987e4a61a16f3b9d",
       "stages": {
-        "U12": 9
+        "U12": 19
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open ( Qingdao Station)",
+      "date": "2026-05-29",
+      "tournamentID": "1420677",
+      "stage": "U12",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 1: Zhang, Mingrui(QD) - Jiang, Liu",
@@ -66,6 +79,19 @@
       "gameCount": 1,
       "results": {
         "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "tournamentID": "1214374",
+      "stage": "U12",
+      "gameCount": 9,
+      "results": {
+        "1/2-1/2": 3,
+        "1-0": 4,
+        "0-1": 2
       }
     },
     {
@@ -95,6 +121,20 @@
   ],
   "games": [
     {
+      "id": "f815683b61e65175ef95f94814e4a307dc7a48e9a4a4a35fe953ec90e76b0143",
+      "event": "2026 National Amateur Chess Master Tournament - Open ( Qingdao Station)",
+      "date": "2026-05-29",
+      "white": "Zhang, Mingrui(QD)",
+      "black": "Jiang, Liu",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1420677",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1420677/fide-8656053-1420677.pgn",
+      "sha256": "f815683b61e65175ef95f94814e4a307dc7a48e9a4a4a35fe953ec90e76b0143"
+    },
+    {
       "id": "6a04bc47ef0048ce935c526fb1860ebaf5ee52ac739bc0dc7063ce92eb108f6b",
       "event": "Round 1: Zhang, Mingrui(QD) - Jiang, Liu",
       "date": "2026-05-28",
@@ -108,6 +148,132 @@
       "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-05.pgn.zst",
       "sha256": "6a04bc47ef0048ce935c526fb1860ebaf5ee52ac739bc0dc7063ce92eb108f6b"
+    },
+    {
+      "id": "13edb8fa0943881e80116b2a4713860eab5e90394c9252e8cff2f5fea8467579",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Zheng, Yifeng",
+      "black": "Zhang, Mingrui(QD)",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "13edb8fa0943881e80116b2a4713860eab5e90394c9252e8cff2f5fea8467579"
+    },
+    {
+      "id": "3fb69ca9b331fd559867985d4a1d39a40d5598eba8004e8a00e78637656d45a8",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Zhang, Mingrui(QD)",
+      "black": "Zhou, Mujin",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "3fb69ca9b331fd559867985d4a1d39a40d5598eba8004e8a00e78637656d45a8"
+    },
+    {
+      "id": "c8540d2ffdf30643eab44d6b55e537c2b01556a953d944fb861e5a74f8899245",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Zhang, Mingrui(QD)",
+      "black": "Wu, Yuchen",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "c8540d2ffdf30643eab44d6b55e537c2b01556a953d944fb861e5a74f8899245"
+    },
+    {
+      "id": "667e8785808a67c776276905b810d754546a00f689028dd6078baeb32f3e4803",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Zhang, Mingrui(QD)",
+      "black": "Sun, Yuxiao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "667e8785808a67c776276905b810d754546a00f689028dd6078baeb32f3e4803"
+    },
+    {
+      "id": "8e9ed65b6fdc742a9fa451e27acb65f6689c56a009abfa552836080bf9cc148c",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Zhang, Mingrui(QD)",
+      "black": "Starzhinskii, Aleksei",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "8e9ed65b6fdc742a9fa451e27acb65f6689c56a009abfa552836080bf9cc148c"
+    },
+    {
+      "id": "e4781b81ea090309cd5142fb347f64c5f53af0b893e8f9efc07eb4a704cd64d2",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Zhang, Mingrui(QD)",
+      "black": "Chen, Haoyang(JL)",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "e4781b81ea090309cd5142fb347f64c5f53af0b893e8f9efc07eb4a704cd64d2"
+    },
+    {
+      "id": "5fd4225d1b25ae019ebbb587228f90c5ddc1be864c8a8bf943e5a087c7c63617",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Liu, Mingxuan",
+      "black": "Zhang, Mingrui(QD)",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "5fd4225d1b25ae019ebbb587228f90c5ddc1be864c8a8bf943e5a087c7c63617"
+    },
+    {
+      "id": "e6fe854b3c8bc0b1cf0220a7f562699e551ab5343a6505cc87ffecab87c93e91",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Li, Chengyu",
+      "black": "Zhang, Mingrui(QD)",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "e6fe854b3c8bc0b1cf0220a7f562699e551ab5343a6505cc87ffecab87c93e91"
+    },
+    {
+      "id": "2383484dd3e0f42b46a8715df66a137956c1f063c6ee5f868b35bb3a9d04ac69",
+      "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+      "date": "2025-07-31",
+      "white": "Cao, Youjia",
+      "black": "Zhang, Mingrui(QD)",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1214374",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8656053-1214374.pgn",
+      "sha256": "2383484dd3e0f42b46a8715df66a137956c1f063c6ee5f868b35bb3a9d04ac69"
     },
     {
       "id": "9624953e23675ddebf11391e66bde87b2aca8d6c0a78346ffffe6e9a2fb599fd",

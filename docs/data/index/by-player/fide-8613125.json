@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:29:38+00:00",
   "player": {
     "fideID": "8613125",
     "id": "fide-8613125",
@@ -20,11 +20,12 @@
     ]
   },
   "totals": {
-    "games": 4,
-    "events": 4,
-    "packages": 2,
-    "bytes": 30566,
+    "games": 17,
+    "events": 6,
+    "packages": 4,
+    "bytes": 69741,
     "stages": {
+      "U10": 5,
       "U18": 4
     }
   },
@@ -33,14 +34,30 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8613125/all.pgn",
-      "gameCount": 4,
-      "pgnBytes": 15283,
-      "sha256": "d3151d4fec11bd2eb76b0594ac97ca9d52133cba83a9900e7f68c9fd4fc615c2",
+      "gameCount": 17,
+      "pgnBytes": 34740,
+      "sha256": "25be28171db33406fe5cb0b81d4ac755ccb33d24a3b4004a1e84fa90246e669f",
       "stages": {
+        "U10": 5,
         "U18": 4
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U10",
+      "label": "U10 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8613125/U10.pgn",
+      "gameCount": 5,
+      "pgnBytes": 12000,
+      "sha256": "df6e2bdd904c5c8a381c74b1c0328f1aad874cd18788b6126dfdd802f184ef83",
+      "stages": {
+        "U10": 5
+      },
+      "sources": [
+        "Chess-Results"
       ]
     },
     {
@@ -49,16 +66,41 @@
       "pgnPath": "data/pgn/by-player/fide-8613125/U18.pgn",
       "gameCount": 4,
       "pgnBytes": 15283,
-      "sha256": "0d1121b4692d902a1b881a933aa35098e6dfe1d0e46e4e2db554b6903a608202",
+      "sha256": "1a85acf3a38a47b0c9bb43f48e680a90f0fa0d3b4ee39c44f78703c8307631f7",
       "stages": {
         "U18": 4
       },
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8613125/adult.pgn",
+      "gameCount": 8,
+      "pgnBytes": 7718,
+      "sha256": "b2562ef1f781812c83d2f9e63d3950d66e6d5929613eb259749ddd0ea6ffa4d3",
+      "stages": {},
+      "sources": [
+        "Chess-Results"
+      ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "tournamentID": "1163666",
+      "stage": "adult",
+      "gameCount": 8,
+      "results": {
+        "1-0": 3,
+        "0-1": 2,
+        "1/2-1/2": 3
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Biel International Chess Festival - Main Tournament",
@@ -102,9 +144,133 @@
       "results": {
         "0-1": 1
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "WYCC Girls 10",
+      "date": "2015-10-25",
+      "tournamentID": "187423",
+      "stage": "U10",
+      "gameCount": 5,
+      "results": {
+        "0-1": 3,
+        "1-0": 2
+      }
     }
   ],
   "games": [
+    {
+      "id": "0e4e3f88b5d77a13ff37da64c21058bfccb0736ca55bf9e9fd32b88796867add",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "white": "Yan, Tianqi",
+      "black": "Long, Siyu",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "black",
+      "tournamentID": "1163666",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8613125-1163666.pgn",
+      "sha256": "0e4e3f88b5d77a13ff37da64c21058bfccb0736ca55bf9e9fd32b88796867add"
+    },
+    {
+      "id": "55ad9443a134489725e841fbbaf5b36e89254054368861c8e9316d6cad043fa8",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "white": "Wu, Sigala",
+      "black": "Long, Siyu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "black",
+      "tournamentID": "1163666",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8613125-1163666.pgn",
+      "sha256": "55ad9443a134489725e841fbbaf5b36e89254054368861c8e9316d6cad043fa8"
+    },
+    {
+      "id": "63490b410c5b5b469383e52bf3c42657c3a6614e425f5cb5a66adf7a53814f5e",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "white": "Wang, Yu A.",
+      "black": "Long, Siyu",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "black",
+      "tournamentID": "1163666",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8613125-1163666.pgn",
+      "sha256": "63490b410c5b5b469383e52bf3c42657c3a6614e425f5cb5a66adf7a53814f5e"
+    },
+    {
+      "id": "0523ffa7348a7dfd4944f868ec6b11d8f38a0ce35602bb620eafcf0f8062574f",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "white": "Long, Siyu",
+      "black": "Zhao, Yunqing",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1163666",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8613125-1163666.pgn",
+      "sha256": "0523ffa7348a7dfd4944f868ec6b11d8f38a0ce35602bb620eafcf0f8062574f"
+    },
+    {
+      "id": "ff850afc94e855fdace86153488cbc9ddb77bac01b5361350e184aba6226bb66",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "white": "Long, Siyu",
+      "black": "Xiao, Yiyi",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1163666",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8613125-1163666.pgn",
+      "sha256": "ff850afc94e855fdace86153488cbc9ddb77bac01b5361350e184aba6226bb66"
+    },
+    {
+      "id": "3c21b732326a3d0593e2102b88e81d4a41ad693b6fae810099dac456e6a9f246",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "white": "Long, Siyu",
+      "black": "Xia, Miaoyan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1163666",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8613125-1163666.pgn",
+      "sha256": "3c21b732326a3d0593e2102b88e81d4a41ad693b6fae810099dac456e6a9f246"
+    },
+    {
+      "id": "93aca310d9e476715c046aa96764fbd5476d5117c51b2ec08aa53c9daceb15fd",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "white": "Long, Siyu",
+      "black": "Ni, Shiqun",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "white",
+      "tournamentID": "1163666",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8613125-1163666.pgn",
+      "sha256": "93aca310d9e476715c046aa96764fbd5476d5117c51b2ec08aa53c9daceb15fd"
+    },
+    {
+      "id": "92b0245a8937b22f4db596f0964a0392abe85a7f06617a8c76031482f8510322",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-25",
+      "white": "Cong, Yanbo",
+      "black": "Long, Siyu",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "adult",
+      "role": "black",
+      "tournamentID": "1163666",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8613125-1163666.pgn",
+      "sha256": "92b0245a8937b22f4db596f0964a0392abe85a7f06617a8c76031482f8510322"
+    },
     {
       "id": "5e77abf1c2fadb49233f160ce74fe5718729b440a7197823457fbaa21965e491",
       "event": "Biel International Chess Festival - Main Tournament",
@@ -164,6 +330,76 @@
       "sourceIndexPath": "data/bulk/youth/index/U18/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2023-07.pgn.zst",
       "sha256": "b62274fce4a62106d85c360c84c1eff4fefc08e9a9e59fd60e4618cd9989ad5d"
+    },
+    {
+      "id": "937f2a1db5fb289df6ca283d67e7427269e113dd456fc12bed9d335bac90969b",
+      "event": "WYCC Girls 10",
+      "date": "2015-10-25",
+      "white": "Long, Siyu",
+      "black": "Zvereva, Margarita",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "187423",
+      "sourcePgnPath": "data/pgn/chess-results/tnr187423/fide-8613125-187423.pgn",
+      "sha256": "937f2a1db5fb289df6ca283d67e7427269e113dd456fc12bed9d335bac90969b"
+    },
+    {
+      "id": "2d8e95cb54fd6838b4a7e66534800a900672b1a35c21c10dc0a92e009f757c8b",
+      "event": "WYCC Girls 10",
+      "date": "2015-10-25",
+      "white": "Long, Siyu",
+      "black": "Sivarajasingam, Venetia",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "187423",
+      "sourcePgnPath": "data/pgn/chess-results/tnr187423/fide-8613125-187423.pgn",
+      "sha256": "2d8e95cb54fd6838b4a7e66534800a900672b1a35c21c10dc0a92e009f757c8b"
+    },
+    {
+      "id": "05284fe7678dd1d2dcd3830e5c4ccd0216188b2cdefd9c8260b6fa03994f2ef2",
+      "event": "WYCC Girls 10",
+      "date": "2015-10-25",
+      "white": "Long, Siyu",
+      "black": "Mungunzul, Bat-Erdene",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "white",
+      "tournamentID": "187423",
+      "sourcePgnPath": "data/pgn/chess-results/tnr187423/fide-8613125-187423.pgn",
+      "sha256": "05284fe7678dd1d2dcd3830e5c4ccd0216188b2cdefd9c8260b6fa03994f2ef2"
+    },
+    {
+      "id": "a65c080cd3f2b9188b0c881d24bdea6ed7b44e926cf79eaae6d4c5c757b1329d",
+      "event": "WYCC Girls 10",
+      "date": "2015-10-25",
+      "white": "Kamalidenova, Meruert",
+      "black": "Long, Siyu",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "187423",
+      "sourcePgnPath": "data/pgn/chess-results/tnr187423/fide-8613125-187423.pgn",
+      "sha256": "a65c080cd3f2b9188b0c881d24bdea6ed7b44e926cf79eaae6d4c5c757b1329d"
+    },
+    {
+      "id": "7187c1a189cd51809a084a397fd4c7bb113e837438dcd456a3543ed247a83d06",
+      "event": "WYCC Girls 10",
+      "date": "2015-10-25",
+      "white": "Kairbekova, Amina",
+      "black": "Long, Siyu",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "187423",
+      "sourcePgnPath": "data/pgn/chess-results/tnr187423/fide-8613125-187423.pgn",
+      "sha256": "7187c1a189cd51809a084a397fd4c7bb113e837438dcd456a3543ed247a83d06"
     }
   ]
 }

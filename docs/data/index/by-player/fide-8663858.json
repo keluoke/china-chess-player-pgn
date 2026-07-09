@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:29:38+00:00",
   "player": {
     "fideID": "8663858",
     "id": "fide-8663858",
@@ -20,12 +20,12 @@
     ]
   },
   "totals": {
-    "games": 3,
-    "events": 3,
+    "games": 13,
+    "events": 5,
     "packages": 2,
-    "bytes": 35310,
+    "bytes": 53560,
     "stages": {
-      "U12": 3
+      "U12": 13
     }
   },
   "packages": [
@@ -33,13 +33,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8663858/all.pgn",
-      "gameCount": 3,
-      "pgnBytes": 17655,
-      "sha256": "d10e4a846fba6dca19e43870a6a94be7152bc018a07c91b9158f10a4ca7f9344",
+      "gameCount": 13,
+      "pgnBytes": 26780,
+      "sha256": "847b9948b897c33600b1403cf347d18f95c2804b766ffc77c762877c9b0f1b1f",
       "stages": {
-        "U12": 3
+        "U12": 13
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -47,18 +48,30 @@
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8663858/U12.pgn",
-      "gameCount": 3,
-      "pgnBytes": 17655,
-      "sha256": "030185aeb5cf623e94bca6da56a991301361548f8161b0ec0f7681190d278ae2",
+      "gameCount": 13,
+      "pgnBytes": 26780,
+      "sha256": "b9e50c6cb22e70c167f8a7c2ae823247c616a6718bbde45ba44fd003225de22a",
       "stages": {
-        "U12": 3
+        "U12": 13
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open ( Qingdao Station)",
+      "date": "2026-05-29",
+      "tournamentID": "1420677",
+      "stage": "U12",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 1: Zhu, Diwen - Sun, Luyao",
@@ -91,9 +104,35 @@
       "results": {
         "1/2-1/2": 1
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "tournamentID": "1250419",
+      "stage": "U12",
+      "gameCount": 9,
+      "results": {
+        "0-1": 5,
+        "1-0": 4
+      }
     }
   ],
   "games": [
+    {
+      "id": "9b6c836a4bc0b1183ede7948b6da33c0b6686e63bf74e9cda2305a9aa5637e64",
+      "event": "2026 National Amateur Chess Master Tournament - Open ( Qingdao Station)",
+      "date": "2026-05-29",
+      "white": "Zhu, Diwen",
+      "black": "Sun, Luyao",
+      "result": "1/2-1/2",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1420677",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1420677/fide-8663858-1420677.pgn",
+      "sha256": "9b6c836a4bc0b1183ede7948b6da33c0b6686e63bf74e9cda2305a9aa5637e64"
+    },
     {
       "id": "df29f5f43a04097ebc6c4539aae767db12ae1bddd27c6ba33aa3873e4c73e886",
       "event": "Round 1: Zhu, Diwen - Sun, Luyao",
@@ -138,6 +177,132 @@
       "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
       "sha256": "d471b9bc66e8a6b774443fd5245a2403fd68b31dbb82543b3fdb7bc7401f1640"
+    },
+    {
+      "id": "b6f91e6dd75dafe97210c456ee670dc9a22409abf2c8ded32ef8cd17755614b3",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Yu, Zeyang",
+      "black": "Sun, Luyao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "b6f91e6dd75dafe97210c456ee670dc9a22409abf2c8ded32ef8cd17755614b3"
+    },
+    {
+      "id": "552d73ed87477d16fb22efffeae20962d8ddee2884b318df0afbaf9eaa225656",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Sun, Luyao",
+      "black": "Zhao, Yuetong",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "552d73ed87477d16fb22efffeae20962d8ddee2884b318df0afbaf9eaa225656"
+    },
+    {
+      "id": "8a91863e8b0b1dfe4622f45c021802054e7dfb13c60c4ee1617ef98385337887",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Sun, Luyao",
+      "black": "Zhao, Tsz Ham",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "8a91863e8b0b1dfe4622f45c021802054e7dfb13c60c4ee1617ef98385337887"
+    },
+    {
+      "id": "73c79579a72ef6e9a0f69d197b0b33e7ef5b6f28d19c9a4f182edf7565ce1827",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Sun, Luyao",
+      "black": "Wang, Xuhang",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "73c79579a72ef6e9a0f69d197b0b33e7ef5b6f28d19c9a4f182edf7565ce1827"
+    },
+    {
+      "id": "197819e063d37c89bcd35615279aae9c859611cf25173f07df0b6b933d941f26",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Sun, Luyao",
+      "black": "Wang, Peiqi",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "197819e063d37c89bcd35615279aae9c859611cf25173f07df0b6b933d941f26"
+    },
+    {
+      "id": "d0ab3c48c8ddceaa0a737724dfcd89546f900dd5e7e11d62ca1e328bfc972a7f",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Sun, Luyao",
+      "black": "Jin, Haoyan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "d0ab3c48c8ddceaa0a737724dfcd89546f900dd5e7e11d62ca1e328bfc972a7f"
+    },
+    {
+      "id": "a77a1a40893d3b9128ae1dc8d90bf17f789855dd68a2167e7000fdb069d872b6",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Ren, Yibai",
+      "black": "Sun, Luyao",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "a77a1a40893d3b9128ae1dc8d90bf17f789855dd68a2167e7000fdb069d872b6"
+    },
+    {
+      "id": "86e88e05c8d25a17663cf9e7f28663750ffe07aef27523b49e7f56479c893f4d",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Cui, Wen",
+      "black": "Sun, Luyao",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "86e88e05c8d25a17663cf9e7f28663750ffe07aef27523b49e7f56479c893f4d"
+    },
+    {
+      "id": "92dbe69b109f354141a610c7e2b00823cb259806bd258e24f8d09783d63540b0",
+      "event": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "white": "Chen, Yize",
+      "black": "Sun, Luyao",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "black",
+      "tournamentID": "1250419",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8663858-1250419.pgn",
+      "sha256": "92dbe69b109f354141a610c7e2b00823cb259806bd258e24f8d09783d63540b0"
     }
   ]
 }

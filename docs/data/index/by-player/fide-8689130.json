@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-08T02:30:33+00:00",
+  "generatedAt": "2026-07-09T17:29:38+00:00",
   "player": {
     "fideID": "8689130",
     "id": "fide-8689130",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "events": 2,
-    "packages": 2,
-    "bytes": 23830,
+    "games": 5,
+    "events": 4,
+    "packages": 3,
+    "bytes": 30928,
     "stages": {
-      "U10": 2
+      "U10": 4,
+      "U12": 1
     }
   },
   "packages": [
@@ -33,13 +34,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8689130/all.pgn",
-      "gameCount": 2,
-      "pgnBytes": 11915,
-      "sha256": "2139e81d44ea4cba0de24f2fc7e41e69c402be76a3b008bc072cccaf796ce437",
+      "gameCount": 5,
+      "pgnBytes": 15399,
+      "sha256": "6306f24b96dc9cc8e9a79f9599d9cbbf528ecccc3bf59f734deb4d13d28dc9a5",
       "stages": {
-        "U10": 2
+        "U10": 4,
+        "U12": 1
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
       ]
     },
@@ -47,18 +50,44 @@
       "id": "U10",
       "label": "U10 PGN",
       "pgnPath": "data/pgn/by-player/fide-8689130/U10.pgn",
-      "gameCount": 2,
-      "pgnBytes": 11915,
-      "sha256": "1f6df2820b9e9dd20abcbd6444eb7ec4d13fbc92c42cf5f41732cba19cf1ccfc",
+      "gameCount": 4,
+      "pgnBytes": 14007,
+      "sha256": "800f126a1ceb5144b7bbb96cbf494ede3d36948507b000fe51803d4772b13a08",
       "stages": {
-        "U10": 2
+        "U10": 4
       },
       "sources": [
+        "Chess-Results",
         "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U12",
+      "label": "U12 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8689130/U12.pgn",
+      "gameCount": 1,
+      "pgnBytes": 1522,
+      "sha256": "97bf65661ede95b39a7240ee9d74f5ee5021b161be6165df1da19a751621ea6d",
+      "stages": {
+        "U12": 1
+      },
+      "sources": [
+        "Chess-Results"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Chess-Results",
+      "name": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-05",
+      "tournamentID": "1449113",
+      "stage": "U12",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Round 9: Cai, Yachen - Zhang, Jialan",
@@ -80,9 +109,34 @@
       "results": {
         "1-0": 1
       }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "tournamentID": "1323488",
+      "stage": "U10",
+      "gameCount": 2,
+      "results": {
+        "1-0": 2
+      }
     }
   ],
   "games": [
+    {
+      "id": "abc0337ea7563be34422ed19c718044b3b0be4cccf7d29ca33e435049fbc0e3f",
+      "event": "2026 National Amateur Chess Master Tournament - Open (Shenzhen Station)",
+      "date": "2026-07-05",
+      "white": "Zhang, Jialan",
+      "black": "Cong, Dingzhou",
+      "result": "0-1",
+      "source": "Chess-Results",
+      "stage": "U12",
+      "role": "white",
+      "tournamentID": "1449113",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1449113/fide-8689130-1449113.pgn",
+      "sha256": "abc0337ea7563be34422ed19c718044b3b0be4cccf7d29ca33e435049fbc0e3f"
+    },
     {
       "id": "ae1082cc9e7ef5228a2a315576be71b994f4df24584c66db3c929f0ae2f5be4e",
       "event": "Round 9: Cai, Yachen - Zhang, Jialan",
@@ -112,6 +166,34 @@
       "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
       "sha256": "7d6f6cd6d097b45d317dc8dbe8cfbdbeead4e9092048ddb7b3a16ead41464317"
+    },
+    {
+      "id": "3ac719d449bd0902d88cc21516090bd08e85ebe96f1a03fecad986c0589c54ab",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Gu, Peizhi",
+      "black": "Zhang, Jialan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8689130-1323488.pgn",
+      "sha256": "3ac719d449bd0902d88cc21516090bd08e85ebe96f1a03fecad986c0589c54ab"
+    },
+    {
+      "id": "0b3f6b85fe2d8ec1864b523c1099ccb80a0abba559946dc9846dffcb038d4afc",
+      "event": "2025 National Amateur Chess Master Tournament Beijing Station",
+      "date": "2025-12-26",
+      "white": "Cai, Yachen",
+      "black": "Zhang, Jialan",
+      "result": "1-0",
+      "source": "Chess-Results",
+      "stage": "U10",
+      "role": "black",
+      "tournamentID": "1323488",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1323488/fide-8689130-1323488.pgn",
+      "sha256": "0b3f6b85fe2d8ec1864b523c1099ccb80a0abba559946dc9846dffcb038d4afc"
     }
   ]
 }
