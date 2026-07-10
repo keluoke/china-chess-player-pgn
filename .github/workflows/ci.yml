@@ -31,7 +31,10 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           git fetch --depth=1 origin "${{ github.base_ref }}"
-          changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)
+          # This is a path-scope check, so compare the two trees directly.
+          # A three-dot diff requires a locally available merge base and fails
+          # on shallow/API-created PR branches with "no merge base".
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}" HEAD)
           if echo "$changed" | grep -q '^data/incoming/'; then
             outside=$(echo "$changed" | grep -v '^data/incoming/' || true)
             if [ -n "$outside" ]; then

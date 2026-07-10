@@ -1,0 +1,8 @@
+source,dataset,incremental_frequency,full_refresh_frequency,incremental_cursor,network_boundary,notes
+FIDE,player-registry,monthly,monthly,ratings-list-month,local-or-ci,每月新榜后全量刷新；注册表为姓名与等级分唯一权威
+Chess-Results,event-catalog,daily-during-events-weekly-otherwise,quarterly,last-seen-date-and-tnr,local-residential-only,CI 禁止回抓
+Chess-Results,master-sections,daily-during-events,after-each-station,last-complete-round-and-content-hash,local-residential-only,开赛前登记五组 tnr；赛后锁定轮次和最终成绩
+Chess-Results,domestic-sightings,daily-during-events,after-each-edition,last-seen-player-number-and-content-hash,local-residential-only,保留无 FIDE 棋手证据
+PGN,game-archives,daily-when-new,quarterly,game-sha256,local-or-ci,增量追加并按棋局哈希去重
+Community,event-name-mappings,weekly,quarterly,review-queue-position,offline,中文名必须有人审证据
+Community,identity-links,on-new-evidence,monthly,reviewed-at,offline,低置信不得自动合并

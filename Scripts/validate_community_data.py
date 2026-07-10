@@ -124,7 +124,7 @@ def check_tournament_name_mappings() -> None:
     path = REPO_ROOT / "data" / "community" / "tournament-name-mappings.csv"
     if not path.exists():
         return
-    required = {"source", "tournament_id", "chinese_name", "evidence_url", "notes"}
+    required = {"source", "tournament_id", "canonical_event_id", "chinese_name", "evidence_url", "notes"}
     with path.open("r", encoding="utf-8-sig", newline="") as fh:
         reader = csv.DictReader(fh)
         actual = set(reader.fieldnames or [])
@@ -139,12 +139,15 @@ def check_tournament_name_mappings() -> None:
             source = (row.get("source") or "").strip()
             tournament_id = (row.get("tournament_id") or "").strip()
             chinese_name = (row.get("chinese_name") or "").strip()
+            canonical_id = (row.get("canonical_event_id") or "").strip()
             if not source:
                 err(path, i, "source required")
             if not tournament_id or not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", tournament_id):
                 err(path, i, f"invalid tournament_id {tournament_id!r}")
             if not (2 <= len(chinese_name) <= 100):
                 err(path, i, "chinese_name must be 2-100 characters")
+            if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", canonical_id):
+                err(path, i, f"invalid canonical_event_id {canonical_id!r}")
             key = (source.lower(), tournament_id)
             if key in seen:
                 err(path, i, f"duplicate source+tournament_id {source!r}/{tournament_id!r}")
@@ -152,6 +155,47 @@ def check_tournament_name_mappings() -> None:
             evidence = (row.get("evidence_url") or "").strip()
             if not url_ok(evidence):
                 err(path, i, f"evidence_url missing or domain not allow-listed: {evidence!r}")
+
+
+def check_master_tournament_groups() -> None:
+    path = REPO_ROOT / "data" / "community" / "master-tournament-groups.csv"
+    if not path.exists():
+        return
+    required = {"canonical_event_id", "section_id", "year", "station", "group_code", "tournament_id", "source_url", "rounds", "promotion_rate", "evidence_status"}
+    allowed_groups = {"OPEN", "MEN_CANDIDATE", "WOMEN_CANDIDATE", "MEN_LEVEL_1", "WOMEN_LEVEL_1"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        seen_sections: set[str] = set()
+        seen_tnr: set[str] = set()
+        for i, row in enumerate(reader, start=2):
+            section = (row.get("section_id") or "").strip()
+            tnr = (row.get("tournament_id") or "").strip()
+            group = (row.get("group_code") or "").strip()
+            if section in seen_sections:
+                err(path, i, f"duplicate section_id {section!r}")
+            if tnr in seen_tnr:
+                err(path, i, f"duplicate tournament_id {tnr!r}")
+            seen_sections.add(section)
+            seen_tnr.add(tnr)
+            if group not in allowed_groups:
+                err(path, i, f"invalid group_code {group!r}")
+            if not FIDE_ID_RE.fullmatch(tnr):
+                err(path, i, f"invalid Chess-Results tournament_id {tnr!r}")
+            try:
+                rounds = int(row.get("rounds") or 0)
+                rate = float(row.get("promotion_rate") or 0)
+                if not 1 <= rounds <= 20:
+                    raise ValueError
+                if not 0.5 <= rate <= 1:
+                    raise ValueError
+            except ValueError:
+                err(path, i, "rounds/promotion_rate outside plausible range")
+            if not url_ok((row.get("source_url") or "").strip()):
+                err(path, i, "source_url missing or domain not allow-listed")
 
 
 def check_contributors() -> None:
@@ -254,6 +298,7 @@ def main() -> int:
     check_player_aliases()
     check_sightings()
     check_tournament_name_mappings()
+    check_master_tournament_groups()
     check_contributors()
     check_name_corrections_pinned()
     check_generated_untouched_note()

@@ -1,0 +1,52 @@
+# 国内棋手与赛事数据机制
+
+## 身份边界
+
+- `docs/data/registry/players.json` 是 FIDE 棋手姓名、等级分与身份的唯一权威。
+- `data/manual/domestic-player-sightings.csv` 保存国内赛事中观察到的人名证据；没有 FIDE ID 也必须入库。
+- `data/manual/player-identity-links.csv` 是唯一允许合并 sightings、或把国内实体连接到 FIDE ID 的机制。姓名、年龄组和俱乐部相同都不能自动合并。
+- `Scripts/sync_domestic_players.py` 输出置信分、同名冲突数、跨赛事出现数、年龄段连续性与 `identity-review.json`。置信分只用于排列人工审核优先级。
+
+前端搜索使用 FIDE 注册表与国内实体的并集。无 FIDE 结果显示 `[无FIDE]`，每条结果固定展示 FIDE ID、等级分、出生年和 title；库内同名实体达到 3 个时显示警告。
+
+## 棋协大师赛
+
+`data/community/master-tournament-groups.csv` 逐站、逐组登记 Chess-Results tnr。合法组别为 `OPEN`、`MEN_CANDIDATE`、`WOMEN_CANDIDATE`、`MEN_LEVEL_1`、`WOMEN_LEVEL_1`。每行同时保存轮次和晋级比例，默认比例为 `0.65`；因此 9 轮需要至少 6 分，少于 9 轮时直接按 `得分 / 实际轮次 >= 0.65` 计算，不使用固定 6 分。
+
+`Scripts/build_domestic_progressions.py` 生成成长时间线和晋级审核队列。低级别无 FIDE 到 OPEN 有 FIDE 的路径只有在人工 identity link 已确认是同一人时才能贯通。
+
+## 赛事持久 ID 与中文名
+
+`data/community/tournament-name-mappings.csv` 中：
+
+- `canonical_event_id` 是数据仓库长期不变的赛事 ID，例如 `lichengzhi-cup-2025`；
+- tnr 是一个 section 的 `sourceRefs[]`，可以替换或追加；
+- `chinese_name` 必须有 evidence URL，不从英文标题机器臆译。
+
+`Scripts/build_event_catalog.py` 同时输出 section 级 `events.json`、聚合级 `canonical-events.json`，以及按日期和中国棋手数排序的 `event-name-mapping-candidates.json`。维护者优先核验候选队列，再把中文名写回社区映射表。
+
+李成智杯的 PGN 同时保存 `naturalStage`（按出生年计算）与 `eventStage`（实际报名组）。棋手页年龄包按 `naturalStage` 聚合，赛事页按 `eventStage`/section 聚合，因此跨级参赛不会改变棋手的自然年龄归档。
+
+## 轮次成绩与国内外覆盖
+
+纯国内赛事可把每轮比分、累计分和轮后名次写入 `data/manual/domestic-event-round-results.csv`。棋局仍以 PGN 为事实表，轮次成绩表用于 standings 快照；两者通过 `canonical_event_id + section_id + round + player_ref` 关联。
+
+赛事页应明确覆盖口径：
+
+- 国内完整赛事：显示全部分组、每轮成绩、最终排名、晋级线和完整名单；
+- 国外部分收录：显示“仅中国棋手”覆盖徽标，分别展示赛事总参赛人数、中国棋手数、有 PGN 的中国棋手数，不把局部名单称作完整 standings。
+
+## 全量与增量更新策略
+
+| 数据层 | 增量频率 | 全量校验 | 说明 |
+|---|---:|---:|---|
+| FIDE 注册表与等级分 | 每月 FIDE 新榜后 | 每月全量 | 注册表是权威，不由派生层回写 |
+| Chess-Results 新赛事/新轮次 | 赛期每日；平时每周 | 每季度 | 本地住宅 IP 抓取，CI 不回抓 |
+| 大师赛五组 tnr 与 standings | 开赛前登记；赛期每日 | 每站赛后一次 | 赛后锁定实际轮次与最终成绩 |
+| 李成智杯低龄组 sightings | 赛期每日 | 每届赛后一次 | 优先保留无 FIDE 名单与年龄组证据 |
+| PGN | 新赛事发布后每日增量 | 每季度去重重建 | 以棋局哈希去重，不按姓名合并 |
+| 中文赛事名 | 每周审核候选队列 | 每季度覆盖率审计 | 必须保留证据 URL |
+| identity links | 有新证据即更新 | 每月低置信队列复核 | 低置信不能自动合并 |
+| 静态索引、看板、canonical events | 每次数据变更后 | 每次发布 | 纯计算，可在 CI 重建 |
+
+增量抓取保存游标（最近事件日期、已见 tnr、最近完整轮次和内容哈希），只追加新证据或更新仍在进行的赛事。全量重刷只重建 `data/generated/`，随后与上次 manifest 做数量、身份和哈希差异检查；任何人工修正继续只写 `data/manual/` 与 `data/community/`。

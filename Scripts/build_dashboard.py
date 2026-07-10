@@ -104,17 +104,25 @@ def recent_events(limit: int = 8) -> list[dict]:
 
 def main() -> int:
     registry = (read_json(DOCS_DATA / "registry" / "manifest.json", {}) or {}).get("totals", {})
+    domestic = (read_json(DOCS_DATA / "registry" / "domestic" / "manifest.json", {}) or {}).get("totals", {})
     by_player = (read_json(DOCS_DATA / "index" / "by-player" / "manifest.json", {}) or {}).get("totals", {})
     index_manifest = (read_json(DOCS_DATA / "index" / "manifest.json", {}) or {}).get("totals", {})
+    events = read_json(DOCS_DATA / "index" / "events.json", []) or []
+    canonical_events = read_json(DOCS_DATA / "index" / "canonical-events.json", []) or []
     changelog = (read_json(DOCS_DATA / "changelog.json", {}) or {}).get("entries", [])
 
     payload = {
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "totals": {
             "players": registry.get("players"),
+            "domesticPlayers": domestic.get("unlinked"),
+            "searchablePlayers": (registry.get("players") or 0) + (domestic.get("unlinked") or 0),
+            "domesticIdentityReview": domestic.get("lowConfidence"),
             "withChineseName": registry.get("withChineseName"),
             "games": by_player.get("games"),
-            "events": index_manifest.get("events") or len(read_json(DOCS_DATA / "index" / "events.json", []) or []),
+            "events": len(events) or index_manifest.get("events"),
+            "eventsWithChineseName": sum(1 for event in events if event.get("chineseName")),
+            "canonicalEvents": len(canonical_events),
             "playersWithGames": by_player.get("players"),
         },
         "community": git_contributors(),
