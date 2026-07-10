@@ -490,13 +490,13 @@ function renderDetail() {
       <div>
         <h2>${escapeHTML(displayName(player))}</h2>
         ${detailChineseNameLine(player)}
-        <p>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(player.birthYear ?? "-"))} 出生 · ${escapeHTML(stage?.id ?? "未到 U8")}</p>
+        <p>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(player.birthYear ?? "-"))} 出生 · ${escapeHTML(stageLabelForPlayer(player, stage))}</p>
       </div>
       <div class="detail-title-actions">
-        <span class="stage-chip">${escapeHTML(stage?.id ?? "-")}</span>
-        <a class="action-link" href="#" data-action="back-to-dashboard">← 返回看板</a>
+        ${player.sex === "F" ? `<span class="stage-chip">女</span>` : ""}
+        <a class="action-link" href="#" data-action="back-to-dashboard">← 返回</a>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
-        <a class="action-link" href="https://github.com/keluoke/china-chess-player-pgn/issues/new?template=data-correction.yml&fide_id=${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">数据有误?</a>
+        <a class="action-link icon-link" href="https://github.com/keluoke/china-chess-player-pgn/issues/new?template=data-correction.yml&fide_id=${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer" title="数据有误？提交 Issue" aria-label="数据有误？提交 Issue"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/></svg></a>
       </div>
     </div>
 
@@ -1400,6 +1400,12 @@ function ratingForPlayer(player) {
 function stageForPlayer(player) {
   const age = data.competitionYear - player.birthYear;
   return stages.find(stage => age >= stage.lowerAge && age <= stage.upperAge) ?? null;
+}
+
+function stageLabelForPlayer(player, stage) {
+  if (stage?.id) return stage.id;
+  const age = data.competitionYear - Number(player.birthYear);
+  return Number.isFinite(age) && age >= 19 ? "Adult" : "未到 U8";
 }
 
 function stageForEvent(player, event) {
