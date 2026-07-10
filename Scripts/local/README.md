@@ -55,6 +55,9 @@ python3 Scripts/local/publish_code_via_api.py \
 
 # dry-run 没有 conflicts 后再真正发布
 python3 Scripts/local/publish_code_via_api.py ... --publish
+
+# PR 分支已存在时，安全追加一个 fast-forward 修复提交
+python3 Scripts/local/publish_code_via_api.py ... --publish --update-existing
 ```
 
 脚本通过 GitHub API 读取最新 main，对每个代码/人工数据文件执行三方合并，并默认
