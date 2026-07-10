@@ -85,7 +85,9 @@ async function loadData() {
       bulkManifest,
       bulkYouthManifest,
       byPlayerManifest,
-      byPlayerPlayers
+      byPlayerPlayers,
+      domesticManifest,
+      domesticPlayers
     ] = await Promise.all([
       fetchJSON("./data/index/manifest.json", false),
       fetchJSON("./data/index/players.json", false),
@@ -94,7 +96,9 @@ async function loadData() {
       fetchJSON("./data/bulk/manifest.json", false),
       fetchJSON("./data/bulk/youth/manifest.json", false),
       fetchJSON("./data/index/by-player/manifest.json", false),
-      fetchJSON("./data/index/by-player/players.json", false)
+      fetchJSON("./data/index/by-player/players.json", false),
+      fetchJSON("./data/registry/domestic/manifest.json", false),
+      fetchJSON("./data/registry/domestic/players.json", false)
     ]);
     return {
       ...youth,
@@ -106,7 +110,11 @@ async function loadData() {
       bulkManifest,
       bulkYouthManifest,
       byPlayerManifest,
-      players: mergePlayers(youth.players ?? [], indexedPlayers ?? [], registryPlayers ?? [], byPlayerPlayers ?? [])
+      domesticManifest,
+      players: mergeDomesticPlayers(
+        mergePlayers(youth.players ?? [], indexedPlayers ?? [], registryPlayers ?? [], byPlayerPlayers ?? []),
+        domesticPlayers ?? []
+      )
     };
   } catch (error) {
     document.body.innerHTML = `<main class="empty-state">无法加载静态数据：${escapeHTML(error.message)}</main>`;
@@ -191,10 +199,42 @@ function mergePlayers(leaderboardPlayers, indexedPlayers, registryPlayers, byPla
   return [...byFide.values()];
 }
 
+function mergeDomesticPlayers(fidePlayers, domesticPlayers) {
+  const merged = [...fidePlayers];
+  const byFide = new Map(merged.map(player => [String(player.fideID), player]));
+  domesticPlayers.forEach(domestic => {
+    const fideID = String(domestic.fideID ?? "");
+    if (fideID && byFide.has(fideID)) {
+      const player = byFide.get(fideID);
+      player.aliases = uniqueStrings([...(player.aliases ?? []), ...(domestic.aliases ?? [])]);
+      player.domesticSightings = domestic.sightings ?? [];
+      player.domesticIdentity = domestic.confidence ?? null;
+      return;
+    }
+    merged.push({
+      ...domestic,
+      fideID: "",
+      playerID: domestic.id || domestic.domesticID,
+      entityType: "domestic-player",
+      name: domestic.displayName || domestic.chineseName || domestic.pinyin,
+      title: domestic.title || ""
+    });
+  });
+  return merged;
+}
+
+function playerKey(player) {
+  return String(player?.fideID || player?.playerID || player?.id || "");
+}
+
+function isDomesticPlayer(player) {
+  return player?.entityType === "domestic-player" && !player?.fideID;
+}
+
 function initialize() {
-  const routedFideID = initialSelectedFideID();
+  const routedFideID = initialSelectedPlayerID();
   const routedEventID = initialSelectedEventID();
-  state.selectedFideID = players.some(player => player.fideID === routedFideID)
+  state.selectedFideID = players.some(player => playerKey(player) === routedFideID)
     ? routedFideID
     : null;
   state.selectedEventID = state.selectedFideID ? null : routedEventID;
@@ -233,8 +273,8 @@ function initialize() {
     }
   });
   window.addEventListener("popstate", () => {
-    const fideID = initialSelectedFideID();
-    state.selectedFideID = players.some(player => player.fideID === fideID) ? fideID : null;
+    const fideID = initialSelectedPlayerID();
+    state.selectedFideID = players.some(player => playerKey(player) === fideID) ? fideID : null;
     state.selectedEventID = state.selectedFideID ? null : initialSelectedEventID();
     render();
   });
@@ -257,10 +297,13 @@ function renderDashboard() {
   const totals = dash?.totals ?? {};
   const community = dash?.community ?? {};
   const cards = [
-    { label: "收录棋手", value: totals.players ?? players.length },
+    { label: "FIDE 注册棋手", value: totals.players },
+    { label: "无 FIDE 国内棋手", value: totals.domesticPlayers },
+    { label: "可搜索棋手实体", value: totals.searchablePlayers ?? players.length },
     { label: "中文名覆盖", value: totals.withChineseName },
     { label: "收录棋局", value: totals.games },
     { label: "收录赛事", value: totals.events },
+    { label: "已核验中文赛事名", value: totals.eventsWithChineseName != null ? `${Number(totals.eventsWithChineseName).toLocaleString("zh-Hans-CN")} / ${Number(totals.events ?? 0).toLocaleString("zh-Hans-CN")}` : null },
     { label: "可查棋局棋手", value: totals.playersWithGames },
     { label: "社区成员", value: community.count },
     { label: "最新贡献者", value: community.latest ? community.latest.name : null, sub: community.latest?.date }
@@ -464,12 +507,16 @@ function renderSearch() {
   if (els.eventPane) els.eventPane.hidden = hasQuery || !state.selectedEventID;
   els.searchCount.textContent = `${matches.length} 名`;
   els.searchResults.innerHTML = matches.length ? matches.map(player => {
-    const stage = stageForPlayer(player);
     const rating = ratingForPlayer(player);
+    const duplicateCount = sameNameCount(player);
+    const fideLabel = player.fideID ? `FIDE ${player.fideID}` : "[无FIDE]";
+    const ratingLabel = rating ? `${rating.value} ${rating.kind}` : "无等级分";
+    const birthLabel = player.birthYear ? `${player.birthYear} 出生` : "出生年待补";
+    const titleLabel = player.title || "无称号";
     return `
-      <button class="result-button" type="button" data-fide="${escapeAttribute(player.fideID)}" aria-pressed="${state.selectedFideID === player.fideID}">
-        <div class="player-name">${escapeHTML(displayName(player))}</div>
-        <div class="player-meta">${escapeHTML(stage?.id ?? "-")} · FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(rating?.value ?? "-"))} ${escapeHTML(displayText(rating?.kind ?? ""))}</div>
+      <button class="result-button" type="button" data-player="${escapeAttribute(playerKey(player))}" aria-pressed="${state.selectedFideID === playerKey(player)}">
+        <div class="player-name">${escapeHTML(displayName(player))}${duplicateCount >= 3 ? ` <span class="same-name-warning" title="库中共有 ${duplicateCount} 个同名实体">⚠️ 同名 ${duplicateCount} 人</span>` : ""}</div>
+        <div class="player-meta">${escapeHTML(fideLabel)} · ${escapeHTML(ratingLabel)} · ${escapeHTML(birthLabel)} · ${escapeHTML(titleLabel)}</div>
       </button>
     `;
   }).join("") : `
@@ -477,7 +524,7 @@ function renderSearch() {
   `;
 
   els.searchResults.querySelectorAll("button").forEach(button => {
-    button.addEventListener("click", () => selectPlayer(button.dataset.fide));
+    button.addEventListener("click", () => selectPlayer(button.dataset.player));
   });
 }
 
@@ -488,6 +535,10 @@ function renderDetail() {
   if (els.dashboardSection && !state.query) els.dashboardSection.hidden = showDetail || Boolean(state.selectedEventID);
   if (!showDetail) {
     els.detailPane.innerHTML = "";
+    return;
+  }
+  if (isDomesticPlayer(player)) {
+    renderDomesticPlayerDetail(player);
     return;
   }
   requestPlayerDetail(player);
@@ -538,6 +589,41 @@ function renderDetail() {
   wireDetailActions(player, staticInfo);
   wirePGNViewerActions(player);
   mountLichessViewer(player);
+}
+
+function renderDomesticPlayerDetail(player) {
+  const confidence = player.confidence ?? {};
+  const sightings = player.sightings ?? [];
+  const confidenceLabel = confidence.level === "high" ? "高" : confidence.level === "medium" ? "中" : "低";
+  els.detailPane.innerHTML = `
+    <div class="detail-title">
+      <div>
+        <span class="eyebrow">国内赛事棋手实体</span>
+        <h2>${escapeHTML(displayName(player))}</h2>
+        <p>[无FIDE] · ${escapeHTML(player.birthYear ? `${player.birthYear} 出生` : "出生年待补")} · ${escapeHTML(player.title || "无称号")}</p>
+      </div>
+      <div class="detail-title-actions">
+        <span class="stage-chip domestic-chip">无 FIDE</span>
+        <a class="action-link" href="#" data-action="back-to-dashboard">← 返回</a>
+        <a class="action-link" href="https://github.com/keluoke/china-chess-player-pgn/issues/new?template=data-correction.yml&domestic_id=${encodeURIComponent(player.domesticID ?? player.id)}" target="_blank" rel="noreferrer">补充身份线索 ↗</a>
+      </div>
+    </div>
+    <div class="identity-panel ${confidence.reviewRequired ? "needs-review" : ""}">
+      <div><span>身份置信分</span><strong>${escapeHTML(String(confidence.score ?? "待计算"))}${confidence.score != null ? " / 100" : ""}</strong></div>
+      <div><span>审核级别</span><strong>${escapeHTML(confidenceLabel)}${confidence.reviewRequired ? " · 需人工复核" : ""}</strong></div>
+      <div><span>跨赛事出现</span><strong>${escapeHTML(String(confidence.crossEventCount ?? sightings.length))} 项</strong></div>
+      <div><span>同名冲突</span><strong>${escapeHTML(String(confidence.sameNameConflictCount ?? 0))} 个</strong></div>
+    </div>
+    <p class="identity-note">该条目来自国内赛事名单，尚未连接 FIDE 注册表。置信分只用于安排人工审核，不会触发自动合并。</p>
+    <section class="event-roster domestic-sightings">
+      <div class="section-heading"><h3>赛事出现记录</h3><span>${sightings.length} 条证据</span></div>
+      ${sightings.length ? `<div class="sighting-list">${sightings.map(sighting => `
+        <article class="sighting-card">
+          <div><strong>${escapeHTML(sighting.eventName ?? sighting.group ?? "未命名赛事")}</strong><span>${escapeHTML([sighting.eventDate, sighting.ageStage, sighting.rank ? `第 ${sighting.rank} 名` : "", sighting.score ? `${sighting.score} 分` : ""].filter(Boolean).join(" · ") || "赛果待补")}</span></div>
+          ${sighting.sourceURL ? `<a href="${escapeAttribute(sighting.sourceURL)}" target="_blank" rel="noreferrer">信源 ↗</a>` : ""}
+        </article>`).join("")}</div>` : `<div class="empty-state compact">暂无赛事证据。</div>`}
+    </section>
+  `;
 }
 
 function renderEvent() {
@@ -618,7 +704,7 @@ function requestEventCatalog() {
 
 function selectedPlayer() {
   const fideID = state.selectedFideID;
-  return detailCache.get(fideID) ?? players.find(item => item.fideID === fideID);
+  return detailCache.get(fideID) ?? players.find(item => playerKey(item) === fideID);
 }
 
 function requestPlayerDetail(player) {
@@ -1299,12 +1385,13 @@ function resetPGNViewer(fideID) {
   };
 }
 
-function selectPlayer(fideID) {
-  if (state.selectedFideID !== fideID) resetPGNViewer(fideID);
-  state.selectedFideID = fideID;
+function selectPlayer(playerID) {
+  if (state.selectedFideID !== playerID) resetPGNViewer(playerID);
+  state.selectedFideID = playerID;
   state.selectedEventID = null;
   state.downloadStatus = "";
-  updateRoute({ fideID });
+  const player = players.find(item => playerKey(item) === playerID);
+  updateRoute(player?.fideID ? { fideID: player.fideID } : { playerID });
   if (state.query) {
     state.query = "";
     if (els.searchInput) els.searchInput.value = "";
@@ -1315,8 +1402,10 @@ function selectPlayer(fideID) {
   scrollDetailIntoViewOnMobile();
 }
 
-function initialSelectedFideID() {
+function initialSelectedPlayerID() {
   const params = new URLSearchParams(window.location.search);
+  const domesticID = String(params.get("player") || "");
+  if (domesticID) return domesticID;
   return String(params.get("fideID") || params.get("fide") || "").replace(/\D/g, "");
 }
 
@@ -1325,11 +1414,13 @@ function initialSelectedEventID() {
   return String(params.get("event") || "");
 }
 
-function updateRoute({ fideID = null, eventID = null }) {
+function updateRoute({ fideID = null, playerID = null, eventID = null }) {
   if (!window.history?.replaceState) return;
   const url = new URL(window.location.href);
   if (fideID) url.searchParams.set("fideID", fideID);
   else url.searchParams.delete("fideID");
+  if (playerID) url.searchParams.set("player", playerID);
+  else url.searchParams.delete("player");
   if (eventID) url.searchParams.set("event", eventID);
   else url.searchParams.delete("event");
   window.history.replaceState(null, "", url);
@@ -1464,6 +1555,16 @@ function searchPlayers(query) {
     })
     .slice(0, 30)
     .map(entry => entry.player);
+}
+
+function sameNameCount(player) {
+  const key = normalizedIdentityName(player);
+  if (!key) return 1;
+  return players.filter(candidate => normalizedIdentityName(candidate) === key).length;
+}
+
+function normalizedIdentityName(player) {
+  return normalize(player.chineseName || player.displayName || player.name || "").replace(/[^0-9a-z\u4e00-\u9fff]/g, "");
 }
 
 function searchScore(player, normalized, tokens, reversed) {
