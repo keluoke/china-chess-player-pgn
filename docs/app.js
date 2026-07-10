@@ -653,11 +653,16 @@ function renderEvent() {
     .filter(Boolean);
   const visiblePlayers = eventPlayers.slice(0, 24);
   const extraPlayers = Math.max(0, eventPlayers.length - visiblePlayers.length);
+  const participantTotal = Number(event.participants);
+  const coverageLabel = Number.isFinite(participantTotal) && participantTotal > 0 && participantTotal === Number(event.playerCount)
+    ? "完整赛事覆盖"
+    : "仅展示已收录中国棋手";
   const facts = [
     ["日期", event.date],
     ["轮次", event.rounds],
     ["报名人数", event.participants],
     ["中国棋手", event.playerCount ? `${event.playerCount} 名` : null],
+    ["覆盖口径", coverageLabel],
     ["已归档 PGN", event.gameCount ? `${compactNumber(event.gameCount)} 盘` : null],
     ["有棋谱棋手", event.pgnPlayerCount ? `${event.pgnPlayerCount} 名` : null]
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
@@ -684,7 +689,7 @@ function renderEvent() {
           <strong>${escapeHTML(displayName(player))}</strong><span>FIDE ${escapeHTML(player.fideID)}</span>
         </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手；完整名单见信源赛事页。</p>` : ""}` : `<div class="empty-state compact">该赛事已有赛事记录，但棋手名单尚未同步。</div>`}
     </section>
-    <p class="event-provenance">赛事 ID：${escapeHTML(event.tournamentID ?? event.id)}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
+    <p class="event-provenance">${event.canonicalEventID ? `Canonical ID：${escapeHTML(event.canonicalEventID)} · ` : ""}信源 ID：${escapeHTML(event.tournamentID ?? event.id)}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
   `;
 }
 
