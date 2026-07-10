@@ -68,6 +68,8 @@ def recent_events(limit: int = 8) -> list[dict]:
             "chineseName": e.get("chineseName"),
             "date": e.get("date"),
             "source": e.get("source"),
+            "url": e.get("url"),
+            "players": (e.get("players") or [])[:4],
             "playerCount": e.get("playerCount"),
             "gameCount": e.get("gameCount"),
         }

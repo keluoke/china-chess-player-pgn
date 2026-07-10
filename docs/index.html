@@ -7,7 +7,7 @@
     <meta name="description" content="社区共建的中国国际象棋棋手数据库:全年龄组 FIDE 排行榜、棋手查询与对局 PGN。">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="vendor/lichess-pgn-viewer/lichess-pgn-viewer.css">
-    <link rel="stylesheet" href="styles.css?v=20260710-3">
+    <link rel="stylesheet" href="styles.css?v=20260710-4">
   </head>
   <body>
     <div class="app-shell">
@@ -22,7 +22,7 @@
 
         <label class="search-box">
           <span aria-hidden="true">⌕</span>
-          <input id="searchInput" type="search" autocomplete="off" placeholder="中文名 / 拼音 / FIDE ID">
+          <input id="searchInput" type="search" autocomplete="off" aria-label="搜索棋手" placeholder="搜索棋手：中文名、拼音或 FIDE ID">
         </label>
 
       </header>
@@ -50,11 +50,18 @@
           </section>
 
           <section class="dashboard" id="dashboardSection" aria-label="数据看板">
+            <div class="dashboard-intro">
+              <div>
+                <span class="eyebrow">China chess data atlas</span>
+                <h1>中国国际象棋棋手数据总览</h1>
+              </div>
+              <p>公开赛事记录、棋手身份与可复现 PGN 档案。</p>
+            </div>
             <div class="stat-grid" id="statGrid"></div>
             <div class="dash-panels">
               <section class="dash-panel">
                 <div class="section-heading">
-                  <h2>最新入库对局</h2>
+                  <h2>最新收录赛事</h2>
                   <span id="recentEventsMeta"></span>
                 </div>
                 <div class="recent-events" id="recentEvents"></div>
@@ -80,6 +87,6 @@
       </main>
     </div>
 
-    <script type="module" src="app.js?v=20260710-3"></script>
+    <script type="module" src="app.js?v=20260710-4"></script>
   </body>
 </html>
