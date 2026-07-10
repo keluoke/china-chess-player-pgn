@@ -344,11 +344,18 @@ function renderDashboard() {
   // 社区数据贡献鸣谢
   if (els.creditsList) {
     const credits = dash?.dataContributors ?? [];
-    els.creditsList.innerHTML = credits.length ? credits.map(person => `
+    const chips = credits.map(person => `
       <span class="credit-chip" title="${escapeAttribute(`${person.submissions} 次提交 · ${person.players} 名棋手 · ${person.events} 项赛事 · ${person.games} 盘棋`)}">
         ${escapeHTML(person.nickname)}${person.github ? `<a href="https://github.com/${escapeAttribute(person.github)}" target="_blank" rel="noreferrer">@${escapeHTML(person.github)}</a>` : ""}
       </span>
-    `).join("") : `<div class="empty-state compact">虚位以待——用仓库里的「贡献工具」抓一份数据,你的名字就会出现在这里。</div>`;
+    `).join("");
+    els.creditsList.innerHTML = `
+      ${chips ? `<div class="credit-chips">${chips}</div>` : ""}
+      <div class="credit-howto">
+        把自己的抓取额度借给数据库:<a href="https://github.com/keluoke/china-chess-player-pgn/archive/refs/heads/main.zip">下载贡献工具</a>
+        → 解压后双击「贡献工具-双击启动」→ 输入棋手 FIDE ID 或赛事 tnr 号 → 一键抓取并自动提交。
+        审核入库后你的昵称就会出现在这里。<a href="https://github.com/keluoke/china-chess-player-pgn/blob/main/CONTRIBUTING.md" target="_blank" rel="noreferrer">详细说明 ↗</a>
+      </div>`;
   }
 }
 
