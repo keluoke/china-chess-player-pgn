@@ -21,6 +21,9 @@ jobs:
       - name: Byte-compile all scripts
         run: python3 -m compileall -q Scripts
 
+      - name: Validate community-maintained data
+        run: python3 Scripts/validate_community_data.py
+
       - name: Validate workflow and action YAML
         run: |
           python3 - <<'PY'

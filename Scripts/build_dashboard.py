@@ -56,11 +56,16 @@ def git_contributors() -> dict:
 
 def recent_events(limit: int = 8) -> list[dict]:
     events = read_json(DOCS_DATA / "index" / "events.json", []) or []
-    dated = [e for e in events if e.get("date")]
+    # "Latest archived games" is intentionally based on usable PGN coverage,
+    # not merely the latest event in a player's prospective tournament list.
+    dated = [e for e in events if e.get("date") and e.get("gameCount")]
     dated.sort(key=lambda e: str(e.get("date")), reverse=True)
     return [
         {
+            "id": e.get("id"),
+            "displayName": e.get("displayName") or e.get("chineseName") or e.get("name"),
             "name": e.get("name"),
+            "chineseName": e.get("chineseName"),
             "date": e.get("date"),
             "source": e.get("source"),
             "playerCount": e.get("playerCount"),

@@ -18,6 +18,7 @@
 | 身份链接证据 | 后续 FIDE ID、同赛事跨年名单、出生年/省队/证书号 | 随审核 | `data/manual/player-identity-links.csv` |
 | 中文名/拼音/别名 | 人工审核 CSV、既有种子、赛事名单 | 随 PR 更新 | `data/manual/player-aliases.csv` |
 | 赛事索引 | Chess-Results 爬虫 | 每周 | `docs/data/index/` |
+| 赛事中文名映射 | 社区核验 + Chess-Results 赛事页 | 随 PR 更新 | `data/community/tournament-name-mappings.csv` |
 | PGN | Chess-Results Game Database、赛事官网 PGN | 每周 | `docs/data/pgn/` |
 | 百万级 bulk PGN | Lichess official broadcast archive | 每月 | `docs/data/bulk/` |
 | 按棋手 PGN 派生层 | 已入库赛事 PGN 和 bulk 青少年 PGN | 每次 PGN 更新后 | `docs/data/index/by-player/`, `docs/data/pgn/by-player/` |
@@ -42,7 +43,11 @@ ID 规则：
 - 国内临时棋手：`domestic-<hash>`
 - 赛事出现记录：`sighting-<hash>`
 
-## GitHub Actions 更新流程
+## 更新流程
+
+Chess-Results/FIDE 的网络抓取必须在本地或自托管住宅 IP 运行；下表中的 workflow
+只用于手动触发自托管 runner，或在原始数据进入仓库后执行离线重建，不能依赖
+GitHub-hosted runner 回抓这些信源。
 
 | Workflow | 触发 | 行为 |
 |----------|------|------|
@@ -75,6 +80,7 @@ python3 Scripts/sync_domestic_players.py
 
 ```bash
 python3 -m py_compile Scripts/sync_chinese_players.py Scripts/sync_static_pgn.py
+python3 Scripts/build_event_catalog.py
 python3 -m json.tool docs/data/registry/manifest.json >/dev/null
 python3 -m json.tool docs/data/index/manifest.json >/dev/null
 git diff --check

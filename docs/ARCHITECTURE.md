@@ -9,14 +9,14 @@
 - 用户可以用中文名、拼音、英文 PGN 名或 FIDE ID 查询同一名棋手。
 - 棋手唯一身份使用 `player_id`，有 FIDE ID 时固定为 `fide-<FIDE_ID>`；无 FIDE ID 的国内赛事棋手使用 `domestic-<hash>` 临时身份。
 - 数据源可扩展，Chess-Results 只是第一批 provider。
-- GitHub Actions 负责所有爬取和同步，`docs/` 为纯静态发布。
+- 抓取只在本地 / 自托管住宅 IP 运行；GitHub Actions 只做离线索引重建与部署，`docs/` 为纯静态发布。
 
 ## 静态数据存储
 
 ```text
 docs/data/
 ├── registry/            # FIDE CHN 全量棋手注册表
-├── index/               # 赛事索引、棋手索引
+├── index/               # 赛事目录、棋手索引、按棋手 PGN 索引
 ├── pgn/                 # 按来源/赛事/棋手拆分的 PGN
 └── bulk/                # 百万级 Lichess broadcast 压缩分片
 ```
@@ -46,6 +46,12 @@ docs/data/
 - `docs/data/index/chess-results-tournaments.json`：赛事目录
 - `docs/data/index/chess-results-spielersuche-manifest.json`：爬取清单
 
+`Scripts/build_event_catalog.py` 在离线构建时把 Chess-Results 赛事目录、已归档
+PGN 覆盖和 `data/community/tournament-name-mappings.csv` 合并为
+`docs/data/index/events.json`。其中 `name` 始终保留信源原文，`chineseName` 只来自
+社区核验映射；两者不可相互覆盖。每项赛事都带稳定 `source:tournamentID`、中国棋手
+FIDE ID 列表和 PGN 覆盖计数，供网站完成赛事 → 棋手 → 对局的链接。
+
 增量爬取，断点续爬，支持 `--refresh-days` 参数。
 
 ## PGN 静态归档
@@ -63,7 +69,7 @@ docs/data/pgn/by-player/fide-8657238/U12.pgn
 - GitHub Pages 直接按 URL 提供
 - 各端复用同一套路径规则
 
-## GitHub Pages 网页版
+## 静态网页版
 
 网页版是纯静态前端，位于 `docs/`：
 
@@ -71,6 +77,7 @@ docs/data/pgn/by-player/fide-8657238/U12.pgn
 - 首屏加载 `youth-leaderboards.json` + `registry/players.json`
 - 搜索加载 `index/players.json`
 - 棋手看板加载 `index/players/fide-*.json`
+- 赛事看板按需加载 `index/events.json`，通过 URL 参数 `?event=chess-results:<tnrID>` 直达
 - PGN 优先读取 `pgn/by-player/` 聚合包
 
 ## 同步脚本
@@ -98,4 +105,5 @@ FIDE legacy XML  →  sync_chinese_players.py  →  registry/players.json
 Chess-Results    →  crawl_player_events.py   →  player-events.csv + tournament catalog
                  →  fetch_event_pgn.py        →  docs/data/pgn/<source>/tnr<id>/*.pgn
                                               →  build_static_player_pgn.py → by-player/
+                                              →  build_event_catalog.py → events.json
 ```
