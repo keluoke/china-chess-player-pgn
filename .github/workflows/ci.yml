@@ -24,6 +24,21 @@ jobs:
       - name: Validate community-maintained data
         run: python3 Scripts/validate_community_data.py
 
+      - name: Vet community contribution payloads (offline evidence check)
+        run: python3 Scripts/validate_incoming.py
+
+      - name: Contribution PRs must only touch data/incoming/
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)
+          if echo "$changed" | grep -q '^data/incoming/'; then
+            outside=$(echo "$changed" | grep -v '^data/incoming/' || true)
+            if [ -n "$outside" ]; then
+              echo "载荷 PR 不允许同时修改其他路径:"; echo "$outside"; exit 1
+            fi
+          fi
+
       - name: Validate workflow and action YAML
         run: |
           python3 - <<'PY'

@@ -182,7 +182,14 @@ def process_event(
     out_root: pathlib.Path,
     overwrite: bool,
     dry_run: bool,
+    pgn_text: str | None = None,
 ) -> dict[str, Any]:
+    """Split a tournament PGN per Chinese player.
+
+    ``pgn_text`` lets callers reuse an already-downloaded PGN (the community
+    contribution tool archives the raw PGN as evidence, then splits the same
+    bytes) instead of hitting Chess-Results a second time.
+    """
     result: dict[str, Any] = {
         "tid": tournament_id,
         "status": "ok",
@@ -198,12 +205,15 @@ def process_event(
         result["status"] = "skipped_existing"
         return result
 
-    try:
-        pgn = download_chess_results_pgn("", tournament_id)
-    except Exception as exc:
-        result["status"] = "error"
-        result["error"] = str(exc)
-        return result
+    if pgn_text is not None:
+        pgn = pgn_text
+    else:
+        try:
+            pgn = download_chess_results_pgn("", tournament_id)
+        except Exception as exc:
+            result["status"] = "error"
+            result["error"] = str(exc)
+            return result
 
     games = split_games(pgn)
     if not games or count_pgn_games(pgn) == 0:
