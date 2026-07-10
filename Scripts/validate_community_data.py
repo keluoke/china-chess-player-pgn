@@ -154,6 +154,42 @@ def check_tournament_name_mappings() -> None:
                 err(path, i, f"evidence_url missing or domain not allow-listed: {evidence!r}")
 
 
+def check_contributors() -> None:
+    """鸣谢名录:昵称合规、唯一,统计字段为非负整数,日期格式正确。"""
+    path = REPO_ROOT / "data" / "community" / "contributors.csv"
+    if not path.exists():
+        return
+    required = {"nickname", "github", "first_contribution", "last_contribution",
+                "submissions", "players", "events", "games", "notes"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        seen: set[str] = set()
+        for i, row in enumerate(reader, start=2):
+            if not any((value or "").strip() for value in row.values()):
+                continue
+            nickname = (row.get("nickname") or "").strip()
+            if not (1 <= len(nickname) <= 20) or re.search(r"https?://", nickname):
+                err(path, i, f"invalid nickname {nickname!r} (1-20 chars, no URL)")
+            if nickname in seen:
+                err(path, i, f"duplicate nickname {nickname!r}")
+            seen.add(nickname)
+            github = (row.get("github") or "").strip()
+            if github and not re.fullmatch(r"[A-Za-z0-9-]{1,39}", github):
+                err(path, i, f"invalid github login {github!r}")
+            for col in ("first_contribution", "last_contribution"):
+                value = (row.get(col) or "").strip()
+                if value and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                    err(path, i, f"invalid date in {col}: {value!r}")
+            for col in ("submissions", "players", "events", "games"):
+                value = (row.get(col) or "").strip()
+                if value and not value.isdigit():
+                    err(path, i, f"{col} must be a non-negative integer, got {value!r}")
+
+
 def check_name_corrections_pinned() -> None:
     """Pinned identity assertions: once a name mistake is corrected via
     data/community/name-corrections.csv, no committed artifact may ever carry
@@ -218,6 +254,7 @@ def main() -> int:
     check_player_aliases()
     check_sightings()
     check_tournament_name_mappings()
+    check_contributors()
     check_name_corrections_pinned()
     check_generated_untouched_note()
 

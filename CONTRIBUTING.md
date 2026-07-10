@@ -1,12 +1,28 @@
 # 贡献指南
 
-这是一个社区共建的中国国际象棋棋手数据库。欢迎任何人提交数据修正、补充棋手信息或报告错误——多数贡献**只需在 GitHub 网页上编辑文件**,不需要本地环境。
+这是一个社区共建的中国国际象棋棋手数据库。欢迎任何人提交数据修正、补充棋手信息或报告错误——多数贡献**只需在 GitHub 网页上编辑文件**,不需要本地环境。治理机制(角色、数据分层、审核与鸣谢)见 [docs/GOVERNANCE.md](docs/GOVERNANCE.md)。
+
+## 最简单的贡献:一键抓数据(推荐)
+
+Chess-Results 限制每个 IP 每天约 2000 次访问,维护者一台机器抓不完全部棋手。
+你可以把自己的额度借给数据库,全程无需命令行:
+
+1. [下载仓库 zip](https://github.com/keluoke/china-chess-player-pgn/archive/refs/heads/main.zip) 并解压(或 `git clone`);
+2. 双击 **「贡献工具-双击启动」**(macOS 用 `.command`,Windows 用 `.bat`,需已安装 Python 3);
+3. 浏览器会打开本地页面:填一个昵称 → 输入想抓的棋手 FIDE ID 或赛事 tnr 号 → 点「开始抓取」;
+4. 点「自动提交」,首次会让你在 GitHub 页面输入一个 8 位码完成授权,之后工具自动开 PR;
+   没有 GitHub 账号就点「打包 zip」,把 zip 传到 Issue 里;
+5. CI 离线甄别 → 维护者核验入库 → 你的昵称进入网站首页的「社区数据贡献鸣谢」。
+
+抓谁最有价值:自己孩子/学生参加过的赛事(tnr 号就在 chess-results 链接里)、
+排行榜上还没有赛事记录的棋手。流程细节见 `data/incoming/README.md`。
 
 ## 目录边界(改哪里?)
 
 | 目录 | 性质 | 能否手工编辑 |
 |---|---|---|
 | `data/manual/`、`data/community/` | 人工/社区数据 | ✅ 通过 PR 编辑 |
+| `data/incoming/` | 贡献工具载荷暂存 | 🤖 由贡献工具提交,勿手改 |
 | `data/generated/` | 爬虫机器产出 | ❌ 不要手改,会被下次抓取覆盖 |
 | `docs/data/`、`docs/api/` | 构建产物(索引/API) | ❌ 由 Actions 自动重建 |
 

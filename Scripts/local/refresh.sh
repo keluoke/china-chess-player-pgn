@@ -33,6 +33,8 @@
 #   all          Routine incremental refresh: registry, then crawl.
 #   push         Re-push data left behind by an earlier failed push.
 #   verify       Locally verify community evidence URLs (residential IP).
+#   contrib      Promote merged community payloads (data/incoming) into the
+#                canonical data after residential-IP spot verification.
 #   reindex      LOCAL pure rebuild (indexes/registry aliases/domestic). Optional;
 #                normally Actions does this. No network.
 #
@@ -343,6 +345,20 @@ case "$command" in
     fi
     ;;
 
+  contrib)
+    # 社区载荷入库:拉取 main 上已合并的 data/incoming/(HTTP,不动 git 历史),
+    # 住宅 IP 抽查回验,并入正式数据并记入鸣谢名录,再重建派生索引一并推送。
+    py Scripts/promote_incoming.py --verify ${EXTRA[@]+"${EXTRA[@]}"}
+    py Scripts/sync_static_pgn.py
+    py Scripts/build_static_player_pgn.py
+    [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py
+    py Scripts/build_leaderboards.py
+    [ -f Scripts/build_api.py ] && py Scripts/build_api.py
+    [ -f Scripts/build_changelog.py ] && py Scripts/build_changelog.py
+    [ -f Scripts/build_dashboard.py ] && py Scripts/build_dashboard.py
+    commit_and_push "Promote community contributions (locally verified)" data/manual data/community data/generated docs/data
+    ;;
+
   reindex)
     # Pure, no network — mirrors what rebuild-indexes.yml does on Actions.
     [ -f docs/data/registry/players.json ] && py Scripts/apply_aliases_to_registry.py || true
@@ -364,7 +380,7 @@ case "$command" in
     ;;
 
   ""|-h|--help|help)
-    sed -n '2,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,45p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
 

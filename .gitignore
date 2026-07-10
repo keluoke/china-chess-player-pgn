@@ -4,6 +4,7 @@ dist/
 *.pgn
 !docs/data/pgn/**/*.pgn
 !docs/data/bulk/**/*.pgn
+!data/incoming/**/*.pgn
 docs/data/bulk/lichess-broadcast/shards/*.pgn.zst
 *.sqlite
 *.sqlite-shm
@@ -21,3 +22,7 @@ mimic-engine/webplay/vendor/nn-*.nnue
 /一键抓取.app/
 .local-refresh.log
 .git-token
+
+# Community contribution tool local state (token, visit counter, staged payloads)
+Scripts/contrib/.state/
+/contribution-*.zip
