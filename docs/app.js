@@ -39,7 +39,8 @@ const els = {
   recentEventsMeta: document.querySelector("#recentEventsMeta"),
   changelogList: document.querySelector("#changelogList"),
   changelogMeta: document.querySelector("#changelogMeta"),
-  ageOverview: document.querySelector("#ageOverview")
+  ageOverview: document.querySelector("#ageOverview"),
+  creditsList: document.querySelector("#creditsList")
 };
 
 const data = await loadData();
@@ -338,6 +339,16 @@ function renderDashboard() {
         <span class="age-count">${escapeHTML(String(group.totalEligible ?? 0))}</span>
       </div>
     `).join("") : `<div class="empty-state compact">暂无数据</div>`;
+  }
+
+  // 社区数据贡献鸣谢
+  if (els.creditsList) {
+    const credits = dash?.dataContributors ?? [];
+    els.creditsList.innerHTML = credits.length ? credits.map(person => `
+      <span class="credit-chip" title="${escapeAttribute(`${person.submissions} 次提交 · ${person.players} 名棋手 · ${person.events} 项赛事 · ${person.games} 盘棋`)}">
+        ${escapeHTML(person.nickname)}${person.github ? `<a href="https://github.com/${escapeAttribute(person.github)}" target="_blank" rel="noreferrer">@${escapeHTML(person.github)}</a>` : ""}
+      </span>
+    `).join("") : `<div class="empty-state compact">虚位以待——用仓库里的「贡献工具」抓一份数据,你的名字就会出现在这里。</div>`;
   }
 }
 

@@ -276,8 +276,12 @@ def _norm_date(text: str) -> str:
 # Network: one player search
 # ---------------------------------------------------------------------------
 
-def search_player(fide_id: str) -> list[dict[str, Any]]:
-    """Return this FIDE ID's full tournament history from the player database."""
+def search_player(fide_id: str, html_sink: list[str] | None = None) -> list[dict[str, Any]]:
+    """Return this FIDE ID's full tournament history from the player database.
+
+    ``html_sink``, when given, receives the raw response HTML so callers (the
+    community contribution tool) can archive it as offline-verifiable evidence.
+    """
     form = load_form(SPIELER_URL)
     fields = dict(form["fields"])
     fields["ctl00$P1$txt_nachname"] = ""
@@ -306,6 +310,8 @@ def search_player(fide_id: str) -> list[dict[str, Any]]:
     )
     with open_url(request) as response:
         html_text = decode_response(response.read())
+    if html_sink is not None:
+        html_sink.append(html_text)
 
     rows = _extract_rows(html_text, form["base_url"])
     # Keep only rows that actually belong to the searched player when the page

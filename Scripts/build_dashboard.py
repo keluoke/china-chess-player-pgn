@@ -11,6 +11,7 @@ locally and on Actions checkouts):
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
 import json
 import pathlib
@@ -54,6 +55,30 @@ def git_contributors() -> dict:
     return {"count": len(humans) or None, "latest": latest}
 
 
+def data_contributors(limit: int = 30) -> list[dict]:
+    """鸣谢名录:通过贡献工具入库的社区数据贡献者(data/community/contributors.csv)。"""
+    path = REPO_ROOT / "data" / "community" / "contributors.csv"
+    if not path.exists():
+        return []
+    rows: list[dict] = []
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        for row in csv.DictReader(fh):
+            nickname = (row.get("nickname") or "").strip()
+            if not nickname:
+                continue
+            rows.append({
+                "nickname": nickname,
+                "github": (row.get("github") or "").strip() or None,
+                "submissions": int(row.get("submissions") or 0),
+                "players": int(row.get("players") or 0),
+                "events": int(row.get("events") or 0),
+                "games": int(row.get("games") or 0),
+                "since": (row.get("first_contribution") or "").strip() or None,
+            })
+    rows.sort(key=lambda r: (-r["submissions"], r["since"] or ""))
+    return rows[:limit]
+
+
 def recent_events(limit: int = 8) -> list[dict]:
     events = read_json(DOCS_DATA / "index" / "events.json", []) or []
     # "Latest archived games" is intentionally based on usable PGN coverage,
@@ -93,6 +118,7 @@ def main() -> int:
             "playersWithGames": by_player.get("players"),
         },
         "community": git_contributors(),
+        "dataContributors": data_contributors(),
         "latestDelta": (changelog[0] if changelog else None),
         "recentEvents": recent_events(),
     }
