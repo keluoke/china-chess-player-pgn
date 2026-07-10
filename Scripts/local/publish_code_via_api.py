@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.client
 import json
 import os
 import pathlib
@@ -22,6 +23,7 @@ import re
 import ssl
 import subprocess
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -107,28 +109,34 @@ class GitHub:
 
     def request(self, method: str, path: str, payload: Any | None = None, missing_ok: bool = False) -> Any:
         data = json.dumps(payload).encode("utf-8") if payload is not None else None
-        request = urllib.request.Request(
-            self.root + path,
-            data=data,
-            method=method,
-            headers={
-                "Authorization": f"Bearer {self.token}",
-                "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28",
-                "Content-Type": "application/json",
-                "User-Agent": "china-chess-player-pgn-code-publisher",
-            },
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=30, context=self.ssl_context) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as error:
-            if missing_ok and error.code == 404:
-                return None
-            detail = error.read().decode("utf-8", errors="replace")
-            raise SystemExit(f"GitHub API {method} {path} failed: HTTP {error.code} {detail[:500]}") from error
-        except urllib.error.URLError as error:
-            raise SystemExit(f"GitHub API 网络失败: {error.reason}") from error
+        for attempt in range(1, 5):
+            request = urllib.request.Request(
+                self.root + path,
+                data=data,
+                method=method,
+                headers={
+                    "Authorization": f"Bearer {self.token}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                    "Content-Type": "application/json",
+                    "User-Agent": "china-chess-player-pgn-code-publisher",
+                },
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=30, context=self.ssl_context) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as error:
+                if missing_ok and error.code == 404:
+                    return None
+                detail = error.read().decode("utf-8", errors="replace")
+                if error.code not in {429, 500, 502, 503, 504} or attempt == 4:
+                    raise SystemExit(f"GitHub API {method} {path} failed: HTTP {error.code} {detail[:500]}") from error
+            except (urllib.error.URLError, http.client.IncompleteRead, TimeoutError) as error:
+                if attempt == 4:
+                    reason = getattr(error, "reason", error)
+                    raise SystemExit(f"GitHub API 网络失败（重试 4 次）: {reason}") from error
+            time.sleep(attempt * 2)
+        raise AssertionError("unreachable")
 
     def ref_sha(self, branch: str) -> str:
         data = self.request("GET", f"/git/ref/heads/{urllib.parse.quote(branch, safe='/')}")
@@ -206,6 +214,7 @@ def main() -> int:
     parser.add_argument("--message", required=True)
     parser.add_argument("--publish", action="store_true", help="create blobs/commit/ref after a clean dry run")
     parser.add_argument("--include-derived", action="store_true")
+    parser.add_argument("--update-existing", action="store_true", help="fast-forward an existing API-published branch")
     args = parser.parse_args()
 
     repository = repository_name()
@@ -278,16 +287,24 @@ def main() -> int:
         content = entry.pop("content", None)
         if content is not None:
             entry["sha"] = github.blob(content)
+    existing = github.request("GET", f"/git/ref/heads/{urllib.parse.quote(args.branch, safe='/')}", missing_ok=True)
+    if existing is not None and not args.update_existing:
+        raise SystemExit(f"远端分支已存在，拒绝覆盖: {args.branch}")
+    parent_sha = str(existing["object"]["sha"]) if existing is not None else target_sha
+
     tree = github.request("POST", "/git/trees", {"base_tree": target_tree, "tree": entries})
     commit = github.request("POST", "/git/commits", {
         "message": args.message,
         "tree": tree["sha"],
-        "parents": [target_sha],
+        "parents": [parent_sha],
     })
-    existing = github.request("GET", f"/git/ref/heads/{urllib.parse.quote(args.branch, safe='/')}", missing_ok=True)
-    if existing is not None:
-        raise SystemExit(f"远端分支已存在，拒绝覆盖: {args.branch}")
-    github.request("POST", "/git/refs", {"ref": f"refs/heads/{args.branch}", "sha": commit["sha"]})
+    if existing is None:
+        github.request("POST", "/git/refs", {"ref": f"refs/heads/{args.branch}", "sha": commit["sha"]})
+    else:
+        github.request("PATCH", f"/git/refs/heads/{urllib.parse.quote(args.branch, safe='/')}", {
+            "sha": commit["sha"],
+            "force": False,
+        })
     print(json.dumps({
         "branch": args.branch,
         "commit": commit["sha"],
