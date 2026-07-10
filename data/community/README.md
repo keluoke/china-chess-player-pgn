@@ -25,20 +25,3 @@ fide_id,type,former_federation,current_federation,effective,evidence_url,notes
 
 每次 registry 抓取会对比上月联邦快照(`data/generated/federation-snapshots/`),
 自动把"消失/新出现"的棋手写进 `data/generated/transfer-candidates.json` 供人工核对后补录本表。
-
-## tournament-name-mappings.csv — 赛事中文名映射
-
-Chess-Results 同一赛事可能只有截断英文名，也会随界面语言变化。赛事的稳定键是
-`source + tournament_id`；中文展示名必须在本表经人工核对后维护，禁止直接编辑
-`docs/data/index/events.json` 或任何爬虫输出。
-
-| 列 | 说明 |
-|---|---|
-| `source` | 来源名称，目前为 `Chess-Results` |
-| `tournament_id` | 信源稳定赛事 ID；Chess-Results 使用 `tnr` 后的数字 |
-| `chinese_name` | 面向用户的中文赛事全称（可含组别） |
-| `evidence_url` | 对应 Chess-Results / FIDE 等公开赛事页，必填 |
-| `notes` | 映射依据，例如组别或信源原始标题 |
-
-CI 校验唯一性、ID 格式和证据域名。派生脚本只读取本表：映射不会覆盖原始赛事标题，
-会同时保留 `name`（信源原文）与 `chineseName`（社区核验名），方便复核。
