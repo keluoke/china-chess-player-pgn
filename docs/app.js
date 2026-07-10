@@ -276,22 +276,35 @@ function renderDashboard() {
   const events = dash?.recentEvents ?? [];
   if (els.recentEventsMeta) els.recentEventsMeta.textContent = events.length ? `最近 ${events.length} 项` : "";
   if (els.recentEvents) {
-    els.recentEvents.innerHTML = events.length ? `
-      <table>
-        <thead><tr><th>赛事</th><th>日期</th><th class="num">中国棋手</th><th class="num">入库对局</th></tr></thead>
-        <tbody>
-          ${events.map(event => `
-            <tr>
-              <td>${event.id ? `<button class="event-link" type="button" data-event-id="${escapeAttribute(event.id)}">${escapeHTML(event.displayName ?? event.name ?? "-")}</button>` : escapeHTML(event.displayName ?? event.name ?? "-")}</td>
-              <td>${escapeHTML(event.date ?? "-")}</td>
-              <td class="num">${escapeHTML(String(event.playerCount ?? "-"))}</td>
-              <td class="num">${escapeHTML(String(event.gameCount ?? "-"))}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>` : `<div class="empty-state compact">暂无数据</div>`;
+    els.recentEvents.innerHTML = events.length ? `<div class="recent-event-list">${events.map(event => {
+      const linkedPlayers = (event.players ?? [])
+        .map(fideID => players.find(player => player.fideID === String(fideID)))
+        .filter(Boolean);
+      return `
+        <article class="recent-event-card">
+          <div class="recent-event-main">
+            <div class="recent-event-kicker">
+              <span>${escapeHTML(event.source ?? "赛事归档")}</span>
+              <time datetime="${escapeAttribute(event.date ?? "")}">${escapeHTML(event.date ?? "日期待补")}</time>
+            </div>
+            ${event.id ? `<button class="recent-event-title" type="button" data-event-id="${escapeAttribute(event.id)}">${escapeHTML(event.displayName ?? event.name ?? "未命名赛事")}</button>` : `<strong class="recent-event-title">${escapeHTML(event.displayName ?? event.name ?? "未命名赛事")}</strong>`}
+            <div class="recent-event-links">
+              ${linkedPlayers.length ? linkedPlayers.map(player => `<button type="button" class="player-chip" data-fide="${escapeAttribute(player.fideID)}">${escapeHTML(displayName(player))}</button>`).join("") : `<span class="text-muted">${escapeHTML(String(event.playerCount ?? 0))} 名中国棋手参赛</span>`}
+              ${event.playerCount > linkedPlayers.length ? `<span class="player-chip-more">+${event.playerCount - linkedPlayers.length}</span>` : ""}
+            </div>
+          </div>
+          <div class="recent-event-stats" aria-label="赛事收录统计">
+            <span><strong>${compactNumber(event.gameCount ?? 0)}</strong>盘棋局</span>
+            <span><strong>${compactNumber(event.playerCount ?? 0)}</strong>名棋手</span>
+            ${event.url ? `<a href="${escapeAttribute(event.url)}" target="_blank" rel="noreferrer">信源 ↗</a>` : ""}
+          </div>
+        </article>`;
+    }).join("")}</div>` : `<div class="empty-state compact">暂无数据</div>`;
     els.recentEvents.querySelectorAll("[data-event-id]").forEach(button => {
       button.addEventListener("click", () => selectEvent(button.dataset.eventId));
+    });
+    els.recentEvents.querySelectorAll("[data-fide]").forEach(button => {
+      button.addEventListener("click", () => selectPlayer(button.dataset.fide));
     });
   }
 
