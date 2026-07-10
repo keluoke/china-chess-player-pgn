@@ -363,6 +363,7 @@ case "$command" in
     # Pure, no network — mirrors what rebuild-indexes.yml does on Actions.
     [ -f docs/data/registry/players.json ] && py Scripts/apply_aliases_to_registry.py || true
     py Scripts/sync_domestic_players.py
+    [ -f Scripts/build_domestic_progressions.py ] && py Scripts/build_domestic_progressions.py
     py Scripts/sync_static_pgn.py
     py Scripts/build_static_player_pgn.py
     [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py

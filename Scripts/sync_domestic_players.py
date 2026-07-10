@@ -16,6 +16,7 @@ import json
 import pathlib
 import re
 from dataclasses import dataclass, field
+from collections import Counter
 from typing import Any
 
 
@@ -118,6 +119,7 @@ class DomesticPlayer:
     club: str = ""
     aliases: list[str] = field(default_factory=list)
     sightings: list[Sighting] = field(default_factory=list)
+    confidence: dict[str, Any] = field(default_factory=dict)
 
     def payload(self) -> dict[str, Any]:
         return without_empty(
@@ -134,8 +136,10 @@ class DomesticPlayer:
                 "province": self.province,
                 "club": self.club,
                 "identityStatus": self.identity_status,
+                "entityType": "domestic-player",
                 "aliases": ordered_unique(self.aliases),
                 "sightingCount": len(self.sightings),
+                "confidence": self.confidence,
                 "sightings": [sighting.payload() for sighting in self.sightings],
             }
         )
@@ -152,6 +156,7 @@ def main() -> int:
     sightings = read_sightings(args.sightings)
     links = read_links(args.links)
     players = build_players(sightings, links)
+    assess_identity_confidence(players)
     write_output(players, sightings, links, args.output_root, args.dry_run)
 
     stats = {
@@ -160,6 +165,8 @@ def main() -> int:
         "domesticPlayers": len(players),
         "linkedToFIDE": sum(1 for player in players if player.fide_id),
         "unlinked": sum(1 for player in players if not player.fide_id),
+        "lowConfidence": sum(1 for player in players if player.confidence.get("reviewRequired")),
+        "sameNameConflicts": sum(1 for player in players if player.confidence.get("sameNameConflictCount", 0)),
     }
     print(json.dumps(stats, ensure_ascii=False, indent=2))
     return 0
@@ -290,6 +297,75 @@ def apply_sighting(player: DomesticPlayer, sighting: Sighting) -> None:
     )
 
 
+def assess_identity_confidence(players: list[DomesticPlayer]) -> None:
+    """Attach review signals without ever auto-merging two sightings.
+
+    A score helps reviewers order work; it is deliberately not an identity
+    decision. Only rows in player-identity-links.csv may merge sightings or
+    connect a domestic entity to the FIDE registry.
+    """
+    name_counts = Counter(identity_name(player) for player in players if identity_name(player))
+    for player in players:
+        event_count = len({s.event_id or s.source_url for s in player.sightings if s.event_id or s.source_url})
+        duplicate_total = name_counts.get(identity_name(player), 1)
+        same_name_conflicts = max(0, duplicate_total - 1)
+        continuity = age_stage_continuity(player.sightings)
+        birth_years = {s.birth_year for s in player.sightings if s.birth_year is not None}
+
+        score = 35
+        reasons = ["单条赛事观察仅建立临时实体"]
+        if player.identity_status == "domestic-linked":
+            score += 30
+            reasons = ["已有人工复核的国内身份关联"]
+        elif player.fide_id:
+            score += 45
+            reasons = ["已有人工复核的 FIDE 身份关联"]
+        if event_count > 1:
+            score += min(15, (event_count - 1) * 5)
+            reasons.append(f"跨 {event_count} 项赛事出现")
+        if continuity == "consistent":
+            score += 5
+            reasons.append("年龄段随时间连续")
+        elif continuity == "conflict":
+            score -= 20
+            reasons.append("年龄段时间线存在冲突")
+        if len(birth_years) > 1:
+            score -= 25
+            reasons.append("出生年证据冲突")
+        if same_name_conflicts:
+            score -= min(25, same_name_conflicts * 8)
+            reasons.append(f"另有 {same_name_conflicts} 个同名实体")
+
+        score = max(5, min(100, score))
+        player.confidence = {
+            "score": score,
+            "level": "high" if score >= 85 else "medium" if score >= 70 else "low",
+            "sameNameConflictCount": same_name_conflicts,
+            "crossEventCount": event_count,
+            "ageStageContinuity": continuity,
+            "reviewRequired": score < 70,
+            "reasons": reasons,
+        }
+
+
+def identity_name(player: DomesticPlayer) -> str:
+    name = player.chinese_name or player.display_name or player.pinyin_name
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", clean(name).casefold())
+
+
+def age_stage_continuity(sightings: list[Sighting]) -> str:
+    observations: list[tuple[str, int]] = []
+    for sighting in sightings:
+        match = re.fullmatch(r"U\s*(\d{1,2})", sighting.age_stage, flags=re.IGNORECASE)
+        year_match = re.match(r"(\d{4})", sighting.event_date)
+        if match and year_match:
+            observations.append((sighting.event_date, int(match.group(1))))
+    if len(observations) < 2:
+        return "unknown"
+    stages = [stage for _, stage in sorted(observations)]
+    return "consistent" if all(current >= previous for previous, current in zip(stages, stages[1:])) else "conflict"
+
+
 def provisional_domestic_id(sighting: Sighting) -> str:
     return "domestic-" + hashlib.sha256(sighting.sighting_id.encode("utf-8")).hexdigest()[:12]
 
@@ -324,6 +400,9 @@ def write_output(
             "players": "data/registry/domestic/players.json",
             "sightings": "data/registry/domestic/sightings.json",
             "identityLinks": "data/registry/domestic/identity-links.json",
+            "identityReview": "data/registry/domestic/identity-review.json",
+            "progressions": "data/registry/domestic/progressions.json",
+            "promotionReview": "data/registry/domestic/promotion-review.json",
         },
         "totals": {
             "sightings": len(sightings),
@@ -331,6 +410,8 @@ def write_output(
             "linkedToFIDE": sum(1 for player in players if player.fide_id),
             "unlinked": sum(1 for player in players if not player.fide_id),
             "identityLinks": len(links),
+            "lowConfidence": sum(1 for player in players if player.confidence.get("reviewRequired")),
+            "sameNameConflicts": sum(1 for player in players if player.confidence.get("sameNameConflictCount", 0)),
         },
     }
     if dry_run:
@@ -340,6 +421,9 @@ def write_output(
     write_json(output_root / "players.json", [player.payload() for player in players])
     write_json(output_root / "sightings.json", [sighting.payload() for sighting in sightings])
     write_json(output_root / "identity-links.json", [link.payload() for link in links])
+    review_rows = [player.payload() for player in players if player.confidence.get("reviewRequired")]
+    review_rows.sort(key=lambda player: (player["confidence"]["score"], -player["confidence"]["sameNameConflictCount"], player.get("displayName", "")))
+    write_json(output_root / "identity-review.json", review_rows)
 
 
 def clean(value: Any) -> str:
