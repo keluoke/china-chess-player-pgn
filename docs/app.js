@@ -3,6 +3,7 @@ import LichessPgnViewer from "./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min
 const state = {
   activeStage: "TOTAL",
   selectedFideID: null,
+  selectedEventID: null,
   downloadStatus: "",
   query: "",
   viewer: {
@@ -25,6 +26,7 @@ const els = {
   stageTabs: document.querySelector("#stageTabs"),
   leaderboardGrid: document.querySelector("#leaderboardGrid"),
   detailPane: document.querySelector("#detailPane"),
+  eventPane: document.querySelector("#eventPane"),
   searchInput: document.querySelector("#searchInput"),
   searchResultsSection: document.querySelector("#searchResultsSection"),
   searchResults: document.querySelector("#searchResults"),
@@ -59,6 +61,8 @@ const bulkPlayerCache = new Map();
 const bulkPlayerRequests = new Map();
 const pgnViewerCache = new Map();
 const pgnViewerRequests = new Map();
+let eventCatalog = null;
+let eventCatalogRequest = null;
 const PGN_VIEWER_CACHE_MAX_ENTRIES = 3;
 const PGN_VIEWER_CACHE_MAX_BYTES = 48 * 1024 * 1024;
 let activeLichessViewer = null;
@@ -188,9 +192,11 @@ function mergePlayers(leaderboardPlayers, indexedPlayers, registryPlayers, byPla
 
 function initialize() {
   const routedFideID = initialSelectedFideID();
+  const routedEventID = initialSelectedEventID();
   state.selectedFideID = players.some(player => player.fideID === routedFideID)
     ? routedFideID
     : null;
+  state.selectedEventID = state.selectedFideID ? null : routedEventID;
   els.searchInput.addEventListener("input", event => {
     state.query = event.target.value.trim();
     renderSearch();
@@ -202,6 +208,34 @@ function initialize() {
       event.preventDefault();
       clearSelection();
     }
+    const playerLink = event.target.closest('[data-action="select-player"]');
+    if (playerLink) {
+      event.preventDefault();
+      selectPlayer(playerLink.dataset.fide);
+    }
+    const eventLink = event.target.closest('[data-action="select-event"]');
+    if (eventLink) {
+      event.preventDefault();
+      selectEvent(eventLink.dataset.eventId);
+    }
+  });
+  els.eventPane.addEventListener("click", event => {
+    const back = event.target.closest('[data-action="back-to-dashboard"]');
+    if (back) {
+      event.preventDefault();
+      clearSelection();
+    }
+    const playerLink = event.target.closest('[data-action="select-player"]');
+    if (playerLink) {
+      event.preventDefault();
+      selectPlayer(playerLink.dataset.fide);
+    }
+  });
+  window.addEventListener("popstate", () => {
+    const fideID = initialSelectedFideID();
+    state.selectedFideID = players.some(player => player.fideID === fideID) ? fideID : null;
+    state.selectedEventID = state.selectedFideID ? null : initialSelectedEventID();
+    render();
   });
 
   render();
@@ -213,6 +247,7 @@ function render() {
   renderLeaderboardArea();
   renderSearch();
   renderDetail();
+  renderEvent();
 }
 
 function renderDashboard() {
@@ -225,6 +260,7 @@ function renderDashboard() {
     { label: "中文名覆盖", value: totals.withChineseName },
     { label: "收录棋局", value: totals.games },
     { label: "收录赛事", value: totals.events },
+    { label: "可查棋局棋手", value: totals.playersWithGames },
     { label: "社区成员", value: community.count },
     { label: "最新贡献者", value: community.latest ? community.latest.name : null, sub: community.latest?.date }
   ];
@@ -246,7 +282,7 @@ function renderDashboard() {
         <tbody>
           ${events.map(event => `
             <tr>
-              <td>${escapeHTML(event.name ?? "-")}</td>
+              <td>${event.id ? `<button class="event-link" type="button" data-event-id="${escapeAttribute(event.id)}">${escapeHTML(event.displayName ?? event.name ?? "-")}</button>` : escapeHTML(event.displayName ?? event.name ?? "-")}</td>
               <td>${escapeHTML(event.date ?? "-")}</td>
               <td class="num">${escapeHTML(String(event.playerCount ?? "-"))}</td>
               <td class="num">${escapeHTML(String(event.gameCount ?? "-"))}</td>
@@ -254,6 +290,9 @@ function renderDashboard() {
           `).join("")}
         </tbody>
       </table>` : `<div class="empty-state compact">暂无数据</div>`;
+    els.recentEvents.querySelectorAll("[data-event-id]").forEach(button => {
+      button.addEventListener("click", () => selectEvent(button.dataset.eventId));
+    });
   }
 
   // 数据更新记录
@@ -389,8 +428,9 @@ function renderSearch() {
   const matches = searchPlayers(state.query);
   const hasQuery = state.query.length > 0;
   els.searchResultsSection.hidden = !hasQuery;
-  if (els.dashboardSection) els.dashboardSection.hidden = hasQuery || Boolean(selectedPlayer());
+  if (els.dashboardSection) els.dashboardSection.hidden = hasQuery || Boolean(selectedPlayer()) || Boolean(state.selectedEventID);
   if (els.detailPane) els.detailPane.hidden = hasQuery || !selectedPlayer();
+  if (els.eventPane) els.eventPane.hidden = hasQuery || !state.selectedEventID;
   els.searchCount.textContent = `${matches.length} 名`;
   els.searchResults.innerHTML = matches.length ? matches.map(player => {
     const stage = stageForPlayer(player);
@@ -414,7 +454,7 @@ function renderDetail() {
   const player = selectedPlayer();
   const showDetail = Boolean(player);
   els.detailPane.hidden = !showDetail;
-  if (els.dashboardSection && !state.query) els.dashboardSection.hidden = showDetail;
+  if (els.dashboardSection && !state.query) els.dashboardSection.hidden = showDetail || Boolean(state.selectedEventID);
   if (!showDetail) {
     els.detailPane.innerHTML = "";
     return;
@@ -457,6 +497,7 @@ function renderDetail() {
 
     ${staticInfo?.gameCount ? staticPlayerHitBlock(player, staticInfo) : ""}
     ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
+    ${playerEventHistory(detailCache.get(player.fideID) ?? player)}
 
     ${state.downloadStatus ? `<div class="download-status" aria-live="polite">${escapeHTML(state.downloadStatus)}</div>` : ""}
 
@@ -466,6 +507,82 @@ function renderDetail() {
   wireDetailActions(player, staticInfo);
   wirePGNViewerActions(player);
   mountLichessViewer(player);
+}
+
+function renderEvent() {
+  const eventID = state.selectedEventID;
+  els.eventPane.hidden = !eventID;
+  if (!eventID) {
+    els.eventPane.innerHTML = "";
+    return;
+  }
+  if (!eventCatalog) {
+    els.eventPane.innerHTML = `<div class="event-loading">正在载入赛事目录…</div>`;
+    requestEventCatalog();
+    return;
+  }
+  const event = eventCatalog.find(item => item.id === eventID);
+  if (!event) {
+    els.eventPane.innerHTML = `
+      <div class="event-empty">
+        <h2>未找到赛事</h2>
+        <p>该链接对应的赛事已不存在，或本地赛事目录仍在更新。</p>
+        <a class="action-link" href="#" data-action="back-to-dashboard">← 返回看板</a>
+      </div>`;
+    return;
+  }
+  const eventPlayers = (event.players ?? [])
+    .map(fideID => players.find(player => player.fideID === String(fideID)))
+    .filter(Boolean);
+  const visiblePlayers = eventPlayers.slice(0, 24);
+  const extraPlayers = Math.max(0, eventPlayers.length - visiblePlayers.length);
+  const facts = [
+    ["日期", event.date],
+    ["轮次", event.rounds],
+    ["报名人数", event.participants],
+    ["中国棋手", event.playerCount ? `${event.playerCount} 名` : null],
+    ["已归档 PGN", event.gameCount ? `${compactNumber(event.gameCount)} 盘` : null],
+    ["有棋谱棋手", event.pgnPlayerCount ? `${event.pgnPlayerCount} 名` : null]
+  ].filter(([, value]) => value !== null && value !== undefined && value !== "");
+
+  els.eventPane.innerHTML = `
+    <div class="detail-title event-title">
+      <div>
+        <span class="eyebrow">赛事档案 · ${escapeHTML(event.source ?? "")}</span>
+        <h2>${escapeHTML(event.displayName ?? event.name ?? "未命名赛事")}</h2>
+        ${event.chineseName && event.name !== event.chineseName ? `<p class="event-source-name">信源原名：${escapeHTML(event.name)}</p>` : ""}
+      </div>
+      <div class="detail-title-actions">
+        <a class="action-link" href="#" data-action="back-to-dashboard">← 返回看板</a>
+        ${event.url ? `<a class="action-link" href="${escapeAttribute(event.url)}" target="_blank" rel="noreferrer">Chess-Results ↗</a>` : ""}
+      </div>
+    </div>
+    <div class="event-facts">
+      ${facts.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(String(value))}</strong></div>`).join("")}
+    </div>
+    <section class="event-roster">
+      <div class="section-heading"><h3>参赛中国棋手</h3><span>${eventPlayers.length ? `${eventPlayers.length} 名可跳转` : "名单待同步"}</span></div>
+      ${visiblePlayers.length ? `<div class="event-player-grid">${visiblePlayers.map(player => `
+        <button class="event-player" type="button" data-action="select-player" data-fide="${escapeAttribute(player.fideID)}">
+          <strong>${escapeHTML(displayName(player))}</strong><span>FIDE ${escapeHTML(player.fideID)}</span>
+        </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手；完整名单见信源赛事页。</p>` : ""}` : `<div class="empty-state compact">该赛事已有赛事记录，但棋手名单尚未同步。</div>`}
+    </section>
+    <p class="event-provenance">赛事 ID：${escapeHTML(event.tournamentID ?? event.id)}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
+  `;
+}
+
+function requestEventCatalog() {
+  if (eventCatalogRequest) return eventCatalogRequest;
+  eventCatalogRequest = fetchJSON("./data/index/events.json", true)
+    .then(catalog => {
+      eventCatalog = Array.isArray(catalog) ? catalog : [];
+      renderEvent();
+    })
+    .catch(error => {
+      els.eventPane.innerHTML = `<div class="event-empty">赛事目录加载失败：${escapeHTML(error.message)}</div>`;
+    })
+    .finally(() => { eventCatalogRequest = null; });
+  return eventCatalogRequest;
 }
 
 function selectedPlayer() {
@@ -656,6 +773,25 @@ function staticPlayerHitBlock(player, info) {
       <div class="pgn-package-grid">${packageButtons}</div>
     </div>
   `;
+}
+
+function playerEventHistory(player) {
+  const rows = (player?.events ?? []).slice(0, 12);
+  if (!rows.length) return "";
+  return `
+    <section class="player-event-history">
+      <div class="section-heading"><h3>赛事记录</h3><span>${player.eventCount ?? rows.length} 项</span></div>
+      <div class="player-event-list">
+        ${rows.map(event => {
+          const eventID = event.id || (event.tournamentID ? `${String(event.source ?? "Chess-Results").toLowerCase().replace(/\s+/g, "-")}:${event.tournamentID}` : "");
+          const name = event.chineseName || event.displayName || event.name || "未命名赛事";
+          return `<button type="button" class="player-event-row" ${eventID ? `data-action="select-event" data-event-id="${escapeAttribute(eventID)}"` : "disabled"}>
+            <span><strong>${escapeHTML(name)}</strong><small>${escapeHTML(event.date ?? "日期待补")}${event.rank ? ` · 名次 ${escapeHTML(String(event.rank))}` : ""}</small></span>
+            <em>${event.gameCount ? `${compactNumber(event.gameCount)} 盘` : "查看赛事"}</em>
+          </button>`;
+        }).join("")}
+      </div>
+    </section>`;
 }
 
 function pgnPackages(info) {
@@ -875,8 +1011,8 @@ function viewerGameInfo(game) {
     ["时间", headers.EventDate ?? headers.Date],
     ["地点", headers.Site],
     ["结果", headers.Result],
-    ["白方", playerLine(headers, "White")],
-    ["黑方", playerLine(headers, "Black")],
+    ["白方", gamePlayerLine(headers, "White")],
+    ["黑方", gamePlayerLine(headers, "Black")],
     ["ECO", headers.ECO],
     ["时限", headers.TimeControl]
   ].filter(([, value]) => displayText(value ?? "") && displayText(value ?? "") !== "?");
@@ -884,17 +1020,22 @@ function viewerGameInfo(game) {
   return items.map(([label, value]) => `
     <div>
       <dt>${escapeHTML(label)}</dt>
-      <dd>${escapeHTML(displayText(value))}</dd>
+      <dd>${value?.html ?? escapeHTML(displayText(value))}</dd>
     </div>
   `).join("");
 }
 
-function playerLine(headers, side) {
+function gamePlayerLine(headers, side) {
   const name = displayText(headers[side] ?? "");
   const elo = displayText(headers[`${side}Elo`] ?? "");
   const title = displayText(headers[`${side}Title`] ?? "");
   const fed = displayText(headers[`${side}Fed`] ?? headers[`${side}Federation`] ?? "");
-  return [title, name, elo ? elo : "", fed].filter(Boolean).join(" · ");
+  const fideID = String(headers[`${side}FideId`] ?? headers[`${side}FIDEId`] ?? "").replace(/\D/g, "");
+  const knownPlayer = fideID && players.some(player => player.fideID === fideID);
+  const text = [title, name, elo || "", fed].filter(Boolean).join(" · ");
+  return knownPlayer
+    ? { html: `<button type="button" class="inline-player-link" data-action="select-player" data-fide="${escapeAttribute(fideID)}">${escapeHTML(text)}</button>` }
+    : text;
 }
 
 function selectedViewerPackage(info) {
@@ -1130,14 +1271,16 @@ function resetPGNViewer(fideID) {
 function selectPlayer(fideID) {
   if (state.selectedFideID !== fideID) resetPGNViewer(fideID);
   state.selectedFideID = fideID;
+  state.selectedEventID = null;
   state.downloadStatus = "";
-  updateRouteFideID(fideID);
+  updateRoute({ fideID });
   if (state.query) {
     state.query = "";
     if (els.searchInput) els.searchInput.value = "";
     renderSearch();
   }
   renderDetail();
+  renderEvent();
   scrollDetailIntoViewOnMobile();
 }
 
@@ -1146,25 +1289,51 @@ function initialSelectedFideID() {
   return String(params.get("fideID") || params.get("fide") || "").replace(/\D/g, "");
 }
 
-function updateRouteFideID(fideID) {
+function initialSelectedEventID() {
+  const params = new URLSearchParams(window.location.search);
+  return String(params.get("event") || "");
+}
+
+function updateRoute({ fideID = null, eventID = null }) {
   if (!window.history?.replaceState) return;
   const url = new URL(window.location.href);
   if (fideID) url.searchParams.set("fideID", fideID);
   else url.searchParams.delete("fideID");
+  if (eventID) url.searchParams.set("event", eventID);
+  else url.searchParams.delete("event");
   window.history.replaceState(null, "", url);
+}
+
+function selectEvent(eventID) {
+  if (!eventID) return;
+  resetPGNViewer(null);
+  state.selectedFideID = null;
+  state.selectedEventID = eventID;
+  state.downloadStatus = "";
+  updateRoute({ eventID });
+  if (state.query) {
+    state.query = "";
+    if (els.searchInput) els.searchInput.value = "";
+    renderSearch();
+  }
+  renderDetail();
+  renderEvent();
+  scrollDetailIntoViewOnMobile();
 }
 
 function clearSelection() {
   state.selectedFideID = null;
+  state.selectedEventID = null;
   state.downloadStatus = "";
-  updateRouteFideID(null);
+  updateRoute({});
   renderDetail();
+  renderEvent();
 }
 
 function scrollDetailIntoViewOnMobile() {
   if (!window.matchMedia("(max-width: 720px)").matches) return;
   window.requestAnimationFrame(() => {
-    els.detailPane.scrollIntoView({
+    (state.selectedEventID ? els.eventPane : els.detailPane).scrollIntoView({
       block: "start",
       inline: "nearest",
       behavior: "smooth"

@@ -119,6 +119,41 @@ def check_sightings() -> None:
                 err(path, i, f"source_url domain not allow-listed: {src!r}")
 
 
+def check_tournament_name_mappings() -> None:
+    """Validate the reviewed event-name layer without touching crawler data."""
+    path = REPO_ROOT / "data" / "community" / "tournament-name-mappings.csv"
+    if not path.exists():
+        return
+    required = {"source", "tournament_id", "chinese_name", "evidence_url", "notes"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        actual = set(reader.fieldnames or [])
+        missing = required - actual
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        seen: set[tuple[str, str]] = set()
+        for i, row in enumerate(reader, start=2):
+            if not any((value or "").strip() for value in row.values()):
+                continue
+            source = (row.get("source") or "").strip()
+            tournament_id = (row.get("tournament_id") or "").strip()
+            chinese_name = (row.get("chinese_name") or "").strip()
+            if not source:
+                err(path, i, "source required")
+            if not tournament_id or not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", tournament_id):
+                err(path, i, f"invalid tournament_id {tournament_id!r}")
+            if not (2 <= len(chinese_name) <= 100):
+                err(path, i, "chinese_name must be 2-100 characters")
+            key = (source.lower(), tournament_id)
+            if key in seen:
+                err(path, i, f"duplicate source+tournament_id {source!r}/{tournament_id!r}")
+            seen.add(key)
+            evidence = (row.get("evidence_url") or "").strip()
+            if not url_ok(evidence):
+                err(path, i, f"evidence_url missing or domain not allow-listed: {evidence!r}")
+
+
 def check_name_corrections_pinned() -> None:
     """Pinned identity assertions: once a name mistake is corrected via
     data/community/name-corrections.csv, no committed artifact may ever carry
@@ -182,6 +217,7 @@ def main() -> int:
     check_federation_overrides()
     check_player_aliases()
     check_sightings()
+    check_tournament_name_mappings()
     check_name_corrections_pinned()
     check_generated_untouched_note()
 

@@ -7,7 +7,9 @@ docs/data/pgn/<source>/tnr<event-id>/fide-<fide-id>-<event-id>.pgn
 docs/data/index/manifest.json
 docs/data/index/players.json
 docs/data/index/players/fide-<fide-id>.json
-docs/data/index/events.json
+
+The public event catalog (docs/data/index/events.json) is owned by
+Scripts/build_event_catalog.py and is intentionally not written here.
 
 Records are read from the committed static indexes; missing PGNs are then
 fetched from configured public sources (Chess-Results).
@@ -371,23 +373,6 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
         if not dry_run:
             write_json(PLAYER_INDEX_ROOT / f"fide-{fide_id}.json", detail)
 
-    event_summaries = []
-    for event_key, event_records in sorted(by_event.items()):
-        first = event_records[0]
-        pgn_records = [record for record in event_records if has_static_pgn(record)]
-        event_summaries.append(
-            {
-                "id": event_key,
-                "source": first.source,
-                "tournamentID": first.tournament_id,
-                "name": first.event_name,
-                "date": first.end_date,
-                "playerCount": len({record.fide_id for record in event_records}),
-                "pgnCount": len(pgn_records),
-                "gameCount": sum(record.game_count for record in pgn_records),
-            }
-        )
-
     pgn_records = [record for record in records if has_static_pgn(record)]
     manifest = {
         "schemaVersion": 1,
@@ -415,7 +400,6 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
     if not dry_run:
         write_json(INDEX_ROOT / "manifest.json", manifest)
         write_json(INDEX_ROOT / "players.json", player_summaries)
-        write_json(INDEX_ROOT / "events.json", event_summaries)
 
 
 def update_leaderboard_json(records: list[EventRecord], dry_run: bool) -> None:

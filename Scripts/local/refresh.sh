@@ -349,6 +349,7 @@ case "$command" in
     py Scripts/sync_domestic_players.py
     py Scripts/sync_static_pgn.py
     py Scripts/build_static_player_pgn.py
+    [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py
     py Scripts/build_leaderboards.py
     [ -f Scripts/build_api.py ] && py Scripts/build_api.py
     [ -f Scripts/build_changelog.py ] && py Scripts/build_changelog.py

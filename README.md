@@ -2,7 +2,7 @@
 
 社区共建的开源中国国际象棋棋手数据库:全量 CHN 棋手注册表(含转出/转入棋手标注)、赛事记录、对局 PGN、全年龄组排行榜(U8-U18 / U20 / 成年 / S50 / S65),并以[静态数据 API](docs/API.md) 对外提供数据。
 
-- 贡献数据:见 [CONTRIBUTING.md](CONTRIBUTING.md)(网页上改 CSV 提 PR 即可)
+- 贡献数据:见 [CONTRIBUTING.md](CONTRIBUTING.md)(网页上改 CSV 提 PR 即可；赛事中文名维护在 `data/community/tournament-name-mappings.csv`)
 - 数据 API:见 [docs/API.md](docs/API.md)(风格引擎等外部项目请走 API,本仓库不再内置风格模拟)
 - 许可:代码 MIT,数据 CC BY 4.0(见 [LICENSE-DATA.md](LICENSE-DATA.md))
 
@@ -20,7 +20,7 @@ python3 -m http.server 4173 -d docs
 
 打开 `http://localhost:4173/`。推送到 GitHub 后，`deploy.yml` 会把 `docs/` 发布到 Cloudflare Pages(唯一线上出口:GitHub 管代码,Cloudflare 管网页)。
 
-网页版首页展示 U8-U18 FIDE ELO 排行榜（李成智杯年龄组口径），支持中文/拼音/英文/FIDE ID 搜索，以及按棋手浏览赛事和下载 PGN。PGN 优先读取 `docs/data/pgn/by-player/` 聚合包，其次回退到赛事级 PGN 或 bulk 青少年包。
+网页版首页展示 U8-U18 FIDE ELO 排行榜（李成智杯年龄组口径）和数据看板，支持中文/拼音/英文/FIDE ID 搜索。赛事、棋手和对局可以互相跳转：赛事页展示核验中文名、Chess-Results 信源、参赛中国棋手和已归档 PGN 覆盖；棋手页可回到赛事或打开对局。PGN 优先读取 `docs/data/pgn/by-player/` 聚合包，其次回退到赛事级 PGN 或 bulk 青少年包。
 
 ## 数据同步
 

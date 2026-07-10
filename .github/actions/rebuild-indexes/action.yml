@@ -41,6 +41,12 @@ runs:
         # By-player aggregate packs consumed directly by the web frontend.
         python3 Scripts/build_static_player_pgn.py
 
+        # First-class event catalog: joins crawler catalog, archived PGN
+        # coverage, and reviewed Chinese display-name mappings.
+        if [ -f Scripts/build_event_catalog.py ]; then
+          python3 Scripts/build_event_catalog.py
+        fi
+
         # All-age leaderboards (youth U8-U18 + U20/OPEN/S50/S65).
         python3 Scripts/build_leaderboards.py
 
