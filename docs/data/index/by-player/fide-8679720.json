@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-10T01:50:35+00:00",
   "player": {
     "fideID": "8679720",
     "id": "fide-8679720",
@@ -17,10 +17,10 @@
     ]
   },
   "totals": {
-    "games": 14,
-    "events": 4,
+    "games": 25,
+    "events": 8,
     "packages": 2,
-    "bytes": 24076,
+    "bytes": 117190,
     "stages": {}
   },
   "packages": [
@@ -28,28 +28,66 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8679720/all.pgn",
-      "gameCount": 14,
-      "pgnBytes": 12037,
-      "sha256": "7ab6e31e6239a8fbfe0067d1960196c2abc7345485ed5c27ad7378ee4b3a3caf",
+      "gameCount": 25,
+      "pgnBytes": 58594,
+      "sha256": "d97e4c9059174c01db6207bd71b4afe3b5751e7270c5a9a1542c439196fbd17e",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8679720/adult.pgn",
-      "gameCount": 14,
-      "pgnBytes": 12039,
-      "sha256": "c32fb1783e4b3315b8b7f7c9b1241d959b58510f8553da58e1a9404d2ef8ca11",
+      "gameCount": 25,
+      "pgnBytes": 58596,
+      "sha256": "c9a372980ffde9cad237ba6690adbf4864e6d16af3ee3f9f9854e1f4c0caf1ed",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 1: Cao, Bingda - Xue, Kang",
+      "date": "2025-12-06",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-15",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 5,
+      "results": {
+        "1/2-1/2": 2,
+        "1-0": 3
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-14",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 4,
+      "results": {
+        "1-0": 1,
+        "0-1": 1,
+        "1/2-1/2": 2
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2025 National Amateur Chess Master Tournament Jian Station",
@@ -95,9 +133,170 @@
         "1-0": 2,
         "0-1": 1
       }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "date": "",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
     }
   ],
   "games": [
+    {
+      "id": "3ae5caee2b1f56198934189f362ef9d129dd6dbb05e075f6185f01c467d119b0",
+      "event": "Round 1: Cao, Bingda - Xue, Kang",
+      "date": "2025-12-06",
+      "white": "Cao, Bingda",
+      "black": "Xue, Kang",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
+      "sha256": "3ae5caee2b1f56198934189f362ef9d129dd6dbb05e075f6185f01c467d119b0"
+    },
+    {
+      "id": "23373dce584cf058d313229293d7b9443ea290ed3a1c767b7bf784f4e243c9a5",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-15",
+      "white": "Zhou, Tony",
+      "black": "Cao, Bingda",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "23373dce584cf058d313229293d7b9443ea290ed3a1c767b7bf784f4e243c9a5"
+    },
+    {
+      "id": "158fa79f513c0708b5d05f76d477052b9998998286501fb729cc8df7d8de1caf",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-15",
+      "white": "Yi, Jingming",
+      "black": "Cao, Bingda",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "158fa79f513c0708b5d05f76d477052b9998998286501fb729cc8df7d8de1caf"
+    },
+    {
+      "id": "37676ebcfb142af31ec84912c87bf9a2faf6525c78629818994ae9d7166cd11b",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-15",
+      "white": "Huang, Zixin",
+      "black": "Cao, Bingda",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "37676ebcfb142af31ec84912c87bf9a2faf6525c78629818994ae9d7166cd11b"
+    },
+    {
+      "id": "d6668e954f100e22a388a77e34f2a7bbd42cbc5bb7601375e7f292a86f91541f",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-15",
+      "white": "Cao, Bingda",
+      "black": "Zou, Anlv",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "d6668e954f100e22a388a77e34f2a7bbd42cbc5bb7601375e7f292a86f91541f"
+    },
+    {
+      "id": "68a18830679e12587c8e9827e7457164c3ef1b473f5e428e61812d6ce425de2d",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-15",
+      "white": "Cao, Bingda",
+      "black": "Xia, Yuhao",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "68a18830679e12587c8e9827e7457164c3ef1b473f5e428e61812d6ce425de2d"
+    },
+    {
+      "id": "f99b0681ee4007c90b65334c9ed295d84f701ddfa9dde08943069761ae469405",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-14",
+      "white": "Zhao, Tsz Ham",
+      "black": "Cao, Bingda",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "f99b0681ee4007c90b65334c9ed295d84f701ddfa9dde08943069761ae469405"
+    },
+    {
+      "id": "3991333d7c6479d3bcc623af16acb9ec1e4faf2e16018352630d2e73386fe43b",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-14",
+      "white": "Zhang, Chenyin",
+      "black": "Cao, Bingda",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "3991333d7c6479d3bcc623af16acb9ec1e4faf2e16018352630d2e73386fe43b"
+    },
+    {
+      "id": "327b42bf7a35625424eb4d003b1bd1abf6f99c5bb64bfcbf069f26d1b320b76c",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-14",
+      "white": "Cao, Bingda",
+      "black": "Li, Junjie",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "327b42bf7a35625424eb4d003b1bd1abf6f99c5bb64bfcbf069f26d1b320b76c"
+    },
+    {
+      "id": "583acf1b864def34a176a20054e9bdde55697e0dcaedc6a30d03fc1545041815",
+      "event": "2025年全国国际象棋棋协大师赛（汕尾站）",
+      "date": "2025-11-14",
+      "white": "Cao, Bingda",
+      "black": "Deng, Mingtong",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-11.pgn.zst",
+      "sha256": "583acf1b864def34a176a20054e9bdde55697e0dcaedc6a30d03fc1545041815"
+    },
     {
       "id": "34564965383b4c64e9e9b5d0fba1f82b4e02b215993c146c2d35bd35243cde49",
       "event": "2025 National Amateur Chess Master Tournament Jian Station",
@@ -293,6 +492,20 @@
       "tournamentID": "1214031",
       "sourcePgnPath": "data/pgn/chess-results/tnr1214031/fide-8679720-1214031.pgn",
       "sha256": "f559a160cb7557e31ffe6e6d899c01d977b3bdbd3e860c9d0520173e8fef9cdf"
+    },
+    {
+      "id": "ad68ba712b59830cbeabe8c766963c6aee1ed599fd5ca5ab78fdefd971602d10",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Hu, Zehua",
+      "black": "Cao, Bingda",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "ad68ba712b59830cbeabe8c766963c6aee1ed599fd5ca5ab78fdefd971602d10"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-10T01:50:35+00:00",
   "player": {
     "fideID": "8616469",
     "id": "fide-8616469",
@@ -19,10 +19,10 @@
     ]
   },
   "totals": {
-    "games": 5,
-    "events": 1,
-    "packages": 2,
-    "bytes": 9446,
+    "games": 17,
+    "events": 3,
+    "packages": 3,
+    "bytes": 99932,
     "stages": {
       "U10": 5
     }
@@ -32,14 +32,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8616469/all.pgn",
-      "gameCount": 5,
-      "pgnBytes": 4723,
-      "sha256": "bc3306942a665e60b3da83f8ee031d84ad084fe52d6fd46bf26d282c0bf3bde1",
+      "gameCount": 17,
+      "pgnBytes": 49900,
+      "sha256": "313706fb0addbf21a90d87125237db13d463199841d63aa03f9dfc1719b3c31b",
       "stages": {
         "U10": 5
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
@@ -48,16 +49,40 @@
       "pgnPath": "data/pgn/by-player/fide-8616469/U10.pgn",
       "gameCount": 5,
       "pgnBytes": 4723,
-      "sha256": "860ff1bf478d331aafad25ae46016808656fe030dd3640dcfbb3b30188be5860",
+      "sha256": "d6d1afc6f9d05de04c5f5f9366a2b05dac752324b4fbb9d2c38a9c6b52478daa",
       "stages": {
         "U10": 5
       },
       "sources": [
         "Chess-Results"
       ]
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8616469/adult.pgn",
+      "gameCount": 12,
+      "pgnBytes": 45309,
+      "sha256": "12b9b23e3f2c3ef29355b67b386e65e9d118cc09519a57454b83fec666f669e7",
+      "stages": {},
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "The 4th China Binhai Chess Open",
+      "date": "2025-10-09",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 3,
+      "results": {
+        "1/2-1/2": 1,
+        "1-0": 2
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "FIDE World Schools Championships 2015 - OU11",
@@ -69,9 +94,67 @@
         "1-0": 1,
         "0-1": 4
       }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "date": "",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 9,
+      "results": {
+        "1-0": 3,
+        "1/2-1/2": 3,
+        "0-1": 3
+      }
     }
   ],
   "games": [
+    {
+      "id": "7f31d42b8df7209d75215792ba6c757290d4acf1061a622484491ac06c87ef8f",
+      "event": "The 4th China Binhai Chess Open",
+      "date": "2025-10-09",
+      "white": "Zhou, Yuxu",
+      "black": "Yang, Bokai",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
+      "sha256": "7f31d42b8df7209d75215792ba6c757290d4acf1061a622484491ac06c87ef8f"
+    },
+    {
+      "id": "36dcf0506babb9d219dfe1ae999802b25d66abb305c61241326e7ccf5eb1816d",
+      "event": "The 4th China Binhai Chess Open",
+      "date": "2025-10-09",
+      "white": "Yang, Bokai",
+      "black": "Liu, Yinuo",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
+      "sha256": "36dcf0506babb9d219dfe1ae999802b25d66abb305c61241326e7ccf5eb1816d"
+    },
+    {
+      "id": "c8a721b8b0fcae4ee06f20dbf6bef391921c5859e7f4ca4886df7da2ca2c21a1",
+      "event": "The 4th China Binhai Chess Open",
+      "date": "2025-10-09",
+      "white": "Li, Ziang",
+      "black": "Yang, Bokai",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
+      "sha256": "c8a721b8b0fcae4ee06f20dbf6bef391921c5859e7f4ca4886df7da2ca2c21a1"
+    },
     {
       "id": "fd2da1e3cb9b6fe379b0fb2ec15d3fffe94bfbc72f68ab78682ca8e13a747b2d",
       "event": "FIDE World Schools Championships 2015 - OU11",
@@ -141,6 +224,132 @@
       "tournamentID": "169478",
       "sourcePgnPath": "data/pgn/chess-results/tnr169478/fide-8616469-169478.pgn",
       "sha256": "b6b37bab460eccbe0df4905a86114ba2170ad51b6800e46e90688a12464ad5f3"
+    },
+    {
+      "id": "829a785361109a7440b4c5dbbb0bce3f4e646517cc9652b4c09b732f4792010a",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Yang, Bokai",
+      "black": "Zhao, Yuetong",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "829a785361109a7440b4c5dbbb0bce3f4e646517cc9652b4c09b732f4792010a"
+    },
+    {
+      "id": "f806e15c3e30f55301f9cb339624f360d37190fc00dd791e8f8a6d65cfbaed85",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Yang, Bokai",
+      "black": "Yu, Zhe",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "f806e15c3e30f55301f9cb339624f360d37190fc00dd791e8f8a6d65cfbaed85"
+    },
+    {
+      "id": "a58f8eff201733aaff052237568b029ce3c4734c5377227c251eb283df27f0e1",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Yang, Bokai",
+      "black": "Erkhembayar, Amartaivan",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "a58f8eff201733aaff052237568b029ce3c4734c5377227c251eb283df27f0e1"
+    },
+    {
+      "id": "2612905a11801bf7a99f9a2cddfc3260f1a7b290afb029f6cf02bb484ac0f55a",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Yang, Bokai",
+      "black": "Chen, Zhongkai",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "2612905a11801bf7a99f9a2cddfc3260f1a7b290afb029f6cf02bb484ac0f55a"
+    },
+    {
+      "id": "bfd47ff99cbcc5a9434e34e2810b65e8675d3d76c598556de4a651ecbd50946f",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Yan, Jiaxu",
+      "black": "Yang, Bokai",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "bfd47ff99cbcc5a9434e34e2810b65e8675d3d76c598556de4a651ecbd50946f"
+    },
+    {
+      "id": "d987ec1e87673bddb0b821c6252377331860ddb8a8277b1b3f3942b41722ce55",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Xu, Wei",
+      "black": "Yang, Bokai",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "d987ec1e87673bddb0b821c6252377331860ddb8a8277b1b3f3942b41722ce55"
+    },
+    {
+      "id": "4c03d681cb6b7bae972bbd2490c123810eae6bc386114592be2cd739eb322db1",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Liu, Zimin",
+      "black": "Yang, Bokai",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "4c03d681cb6b7bae972bbd2490c123810eae6bc386114592be2cd739eb322db1"
+    },
+    {
+      "id": "a53ac23d6805d77b9f75c8d8e75e5c45ffa6aef440d9bb6de9125ee29de67d0e",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Hu, Zehua",
+      "black": "Yang, Bokai",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "a53ac23d6805d77b9f75c8d8e75e5c45ffa6aef440d9bb6de9125ee29de67d0e"
+    },
+    {
+      "id": "2b349be7622dbde1057f0a95550cea261d25fb01a8e77331660ac6a5e7bd20d4",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Chen, Jinyuan",
+      "black": "Yang, Bokai",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "2b349be7622dbde1057f0a95550cea261d25fb01a8e77331660ac6a5e7bd20d4"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-10T01:50:35+00:00",
   "player": {
     "fideID": "8674990",
     "id": "fide-8674990",
@@ -20,13 +20,13 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "events": 2,
+    "games": 3,
+    "events": 3,
     "packages": 3,
-    "bytes": 4348,
+    "bytes": 11234,
     "stages": {
       "U12": 1,
-      "U14": 1
+      "U14": 2
     }
   },
   "packages": [
@@ -34,15 +34,16 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8674990/all.pgn",
-      "gameCount": 2,
-      "pgnBytes": 2109,
-      "sha256": "4e06be8e3d74f9bb92239c54c7f7d03f0bac2af22533a10939270028e9d6d940",
+      "gameCount": 3,
+      "pgnBytes": 5552,
+      "sha256": "af1901a3056c09504e492c443aea058d40b416dd81b0acba78aba98f96f3ef38",
       "stages": {
         "U12": 1,
-        "U14": 1
+        "U14": 2
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
@@ -51,7 +52,7 @@
       "pgnPath": "data/pgn/by-player/fide-8674990/U12.pgn",
       "gameCount": 1,
       "pgnBytes": 1168,
-      "sha256": "02d77efaeb2f68cee425a594d1a36dc166831a8996688d5154970bec5455e569",
+      "sha256": "99c4462a66011f341bdb8fe242856724a66c6a5407d4df74395dfa220f824699",
       "stages": {
         "U12": 1
       },
@@ -63,18 +64,30 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8674990/U14.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1071,
-      "sha256": "4699e1e9b2f209d0d859e18119be301dc211a2011da8240b8e9900d51f9f36b6",
+      "gameCount": 2,
+      "pgnBytes": 4514,
+      "sha256": "391c2e3c415cbc6a289784046162fbeec33576e9e525b2f89cf1ea15c2417e2f",
       "stages": {
-        "U14": 1
+        "U14": 2
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 2: Huang, Juliang - Wang, Hengshuo",
+      "date": "2026-06-05",
+      "tournamentID": "",
+      "stage": "U14",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
@@ -99,6 +112,21 @@
     }
   ],
   "games": [
+    {
+      "id": "87a4f0fb310754ae8880a021c45700532052c39161ae620083d2447ab447f849",
+      "event": "Round 2: Huang, Juliang - Wang, Hengshuo",
+      "date": "2026-06-05",
+      "white": "Huang, Juliang",
+      "black": "Wang, Hengshuo",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "U14",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
+      "sha256": "87a4f0fb310754ae8880a021c45700532052c39161ae620083d2447ab447f849"
+    },
     {
       "id": "93f306ad84c24421e18dd5cee661e20df9376fc4d3a3cbe4965e190e99331d98",
       "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",

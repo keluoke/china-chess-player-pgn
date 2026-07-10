@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-10T01:50:35+00:00",
   "player": {
     "fideID": "8609292",
     "id": "fide-8609292",
@@ -20,10 +20,10 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 6,
+    "events": 6,
     "packages": 2,
-    "bytes": 2038,
+    "bytes": 52248,
     "stages": {}
   },
   "packages": [
@@ -31,28 +31,41 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8609292/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1018,
-      "sha256": "572da474a40dc39507e4e74ef259441a053f1d7300708ced880d850a68b41f9a",
+      "gameCount": 6,
+      "pgnBytes": 26123,
+      "sha256": "4a2eb9a027c40890d75abb1299dff2d12c06ba147a9667a69a80ff7fd6996f05",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8609292/adult.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1020,
-      "sha256": "f1a17ff629496944f0876ff5c0bdd92278c8e0fba0a735405157740dd3226c25",
+      "gameCount": 6,
+      "pgnBytes": 26125,
+      "sha256": "8ddd7f56cf24ff194a415368908a260eddf930dac022a94857778e896316cd01",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 8: Zhu, Yilun - Guerrero Vargas, Andres Jesus",
+      "date": "2026-04-11",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "V OPEN CHESS MENORCA 2026",
@@ -63,9 +76,68 @@
       "results": {
         "1-0": 1
       }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "X Open Semana Santa 2026 - Grupo A",
+      "date": "2026-04-01",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Reykjavik Open 2026",
+      "date": "2026-03-31",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Reykjavik Open 2026",
+      "date": "2026-03-28",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Reykjavik Open 2026",
+      "date": "2026-03-25",
+      "tournamentID": "",
+      "stage": "adult",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
     }
   ],
   "games": [
+    {
+      "id": "6ac0504266f8543a6dc2262c0ba422b0ad46d00eaf862c6503adb5c75ff3e70c",
+      "event": "Round 8: Zhu, Yilun - Guerrero Vargas, Andres Jesus",
+      "date": "2026-04-11",
+      "white": "Zhu, Yilun",
+      "black": "Guerrero Vargas, Andres Jesus",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-04.pgn.zst",
+      "sha256": "6ac0504266f8543a6dc2262c0ba422b0ad46d00eaf862c6503adb5c75ff3e70c"
+    },
     {
       "id": "a4d36b4a8524d68b14d2a5922a104e905a888a3b6e2667a9510771488874a630",
       "event": "V OPEN CHESS MENORCA 2026",
@@ -79,6 +151,66 @@
       "tournamentID": "1258116",
       "sourcePgnPath": "data/pgn/chess-results/tnr1258116/fide-8609292-1258116.pgn",
       "sha256": "a4d36b4a8524d68b14d2a5922a104e905a888a3b6e2667a9510771488874a630"
+    },
+    {
+      "id": "bed35d53f369f6a6c1c39d816565636a0b4d84eeceb1d014e3c8d3afa084ba25",
+      "event": "X Open Semana Santa 2026 - Grupo A",
+      "date": "2026-04-01",
+      "white": "Mamedov, Edgar",
+      "black": "Zhu, Yilun",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-04.pgn.zst",
+      "sha256": "bed35d53f369f6a6c1c39d816565636a0b4d84eeceb1d014e3c8d3afa084ba25"
+    },
+    {
+      "id": "209388ff391bfe13aefa0f67201bb962e62e2595e4aec869ef883374d9cea11b",
+      "event": "Reykjavik Open 2026",
+      "date": "2026-03-31",
+      "white": "Loncke, Matthieu",
+      "black": "Zhu, Yilun",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-03.pgn.zst",
+      "sha256": "209388ff391bfe13aefa0f67201bb962e62e2595e4aec869ef883374d9cea11b"
+    },
+    {
+      "id": "29a29d59a2fc3963a674882c69f115063029994c9e9894cfcb846034c3c870a6",
+      "event": "Reykjavik Open 2026",
+      "date": "2026-03-28",
+      "white": "Sochacki, Christophe",
+      "black": "Zhu, Yilun",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-03.pgn.zst",
+      "sha256": "29a29d59a2fc3963a674882c69f115063029994c9e9894cfcb846034c3c870a6"
+    },
+    {
+      "id": "f182343953f937514f4ff2e95250595437957deb32f55387841cb7cefec7bff7",
+      "event": "Reykjavik Open 2026",
+      "date": "2026-03-25",
+      "white": "Balakrishnan, Praveen",
+      "black": "Zhu, Yilun",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "stage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-03.pgn.zst",
+      "sha256": "f182343953f937514f4ff2e95250595437957deb32f55387841cb7cefec7bff7"
     }
   ]
 }
