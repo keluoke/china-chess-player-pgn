@@ -14,6 +14,7 @@ import csv
 import hashlib
 import json
 import pathlib
+import re
 from collections import defaultdict
 from typing import Any
 
@@ -23,6 +24,8 @@ DOCS_DATA = REPO_ROOT / "docs" / "data"
 CATALOG = DOCS_DATA / "index" / "chess-results-tournaments.json"
 BY_PLAYER = DOCS_DATA / "index" / "by-player"
 OUTPUT = DOCS_DATA / "index" / "events.json"
+CANONICAL_OUTPUT = DOCS_DATA / "index" / "canonical-events.json"
+MAPPING_CANDIDATES = DOCS_DATA / "index" / "event-name-mapping-candidates.json"
 MAPPINGS = REPO_ROOT / "data" / "community" / "tournament-name-mappings.csv"
 
 
@@ -59,6 +62,7 @@ def load_mappings() -> dict[tuple[str, str], dict[str, str]]:
             tournament_id = clean(row.get("tournament_id"))
             if source and tournament_id:
                 result[(source.lower(), tournament_id)] = {
+                    "canonicalEventID": clean(row.get("canonical_event_id")),
                     "chineseName": clean(row.get("chinese_name")),
                     "evidenceURL": clean(row.get("evidence_url")),
                 }
@@ -106,6 +110,7 @@ def build_catalog() -> list[dict[str, Any]]:
         stats = coverage.pop(key, {})
         name = clean(upstream.get("name"))
         chinese_name = mapping.get("chineseName", "")
+        canonical_event_id = mapping.get("canonicalEventID", "")
         source_date = clean(upstream.get("date"))
         # When PGN is available, its EventDate is a direct record of the
         # played event and is more useful than a player-search row that may
@@ -133,6 +138,9 @@ def build_catalog() -> list[dict[str, Any]]:
             "pgnCount": int(stats.get("pgnCount") or 0),
             "gameCount": int(stats.get("gameCount") or 0),
         }
+        if canonical_event_id:
+            events[key]["canonicalEventID"] = canonical_event_id
+            events[key]["sourceRefs"] = [{"source": source, "tournamentID": tournament_id, "url": clean(upstream.get("url")) or None}]
 
     # Preserve event data sourced exclusively from PGN archives (for example
     # Lichess Broadcasts) without inventing a Chess-Results URL.
@@ -164,11 +172,66 @@ def build_catalog() -> list[dict[str, Any]]:
     return sorted(events.values(), key=lambda item: (item.get("date") or "", item["id"]), reverse=True)
 
 
+def canonical_catalog(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for event in events:
+        if event.get("canonicalEventID"):
+            grouped[event["canonicalEventID"]].append(event)
+    result: list[dict[str, Any]] = []
+    for canonical_id, sections in grouped.items():
+        players = sorted({fide_id for section in sections for fide_id in section.get("players", [])})
+        refs = [ref for section in sections for ref in section.get("sourceRefs", [])]
+        chinese_names = [section.get("chineseName") for section in sections if section.get("chineseName")]
+        result.append({
+            "id": canonical_id,
+            "canonicalEventID": canonical_id,
+            "displayName": canonical_display_name(canonical_id, sections, chinese_names),
+            "date": max((section.get("date") or "" for section in sections), default="") or None,
+            "sections": [{
+                "id": section["id"],
+                "tournamentID": section.get("tournamentID"),
+                "displayName": section.get("displayName"),
+                "playerCount": section.get("playerCount"),
+                "gameCount": section.get("gameCount"),
+            } for section in sections],
+            "sourceRefs": refs,
+            "players": players,
+            "playerCount": len(players),
+            "gameCount": sum(int(section.get("gameCount") or 0) for section in sections),
+        })
+    return sorted(result, key=lambda item: (item.get("date") or "", item["id"]), reverse=True)
+
+
+def canonical_display_name(canonical_id: str, sections: list[dict[str, Any]], chinese_names: list[str]) -> str:
+    match = re.fullmatch(r"lichengzhi-cup-(\d{4})", canonical_id)
+    if match:
+        return f"{match.group(1)}年全国国际象棋青少年锦标赛（个人）暨李成智杯"
+    return chinese_names[0] if chinese_names else sections[0].get("displayName") or canonical_id
+
+
+def mapping_candidates(events: list[dict[str, Any]], limit: int = 500) -> list[dict[str, Any]]:
+    candidates = [event for event in events if event.get("source") == "Chess-Results" and not event.get("chineseName")]
+    candidates.sort(key=lambda event: (event.get("date") or "", event.get("playerCount") or 0), reverse=True)
+    return [{
+        "source": event.get("source"),
+        "tournamentID": event.get("tournamentID"),
+        "sourceName": event.get("name"),
+        "date": event.get("date"),
+        "chinesePlayerCount": event.get("playerCount"),
+        "sourceURL": event.get("url"),
+        "reviewStatus": "needs-mapping",
+    } for event in candidates[:limit]]
+
+
 def main() -> int:
     events = build_catalog()
     OUTPUT.write_text(json.dumps(events, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    canonical = canonical_catalog(events)
+    CANONICAL_OUTPUT.write_text(json.dumps(canonical, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    candidates = mapping_candidates(events)
+    MAPPING_CANDIDATES.write_text(json.dumps(candidates, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     mapped = sum(1 for event in events if event.get("chineseName"))
-    print(json.dumps({"events": len(events), "mappedChineseNames": mapped}, ensure_ascii=False))
+    print(json.dumps({"events": len(events), "canonicalEvents": len(canonical), "mappedChineseNames": mapped, "mappingCandidates": len(candidates)}, ensure_ascii=False))
     return 0
 
 

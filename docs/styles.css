@@ -534,6 +534,80 @@ select:focus-visible {
   border-color: var(--accent);
 }
 
+.same-name-warning {
+  display: inline-flex;
+  margin-left: 0.45rem;
+  color: #9a5b12;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.domestic-chip {
+  color: #7a4c15;
+  background: #fff4dc;
+  border-color: #e6c98f;
+}
+
+.identity-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin: 1.25rem 0 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--line);
+}
+
+.identity-panel > div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem;
+  background: var(--panel);
+}
+
+.identity-panel span,
+.sighting-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.identity-panel.needs-review {
+  border-color: #e6c98f;
+}
+
+.identity-note {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.sighting-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.sighting-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.sighting-card > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.sighting-card a {
+  flex: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+}
+
 .detail-pane {
   align-self: stretch;
   min-width: 0;
