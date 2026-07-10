@@ -641,7 +641,18 @@ select:focus-visible {
 .icon-link svg { display: block; }
 
 /* --- community credits --------------------------------------------------- */
-.credits-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.credits-list { display: grid; gap: 10px; }
+.credit-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.credit-howto {
+  padding: 10px 12px;
+  color: var(--muted, #64748b);
+  font-size: 12.5px;
+  line-height: 1.7;
+  background: rgba(240, 247, 255, 0.6);
+  border: 1px dashed rgba(0, 102, 204, 0.25);
+  border-radius: 10px;
+}
+.credit-howto a { color: var(--accent-strong, #0866c6); font-weight: 650; }
 .credit-chip {
   display: inline-flex;
   align-items: center;
