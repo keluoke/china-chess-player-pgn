@@ -70,6 +70,8 @@ let eventCatalog = null;
 let eventCatalogRequest = null;
 const eventDetailCache = new Map();
 const eventDetailRequests = new Map();
+const domesticDetailCache = new Map();
+const domesticShardRequests = new Map();
 const PGN_VIEWER_CACHE_MAX_ENTRIES = 3;
 const PGN_VIEWER_CACHE_MAX_BYTES = 48 * 1024 * 1024;
 let activeLichessViewer = null;
@@ -104,7 +106,7 @@ async function loadData() {
       fetchJSON("./data/index/by-player/manifest.json", false),
       fetchJSON("./data/index/by-player/players.json", false),
       fetchJSON("./data/registry/domestic/manifest.json", false),
-      fetchJSON("./data/registry/domestic/players.json", false)
+      fetchJSON("./data/registry/domestic/search-index.json", false)
     ]);
     return {
       ...youth,
@@ -341,7 +343,9 @@ function renderDashboard() {
   const community = dash?.community ?? {};
   const cards = [
     { label: "FIDE 注册棋手", value: totals.players },
-    { label: "无 FIDE 国内棋手", value: totals.domesticPlayers },
+    { label: "无 FIDE 姓名池", value: totals.domesticUniqueNames },
+    { label: "无 FIDE 临时实体", value: totals.domesticPlayers },
+    { label: "无 FIDE 赛事观察", value: totals.domesticSightings },
     { label: "可搜索棋手实体", value: totals.searchablePlayers ?? players.length },
     { label: "中文名覆盖", value: totals.withChineseName },
     { label: "收录棋局", value: totals.games },
@@ -636,6 +640,13 @@ function renderDetail() {
 }
 
 function renderDomesticPlayerDetail(player) {
+  const cachedDetail = domesticDetailCache.get(player.domesticID);
+  if (!player.sightings && cachedDetail) Object.assign(player, cachedDetail);
+  if (!player.sightings && player.detailPath) {
+    requestDomesticPlayerDetail(player);
+    els.detailPane.innerHTML = `<div class="event-loading">正在载入该棋手的赛事证据…</div>`;
+    return;
+  }
   const confidence = player.confidence ?? {};
   const sightings = player.sightings ?? [];
   const confidenceLabel = confidence.level === "high" ? "高" : confidence.level === "medium" ? "中" : "低";
@@ -668,6 +679,25 @@ function renderDomesticPlayerDetail(player) {
         </article>`).join("")}</div>` : `<div class="empty-state compact">暂无赛事证据。</div>`}
     </section>
   `;
+}
+
+function requestDomesticPlayerDetail(player) {
+  const path = player?.detailPath;
+  if (!path || domesticShardRequests.has(path)) return;
+  const request = fetchJSON(`./${path}`, true)
+    .then(rows => {
+      (rows ?? []).forEach(row => domesticDetailCache.set(row.domesticID, row));
+      const detail = domesticDetailCache.get(player.domesticID);
+      if (detail) Object.assign(player, detail);
+      if (state.selectedFideID === playerKey(player)) renderDetail();
+    })
+    .catch(error => {
+      if (state.selectedFideID === playerKey(player)) {
+        els.detailPane.innerHTML = `<div class="event-empty">赛事证据载入失败：${escapeHTML(error.message)}</div>`;
+      }
+    })
+    .finally(() => domesticShardRequests.delete(path));
+  domesticShardRequests.set(path, request);
 }
 
 function renderEvent() {

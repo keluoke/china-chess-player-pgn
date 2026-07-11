@@ -116,6 +116,8 @@ def main() -> int:
         "totals": {
             "players": registry.get("players"),
             "domesticPlayers": domestic.get("unlinked"),
+            "domesticUniqueNames": domestic.get("uniqueNameCount"),
+            "domesticSightings": domestic.get("sightings"),
             "searchablePlayers": (registry.get("players") or 0) + (domestic.get("unlinked") or 0),
             "domesticIdentityReview": domestic.get("lowConfidence"),
             "withChineseName": registry.get("withChineseName"),

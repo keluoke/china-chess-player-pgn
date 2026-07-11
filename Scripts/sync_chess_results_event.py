@@ -309,7 +309,11 @@ def main() -> int:
         stats.append({"tournamentID": tid, "players": len(payload.get("players", [])), "rounds": len(payload.get("rounds", [])), "standings": len(payload.get("standings", []))})
 
     if not args.dry_run and not args.no_players:
-        command = [sys.executable, "Scripts/sync_chess_results_starting_rank_aliases.py"]
+        command = [
+            sys.executable,
+            "Scripts/sync_chess_results_starting_rank_aliases.py",
+            "--only-explicit",
+        ]
         for tid in ids:
             command.extend(["--tournament-id", tid])
         run_command(command)
