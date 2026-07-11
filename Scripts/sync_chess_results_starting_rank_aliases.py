@@ -38,6 +38,11 @@ from typing import Any
 
 from apply_aliases_to_registry import sanitize_person_name
 
+try:
+    from pypinyin import lazy_pinyin
+except ImportError:  # Local refresh installs it; CI remains network-free.
+    lazy_pinyin = None
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE_CSV = REPO_ROOT / "data" / "manual" / "chess-results-starting-rank-sources.csv"
@@ -83,6 +88,13 @@ SIGHTING_FIELDS = [
     "source_url",
     "notes",
 ]
+
+
+def chinese_name_pinyin(value: str) -> str:
+    """Return a persisted search alias; never use it for identity matching."""
+    if lazy_pinyin is None or not value or not re.search(r"[\u4e00-\u9fff]", value):
+        return ""
+    return " ".join(part.lower() for part in lazy_pinyin(value) if part).strip()
 
 
 @dataclass(frozen=True)
@@ -469,7 +481,7 @@ def update_aliases(path: pathlib.Path, rows: list[StartingRankRow], dry_run: boo
             by_fide[source_row.fide_id] = {
                 "fide_id": source_row.fide_id,
                 "chinese_name": source_row.chinese_name,
-                "pinyin_name": "",
+                "pinyin_name": chinese_name_pinyin(source_row.chinese_name),
                 "aliases": "|".join(aliases),
                 "source": SOURCE_NAME,
                 "confidence": "derived",
@@ -547,7 +559,7 @@ def update_domestic_sightings(path: pathlib.Path, rows: list[StartingRankRow], d
             "age_stage": age_stage_from_event(row.event_name),
             "player_name": row.name,
             "chinese_name": row.chinese_name,
-            "pinyin_name": "",
+            "pinyin_name": chinese_name_pinyin(row.chinese_name or row.name),
             "sex": row.sex,
             "birth_year": "",
             "province": "",
