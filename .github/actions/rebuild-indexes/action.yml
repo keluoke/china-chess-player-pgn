@@ -41,6 +41,12 @@ runs:
         # By-player aggregate packs consumed directly by the web frontend.
         python3 Scripts/build_static_player_pgn.py
 
+        # Full domestic event details: final standings, every-round pairings,
+        # and links from pairings back to locally archived PGNs.
+        if [ -f Scripts/build_event_details.py ]; then
+          python3 Scripts/build_event_details.py
+        fi
+
         # First-class event catalog: joins crawler catalog, archived PGN
         # coverage, and reviewed Chinese display-name mappings.
         if [ -f Scripts/build_event_catalog.py ]; then

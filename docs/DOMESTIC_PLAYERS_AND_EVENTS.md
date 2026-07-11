@@ -29,6 +29,14 @@
 
 ## 轮次成绩与国内外覆盖
 
+维护者拿到一个 Chess-Results 链接后，在本地住宅网络运行：
+
+```bash
+python3 Scripts/sync_chess_results_event.py 'https://chess-results.com/tnr1429695.aspx?lan=1'
+```
+
+也可以直接粘贴 `tnr1429695` 或纯数字 ID。命令会抓取起始名单、棋手中文名、最终排名和所有轮次对阵，并调用既有 PGN/棋手索引重建流程；原始抓取结果写入 `data/generated/chess-results-event-details/`。抓取必须在本地完成，GitHub Actions 只根据已提交数据离线生成赛事详情页，绝不回抓 Chess-Results。
+
 纯国内赛事可把每轮比分、累计分和轮后名次写入 `data/manual/domestic-event-round-results.csv`。棋局仍以 PGN 为事实表，轮次成绩表用于 standings 快照；两者通过 `canonical_event_id + section_id + round + player_ref` 关联。
 
 赛事页应明确覆盖口径：
