@@ -284,14 +284,18 @@ case "$command" in
     ;;
 
   events)
+    ensure_pymod pypinyin
     py Scripts/sync_chess_results_starting_rank_aliases.py --delay 1.0
+    py Scripts/backfill_domestic_pinyin.py
     py Scripts/sync_chinese_players.py || py Scripts/apply_aliases_to_registry.py
     py Scripts/fetch_event_pgn.py --workers 3 --category li-chengzhi ${EXTRA[@]+"${EXTRA[@]}"}
     commit_and_push "Ingest event archive names and PGN (local)" data/manual data/generated docs/data
     ;;
 
   aliases)
+    ensure_pymod pypinyin
     py Scripts/sync_chess_results_starting_rank_aliases.py ${EXTRA[@]+"${EXTRA[@]}"}
+    py Scripts/backfill_domestic_pinyin.py
     py Scripts/sync_chinese_players.py || py Scripts/apply_aliases_to_registry.py
     commit_and_push "Update Chinese name aliases (local)" data/manual docs/data/registry
     ;;
