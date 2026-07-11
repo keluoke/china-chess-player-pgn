@@ -76,6 +76,7 @@ class PlayerGame:
     black: str
     result: str
     source: str
+    round: str = ""
     stage: str = ""
     natural_stage: str = ""
     event_stage: str = ""
@@ -97,6 +98,7 @@ class PlayerGame:
                 "black": self.black,
                 "result": self.result,
                 "source": self.source,
+                "round": self.round,
                 "stage": self.stage,
                 "naturalStage": self.natural_stage,
                 "eventStage": self.event_stage,
@@ -190,6 +192,7 @@ def ingest_static_event_pgns(
                     black=headers.get("Black", ""),
                     result=headers.get("Result", ""),
                     source=clean(event.get("source")) or "Static PGN",
+                    round=clean(headers.get("Round")),
                     stage=natural_stage or entered_stage,
                     natural_stage=natural_stage,
                     event_stage=entered_stage,
@@ -254,6 +257,7 @@ def ingest_bulk_youth_pgns(
                 black=headers.get("Black") or clean(entry.get("black")),
                 result=headers.get("Result") or clean(entry.get("result")),
                 source=clean(entry.get("source")) or "Lichess Broadcasts",
+                round=clean(headers.get("Round")),
                 stage=stage_id,
                 natural_stage=stage_id,
                 event_stage=event_stage_from_name(event_name),

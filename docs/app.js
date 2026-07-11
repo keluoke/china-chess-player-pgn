@@ -4,6 +4,8 @@ const state = {
   activeStage: "TOTAL",
   selectedFideID: null,
   selectedEventID: null,
+  selectedEventRound: null,
+  eventFocus: null,
   downloadStatus: "",
   query: "",
   viewer: {
@@ -12,6 +14,8 @@ const state = {
     packageId: "",
     packageLabel: "",
     packageGameCount: 0,
+    focusRound: "",
+    focusApplied: false,
     visible: false,
     status: "idle",
     gameIndex: 0,
@@ -64,6 +68,8 @@ const pgnViewerCache = new Map();
 const pgnViewerRequests = new Map();
 let eventCatalog = null;
 let eventCatalogRequest = null;
+const eventDetailCache = new Map();
+const eventDetailRequests = new Map();
 const PGN_VIEWER_CACHE_MAX_ENTRIES = 3;
 const PGN_VIEWER_CACHE_MAX_BYTES = 48 * 1024 * 1024;
 let activeLichessViewer = null;
@@ -234,6 +240,7 @@ function isDomesticPlayer(player) {
 function initialize() {
   const routedFideID = initialSelectedPlayerID();
   const routedEventID = initialSelectedEventID();
+  state.eventFocus = initialEventFocus();
   state.selectedFideID = players.some(player => playerKey(player) === routedFideID)
     ? routedFideID
     : null;
@@ -254,6 +261,20 @@ function initialize() {
       event.preventDefault();
       selectPlayer(playerLink.dataset.fide);
     }
+    const focusedPlayer = event.target.closest('[data-action="select-event-player"]');
+    if (focusedPlayer) {
+      event.preventDefault();
+      selectPlayer(focusedPlayer.dataset.fide, {
+        eventID: focusedPlayer.dataset.eventFocus,
+        tournamentID: focusedPlayer.dataset.tournamentId,
+        round: focusedPlayer.dataset.round || ""
+      });
+    }
+    const roundButton = event.target.closest("[data-event-round]");
+    if (roundButton) {
+      state.selectedEventRound = Number(roundButton.dataset.eventRound);
+      renderEvent();
+    }
     const eventLink = event.target.closest('[data-action="select-event"]');
     if (eventLink) {
       event.preventDefault();
@@ -271,9 +292,31 @@ function initialize() {
       event.preventDefault();
       selectPlayer(playerLink.dataset.fide);
     }
+    const focusedPlayer = event.target.closest('[data-action="select-event-player"]');
+    if (focusedPlayer) {
+      event.preventDefault();
+      selectPlayer(focusedPlayer.dataset.fide, {
+        eventID: focusedPlayer.dataset.eventFocus,
+        tournamentID: focusedPlayer.dataset.tournamentId,
+        round: focusedPlayer.dataset.round || ""
+      });
+      return;
+    }
+    const roundButton = event.target.closest("[data-event-round]");
+    if (roundButton) {
+      state.selectedEventRound = Number(roundButton.dataset.eventRound);
+      renderEvent();
+      return;
+    }
+    const eventLink = event.target.closest('[data-action="select-event"]');
+    if (eventLink) {
+      event.preventDefault();
+      selectEvent(eventLink.dataset.eventId);
+    }
   });
   window.addEventListener("popstate", () => {
     const fideID = initialSelectedPlayerID();
+    state.eventFocus = initialEventFocus();
     state.selectedFideID = players.some(player => playerKey(player) === fideID) ? fideID : null;
     state.selectedEventID = state.selectedFideID ? null : initialSelectedEventID();
     render();
@@ -547,6 +590,7 @@ function renderDetail() {
   const stage = stageForPlayer(player);
   const note = stage ? liChengzhiNote(player, stage.id) : null;
   const staticInfo = staticPlayerInfo(player);
+  if (staticInfo) ensureFocusedEventViewer(player, staticInfo);
   const staticGames = staticInfo?.gameCount ?? 0;
   if (!staticGames) requestBulkPlayerDetail(player);
   const bulkInfo = bulkPlayerCache.get(String(player.fideID));
@@ -653,8 +697,10 @@ function renderEvent() {
     .filter(Boolean);
   const visiblePlayers = eventPlayers.slice(0, 24);
   const extraPlayers = Math.max(0, eventPlayers.length - visiblePlayers.length);
+  const eventDetail = eventDetailCache.get(String(event.tournamentID ?? ""));
+  if (event.detailPath && !eventDetail) requestEventDetail(event);
   const participantTotal = Number(event.participants);
-  const coverageLabel = Number.isFinite(participantTotal) && participantTotal > 0 && participantTotal === Number(event.playerCount)
+  const coverageLabel = eventDetail || event.coverageScope === "domestic-full"
     ? "完整赛事覆盖"
     : "仅展示已收录中国棋手";
   const facts = [
@@ -683,14 +729,70 @@ function renderEvent() {
       ${facts.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(String(value))}</strong></div>`).join("")}
     </div>
     <section class="event-roster">
-      <div class="section-heading"><h3>参赛中国棋手</h3><span>${eventPlayers.length ? `${eventPlayers.length} 名可跳转` : "名单待同步"}</span></div>
+      <div class="section-heading"><h3>${eventDetail ? "已收录 FIDE 棋手" : "参赛中国棋手"}</h3><span>${eventPlayers.length ? `${eventPlayers.length} 名可跳转` : "名单待同步"}</span></div>
       ${visiblePlayers.length ? `<div class="event-player-grid">${visiblePlayers.map(player => `
-        <button class="event-player" type="button" data-action="select-player" data-fide="${escapeAttribute(player.fideID)}">
+        <button class="event-player" type="button" data-action="select-event-player" data-fide="${escapeAttribute(player.fideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}">
           <strong>${escapeHTML(displayName(player))}</strong><span>FIDE ${escapeHTML(player.fideID)}</span>
         </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手；完整名单见信源赛事页。</p>` : ""}` : `<div class="empty-state compact">该赛事已有赛事记录，但棋手名单尚未同步。</div>`}
     </section>
+    ${eventDetail ? domesticEventData(event, eventDetail) : event.detailPath ? `<div class="event-loading">正在载入逐轮成绩与最终排名…</div>` : ""}
     <p class="event-provenance">${event.canonicalEventID ? `Canonical ID：${escapeHTML(event.canonicalEventID)} · ` : ""}信源 ID：${escapeHTML(event.tournamentID ?? event.id)}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
   `;
+}
+
+function requestEventDetail(event) {
+  const tournamentID = String(event?.tournamentID ?? "");
+  if (!tournamentID || !event.detailPath || eventDetailCache.has(tournamentID) || eventDetailRequests.has(tournamentID)) return;
+  const request = fetchJSON(`./${event.detailPath}`, true)
+    .then(detail => {
+      eventDetailCache.set(tournamentID, detail);
+      if (state.selectedEventID === event.id) renderEvent();
+    })
+    .catch(error => {
+      eventDetailCache.set(tournamentID, { error: error.message, standings: [], rounds: [] });
+      if (state.selectedEventID === event.id) renderEvent();
+    })
+    .finally(() => eventDetailRequests.delete(tournamentID));
+  eventDetailRequests.set(tournamentID, request);
+}
+
+function domesticEventData(event, detail) {
+  if (detail.error) return `<div class="event-empty">逐轮成绩载入失败：${escapeHTML(detail.error)}</div>`;
+  const rounds = detail.rounds ?? [];
+  const selectedRound = rounds.find(item => Number(item.round) === Number(state.selectedEventRound)) ?? rounds[rounds.length - 1];
+  if (selectedRound && state.selectedEventRound == null) state.selectedEventRound = Number(selectedRound.round);
+  const standings = detail.standings ?? [];
+  return `
+    <section class="event-results-section">
+      <div class="section-heading"><h3>逐轮对阵结果</h3><span>${rounds.length} 轮</span></div>
+      <div class="event-round-tabs" role="tablist" aria-label="赛事轮次">
+        ${rounds.map(item => `<button type="button" data-event-round="${escapeAttribute(item.round)}" aria-selected="${Number(item.round) === Number(selectedRound?.round)}">第 ${escapeHTML(item.round)} 轮</button>`).join("")}
+      </div>
+      ${selectedRound ? `<div class="pairing-list">${(selectedRound.pairings ?? []).map(pairing => pairingRow(event, selectedRound.round, pairing)).join("") || `<div class="empty-state compact">该轮暂无对阵数据。</div>`}</div>` : `<div class="empty-state compact">暂无逐轮数据。</div>`}
+    </section>
+    <section class="event-results-section">
+      <div class="section-heading"><h3>最终成绩排行</h3><span>${standings.length} 名</span></div>
+      <div class="standings-table-wrap"><table class="standings-table"><thead><tr><th>名次</th><th>棋手</th><th>FIDE ID</th><th>等级分</th><th>得分</th><th>单位</th></tr></thead><tbody>
+        ${standings.map(row => `<tr><td>${escapeHTML(row.rank ?? "-")}</td><td>${eventSideControl(event, row, "")}</td><td>${escapeHTML(row.fideID || "无FIDE")}</td><td>${escapeHTML(row.rating || "-")}</td><td><strong>${escapeHTML(row.score || "-")}</strong></td><td>${escapeHTML(row.club || "-")}</td></tr>`).join("")}
+      </tbody></table></div>
+    </section>`;
+}
+
+function pairingRow(event, round, pairing) {
+  const localGame = pairing.localGame;
+  const focusFideID = localGame?.playerFideIDs?.[0] || pairing.white?.fideID || pairing.black?.fideID || "";
+  const pgnAction = localGame && focusFideID
+    ? `<button type="button" class="pairing-pgn available" data-action="select-event-player" data-fide="${escapeAttribute(focusFideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}" data-round="${escapeAttribute(round)}">● 本库 PGN</button>`
+    : pairing.pgnURL
+    ? `<a class="pairing-pgn external" href="${escapeAttribute(pairing.pgnURL)}" target="_blank" rel="noreferrer">PGN ↗</a>`
+    : `<span class="pairing-pgn missing">无 PGN</span>`;
+  return `<article class="pairing-row"><span class="pairing-board">${escapeHTML(pairing.board || "-")}</span><div>${eventSideControl(event, pairing.white ?? {}, round)}</div><strong class="pairing-result">${escapeHTML(pairing.result || "*")}</strong><div>${eventSideControl(event, pairing.black ?? {}, round)}</div>${pgnAction}</article>`;
+}
+
+function eventSideControl(event, side, round) {
+  const label = side.chineseName && side.name && side.chineseName !== side.name ? `${side.chineseName} · ${side.name}` : side.chineseName || side.name || "轮空";
+  if (!side.fideID) return `<span class="event-side-name">${escapeHTML(label)}<small>[无FIDE]</small></span>`;
+  return `<button type="button" class="event-side-name link" data-action="select-event-player" data-fide="${escapeAttribute(side.fideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}" data-round="${escapeAttribute(round)}">${escapeHTML(label)}<small>FIDE ${escapeHTML(side.fideID)}</small></button>`;
 }
 
 function requestEventCatalog() {
@@ -780,6 +882,7 @@ function staticPlayerInfo(player) {
       pgnPath: allPackage?.pgnPath,
       packages: detail.packages ?? [],
       events: detail.events ?? [],
+      games: detail.games ?? [],
       stages: detail.totals?.stages ?? {},
       sources: allPackage?.sources ?? detail.sources ?? []
     };
@@ -801,6 +904,7 @@ function staticPlayerInfo(player) {
         }
       ],
       events: player.events ?? [],
+      games: player.games ?? [],
       stages: player.stages ?? {},
       sources: player.sources ?? []
     };
@@ -950,6 +1054,8 @@ function requestPGNViewer(player, info) {
       status: getCachedPGNViewerPackage(pgnPath) ? "loaded" : "idle",
       visible: true,
       gameIndex: 0,
+      focusRound: info.focusRound ?? state.viewer.focusRound ?? "",
+      focusApplied: false,
       orientation: "",
       error: "",
       autoplay: false
@@ -959,6 +1065,10 @@ function requestPGNViewer(player, info) {
   const cached = getCachedPGNViewerPackage(pgnPath);
   if (cached) {
     state.viewer.status = "loaded";
+    if (state.viewer.focusRound && !state.viewer.focusApplied) {
+      state.viewer.gameIndex = focusedGameIndex(cached.games, state.viewer.focusRound);
+      state.viewer.focusApplied = true;
+    }
     state.viewer.gameIndex = clampInt(state.viewer.gameIndex, 0, Math.max(cached.games.length - 1, 0));
     const game = cached.games[state.viewer.gameIndex];
     state.viewer.orientation = state.viewer.orientation || preferredBoardOrientation(player, game);
@@ -993,8 +1103,9 @@ function requestPGNViewer(player, info) {
       });
       if (state.selectedFideID === fideID && state.viewer.pgnPath === pgnPath) {
         state.viewer.status = "loaded";
-        state.viewer.gameIndex = 0;
-        state.viewer.orientation = preferredBoardOrientation(player, games[0]);
+        state.viewer.gameIndex = state.viewer.focusRound ? focusedGameIndex(games, state.viewer.focusRound) : 0;
+        state.viewer.focusApplied = true;
+        state.viewer.orientation = preferredBoardOrientation(player, games[state.viewer.gameIndex]);
         renderDetail();
       }
     })
@@ -1010,6 +1121,39 @@ function requestPGNViewer(player, info) {
     });
 
   pgnViewerRequests.set(pgnPath, request);
+}
+
+function focusedGameIndex(games, round) {
+  const wanted = String(round ?? "").split(".")[0];
+  const index = games.findIndex(game => String(game.headers?.Round ?? "").split(".")[0] === wanted);
+  return index >= 0 ? index : 0;
+}
+
+function ensureFocusedEventViewer(player, info) {
+  const focus = state.eventFocus;
+  if (!focus?.tournamentID || !info?.games?.length) return;
+  const games = info.games.filter(game => String(game.tournamentID ?? "") === String(focus.tournamentID));
+  const focused = games.find(game => !focus.round || String(game.round ?? "").split(".")[0] === String(focus.round).split(".")[0]) ?? games[0];
+  if (!focused?.sourcePgnPath) return;
+  const alreadyFocused = state.viewer.visible
+    && state.viewer.pgnPath === focused.sourcePgnPath
+    && String(state.viewer.focusRound ?? "") === String(focus.round ?? "");
+  if (alreadyFocused) return;
+  state.viewer = {
+    fideID: String(player.fideID),
+    pgnPath: focused.sourcePgnPath,
+    packageId: `event-${focus.tournamentID}`,
+    packageLabel: `本赛事${focus.round ? `第 ${focus.round} 轮` : ""}`,
+    packageGameCount: games.length,
+    focusRound: focus.round ?? "",
+    focusApplied: false,
+    visible: true,
+    status: getCachedPGNViewerPackage(focused.sourcePgnPath) ? "loaded" : "idle",
+    gameIndex: 0,
+    orientation: "",
+    error: "",
+    autoplay: false
+  };
 }
 
 function getCachedPGNViewerPackage(pgnPath) {
@@ -1320,6 +1464,8 @@ function selectPGNPackage(player, item) {
     packageId: item.id ?? "",
     packageLabel: packageShortLabel(item),
     packageGameCount: Number(item.gameCount ?? 0),
+    focusRound: "",
+    focusApplied: true,
     visible: true,
     status: getCachedPGNViewerPackage(item.pgnPath) ? "loaded" : "idle",
     gameIndex: 0,
@@ -1381,6 +1527,8 @@ function resetPGNViewer(fideID) {
     packageId: "",
     packageLabel: "",
     packageGameCount: 0,
+    focusRound: "",
+    focusApplied: false,
     visible: false,
     status: "idle",
     gameIndex: 0,
@@ -1390,13 +1538,14 @@ function resetPGNViewer(fideID) {
   };
 }
 
-function selectPlayer(playerID) {
+function selectPlayer(playerID, eventFocus = null) {
   if (state.selectedFideID !== playerID) resetPGNViewer(playerID);
   state.selectedFideID = playerID;
   state.selectedEventID = null;
+  state.eventFocus = eventFocus;
   state.downloadStatus = "";
   const player = players.find(item => playerKey(item) === playerID);
-  updateRoute(player?.fideID ? { fideID: player.fideID } : { playerID });
+  updateRoute(player?.fideID ? { fideID: player.fideID, eventFocus } : { playerID });
   if (state.query) {
     state.query = "";
     if (els.searchInput) els.searchInput.value = "";
@@ -1419,7 +1568,18 @@ function initialSelectedEventID() {
   return String(params.get("event") || "");
 }
 
-function updateRoute({ fideID = null, playerID = null, eventID = null }) {
+function initialEventFocus() {
+  const params = new URLSearchParams(window.location.search);
+  const tournamentID = String(params.get("eventFocus") || "").replace(/\D/g, "");
+  if (!tournamentID) return null;
+  return {
+    eventID: `chess-results:${tournamentID}`,
+    tournamentID,
+    round: String(params.get("round") || "").replace(/[^0-9.]/g, "")
+  };
+}
+
+function updateRoute({ fideID = null, playerID = null, eventID = null, eventFocus = null }) {
   if (!window.history?.replaceState) return;
   const url = new URL(window.location.href);
   if (fideID) url.searchParams.set("fideID", fideID);
@@ -1428,6 +1588,14 @@ function updateRoute({ fideID = null, playerID = null, eventID = null }) {
   else url.searchParams.delete("player");
   if (eventID) url.searchParams.set("event", eventID);
   else url.searchParams.delete("event");
+  if (eventFocus?.tournamentID) {
+    url.searchParams.set("eventFocus", eventFocus.tournamentID);
+    if (eventFocus.round) url.searchParams.set("round", eventFocus.round);
+    else url.searchParams.delete("round");
+  } else {
+    url.searchParams.delete("eventFocus");
+    url.searchParams.delete("round");
+  }
   window.history.replaceState(null, "", url);
 }
 
@@ -1436,6 +1604,8 @@ function selectEvent(eventID) {
   resetPGNViewer(null);
   state.selectedFideID = null;
   state.selectedEventID = eventID;
+  state.selectedEventRound = null;
+  state.eventFocus = null;
   state.downloadStatus = "";
   updateRoute({ eventID });
   if (state.query) {
@@ -1451,6 +1621,8 @@ function selectEvent(eventID) {
 function clearSelection() {
   state.selectedFideID = null;
   state.selectedEventID = null;
+  state.selectedEventRound = null;
+  state.eventFocus = null;
   state.downloadStatus = "";
   updateRoute({});
   renderDetail();
