@@ -36,6 +36,8 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Any
 
+from apply_aliases_to_registry import sanitize_person_name
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE_CSV = REPO_ROOT / "data" / "manual" / "chess-results-starting-rank-sources.csv"
@@ -180,6 +182,11 @@ def main() -> int:
     parser.add_argument("--domestic-sightings", type=pathlib.Path, default=SIGHTINGS_CSV)
     parser.add_argument("--url", action="append", default=[], help="extra Chess-Results starting-rank URL")
     parser.add_argument("--tournament-id", action="append", default=[], help="extra Chess-Results tournament ID")
+    parser.add_argument(
+        "--only-explicit",
+        action="store_true",
+        help="skip the source CSV and fetch only --url/--tournament-id targets",
+    )
     parser.add_argument("--include-non-master", action="store_true", help="accept pages whose title is not a master tournament")
     parser.add_argument("--no-discover-linked-groups", action="store_true", help="do not follow linked group starting-rank pages")
     parser.add_argument("--neighbor-window", type=int, default=0, help="probe tournament IDs around every source ID")
@@ -189,7 +196,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    sources = load_sources(args.sources)
+    sources = [] if args.only_explicit else load_sources(args.sources)
     sources.extend(SourcePage(tournament_id_from_url(url) or "", normalize_starting_rank_url(url)) for url in args.url)
     sources.extend(SourcePage(tournament_id=tid, url=url_for_tournament(tid)) for tid in args.tournament_id)
     if args.neighbor_window > 0:
@@ -368,17 +375,38 @@ def parse_starting_rank_rows(document: ChessResultsHTMLParser, url: str) -> list
         if header_index is None:
             continue
         columns = {normalize_header(name): index for index, name in enumerate(header)}
+        group_name_counts: dict[str, int] = {}
+        typ_name_counts: dict[str, int] = {}
+        for raw in table[header_index + 1 :]:
+            row = padded_row(raw, len(header))
+            value = sanitize_person_name(field(row, columns, "gr", "group"))
+            if value:
+                group_name_counts[value] = group_name_counts.get(value, 0) + 1
+            typ_value = sanitize_person_name(field(row, columns, "typ", "type"))
+            if typ_value:
+                typ_name_counts[typ_value] = typ_name_counts.get(typ_value, 0) + 1
         for raw in table[header_index + 1 :]:
             if len(raw) < 3:
                 continue
             row = padded_row(raw, len(header))
             name = clean_name_cell(field(row, columns, "name", "playername"))
-            typ_name = clean_name_cell(field(row, columns, "typ", "type"))
-            if has_cjk(typ_name):
+            typ_name = sanitize_person_name(field(row, columns, "typ", "type"))
+            if is_non_person_label(typ_name) or typ_name_counts.get(typ_name, 0) >= 3:
+                typ_name = ""
+            group_name = sanitize_person_name(field(row, columns, "gr", "group"))
+            if is_non_person_label(group_name) or group_name_counts.get(group_name, 0) >= 3:
+                group_name = ""
+            name_as_chinese = sanitize_person_name(name)
+            if typ_name:
                 chinese_name = typ_name
                 chinese_name_source = "Typ"
-            elif has_cjk(name):
-                chinese_name = name
+            elif group_name:
+                # Many recent Chess-Results templates put the Chinese
+                # registration name in Swiss-Manager's Gr column.
+                chinese_name = group_name
+                chinese_name_source = "Gr"
+            elif name_as_chinese:
+                chinese_name = name_as_chinese
                 chinese_name_source = "Name"
             else:
                 chinese_name = ""
@@ -411,7 +439,7 @@ def parse_starting_rank_rows(document: ChessResultsHTMLParser, url: str) -> list
 def starting_rank_header(table: list[list[str]]) -> tuple[int | None, list[str]]:
     for index, row in enumerate(table[:5]):
         normalized = [normalize_header(cell) for cell in row]
-        if "name" in normalized and ({"typ", "type", "clubcity", "club"} & set(normalized)):
+        if "name" in normalized and ({"typ", "type", "gr", "clubcity", "club"} & set(normalized)):
             return index, row
     return None, []
 
@@ -495,48 +523,78 @@ def update_aliases(path: pathlib.Path, rows: list[StartingRankRow], dry_run: boo
 
 
 def update_domestic_sightings(path: pathlib.Path, rows: list[StartingRankRow], dry_run: bool) -> dict[str, int]:
-    existing = read_csv_rows(path, SIGHTING_FIELDS)
-    preserved = [row for row in existing if clean(row.get("source")) != SOURCE_NAME]
-    seen = {clean(row.get("sighting_id")) for row in preserved if clean(row.get("sighting_id"))}
+    all_existing = read_csv_rows(path, SIGHTING_FIELDS)
+    existing = [row for row in all_existing if not invalid_scraped_sighting(row)]
+    invalid_removed = len(all_existing) - len(existing)
+    # Sightings are immutable evidence. Never rebuild this file from only the
+    # pages that happened to succeed in the current network run: doing so made
+    # a partial refresh silently delete every previously discovered player.
+    # New observations are appended idempotently by their stable sighting ID.
+    seen = {clean(row.get("sighting_id")) for row in existing if clean(row.get("sighting_id"))}
+    seen_observations = {domestic_observation_key(row) for row in existing}
     additions: list[dict[str, str]] = []
     for row in rows:
         if row.fide_id:
             continue
         sighting_id = domestic_sighting_id(row)
-        if sighting_id in seen:
+        candidate = {
+            "sighting_id": sighting_id,
+            "source": SOURCE_NAME,
+            "event_id": f"chess-results-tnr{row.tournament_id}",
+            "event_name": row.event_name,
+            "event_date": "",
+            "group": group_name(row),
+            "age_stage": age_stage_from_event(row.event_name),
+            "player_name": row.name,
+            "chinese_name": row.chinese_name,
+            "pinyin_name": "",
+            "sex": row.sex,
+            "birth_year": "",
+            "province": "",
+            "club": row.club,
+            "rank": "",
+            "score": "",
+            "source_player_no": row.player_no,
+            "source_url": row.url,
+            "notes": evidence_note(row),
+        }
+        observation_key = domestic_observation_key(candidate)
+        if sighting_id in seen or observation_key in seen_observations:
             continue
-        additions.append(
-            {
-                "sighting_id": sighting_id,
-                "source": SOURCE_NAME,
-                "event_id": f"chess-results-tnr{row.tournament_id}",
-                "event_name": row.event_name,
-                "event_date": "",
-                "group": group_name(row),
-                "age_stage": age_stage_from_event(row.event_name),
-                "player_name": row.name,
-                "chinese_name": row.chinese_name,
-                "pinyin_name": "",
-                "sex": row.sex,
-                "birth_year": "",
-                "province": "",
-                "club": row.club,
-                "rank": "",
-                "score": "",
-                "source_player_no": row.player_no,
-                "source_url": row.url,
-                "notes": evidence_note(row),
-            }
-        )
+        additions.append(candidate)
         seen.add(sighting_id)
+        seen_observations.add(observation_key)
 
     if not dry_run:
-        write_csv_rows(path, preserved + additions, SIGHTING_FIELDS)
+        write_csv_rows(path, existing + additions, SIGHTING_FIELDS)
 
     return {
         "domesticSightingsAdded": len(additions),
-        "domesticSightingsTotal": len(preserved) + len(additions),
+        "domesticSightingsTotal": len(existing) + len(additions),
+        "invalidDomesticSightingsRemoved": invalid_removed,
     }
+
+
+def domestic_observation_key(row: dict[str, Any]) -> tuple[str, str, str, str]:
+    """Semantic key stable across Chess-Results host/SNode URL redirects."""
+    return (
+        clean(row.get("source")).casefold(),
+        clean(row.get("event_id")).casefold(),
+        clean(row.get("source_player_no")),
+        clean(row.get("chinese_name") or row.get("player_name")).casefold(),
+    )
+
+
+def is_non_person_label(value: Any) -> bool:
+    text = clean(value)
+    return bool(re.search(r"(?:棋协|候补|大师|棋士|男子|女子|公开|一级|二级|三级|四级|混合|组)$", text))
+
+
+def invalid_scraped_sighting(row: dict[str, Any]) -> bool:
+    return (
+        clean(row.get("source")) == SOURCE_NAME
+        and is_non_person_label(row.get("chinese_name") or row.get("player_name"))
+    )
 
 
 def read_csv_rows(path: pathlib.Path, fields: list[str]) -> list[dict[str, str]]:
