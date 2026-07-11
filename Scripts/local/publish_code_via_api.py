@@ -152,9 +152,17 @@ class GitHub:
         data = self.request("GET", f"/contents/{encoded}?ref={ref}", missing_ok=True)
         if data is None:
             return None, None
-        if data.get("encoding") != "base64":
-            raise SystemExit(f"无法读取 {path}: GitHub contents API 未返回 base64")
-        return base64.b64decode(data["content"]), str(data.get("sha") or "")
+        blob_sha = str(data.get("sha") or "")
+        if data.get("encoding") == "base64":
+            return base64.b64decode(data["content"]), blob_sha
+        # The Contents API omits inline data for large files. Fetch the same
+        # immutable object through the Git Blobs API so large CSV/JSON sources
+        # can use the exact same merge and conflict checks as small files.
+        if blob_sha and data.get("type") == "file":
+            blob = self.request("GET", f"/git/blobs/{blob_sha}")
+            if blob.get("encoding") == "base64":
+                return base64.b64decode(blob["content"]), blob_sha
+        raise SystemExit(f"无法读取 {path}: GitHub API 未返回可解码的文件内容")
 
     def blob(self, content: bytes) -> str:
         data = self.request("POST", "/git/blobs", {
@@ -293,8 +301,9 @@ def main() -> int:
     if existing is not None and not args.update_existing:
         raise SystemExit(f"远端分支已存在，拒绝覆盖: {args.branch}")
     parent_sha = str(existing["object"]["sha"]) if existing is not None else target_sha
+    publish_base_tree = github.commit_tree(parent_sha) if existing is not None else target_tree
 
-    tree = github.request("POST", "/git/trees", {"base_tree": target_tree, "tree": entries})
+    tree = github.request("POST", "/git/trees", {"base_tree": publish_base_tree, "tree": entries})
     commit = github.request("POST", "/git/commits", {
         "message": args.message,
         "tree": tree["sha"],
