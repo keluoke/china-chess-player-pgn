@@ -9,6 +9,16 @@
 
 前端搜索使用 FIDE 注册表与国内实体的并集。无 FIDE 结果显示 `[无FIDE]`，每条结果固定展示 FIDE ID、等级分、出生年和 title；库内同名实体达到 3 个时显示警告。
 
+国内数据有三个不同口径，不能混称为“唯一棋手人数”：
+
+- `sightings`：赛事名单观察数；
+- `domesticPlayers`：未审核合并前的保守临时实体数；
+- `uniqueNameCount`：姓名池去重数，仅用于覆盖度展示，同名者仍可能是不同人。
+
+全量补录已整理来源时运行 `python3 Scripts/sync_chess_results_starting_rank_aliases.py`；粘贴单站 tnr 时由 `sync_chess_results_event.py` 使用 `--only-explicit`，只访问该赛事。自动 sightings 只追加、不因网络失败删除历史证据。完整证据按哈希分片，首页只加载轻量搜索索引。
+
+`identity-name-groups.json` 按同名观察生成审核分组，`fide-link-candidates.json` 生成注册表唯一精确同名候选；两者都只是审核队列，禁止自动写入 `player-identity-links.csv`。
+
 ## 棋协大师赛
 
 `data/community/master-tournament-groups.csv` 逐站、逐组登记 Chess-Results tnr。合法组别为 `OPEN`、`MEN_CANDIDATE`、`WOMEN_CANDIDATE`、`MEN_LEVEL_1`、`WOMEN_LEVEL_1`。每行同时保存轮次和晋级比例，默认比例为 `0.65`；因此 9 轮需要至少 6 分，少于 9 轮时直接按 `得分 / 实际轮次 >= 0.65` 计算，不使用固定 6 分。

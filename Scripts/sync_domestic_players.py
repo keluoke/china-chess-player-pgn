@@ -24,6 +24,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SIGHTINGS_CSV = REPO_ROOT / "data" / "manual" / "domestic-player-sightings.csv"
 LINKS_CSV = REPO_ROOT / "data" / "manual" / "player-identity-links.csv"
 OUTPUT_ROOT = REPO_ROOT / "docs" / "data" / "registry" / "domestic"
+FIDE_REGISTRY = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
 
 
 @dataclass
@@ -150,6 +151,7 @@ def main() -> int:
     parser.add_argument("--sightings", type=pathlib.Path, default=SIGHTINGS_CSV)
     parser.add_argument("--links", type=pathlib.Path, default=LINKS_CSV)
     parser.add_argument("--output-root", type=pathlib.Path, default=OUTPUT_ROOT)
+    parser.add_argument("--fide-registry", type=pathlib.Path, default=FIDE_REGISTRY)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -157,7 +159,9 @@ def main() -> int:
     links = read_links(args.links)
     players = build_players(sightings, links)
     assess_identity_confidence(players)
-    write_output(players, sightings, links, args.output_root, args.dry_run)
+    name_groups = build_identity_name_groups(players)
+    fide_candidates = build_fide_candidates(players, args.fide_registry)
+    write_output(players, sightings, links, name_groups, fide_candidates, args.output_root, args.dry_run)
 
     stats = {
         "sightings": len(sightings),
@@ -167,6 +171,9 @@ def main() -> int:
         "unlinked": sum(1 for player in players if not player.fide_id),
         "lowConfidence": sum(1 for player in players if player.confidence.get("reviewRequired")),
         "sameNameConflicts": sum(1 for player in players if player.confidence.get("sameNameConflictCount", 0)),
+        "uniqueNameCount": len({identity_name(player) for player in players if identity_name(player)}),
+        "sameNameGroups": len(name_groups),
+        "fideLinkCandidates": len(fide_candidates),
     }
     print(json.dumps(stats, ensure_ascii=False, indent=2))
     return 0
@@ -366,6 +373,75 @@ def age_stage_continuity(sightings: list[Sighting]) -> str:
     return "consistent" if all(current >= previous for previous, current in zip(stages, stages[1:])) else "conflict"
 
 
+def build_identity_name_groups(players: list[DomesticPlayer]) -> list[dict[str, Any]]:
+    grouped: dict[str, list[DomesticPlayer]] = {}
+    for player in players:
+        key = identity_name(player)
+        if key:
+            grouped.setdefault(key, []).append(player)
+    result: list[dict[str, Any]] = []
+    for key, members in grouped.items():
+        if len(members) < 2:
+            continue
+        result.append({
+            "normalizedName": key,
+            "displayName": members[0].display_name,
+            "provisionalEntityCount": len(members),
+            "domesticIDs": [member.domestic_id for member in members],
+            "eventIDs": sorted({s.event_id for member in members for s in member.sightings if s.event_id}),
+            "clubs": sorted({s.club for member in members for s in member.sightings if s.club}),
+            "ageStages": sorted({s.age_stage for member in members for s in member.sightings if s.age_stage}),
+            "reviewRequired": True,
+            "warning": "同名观察不得自动合并，需结合赛事、年龄段、俱乐部和后续 FIDE 证据人工复核",
+        })
+    result.sort(key=lambda row: (-row["provisionalEntityCount"], row["displayName"]))
+    return result
+
+
+def build_fide_candidates(players: list[DomesticPlayer], registry_path: pathlib.Path) -> list[dict[str, Any]]:
+    if not registry_path.exists():
+        return []
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    name_hits: dict[str, dict[str, str]] = {}
+    ambiguous: set[str] = set()
+    for fide_player in registry:
+        fide_id = clean(fide_player.get("fideID"))
+        if not fide_id:
+            continue
+        values = [fide_player.get("chineseName"), fide_player.get("displayName"), *(fide_player.get("aliases") or [])]
+        for value in values:
+            key = re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", clean(value).casefold())
+            if not key:
+                continue
+            existing = name_hits.get(key)
+            if existing and existing["fideID"] != fide_id:
+                ambiguous.add(key)
+            else:
+                name_hits[key] = {"fideID": fide_id, "displayName": clean(fide_player.get("displayName") or fide_player.get("name"))}
+    for key in ambiguous:
+        name_hits.pop(key, None)
+
+    result: list[dict[str, Any]] = []
+    for player in players:
+        hit = name_hits.get(identity_name(player))
+        if not hit:
+            continue
+        result.append({
+            "domesticID": player.domestic_id,
+            "domesticName": player.display_name,
+            "candidateFideID": hit["fideID"],
+            "candidateFideName": hit["displayName"],
+            "matchBasis": "注册表唯一精确同名",
+            "sightingCount": len(player.sightings),
+            "eventIDs": sorted({s.event_id for s in player.sightings if s.event_id}),
+            "clubs": sorted({s.club for s in player.sightings if s.club}),
+            "reviewRequired": True,
+            "warning": "仅为候选，不得自动写入 player-identity-links.csv",
+        })
+    result.sort(key=lambda row: (row["domesticName"], row["domesticID"]))
+    return result
+
+
 def provisional_domestic_id(sighting: Sighting) -> str:
     return "domestic-" + hashlib.sha256(sighting.sighting_id.encode("utf-8")).hexdigest()[:12]
 
@@ -389,6 +465,8 @@ def write_output(
     players: list[DomesticPlayer],
     sightings: list[Sighting],
     links: list[IdentityLink],
+    name_groups: list[dict[str, Any]],
+    fide_candidates: list[dict[str, Any]],
     output_root: pathlib.Path,
     dry_run: bool,
 ) -> None:
@@ -398,9 +476,13 @@ def write_output(
         "generatedAt": generated_at,
         "storage": {
             "players": "data/registry/domestic/players.json",
+            "searchIndex": "data/registry/domestic/search-index.json",
+            "detailShards": "data/registry/domestic/shards/{prefix}.json",
             "sightings": "data/registry/domestic/sightings.json",
             "identityLinks": "data/registry/domestic/identity-links.json",
             "identityReview": "data/registry/domestic/identity-review.json",
+            "identityNameGroups": "data/registry/domestic/identity-name-groups.json",
+            "fideLinkCandidates": "data/registry/domestic/fide-link-candidates.json",
             "progressions": "data/registry/domestic/progressions.json",
             "promotionReview": "data/registry/domestic/promotion-review.json",
         },
@@ -412,6 +494,9 @@ def write_output(
             "identityLinks": len(links),
             "lowConfidence": sum(1 for player in players if player.confidence.get("reviewRequired")),
             "sameNameConflicts": sum(1 for player in players if player.confidence.get("sameNameConflictCount", 0)),
+            "uniqueNameCount": len({identity_name(player) for player in players if identity_name(player)}),
+            "sameNameGroups": len(name_groups),
+            "fideLinkCandidates": len(fide_candidates),
         },
     }
     if dry_run:
@@ -419,11 +504,38 @@ def write_output(
     output_root.mkdir(parents=True, exist_ok=True)
     write_json(output_root / "manifest.json", manifest)
     write_json(output_root / "players.json", [player.payload() for player in players])
+    write_domestic_search_and_shards(output_root, players)
     write_json(output_root / "sightings.json", [sighting.payload() for sighting in sightings])
     write_json(output_root / "identity-links.json", [link.payload() for link in links])
+    write_json(output_root / "identity-name-groups.json", name_groups)
+    write_json(output_root / "fide-link-candidates.json", fide_candidates)
     review_rows = [player.payload() for player in players if player.confidence.get("reviewRequired")]
     review_rows.sort(key=lambda player: (player["confidence"]["score"], -player["confidence"]["sameNameConflictCount"], player.get("displayName", "")))
     write_json(output_root / "identity-review.json", review_rows)
+
+
+def write_domestic_search_and_shards(output_root: pathlib.Path, players: list[DomesticPlayer]) -> None:
+    shards: dict[str, list[dict[str, Any]]] = {}
+    search_rows: list[dict[str, Any]] = []
+    for player in players:
+        payload = player.payload()
+        prefix = hashlib.sha256(player.domestic_id.encode("utf-8")).hexdigest()[:2]
+        detail_path = f"data/registry/domestic/shards/{prefix}.json"
+        shards.setdefault(prefix, []).append(payload)
+        search_rows.append(without_empty({
+            key: payload.get(key)
+            for key in (
+                "id", "domesticID", "displayName", "chineseName", "pinyin",
+                "federation", "sex", "birthYear", "entityType", "aliases",
+            )
+        } | {
+            "detailPath": detail_path,
+        }))
+    write_json(output_root / "search-index.json", search_rows)
+    shard_root = output_root / "shards"
+    shard_root.mkdir(parents=True, exist_ok=True)
+    for prefix, rows in shards.items():
+        write_json(shard_root / f"{prefix}.json", rows)
 
 
 def clean(value: Any) -> str:
