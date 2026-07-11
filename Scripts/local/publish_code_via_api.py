@@ -101,9 +101,10 @@ def github_token() -> str:
 
 
 class GitHub:
-    def __init__(self, repository: str, token: str):
+    def __init__(self, repository: str, token: str, timeout: float = 180.0):
         self.repository = repository
         self.token = token
+        self.timeout = timeout
         self.root = f"https://api.github.com/repos/{repository}"
         self.ssl_context = ssl.create_default_context(cafile=certifi.where() if certifi else None)
 
@@ -123,7 +124,7 @@ class GitHub:
                 },
             )
             try:
-                with urllib.request.urlopen(request, timeout=30, context=self.ssl_context) as response:
+                with urllib.request.urlopen(request, timeout=self.timeout, context=self.ssl_context) as response:
                     return json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as error:
                 if missing_ok and error.code == 404:
@@ -215,10 +216,11 @@ def main() -> int:
     parser.add_argument("--publish", action="store_true", help="create blobs/commit/ref after a clean dry run")
     parser.add_argument("--include-derived", action="store_true")
     parser.add_argument("--update-existing", action="store_true", help="fast-forward an existing API-published branch")
+    parser.add_argument("--timeout", type=float, default=180.0, help="GitHub API request timeout in seconds")
     args = parser.parse_args()
 
     repository = repository_name()
-    github = GitHub(repository, github_token())
+    github = GitHub(repository, github_token(), timeout=args.timeout)
     target_sha = github.ref_sha(args.target_branch)
     target_tree = github.commit_tree(target_sha)
     changes = changed_paths(args.source_base, args.source_head)
