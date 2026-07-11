@@ -351,6 +351,7 @@ case "$command" in
     py Scripts/promote_incoming.py --verify ${EXTRA[@]+"${EXTRA[@]}"}
     py Scripts/sync_static_pgn.py
     py Scripts/build_static_player_pgn.py
+    [ -f Scripts/build_event_details.py ] && py Scripts/build_event_details.py
     [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py
     py Scripts/build_leaderboards.py
     [ -f Scripts/build_api.py ] && py Scripts/build_api.py
@@ -366,6 +367,7 @@ case "$command" in
     [ -f Scripts/build_domestic_progressions.py ] && py Scripts/build_domestic_progressions.py
     py Scripts/sync_static_pgn.py
     py Scripts/build_static_player_pgn.py
+    [ -f Scripts/build_event_details.py ] && py Scripts/build_event_details.py
     [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py
     py Scripts/build_leaderboards.py
     [ -f Scripts/build_api.py ] && py Scripts/build_api.py

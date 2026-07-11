@@ -26,7 +26,9 @@ BY_PLAYER = DOCS_DATA / "index" / "by-player"
 OUTPUT = DOCS_DATA / "index" / "events.json"
 CANONICAL_OUTPUT = DOCS_DATA / "index" / "canonical-events.json"
 MAPPING_CANDIDATES = DOCS_DATA / "index" / "event-name-mapping-candidates.json"
+EVENT_DETAILS = DOCS_DATA / "index" / "event-details" / "manifest.json"
 MAPPINGS = REPO_ROOT / "data" / "community" / "tournament-name-mappings.csv"
+MASTER_GROUPS = REPO_ROOT / "data" / "community" / "master-tournament-groups.csv"
 
 
 def read_json(path: pathlib.Path, default: Any) -> Any:
@@ -69,6 +71,18 @@ def load_mappings() -> dict[tuple[str, str], dict[str, str]]:
     return result
 
 
+def load_master_groups() -> dict[str, dict[str, str]]:
+    result: dict[str, dict[str, str]] = {}
+    if not MASTER_GROUPS.exists():
+        return result
+    with MASTER_GROUPS.open("r", encoding="utf-8-sig", newline="") as handle:
+        for row in csv.DictReader(handle):
+            tid = clean(row.get("tournament_id"))
+            if tid:
+                result[tid] = {key: clean(value) for key, value in row.items()}
+    return result
+
+
 def static_event_stats() -> dict[tuple[str, str], dict[str, Any]]:
     """Collect actual archived PGN coverage from per-player static indexes."""
     result: dict[tuple[str, str], dict[str, Any]] = defaultdict(
@@ -95,7 +109,13 @@ def static_event_stats() -> dict[tuple[str, str], dict[str, Any]]:
 
 def build_catalog() -> list[dict[str, Any]]:
     mappings = load_mappings()
+    master_groups = load_master_groups()
     coverage = static_event_stats()
+    details = {
+        clean(item.get("tournamentID")): item
+        for item in read_json(EVENT_DETAILS, {}).get("events", [])
+        if clean(item.get("tournamentID"))
+    }
     events: dict[tuple[str, str], dict[str, Any]] = {}
 
     # The crawler catalog supplies all recorded Chess-Results participations,
@@ -111,6 +131,8 @@ def build_catalog() -> list[dict[str, Any]]:
         name = clean(upstream.get("name"))
         chinese_name = mapping.get("chineseName", "")
         canonical_event_id = mapping.get("canonicalEventID", "")
+        event_detail = details.get(tournament_id, {})
+        master_group = master_groups.get(tournament_id, {})
         source_date = clean(upstream.get("date"))
         # When PGN is available, its EventDate is a direct record of the
         # played event and is more useful than a player-search row that may
@@ -138,9 +160,55 @@ def build_catalog() -> list[dict[str, Any]]:
             "pgnCount": int(stats.get("pgnCount") or 0),
             "gameCount": int(stats.get("gameCount") or 0),
         }
+        if event_detail:
+            events[key]["detailPath"] = event_detail.get("path")
+            events[key]["coverageScope"] = "domestic-full"
+            events[key]["standingCount"] = event_detail.get("standingCount")
         if canonical_event_id:
             events[key]["canonicalEventID"] = canonical_event_id
             events[key]["sourceRefs"] = [{"source": source, "tournamentID": tournament_id, "url": clean(upstream.get("url")) or None}]
+        if master_group:
+            events[key]["sectionID"] = master_group.get("section_id")
+            events[key]["groupCode"] = master_group.get("group_code")
+            events[key]["station"] = master_group.get("station")
+
+    # A reviewed mapping is useful metadata even before the player crawler has
+    # discovered participants. Keep these sections visible and let later
+    # player/PGN refreshes enrich the same stable source key.
+    for (source_key, tournament_id), mapping in mappings.items():
+        key = (source_key, tournament_id)
+        if key in events:
+            continue
+        source = "Chess-Results" if source_key == "chess-results" else source_key.title()
+        master_group = master_groups.get(tournament_id, {})
+        chinese_name = mapping.get("chineseName") or ""
+        year = master_group.get("year") or ""
+        events[key] = {
+            "id": event_id(source, tournament_id, chinese_name, year),
+            "source": source,
+            "tournamentID": tournament_id,
+            "canonicalEventID": mapping.get("canonicalEventID") or None,
+            "name": chinese_name,
+            "chineseName": chinese_name,
+            "displayName": chinese_name or f"{source} {tournament_id}",
+            # The master list identifies the season, not an exact start date.
+            # Do not invent January 1st: consumers can display the year until
+            # the direct Chess-Results sync supplies authoritative dates.
+            "date": None,
+            "year": year or None,
+            "url": mapping.get("evidenceURL") or None,
+            "evidenceURL": mapping.get("evidenceURL") or None,
+            "sourceRefs": [{"source": source, "tournamentID": tournament_id, "url": mapping.get("evidenceURL") or None}],
+            "players": [],
+            "playerCount": 0,
+            "pgnPlayerCount": 0,
+            "pgnCount": 0,
+            "gameCount": 0,
+            "coverageScope": "metadata-only",
+            "sectionID": master_group.get("section_id") or None,
+            "groupCode": master_group.get("group_code") or None,
+            "station": master_group.get("station") or None,
+        }
 
     # Preserve event data sourced exclusively from PGN archives (for example
     # Lichess Broadcasts) without inventing a Chess-Results URL.

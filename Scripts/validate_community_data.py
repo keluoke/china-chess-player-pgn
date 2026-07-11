@@ -162,7 +162,7 @@ def check_master_tournament_groups() -> None:
     if not path.exists():
         return
     required = {"canonical_event_id", "section_id", "year", "station", "group_code", "tournament_id", "source_url", "rounds", "promotion_rate", "evidence_status"}
-    allowed_groups = {"OPEN", "MEN_CANDIDATE", "WOMEN_CANDIDATE", "MEN_LEVEL_1", "WOMEN_LEVEL_1"}
+    allowed_groups = {"OPEN", "WOMEN_OPEN", "MEN_CANDIDATE", "WOMEN_CANDIDATE", "MEN_LEVEL_1", "WOMEN_LEVEL_1"}
     with path.open("r", encoding="utf-8-sig", newline="") as fh:
         reader = csv.DictReader(fh)
         missing = required - set(reader.fieldnames or [])
