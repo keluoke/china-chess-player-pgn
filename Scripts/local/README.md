@@ -41,6 +41,17 @@ bash Scripts/local/refresh.sh reindex
 即：**抓取 = 本地；合入 + 索引 + 部署 = Actions。** 冲突在结构上不可能：
 本机是原始数据唯一生产者，且独占 local-data 分支。
 
+若普通 Git HTTPS 在代理探测后仍不可达，可用 API 精确补推少量已审核数据：
+
+```bash
+python3 Scripts/local/publish_data_via_api.py \
+  --path data/manual/domestic-player-sightings.csv \
+  --path data/generated/federation-snapshots/2026-07.json
+```
+
+该命令只接受显式数据路径，以远端当前 `main` 为父提交并强制更新单写者
+`local-data`，不会把本地旧派生索引或代码历史带入数据分支。
+
 ## 代码修改（同样免 pull，但禁止走 local-data）
 
 `local-data` 只传原始/人工数据。代码、工作流和页面修改必须发布为一个直接基于

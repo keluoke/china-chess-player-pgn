@@ -17,6 +17,10 @@
         <p>“查不到”不等于棋手不存在。这里公开展示已缓存、待比对和待补源的范围，以及当前数据快照的更新时间。</p>
       </header>
       <section id="coverageHeadline" class="coverage-headline" aria-live="polite"></section>
+      <div class="coverage-grid">
+        <section class="coverage-panel"><div class="section-heading"><h2>最新收录赛事</h2><span id="recentEventsMeta"></span></div><div id="coverageRecentEvents" class="recent-events"></div></section>
+        <section class="coverage-panel"><div class="section-heading"><h2>数据更新记录</h2><span id="coverageChangelogMeta"></span></div><div id="coverageChangelog" class="changelog-list"></div></section>
+      </div>
       <section class="coverage-panel">
         <div class="section-heading"><h2>各年龄段 PGN 覆盖</h2><span id="coverageUpdated"></span></div>
         <div id="stageCoverage" class="stage-coverage"></div>
@@ -37,6 +41,6 @@
       </section>
       <p class="privacy-foundation">未认领低龄棋手默认只公开姓名、年龄组和赛事成绩；参赛单位收敛到省市级。删除或匿名化请求可通过贡献页面提交。</p>
     </main>
-    <script type="module" src="coverage.js?v=20260712-2"></script>
+    <script type="module" src="coverage.js?v=20260712-3"></script>
   </body>
 </html>

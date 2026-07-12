@@ -41,6 +41,9 @@ runs:
         # By-player aggregate packs consumed directly by the web frontend.
         python3 Scripts/build_static_player_pgn.py
 
+        # Homepage search becomes interactive from one compact payload.
+        python3 Scripts/build_search_bootstrap.py
+
         # One public metric contract: all manifests consume this aggregate.
         python3 Scripts/build_public_metrics.py
 
