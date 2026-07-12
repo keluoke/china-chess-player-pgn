@@ -1,0 +1,31 @@
+name: Update contribution funnel
+
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: contribution-funnel
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-deps
+      - name: Read GitHub funnel and write public snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 Scripts/update_contribution_funnel.py
+      - name: Commit snapshot
+        run: bash Scripts/ci_commit_push.sh "Update contribution funnel" docs/data/contribution-funnel.json
+      - name: Deploy static site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yml --ref main -R "$GITHUB_REPOSITORY"

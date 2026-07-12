@@ -4,7 +4,7 @@
 
 ## 不安装任何工具：网页贡献向导
 
-打开网站首页的 **「网页贡献向导」**，即可填写赛事 tnr、赛事中文名、无 FIDE 棋手参赛记录或身份线索。向导会生成标准 JSON，可一键复制到微信、邮件或项目社区，也可下载留存；GitHub 仅作为可选提交通道。该方式不要求 Python、Git 或 GitHub 账号。
+打开网站首页的 **「网页贡献向导」**，即可填写赛事 tnr、赛事中文名、无 FIDE 棋手参赛记录或身份线索。向导通过 GitHub 设备码授权后直接创建结构化 Issue，不需要复制 JSON；授权失败时才退回到已预填内容的 Issue 页面。该方式不要求 Python 或 Git。
 
 网页向导只负责整理线索，不会自动合并同名棋手。维护者仍会按证据核验后，将确认结果写入 `data/manual/` 或 `data/community/`。
 
@@ -13,8 +13,8 @@
 Chess-Results 限制每个 IP 每天约 2000 次访问,维护者一台机器抓不完全部棋手。
 你可以把自己的额度借给数据库,全程无需命令行:
 
-1. [下载仓库 zip](https://github.com/keluoke/china-chess-player-pgn/archive/refs/heads/main.zip) 并解压(或 `git clone`);
-2. 双击 **「贡献工具-双击启动」**(macOS 用 `.command`,Windows 用 `.bat`,需已安装 Python 3);
+1. 优先使用网站的[网页贡献向导](https://china-chess-player-pgn.pages.dev/contribute.html)，授权 GitHub 后直接创建数据 Issue;
+2. 需要抓取完整赛事时，从[独立工具 Releases](https://github.com/keluoke/china-chess-contributor/releases/latest)下载对应系统版本，无需克隆本仓库或安装 Python;
 3. 浏览器会打开本地页面:填一个昵称 → 输入想抓的棋手 FIDE ID 或赛事 tnr 号 → 点「开始抓取」;
 4. 点「自动提交」,首次会让你在 GitHub 页面输入一个 8 位码完成授权,之后工具自动开 PR;
    没有 GitHub 账号就点「打包 zip」,把 zip 传到 Issue 里;

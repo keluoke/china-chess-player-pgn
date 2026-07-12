@@ -16,6 +16,10 @@ import datetime as dt
 import json
 import pathlib
 import subprocess
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from public_metrics import canonical_public_metrics  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_DATA = REPO_ROOT / "docs" / "data"
@@ -103,6 +107,7 @@ def recent_events(limit: int = 8) -> list[dict]:
 
 
 def main() -> int:
+    public_metrics = canonical_public_metrics()
     registry = (read_json(DOCS_DATA / "registry" / "manifest.json", {}) or {}).get("totals", {})
     domestic = (read_json(DOCS_DATA / "registry" / "domestic" / "manifest.json", {}) or {}).get("totals", {})
     by_player = (read_json(DOCS_DATA / "index" / "by-player" / "manifest.json", {}) or {}).get("totals", {})
@@ -121,11 +126,11 @@ def main() -> int:
             "searchablePlayers": (registry.get("players") or 0) + (domestic.get("unlinked") or 0),
             "domesticIdentityReview": domestic.get("lowConfidence"),
             "withChineseName": registry.get("withChineseName"),
-            "games": by_player.get("games"),
+            "games": public_metrics["totals"]["games"],
             "events": len(events) or index_manifest.get("events"),
             "eventsWithChineseName": sum(1 for event in events if event.get("chineseName")),
             "canonicalEvents": len(canonical_events),
-            "playersWithGames": by_player.get("players"),
+            "playersWithGames": public_metrics["totals"]["playersWithGames"],
         },
         "community": git_contributors(),
         "dataContributors": data_contributors(),

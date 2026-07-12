@@ -44,7 +44,8 @@ const els = {
   changelogList: document.querySelector("#changelogList"),
   changelogMeta: document.querySelector("#changelogMeta"),
   ageOverview: document.querySelector("#ageOverview"),
-  creditsList: document.querySelector("#creditsList")
+  creditsList: document.querySelector("#creditsList"),
+  creditsHeading: document.querySelector("#creditsHeading")
 };
 
 const data = await loadData();
@@ -434,6 +435,11 @@ function renderDashboard() {
   // 社区数据贡献鸣谢
   if (els.creditsList) {
     const credits = dash?.dataContributors ?? [];
+    if (!credits.length) {
+      els.creditsList.hidden = true;
+      if (els.creditsHeading) els.creditsHeading.hidden = true;
+      return;
+    }
     const chips = credits.map(person => `
       <span class="credit-chip" title="${escapeAttribute(`${person.submissions} 次提交 · ${person.players} 名棋手 · ${person.events} 项赛事 · ${person.games} 盘棋`)}">
         ${escapeHTML(person.nickname)}${person.github ? `<a href="https://github.com/${escapeAttribute(person.github)}" target="_blank" rel="noreferrer">@${escapeHTML(person.github)}</a>` : ""}
@@ -444,7 +450,7 @@ function renderDashboard() {
       <div class="credit-howto">
         <strong>不需要 Python：</strong>在网页里填写赛事 tnr、棋手线索或数据勘误，即可生成结构化贡献内容。
         <a class="contribute-cta" href="./contribute.html">打开网页贡献向导</a>
-        需要批量抓取时仍可使用<a href="https://github.com/keluoke/china-chess-player-pgn/archive/refs/heads/main.zip">桌面贡献工具</a>。
+        需要批量抓取时可下载独立的<a href="https://github.com/keluoke/china-chess-contributor/releases/latest">桌面贡献工具</a>，无需下载主数据库。
       </div>`;
   }
 }

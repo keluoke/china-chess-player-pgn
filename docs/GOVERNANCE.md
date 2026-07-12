@@ -8,7 +8,7 @@
 | 角色 | 权限与职责 |
 |---|---|
 | 访客 | 浏览网站与 API;报错开 Issue(有模板) |
-| 数据贡献者 | 用贡献工具抓取并提交载荷 PR;或在网页上编辑社区 CSV 提 PR |
+| 数据贡献者 | 优先用网页向导直接开结构化 Issue;完整抓取用独立工具提交载荷 PR |
 | 审核者/维护者 | 审 PR、跑本地核验、入库、管理白名单与勘误层 |
 
 新增审核者由现任维护者邀请;标准:多次高质量贡献 + 熟悉数据边界规则。
@@ -38,7 +38,7 @@ Actions)。维护者一台机器跑不完 1.1 万名棋手的增量。因此:
 
 ## 贡献载荷的生命周期(甄别 → 入库 → 鸣谢)
 
-1. **抓取**:贡献者双击「贡献工具-双击启动」,输入 FIDE ID 或 tnr 赛事号,
+1. **抓取**:贡献者从独立工具仓库的 Release 下载免 Python 版本,输入 FIDE ID 或 tnr 赛事号,
    工具抓取并同时归档原始 HTML / 原始 PGN 作为证据;
 2. **提交**:GitHub 设备码授权后自动 fork + PR 到 `data/incoming/<id>/`;
    无 GitHub 账号可打 zip 包由维护者代交;
@@ -63,13 +63,12 @@ Actions)。维护者一台机器跑不完 1.1 万名棋手的增量。因此:
 - 恶意载荷:关闭 PR、submission-id 加入 `contrib-processed.json` 拉黑,
   屡犯者由维护者在 GitHub 层面 block。
 
-## 维护者一次性配置(启用自动 PR)
+## 独立贡献工具
 
-1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App
-   (名称随意,回调地址填 `http://127.0.0.1`,勾选 **Enable Device Flow**);
-2. 把 Client ID 填进 `Scripts/contrib/config.json` 的
-   `github_oauth_client_id` 并提交(Client ID 是公开信息,可入库);
-3. 未配置时工具自动退化为「打包 zip」模式,不影响抓取。
+桌面工具源码、打包工作流与 Release 均位于
+[`keluoke/china-chess-contributor`](https://github.com/keluoke/china-chess-contributor)。
+主仓库不再携带工具源码和运行状态，避免用户为几十 MB 的工具下载 GB 级数据库。
+网页向导复用同一个 OAuth App 的设备码流，隐私请求例外：永不创建公开 Issue。
 
 ## 许可
 

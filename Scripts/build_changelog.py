@@ -9,6 +9,10 @@ from __future__ import annotations
 import datetime as dt
 import json
 import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from public_metrics import canonical_public_metrics  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_DATA = REPO_ROOT / "docs" / "data"
@@ -23,16 +27,7 @@ def read_json(path: pathlib.Path, default=None):
 
 
 def current_totals() -> dict:
-    registry = read_json(DOCS_DATA / "registry" / "manifest.json", {}) or {}
-    by_player = read_json(DOCS_DATA / "index" / "by-player" / "manifest.json", {}) or {}
-    reg_totals = registry.get("totals", {})
-    bp_totals = by_player.get("totals", {})
-    return {
-        "players": reg_totals.get("players"),
-        "withChineseName": reg_totals.get("withChineseName"),
-        "playersWithGames": bp_totals.get("players"),
-        "games": bp_totals.get("games"),
-    }
+    return canonical_public_metrics()["totals"]
 
 
 def main() -> int:

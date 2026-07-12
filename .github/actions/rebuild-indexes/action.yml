@@ -41,6 +41,9 @@ runs:
         # By-player aggregate packs consumed directly by the web frontend.
         python3 Scripts/build_static_player_pgn.py
 
+        # One public metric contract: all manifests consume this aggregate.
+        python3 Scripts/build_public_metrics.py
+
         # Full domestic event details: final standings, every-round pairings,
         # and links from pairings back to locally archived PGNs.
         if [ -f Scripts/build_event_details.py ]; then
@@ -83,3 +86,6 @@ runs:
         if [ -f Scripts/build_dashboard.py ]; then
           python3 Scripts/build_dashboard.py
         fi
+
+        # Public totals are an API contract; never deploy contradictory counts.
+        python3 Scripts/validate_public_metrics.py

@@ -114,7 +114,7 @@ Chess-Results    →  crawl_player_events.py   →  player-events.csv + tourname
 `GOVERNANCE.md`,流程细节见 `data/incoming/README.md`):
 
 ```
-贡献工具(Scripts/contrib) → PR: data/incoming/<id>/(解析结果 + HTML/PGN 证据)
+独立贡献工具(china-chess-contributor) → PR: data/incoming/<id>/(解析结果 + HTML/PGN 证据)
   → CI 离线甄别(validate_incoming.py:证据重解析/重切逐字节比对)
   → 维护者合并 → 本地 refresh.sh contrib(promote_incoming.py --verify 抽查回抓)
   → 并入 data/generated + docs/data/pgn → contributors.csv 鸣谢 → reindex 上线
