@@ -22,6 +22,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from age_groups import LEADERBOARD_GROUPS  # noqa: E402
+from public_metrics import canonical_public_metrics  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS = REPO_ROOT / "docs"
@@ -70,7 +71,7 @@ def compact_player(p: dict) -> dict:
 def main() -> int:
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     players = read_json(REGISTRY_PLAYERS)
-    by_player_manifest = read_json(BY_PLAYER_INDEX / "manifest.json") if (BY_PLAYER_INDEX / "manifest.json").exists() else {}
+    public_metrics = canonical_public_metrics()
 
     if API_ROOT.exists():
         shutil.rmtree(API_ROOT)
@@ -129,6 +130,10 @@ def main() -> int:
         write_json(API_ROOT / "players" / f"fide-{fide_id}.json", payload)
         detailed += 1
 
+    expected_detailed = public_metrics["totals"]["playersWithGames"]
+    if detailed != expected_detailed:
+        raise RuntimeError(f"API player endpoints ({detailed}) != canonical playersWithGames ({expected_detailed})")
+
     # --- manifest ------------------------------------------------------------
     write_json(API_ROOT / "manifest.json", {
         "apiVersion": API_VERSION,
@@ -136,8 +141,13 @@ def main() -> int:
         "totals": {
             "players": len(players),
             "withChineseName": sum(1 for p in players if p.get("chineseName")),
-            "withGameData": detailed,
-            "games": by_player_manifest.get("totals", {}).get("games"),
+            "withGameData": public_metrics["totals"]["playersWithGames"],
+            "games": public_metrics["totals"]["games"],
+        },
+        "metricContract": {
+            "version": public_metrics["metricVersion"],
+            "scope": public_metrics["scope"],
+            "source": "/data/public-metrics.json",
         },
         "ageGroups": [g["id"] for g in LEADERBOARD_GROUPS] + ["adult"],
         "endpoints": {

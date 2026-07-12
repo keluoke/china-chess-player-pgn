@@ -45,7 +45,7 @@ CI 校验唯一性、ID 格式和证据域名。派生脚本只读取本表：�
 
 ## contributors.csv — 社区数据贡献鸣谢名录
 
-通过贡献工具(`Scripts/contrib/`)入库的数据贡献者。由
+通过[独立贡献工具](https://github.com/keluoke/china-chess-contributor)或网页向导入库的数据贡献者。由
 `Scripts/promote_incoming.py` 在载荷入库时自动累计,**请勿手工添加自己**;
 更正昵称/GitHub 名可提 PR。列:`nickname, github, first_contribution,
 last_contribution, submissions, players, events, games, notes`。
