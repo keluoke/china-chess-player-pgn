@@ -9,6 +9,24 @@
 
 前端搜索使用 FIDE 注册表与国内实体的并集。无 FIDE 结果显示 `[无FIDE]`，每条结果固定展示 FIDE ID、等级分、出生年和 title；库内同名实体达到 3 个时显示警告。
 
+国内数据有三个不同口径，不能混称为“唯一棋手人数”：
+
+- `sightings`：赛事名单观察数；
+- `domesticPlayers`：未审核合并前的保守临时实体数；
+- `uniqueNameCount`：姓名池去重数，仅用于覆盖度展示，同名者仍可能是不同人。
+
+全量补录已整理来源时运行 `python3 Scripts/sync_chess_results_starting_rank_aliases.py`；粘贴单站 tnr 时由 `sync_chess_results_event.py` 使用 `--only-explicit`，只访问该赛事。自动 sightings 只追加、不因网络失败删除历史证据。完整证据按哈希分片，首页只加载轻量搜索索引。
+
+`identity-name-groups.json` 按同名观察生成审核分组，`identity-candidates.json` 与 `fide-link-candidates.json` 按跨赛事、俱乐部一致、年龄连续和全库唯一性加权排序；它们都只是审核队列，禁止自动写入 `player-identity-links.csv`。同名簇达到 3 条时标记为 `parent-only`，机器不生成合并提名。
+
+## 需求驱动的赛事整取
+
+`Scripts/build_domestic_event_queue.py` 把既有 starting-rank 目标、大师赛五组目录、`domestic-source-catalog.csv` 和人工确认的 `data-demand-gaps.csv` 合成维护者队列。排序固定为李成智杯 > 棋协大师赛 > 省级青少年赛，并叠加查询需求热度和缺失源页快照的优先分。
+
+本地住宅网络运行 `Scripts/local/refresh.sh event-queue`，默认整取队首 3 项赛事；也可用 `python3 Scripts/sync_chess_results_event.py --from-queue 5` 指定数量。每次抓取把 starting rank、standings 和逐轮页面压缩保存到 `data/generated/chess-results-event-snapshots/`，同时在赛事产物写入 URL、字节数和 SHA-256。
+
+网页搜索未命中时只先写浏览器本机队列，用户明确生成并发送贡献包后，维护者运行 `python3 Scripts/import_web_contribution.py <贡献包.json>` 才会增加 `data-demand-gaps.csv` 的需求计数。隐私请求和身份线索被导入器硬性拒绝写入公开仓库，必须私下处理。
+
 ## 棋协大师赛
 
 `data/community/master-tournament-groups.csv` 逐站、逐组登记 Chess-Results tnr。合法组别为 `OPEN`、`MEN_CANDIDATE`、`WOMEN_CANDIDATE`、`MEN_LEVEL_1`、`WOMEN_LEVEL_1`。每行同时保存轮次和晋级比例，默认比例为 `0.65`；因此 9 轮需要至少 6 分，少于 9 轮时直接按 `得分 / 实际轮次 >= 0.65` 计算，不使用固定 6 分。

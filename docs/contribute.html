@@ -6,7 +6,7 @@
     <title>网页贡献向导 · 中国国际象棋棋手数据库</title>
     <meta name="description" content="无需 Python，在网页中整理赛事、棋手与身份线索贡献。">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="styles.css?v=20260711-4">
+    <link rel="stylesheet" href="styles.css?v=20260712-1">
   </head>
   <body class="contribute-page">
     <main class="contribute-shell">
@@ -24,12 +24,15 @@
           <option value="domestic-sighting">无 FIDE 棋手参赛记录</option>
           <option value="identity-clue">疑似同一人身份线索</option>
           <option value="event-name">赛事中文名</option>
+          <option value="data-gap">数据缺口 / 缺少棋谱</option>
+          <option value="privacy-request">删除或匿名化请求</option>
         </select></label>
         <div class="contribution-fields two-column">
           <label><span>棋手姓名</span><input name="player_name" autocomplete="name" placeholder="例如：丁天一"></label>
           <label><span>棋手 ID</span><input name="player_id" placeholder="FIDE ID 或 domestic-…"></label>
         </div>
         <label><span>赛事 tnr 或 Chess-Results 链接</span><input name="event_ref" inputmode="url" placeholder="例如：tnr759985 或完整链接"></label>
+        <label><span>待补数据关键词</span><input name="data_query" placeholder="未命中的姓名、拼音、FIDE ID 或赛事"></label>
         <label><span>赛事中文名 / 参赛组别</span><input name="event_name" placeholder="例如：2023 全国棋协大师赛南京站 · 女子一级组"></label>
         <label><span>证据链接</span><input name="evidence_url" inputmode="url" placeholder="成绩页、报名表或官方公告链接"></label>
         <label><span>补充说明</span><textarea name="notes" rows="5" placeholder="可写参赛单位、年龄组、轮次、同名区分依据等"></textarea></label>

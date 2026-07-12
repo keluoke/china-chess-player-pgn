@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import argparse
 import certifi
+import datetime as dt
+import gzip
+import hashlib
 import html
 import json
 import pathlib
@@ -28,6 +31,8 @@ from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "generated" / "chess-results-event-details"
+SNAPSHOT_OUTPUT = ROOT / "data" / "generated" / "chess-results-event-snapshots"
+EVENT_QUEUE = ROOT / "docs" / "data" / "audit" / "domestic-event-queue.json"
 USER_AGENT = "ChinaChessPlayerPGN/EventDetailSync"
 
 
@@ -239,10 +244,14 @@ def rounds_from(parser: TableParser, standings: list[dict[str, Any]]) -> int:
 
 
 def scrape_event(tournament_id: str, timeout: float, retries: int, delay: float, max_rounds: int) -> dict[str, Any]:
-    _body, players_page, players_url = fetch_page(tournament_id, 0, None, timeout, retries)
+    fetched_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    source_bodies: dict[str, tuple[str, str]] = {}
+    players_body, players_page, players_url = fetch_page(tournament_id, 0, None, timeout, retries)
+    source_bodies["starting-rank"] = (players_url, players_body)
     players = parse_players(players_page)
     time.sleep(delay)
-    _body, standings_page, standings_url = fetch_page(tournament_id, 1, None, timeout, retries)
+    standings_body, standings_page, standings_url = fetch_page(tournament_id, 1, None, timeout, retries)
+    source_bodies["standings"] = (standings_url, standings_body)
     standings = parse_standings(standings_page, players)
     rounds = rounds_from(standings_page, standings) or max_rounds
     if max_rounds:
@@ -251,10 +260,13 @@ def scrape_event(tournament_id: str, timeout: float, retries: int, delay: float,
     round_rows: list[dict[str, Any]] = []
     for round_no in range(1, rounds + 1):
         time.sleep(delay)
-        _body, round_page, round_url = fetch_page(tournament_id, 2, round_no, timeout, retries)
+        round_body, round_page, round_url = fetch_page(tournament_id, 2, round_no, timeout, retries)
+        source_bodies[f"round-{round_no}"] = (round_url, round_body)
         round_rows.append({"round": round_no, "sourceURL": round_url, "pairings": parse_pairings(round_page, players)})
+    snapshots = [snapshot_entry(tournament_id, kind, url, body) for kind, (url, body) in source_bodies.items()]
     return {
         "schemaVersion": 1,
+        "fetchedAt": fetched_at,
         "source": "Chess-Results",
         "tournamentID": tournament_id,
         "sourceName": title,
@@ -265,7 +277,44 @@ def scrape_event(tournament_id: str, timeout: float, retries: int, delay: float,
         "standings": standings,
         "rounds": round_rows,
         "evidence": {"startingRankURL": players_url, "standingsURL": standings_url},
+        "sourceSnapshots": snapshots,
+        "_sourceBodies": {kind: body for kind, (_url, body) in source_bodies.items()},
     }
+
+
+def snapshot_entry(tournament_id: str, kind: str, url: str, body: str) -> dict[str, Any]:
+    content = body.encode("utf-8")
+    return {
+        "kind": kind,
+        "url": url,
+        "sha256": hashlib.sha256(content).hexdigest(),
+        "bytes": len(content),
+        "path": f"data/generated/chess-results-event-snapshots/tnr{tournament_id}/{kind}.html.gz",
+    }
+
+
+def write_snapshot_bundle(tournament_id: str, payload: dict[str, Any]) -> None:
+    bodies = payload.pop("_sourceBodies", {})
+    if not bodies:
+        return
+    root = SNAPSHOT_OUTPUT / f"tnr{tournament_id}"
+    root.mkdir(parents=True, exist_ok=True)
+    for kind, body in bodies.items():
+        with (root / f"{kind}.html.gz").open("wb") as raw:
+            with gzip.GzipFile(fileobj=raw, mode="wb", compresslevel=9, mtime=0) as handle:
+                handle.write(str(body).encode("utf-8"))
+
+
+def queue_targets(limit: int) -> list[str]:
+    if not EVENT_QUEUE.exists():
+        subprocess.run([sys.executable, "Scripts/build_domestic_event_queue.py"], cwd=ROOT, check=True)
+    payload = json.loads(EVENT_QUEUE.read_text(encoding="utf-8"))
+    targets = [
+        clean(item.get("tournamentID"))
+        for item in payload.get("targets", [])
+        if item.get("nextAction") in {"capture-event", "refresh-snapshot"}
+    ]
+    return [value for value in targets if value][:limit]
 
 
 def tournament_id(value: str) -> str:
@@ -281,6 +330,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("targets", nargs="*", help="tnr ID or Chess-Results URL")
     parser.add_argument("--tournament-id", action="append", default=[])
+    parser.add_argument("--from-queue", type=int, default=0, metavar="N", help="ingest the top N registered/demand-ranked event targets")
     parser.add_argument("--timeout", type=float, default=30)
     parser.add_argument("--retries", type=int, default=2)
     parser.add_argument("--delay", type=float, default=0.5)
@@ -291,7 +341,8 @@ def main() -> int:
     parser.add_argument("--no-rebuild", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
-    ids = [tournament_id(value) for value in [*args.targets, *args.tournament_id]]
+    queued_ids = queue_targets(args.from_queue) if args.from_queue > 0 else []
+    ids = [tournament_id(value) for value in [*args.targets, *args.tournament_id, *queued_ids]]
     ids = list(dict.fromkeys(value for value in ids if value))
     if not ids:
         raise SystemExit("请提供至少一个 tnr ID 或 Chess-Results URL")
@@ -299,12 +350,13 @@ def main() -> int:
     stats = []
     for tid in ids:
         output = OUTPUT / f"tnr{tid}.json"
-        if output.exists() and not args.overwrite:
+        if output.exists() and not args.overwrite and tid not in queued_ids:
             payload = json.loads(output.read_text(encoding="utf-8"))
         else:
             payload = scrape_event(tid, args.timeout, args.retries, args.delay, args.max_rounds)
             if not args.dry_run:
                 output.parent.mkdir(parents=True, exist_ok=True)
+                write_snapshot_bundle(tid, payload)
                 output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         stats.append({"tournamentID": tid, "players": len(payload.get("players", [])), "rounds": len(payload.get("rounds", [])), "standings": len(payload.get("standings", []))})
 

@@ -9,6 +9,7 @@ enforces structure and plausibility rules.
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import json
 import pathlib
 import re
@@ -117,6 +118,67 @@ def check_sightings() -> None:
             src = (row.get("source_url") or "").strip()
             if src and not url_ok(src):
                 err(path, i, f"source_url domain not allow-listed: {src!r}")
+            event_name = (row.get("event_name") or "").strip()
+            if event_name and sanitize_person_name(event_name) == event_name:
+                err(path, i, f"event_name looks like a person name: {event_name!r}")
+            event_date = (row.get("event_date") or "").strip()
+            if event_date:
+                try:
+                    parsed = dt.date.fromisoformat(event_date[:10])
+                    if parsed > dt.date.today() + dt.timedelta(days=366):
+                        warn(path, i, f"event_date is more than one year in the future: {event_date!r}")
+                except ValueError:
+                    warn(path, i, f"event_date is not ISO YYYY-MM-DD: {event_date!r}")
+
+
+def check_domestic_source_catalog() -> None:
+    path = REPO_ROOT / "data" / "manual" / "domestic-source-catalog.csv"
+    if not path.exists():
+        return
+    required = {"source_id", "event_name", "event_type", "official_url", "tournament_id", "status", "priority", "refresh_tier"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        seen: set[str] = set()
+        for i, row in enumerate(reader, start=2):
+            if not any((value or "").strip() for value in row.values()):
+                continue
+            source_id = (row.get("source_id") or "").strip()
+            if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", source_id):
+                err(path, i, f"invalid source_id {source_id!r}")
+            if source_id in seen:
+                err(path, i, f"duplicate source_id {source_id!r}")
+            seen.add(source_id)
+            url = (row.get("official_url") or "").strip()
+            if url and not url_ok(url):
+                err(path, i, f"official_url domain not allow-listed: {url!r}")
+            priority = (row.get("priority") or "").strip()
+            if priority and (not priority.isdigit() or not 0 <= int(priority) <= 1000):
+                err(path, i, f"priority outside 0-1000: {priority!r}")
+
+
+def check_demand_gaps() -> None:
+    path = REPO_ROOT / "data" / "manual" / "data-demand-gaps.csv"
+    if not path.exists():
+        return
+    required = {"gap_id", "query_type", "display_query", "normalized_query", "tournament_id", "demand_count", "last_requested_at", "status"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        for i, row in enumerate(reader, start=2):
+            if not any((value or "").strip() for value in row.values()):
+                continue
+            if (row.get("query_type") or "").strip() not in {"player", "event", "tnr", "missing-pgn"}:
+                err(path, i, f"invalid query_type {(row.get('query_type') or '')!r}")
+            count = (row.get("demand_count") or "").strip()
+            if not count.isdigit() or int(count) < 1:
+                err(path, i, f"demand_count must be a positive integer, got {count!r}")
 
 
 def check_tournament_name_mappings() -> None:
@@ -297,6 +359,8 @@ def main() -> int:
     check_federation_overrides()
     check_player_aliases()
     check_sightings()
+    check_domestic_source_catalog()
+    check_demand_gaps()
     check_tournament_name_mappings()
     check_master_tournament_groups()
     check_contributors()
