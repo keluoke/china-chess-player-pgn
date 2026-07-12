@@ -517,7 +517,7 @@ function leaderboardCard(stageID) {
         <td class="rank-cell"><span class="rank-badge">${index + 1}</span></td>
         <td>
           <div class="player-name">${escapeHTML(displayName(player))}</div>
-          <div class="player-meta">${escapeHTML(playerStage?.id ?? "成年")} · FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(player.birthYear ?? "-"))} 出生${transferBadge(player)}</div>
+          <div class="player-meta">${escapeHTML(playerStage?.id ?? "成年")} · FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(publicAgeLabel(player))}${transferBadge(player)}</div>
           ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}${transferBadge(player)}
           <div class="bar-track" aria-hidden="true"><div class="bar-fill" style="--bar-width: ${width}%"></div></div>
         </td>
@@ -547,6 +547,7 @@ function leaderboardCard(stageID) {
 
 function renderSearch() {
   const matches = searchPlayers(state.query);
+  const playerGroups = groupPlayerMatches(matches);
   const eventMatches = searchEvents(state.query);
   const hasQuery = state.query.length > 0;
   if (hasQuery && !eventCatalog) requestEventCatalog();
@@ -554,7 +555,7 @@ function renderSearch() {
   if (els.dashboardSection) els.dashboardSection.hidden = hasQuery || Boolean(selectedPlayer()) || Boolean(state.selectedEventID);
   if (els.detailPane) els.detailPane.hidden = hasQuery || !selectedPlayer();
   if (els.eventPane) els.eventPane.hidden = hasQuery || !state.selectedEventID;
-  els.searchCount.textContent = `${matches.length} 名棋手 · ${eventMatches.length} 项赛事`;
+  els.searchCount.textContent = `${playerGroups.length} 个姓名 · ${eventMatches.length} 项赛事`;
   const eventResults = eventMatches.length ? `
     <section class="search-result-group">
       <div class="search-result-group-title"><h3>赛事</h3><span>${eventMatches.length} 项</span></div>
@@ -564,26 +565,26 @@ function renderSearch() {
           <div class="player-meta">${escapeHTML([event.date || "日期待补", event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : "", event.source].filter(Boolean).join(" · "))}</div>
         </button>`).join("")}</div>
     </section>` : "";
-  const playerResults = matches.length ? `
+  const playerResults = playerGroups.length ? `
     <section class="search-result-group">
-      <div class="search-result-group-title"><h3>棋手</h3><span>${matches.length} 条记录</span></div>
-      <div class="player-search-list">${matches.map(player => {
+      <div class="search-result-group-title"><h3>棋手</h3><span>${matches.length} 条档案</span></div>
+      <div class="player-search-list">${playerGroups.map(group => group.length > 1 ? disambiguationCard(group) : (() => {
+    const player = group[0];
     const rating = ratingForPlayer(player);
-    const duplicateCount = sameNameCount(player);
     const fideLabel = player.fideID ? `FIDE ${player.fideID}` : "[无FIDE]";
     const ratingLabel = rating ? `${rating.value} ${rating.kind}` : "无等级分";
-    const birthLabel = player.birthYear ? `${player.birthYear} 出生` : "出生年待补";
+    const birthLabel = publicAgeLabel(player);
     const titleLabel = player.title || "无称号";
     return `
       <button class="result-button" type="button" data-player="${escapeAttribute(playerKey(player))}" aria-pressed="${state.selectedFideID === playerKey(player)}">
-        <div class="player-name">${escapeHTML(displayName(player))}${duplicateCount > 1 ? ` <span class="same-name-context">另有 ${duplicateCount - 1} 条同名记录</span>` : ""}</div>
+        <div class="player-name">${escapeHTML(displayName(player))} ${publicStatusBadge(player)}</div>
         <div class="player-meta">${escapeHTML(fideLabel)} · ${escapeHTML(ratingLabel)} · ${escapeHTML(birthLabel)} · ${escapeHTML(titleLabel)}</div>
       </button>
     `;
-  }).join("")}</div></section>` : "";
+  })()).join("")}</div></section>` : "";
   els.searchResults.innerHTML = eventResults || playerResults
     ? `${eventResults}${playerResults}`
-    : `<div class="empty-state compact">本地库暂未匹配。可以试试中文名、拼音、FIDE ID 或赛事名称。</div>`;
+    : `<div class="empty-state compact gap-empty"><strong>本地库暂未匹配</strong><span>可以试试中文名、拼音、FIDE ID 或赛事名称。</span><a class="primary-button" data-gap-query="${escapeAttribute(state.query)}" href="./contribute.html?type=data-gap&query=${encodeURIComponent(state.query)}">登记这条数据缺口</a><small>点击后只在本机记录；提交前会再次展示内容，不会静默上传姓名。</small></div>`;
 
   els.searchResults.querySelectorAll("[data-player]").forEach(button => {
     button.addEventListener("click", () => selectPlayer(button.dataset.player));
@@ -591,6 +592,34 @@ function renderSearch() {
   els.searchResults.querySelectorAll("[data-event-id]").forEach(button => {
     button.addEventListener("click", () => selectEvent(button.dataset.eventId));
   });
+  els.searchResults.querySelectorAll("[data-gap-query]").forEach(link => {
+    link.addEventListener("click", () => recordLocalGap(link.dataset.gapQuery));
+  });
+}
+
+function groupPlayerMatches(matches) {
+  const groups = new Map();
+  matches.forEach(player => {
+    const key = normalizedIdentityName(player) || playerKey(player);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(player);
+  });
+  return [...groups.values()];
+}
+
+function disambiguationCard(group) {
+  const label = group[0].chineseName || group[0].displayName || group[0].name || "同名棋手";
+  return `<article class="disambiguation-card">
+    <div class="disambiguation-head"><div><strong>${escapeHTML(displayText(label))}</strong><span class="identity-status same-name">同名待区分</span></div><small>库内有 ${group.length} 条同名档案</small></div>
+    <div class="disambiguation-options">${group.map(player => {
+      const rating = ratingForPlayer(player);
+      const context = player.fideID
+        ? [`FIDE ${player.fideID}`, rating ? `${rating.value} ${rating.kind}` : "无等级分", publicAgeLabel(player), player.title].filter(Boolean)
+        : ["无 FIDE", player.publicLocation, ...(player.eventYears ?? []), ...(player.eventNames ?? []).slice(0, 1)].filter(Boolean);
+      return `<button type="button" data-player="${escapeAttribute(playerKey(player))}"><strong>${escapeHTML(displayName(player))}</strong><span>${escapeHTML(context.join(" · ") || "打开赛事档案核对")}</span></button>`;
+    }).join("")}</div>
+    <p>这些档案尚未确认属于同一人；请按参赛年份、地区和赛事逐条核对。</p>
+  </article>`;
 }
 
 function renderDetail() {
@@ -623,15 +652,16 @@ function renderDetail() {
   els.detailPane.innerHTML = `
     <div class="detail-title">
       <div>
+        <span class="eyebrow">${publicStatusBadge(player)} · 赛前情报</span>
         <h2>${escapeHTML(displayName(player))}</h2>
         ${detailChineseNameLine(player)}
-        <p>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(displayText(player.birthYear ?? "-"))} 出生 · ${escapeHTML(stageLabelForPlayer(player, stage))}</p>
+        <p>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(uniqueStrings([publicAgeLabel(player), stageLabelForPlayer(player, stage)]).join(" · "))}</p>
       </div>
       <div class="detail-title-actions">
         ${player.sex === "F" ? `<span class="stage-chip">女</span>` : ""}
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回</a>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
-        <a class="action-link icon-link" href="https://github.com/keluoke/china-chess-player-pgn/issues/new?template=data-correction.yml&fide_id=${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer" title="数据有误？提交 Issue" aria-label="数据有误？提交 Issue"><svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/></svg></a>
+        <a class="action-link" href="./contribute.html?type=player-correction&player=${encodeURIComponent(player.fideID)}&name=${encodeURIComponent(displayName(player))}">补充或勘误</a>
       </div>
     </div>
 
@@ -645,6 +675,7 @@ function renderDetail() {
 
     ${staticInfo?.gameCount ? staticPlayerHitBlock(player, staticInfo) : ""}
     ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
+    ${playerCoverageStatus(player, staticInfo, bulkInfo)}
     ${playerEventHistory(detailCache.get(player.fideID) ?? player)}
     ${sameNameRelatedBlock(player)}
 
@@ -668,31 +699,32 @@ function renderDomesticPlayerDetail(player) {
     return;
   }
   const sightings = player.sightings ?? [];
-  const clubs = uniqueStrings(sightings.map(item => item.club)).slice(0, 3);
-  const stages = uniqueStrings(sightings.map(item => item.ageStage || item.group).filter(Boolean));
+  const publicLocation = player.publicLocation || publicLocationFromSightings(sightings);
+  const stages = uniqueStrings(sightings.map(publicStageFromSighting).filter(Boolean));
   els.detailPane.innerHTML = `
     <div class="detail-title">
       <div>
-        <span class="eyebrow">国内赛事参赛档案</span>
+        <span class="eyebrow">${publicStatusBadge(player)} · 国内赛事参赛档案</span>
         <h2>${escapeHTML(displayName(player))}</h2>
-        <p>[无FIDE] · ${escapeHTML(player.birthYear ? `${player.birthYear} 出生` : "出生年待补")} · ${escapeHTML(player.title || "无称号")}</p>
+        <p>[无FIDE] · ${escapeHTML(stages[0] || "年龄组待补")} · 公开赛事记录</p>
       </div>
       <div class="detail-title-actions">
         <span class="stage-chip domestic-chip">无 FIDE</span>
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回</a>
         <a class="action-link" href="./contribute.html?player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">补充身份线索</a>
+        <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
       </div>
     </div>
     <div class="appearance-summary">
       <div><span>赛事记录</span><strong>${escapeHTML(String(sightings.length))} 次</strong></div>
       <div><span>参赛组别</span><strong>${escapeHTML(stages.length ? `${stages.length} 类` : "待补")}</strong></div>
-      <div><span>参赛单位</span><strong>${escapeHTML(clubs[0] || "待补")}</strong></div>
+      <div><span>公开地区</span><strong>${escapeHTML(publicLocation || "未公开")}</strong></div>
     </div>
     <section class="event-roster domestic-sightings">
       <div class="section-heading"><h3>赛事足迹</h3><span>${sightings.length} 次参赛</span></div>
       ${sightings.length ? `<div class="sighting-list">${sightings.map(sighting => `
         <article class="sighting-card">
-          <div class="sighting-main"><strong>${escapeHTML(sighting.eventName ?? sighting.group ?? "未命名赛事")}</strong><span>${escapeHTML([sighting.eventDate, sighting.ageStage || sighting.group, sighting.club, sighting.rank ? `第 ${sighting.rank} 名` : "", sighting.score ? `${sighting.score} 分` : ""].filter(Boolean).join(" · ") || "赛果待补")}</span></div>
+          <div class="sighting-main"><strong>${escapeHTML(sighting.eventName ?? sighting.group ?? "未命名赛事")}</strong><span>${escapeHTML([sighting.eventDate, publicStageFromSighting(sighting), publicLocationFromSighting(sighting), sighting.rank ? `第 ${sighting.rank} 名` : "", sighting.score ? `${sighting.score} 分` : ""].filter(Boolean).join(" · ") || "赛果待补")}</span></div>
           <div class="sighting-actions">
             ${sightingEventID(sighting) ? `<button type="button" class="action-link" data-action="select-event" data-event-id="${escapeAttribute(sightingEventID(sighting))}">${sightingHasPGN(sighting) ? "查看赛事与棋谱" : "查看赛事档案"}</button>` : ""}
             ${sighting.sourceURL ? `<a href="${escapeAttribute(sighting.sourceURL)}" target="_blank" rel="noreferrer">原始成绩 ↗</a>` : ""}
@@ -768,7 +800,7 @@ function renderEvent() {
   els.eventPane.innerHTML = `
     <div class="detail-title event-title">
       <div>
-        <span class="eyebrow">赛事档案 · ${escapeHTML(event.source ?? "")}</span>
+        <span class="eyebrow">${dataStatusBadge(eventDataStatus(event))} · 赛事档案 · ${escapeHTML(event.source ?? "")}</span>
         <h2>${escapeHTML(event.displayName ?? event.name ?? "未命名赛事")}</h2>
         ${event.chineseName && event.name !== event.chineseName ? `<p class="event-source-name">信源原名：${escapeHTML(event.name)}</p>` : ""}
       </div>
@@ -825,7 +857,7 @@ function domesticEventData(event, detail) {
     <section class="event-results-section">
       <div class="section-heading"><h3>最终成绩排行</h3><span>${standings.length} 名</span></div>
       <div class="standings-table-wrap"><table class="standings-table"><thead><tr><th>名次</th><th>棋手</th><th>FIDE ID</th><th>等级分</th><th>得分</th><th>单位</th></tr></thead><tbody>
-        ${standings.map(row => `<tr><td>${escapeHTML(row.rank ?? "-")}</td><td>${eventSideControl(event, row, "")}</td><td>${escapeHTML(row.fideID || "无FIDE")}</td><td>${escapeHTML(row.rating || "-")}</td><td><strong>${escapeHTML(row.score || "-")}</strong></td><td>${escapeHTML(row.club || "-")}</td></tr>`).join("")}
+        ${standings.map(row => `<tr><td>${escapeHTML(row.rank ?? "-")}</td><td>${eventSideControl(event, row, "")}</td><td>${escapeHTML(row.fideID || "无FIDE")}</td><td>${escapeHTML(row.rating || "-")}</td><td><strong>${escapeHTML(row.score || "-")}</strong></td><td>${escapeHTML(row.fideID ? (row.club || "-") : (publicLocationFromSighting(row) || "未公开"))}</td></tr>`).join("")}
       </tbody></table></div>
     </section>`;
 }
@@ -1834,13 +1866,13 @@ function sameNameRelatedBlock(player) {
   if (!related.length) return "";
   return `
     <section class="related-identities">
-      <div class="section-heading"><h3>其他同名参赛记录</h3><span>${related.length} 条待核对</span></div>
+      <div class="section-heading"><h3>其他同名参赛记录</h3><span>同名待区分 · ${related.length} 条</span></div>
       <p class="related-identities-note">这些记录姓名相同，但尚未确认属于同一位棋手。可以逐条打开，按赛事、组别和单位自行核对。</p>
       <div class="related-identity-list">${related.slice(0, 12).map(candidate => {
         const candidateSightings = candidate.sightings?.length ?? candidate.sightingCount ?? candidate.eventCount ?? 0;
         const context = candidate.fideID
-          ? [`FIDE ${candidate.fideID}`, candidate.birthYear ? `${candidate.birthYear} 出生` : "", candidate.title].filter(Boolean)
-          : ["无 FIDE", candidate.club, candidateSightings ? `${candidateSightings} 次赛事记录` : "查看参赛档案"].filter(Boolean);
+          ? [`FIDE ${candidate.fideID}`, publicAgeLabel(candidate), candidate.title].filter(Boolean)
+          : ["无 FIDE", candidate.publicLocation, candidateSightings ? `${candidateSightings} 次赛事记录` : "查看参赛档案"].filter(Boolean);
         return `<button type="button" class="related-identity" data-action="select-player" data-fide="${escapeAttribute(playerKey(candidate))}"><strong>${escapeHTML(displayName(candidate))}</strong><span>${escapeHTML(context.join(" · "))}</span></button>`;
       }).join("")}</div>
       ${related.length > 12 ? `<p class="event-more">另有 ${related.length - 12} 条同名记录，可从搜索结果继续查看。</p>` : ""}
@@ -1857,6 +1889,87 @@ function sightingHasPGN(sighting) {
   const eventID = sightingEventID(sighting);
   const event = eventCatalog?.find(item => item.id === eventID);
   return Boolean(event && (Number(event.gameCount) > 0 || Number(event.pgnCount) > 0 || event.detailPath));
+}
+
+function publicStatus(player) {
+  if (player?.fideID || player?.publicIdentityStatus === "verified") return { key: "verified", label: "已核验" };
+  if (player?.publicIdentityStatus === "same-name" || sameNameCount(player) > 1) return { key: "same-name", label: "同名待区分" };
+  return { key: "pending", label: "待确认" };
+}
+
+function publicAgeLabel(player) {
+  const birthYear = Number(player?.birthYear);
+  if (!Number.isFinite(birthYear)) return "年龄组待补";
+  const age = Number(data?.competitionYear ?? new Date().getFullYear()) - birthYear;
+  if (age <= 18) return stageForPlayer(player)?.id ?? "青少年组";
+  return `${birthYear} 出生`;
+}
+
+function publicStatusBadge(player) {
+  const status = publicStatus(player);
+  return `<span class="identity-status ${status.key}">${status.label}</span>`;
+}
+
+function eventDataStatus(event) {
+  if (Number(event?.gameCount) > 0 || Number(event?.pgnCount) > 0) return "cached";
+  if (event?.tournamentID || event?.url || event?.detailPath) return "compare";
+  return "missing";
+}
+
+function dataStatusBadge(status) {
+  const labels = { cached: "PGN 已缓存", compare: "待数据源比对", missing: "待补源" };
+  return `<span class="data-status ${escapeAttribute(status)}">${escapeHTML(labels[status] || labels.missing)}</span>`;
+}
+
+function playerCoverageStatus(player, staticInfo, bulkInfo) {
+  const games = Number(staticInfo?.gameCount ?? bulkInfo?.totalGames ?? player.gameCount ?? 0);
+  const status = games > 0 ? "cached" : Number(player.eventCount ?? 0) > 0 ? "compare" : "missing";
+  const message = status === "cached"
+    ? `本库已缓存 ${games} 盘可复盘棋局。`
+    : status === "compare"
+    ? "已有赛事记录，但棋谱仍待与数据源比对。"
+    : "目前只有注册信息，尚缺可复盘赛事来源。";
+  return `<div class="coverage-callout">${dataStatusBadge(status)}<span>${escapeHTML(message)}</span>${status !== "cached" ? `<a href="./contribute.html?type=data-gap&player=${encodeURIComponent(player.fideID || playerKey(player))}&name=${encodeURIComponent(displayName(player))}">帮我们补全这名棋手</a>` : ""}</div>`;
+}
+
+function publicLocationFromSightings(sightings) {
+  return uniqueStrings((sightings ?? []).map(publicLocationFromSighting).filter(Boolean))[0] || "";
+}
+
+function publicLocationFromSighting(sighting) {
+  if (sighting?.province) return String(sighting.province);
+  const text = String(sighting?.club ?? "");
+  const places = ["北京", "上海", "天津", "重庆", "河北", "山西", "辽宁", "吉林", "黑龙江", "江苏", "浙江", "安徽", "福建", "江西", "山东", "河南", "湖北", "湖南", "广东", "海南", "四川", "贵州", "云南", "陕西", "甘肃", "青海", "内蒙古", "广西", "西藏", "宁夏", "新疆", "香港", "澳门"];
+  const province = places.find(place => text.includes(place));
+  if (province) return province;
+  return text.match(/[\u4e00-\u9fff]{2,4}市/)?.[0] || "";
+}
+
+function publicStageFromSighting(sighting) {
+  if (sighting?.ageStage) return String(sighting.ageStage);
+  const text = String(sighting?.group ?? "");
+  const matches = [...text.matchAll(/(?:男子|女子)?(?:一级棋士[A-Z]?|候补棋协大师|候补|棋协大师|公开|U\s?\d{1,2}|[BG]\d{1,2})组?/gi)];
+  return matches.at(-1)?.[0] || "组别待补";
+}
+
+function recordLocalGap(query) {
+  const value = String(query ?? "").trim();
+  if (!value) return;
+  try {
+    const key = "china-chess-local-demand-gaps-v1";
+    const rows = JSON.parse(localStorage.getItem(key) || "[]");
+    const normalized = normalize(value);
+    const existing = rows.find(row => row.normalizedQuery === normalized);
+    if (existing) {
+      existing.demandCount = Number(existing.demandCount || 0) + 1;
+      existing.lastRequestedAt = new Date().toISOString();
+    } else {
+      rows.push({ displayQuery: value, normalizedQuery: normalized, demandCount: 1, lastRequestedAt: new Date().toISOString() });
+    }
+    localStorage.setItem(key, JSON.stringify(rows.slice(-100)));
+  } catch {
+    // Search remains fully functional when local storage is disabled.
+  }
 }
 
 function normalizedIdentityName(player) {

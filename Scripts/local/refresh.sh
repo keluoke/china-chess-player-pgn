@@ -25,6 +25,7 @@
 #   registry     Download the FIDE rating list and rebuild the CHN registry.
 #   crawl        Crawl Chess-Results player events (incremental) + fetch PGN.
 #   events       Scrape event names + registry + full-event PGN (li-chengzhi).
+#   event-queue  Demand-ranked full-event ingestion (default top 3 targets).
 #   aliases      Scrape Chinese names from Chess-Results and apply to registry.
 #   promote      Promote publicly distributable Chess-Results PGN.
 #   reconcile    Probe Chess-Results coverage gaps, promote + fetch missing PGN.
@@ -292,6 +293,17 @@ case "$command" in
     commit_and_push "Ingest event archive names and PGN (local)" data/manual data/generated docs/data
     ;;
 
+  event-queue)
+    ensure_pymod pypinyin
+    py Scripts/build_domestic_event_queue.py
+    if [ "${#EXTRA[@]}" -eq 0 ]; then
+      py Scripts/sync_chess_results_event.py --from-queue 3
+    else
+      py Scripts/sync_chess_results_event.py ${EXTRA[@]+"${EXTRA[@]}"}
+    fi
+    commit_and_push "Ingest demand-ranked domestic events" data/manual data/generated docs/data
+    ;;
+
   aliases)
     ensure_pymod pypinyin
     py Scripts/sync_chess_results_starting_rank_aliases.py ${EXTRA[@]+"${EXTRA[@]}"}
@@ -357,6 +369,9 @@ case "$command" in
     py Scripts/build_static_player_pgn.py
     [ -f Scripts/build_event_details.py ] && py Scripts/build_event_details.py
     [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py
+    [ -f Scripts/build_domestic_event_queue.py ] && py Scripts/build_domestic_event_queue.py
+    [ -f Scripts/build_data_quality_audit.py ] && py Scripts/build_data_quality_audit.py
+    [ -f Scripts/reconcile_pgn_sources.py ] && py Scripts/reconcile_pgn_sources.py --write-audit
     py Scripts/build_leaderboards.py
     [ -f Scripts/build_api.py ] && py Scripts/build_api.py
     [ -f Scripts/build_changelog.py ] && py Scripts/build_changelog.py
