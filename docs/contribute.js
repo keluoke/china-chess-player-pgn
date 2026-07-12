@@ -10,7 +10,9 @@ let payload = null;
 const params = new URLSearchParams(location.search);
 form.elements.player_id.value = params.get("player") || "";
 form.elements.player_name.value = params.get("name") || "";
-if (params.get("player")) form.elements.type.value = "identity-clue";
+form.elements.data_query.value = params.get("query") || "";
+if (params.get("type") && [...form.elements.type.options].some(option => option.value === params.get("type"))) form.elements.type.value = params.get("type");
+else if (params.get("player")) form.elements.type.value = "identity-clue";
 
 form.addEventListener("submit", event => {
   event.preventDefault();
@@ -22,6 +24,7 @@ form.addEventListener("submit", event => {
     player_name: data.player_name,
     player_id: data.player_id,
     event_ref: data.event_ref,
+    data_query: data.data_query,
     event_name: data.event_name,
     evidence_url: data.evidence_url,
     notes: data.notes,

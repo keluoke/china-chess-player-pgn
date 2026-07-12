@@ -53,6 +53,19 @@ runs:
           python3 Scripts/build_event_catalog.py
         fi
 
+        # Demand-ranked event queue and offline metadata/result anomalies.
+        if [ -f Scripts/build_domestic_event_queue.py ]; then
+          python3 Scripts/build_domestic_event_queue.py
+        fi
+        if [ -f Scripts/build_data_quality_audit.py ]; then
+          python3 Scripts/build_data_quality_audit.py
+        fi
+
+        # Coverage reports must describe the same data snapshot being deployed.
+        if [ -f Scripts/reconcile_pgn_sources.py ]; then
+          python3 Scripts/reconcile_pgn_sources.py --write-audit
+        fi
+
         # All-age leaderboards (youth U8-U18 + U20/OPEN/S50/S65).
         python3 Scripts/build_leaderboards.py
 
