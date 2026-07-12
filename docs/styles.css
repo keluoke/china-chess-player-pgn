@@ -1660,7 +1660,7 @@ button.pairing-pgn {
 .search-suggestions > span { align-self: center; color: var(--muted); font-size: 0.78rem; }
 .search-suggestions button { padding: 0.45rem 0.75rem; color: var(--accent-strong); background: var(--accent-soft); border: 1px solid transparent; border-radius: 999px; cursor: pointer; }
 .search-suggestions button:hover { border-color: var(--accent); }
-.search-main-pane > .search-results { position: absolute; inset: 0 0 auto; z-index: 8; max-height: calc(100dvh - 120px); overflow: auto; padding: 1rem; background: rgba(255,255,255,.98); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.search-main-pane > .search-results { position: fixed; top: 76px; left: 50%; z-index: 8; width: min(1040px, calc(100% - 32px)); max-height: calc(100dvh - 92px); overflow: auto; padding: 1rem; background: rgba(255,255,255,.98); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); transform: translateX(-50%); }
 .search-limit-note { margin: 0.8rem 0 0; color: var(--muted); font-size: 0.78rem; }
 .player-name mark { padding: 0 .08em; color: inherit; background: #fff0a6; border-radius: 2px; }
 .event-history-more { margin-top: 0.65rem; }
@@ -1695,5 +1695,5 @@ button.pairing-pgn {
   .topnav { overflow-x: auto; }
   .search-workspace { padding: 12px; }
   .search-home { min-height: 46vh; padding: 2rem 0.5rem; }
-  .search-main-pane > .search-results { position: fixed; inset: 156px 10px 10px; max-height: none; }
+  .search-main-pane > .search-results { inset: 156px 10px 10px; width: auto; max-height: none; transform: none; }
 }
