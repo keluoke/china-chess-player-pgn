@@ -1,12 +1,12 @@
 # PGN Data Audit
 
-Generated: 2026-07-12T14:27:22+00:00
+Generated: 2026-07-12T14:43:23+00:00
 
 ## Headline
 
 - By-player games: 72610
-- Registry players: 11623
-- Players with PGN: 2589 (22.27%)
+- Registry players: 11646
+- Players with PGN: 2589 (22.23%)
 - Missing Chess-Results pairs: 141
 - Targetable missing Chess-Results pairs: 141
 
