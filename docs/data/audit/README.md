@@ -1,19 +1,19 @@
 # PGN Data Audit
 
-Generated: 2026-07-02T12:39:13+00:00
+Generated: 2026-07-12T01:05:56+00:00
 
 ## Headline
 
-- By-player games: 22183
-- Registry players: 11456
-- Players with PGN: 1289 (11.25%)
-- Missing Chess-Results pairs: 166
-- Targetable missing Chess-Results pairs: 166
+- By-player games: 72610
+- Registry players: 11623
+- Players with PGN: 2589 (22.27%)
+- Missing Chess-Results pairs: 141
+- Targetable missing Chess-Results pairs: 141
 
 ## Source Mix
 
-- Lichess Broadcasts: 21073 games (95.0%)
-- Chess-Results: 1110 games (5.0%)
+- Lichess Broadcasts: 46037 games (63.4%)
+- Chess-Results: 26573 games (36.6%)
 
 ## Files
 
