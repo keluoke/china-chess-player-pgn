@@ -1,8 +1,10 @@
-const [coverage, sourceCoverage, eventQueue, quality] = await Promise.all([
+const [coverage, sourceCoverage, eventQueue, quality, dashboard, changelog] = await Promise.all([
   fetchJSON("./data/audit/player-coverage.json"),
   fetchJSON("./data/audit/source-coverage.json"),
   fetchJSON("./data/audit/domestic-event-queue.json"),
-  fetchJSON("./data/audit/data-quality-review.json")
+  fetchJSON("./data/audit/data-quality-review.json"),
+  fetchJSON("./data/dashboard.json"),
+  fetchJSON("./data/changelog.json")
 ]);
 const funnel = await fetchJSON("./data/contribution-funnel.json").catch(() => null);
 
@@ -15,6 +17,21 @@ document.querySelector("#coverageHeadline").innerHTML = [
 ].filter(([, value]) => value != null).map(([label, value]) => `<div><strong>${escapeHTML(format(value))}</strong><span>${escapeHTML(label)}</span></div>`).join("");
 
 document.querySelector("#coverageUpdated").textContent = `更新于 ${formatTime(coverage?.generatedAt)}`;
+
+const recentEvents = dashboard?.recentEvents ?? [];
+document.querySelector("#recentEventsMeta").textContent = recentEvents.length ? `最近 ${recentEvents.length} 项` : "";
+document.querySelector("#coverageRecentEvents").innerHTML = recentEvents.length ? recentEvents.map(event => `<a class="recent-event" href="./?event=${encodeURIComponent(event.id)}"><div><strong>${escapeHTML(event.displayName || event.name || "未命名赛事")}</strong><span>${escapeHTML([event.date, event.playerCount ? `${event.playerCount} 位中国棋手` : "", event.gameCount ? `${event.gameCount} 盘` : ""].filter(Boolean).join(" · "))}</span></div></a>`).join("") : empty("暂无赛事更新");
+
+const changes = (changelog?.entries ?? []).slice(0, 8);
+document.querySelector("#coverageChangelogMeta").textContent = changes.length ? `最近 ${changes.length} 次` : "";
+document.querySelector("#coverageChangelog").innerHTML = changes.length ? changes.map(entry => {
+  const delta = entry.delta ?? {};
+  const parts = [];
+  if (delta.games) parts.push(`对局 ${delta.games > 0 ? "+" : ""}${format(delta.games)}`);
+  if (delta.playersWithGames) parts.push(`有棋谱棋手 ${delta.playersWithGames > 0 ? "+" : ""}${format(delta.playersWithGames)}`);
+  if (delta.withChineseName) parts.push(`中文名 ${delta.withChineseName > 0 ? "+" : ""}${format(delta.withChineseName)}`);
+  return `<div class="cl-row"><span>${escapeHTML(parts.join(" · ") || "数据索引重建")}</span><span class="cl-date">${escapeHTML(String(entry.date || "").slice(0, 10))}</span></div>`;
+}).join("") : empty("暂无更新记录");
 document.querySelector("#stageCoverage").innerHTML = Object.entries(coverage?.stageCoverage ?? {}).map(([stage, row]) => `
   <div class="coverage-row"><strong>${escapeHTML(stage)}</strong><div class="coverage-track"><span style="width:${Math.max(1, Number(row.coveragePercent || 0))}%"></span></div><span>${escapeHTML(String(row.playersWithPgn ?? 0))} / ${escapeHTML(String(row.players ?? 0))} · ${escapeHTML(String(row.coveragePercent ?? 0))}%</span></div>`).join("") || empty("暂无年龄段覆盖数据");
 
