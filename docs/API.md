@@ -16,7 +16,9 @@ https://china-chess-player-pgn.pages.dev
 
 ### `GET /api/v1/manifest.json`
 
-元信息:`apiVersion`、`generatedAt`、totals(棋手总数/有中文名数/有对局数据数/总对局数)、可用年龄组、端点列表、许可信息。**轮询此文件的 `generatedAt` 判断有无增量**。
+元信息:`apiVersion`、`generatedAt`、totals(棋手总数/有中文名数/有对局数据数/总对局数)、`metricContract`、可用年龄组、端点列表、许可信息。**轮询此文件的 `generatedAt` 判断有无增量**。
+
+指标统一采用“按棋手聚合、去重后的全部可用 PGN（含 bulk）”口径，详见 [`PUBLIC_METRICS.md`](PUBLIC_METRICS.md)。`/data/public-metrics.json` 是机器可读的唯一指标契约。
 
 ### `GET /api/v1/players.json`
 
@@ -34,7 +36,7 @@ https://china-chess-player-pgn.pages.dev
 
 ### `GET /api/v1/players/fide-{fideID}.json`
 
-单棋手详情(**仅对有对局数据的棋手生成**,约 1600 人;是否存在可查 manifest 或直接 404 兜底)。含注册表元数据 + `gameCount`/`eventCount` + `events[]`(赛事历史)+ `packages[]`(PGN 分段包)。
+单棋手详情(**仅对有对局数据的棋手生成**；数量以 manifest 的 `withGameData` 为准)。含注册表元数据 + `gameCount`/`eventCount` + `events[]`(赛事历史)+ `packages[]`(PGN 分段包)。
 
 ### PGN 下载
 

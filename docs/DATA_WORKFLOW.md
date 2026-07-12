@@ -19,7 +19,7 @@
 | 中文名/拼音/别名 | 人工审核 CSV、既有种子、赛事名单 | 随 PR 更新 | `data/manual/player-aliases.csv` |
 | 赛事索引 | Chess-Results 爬虫 | 每周 | `docs/data/index/` |
 | 赛事中文名映射 | 社区核验 + Chess-Results 赛事页 | 随 PR 更新 | `data/community/tournament-name-mappings.csv` |
-| 社区抓取载荷 | 贡献工具(贡献者住宅 IP) | 随 PR | `data/incoming/`(经甄别后入库) |
+| 社区抓取载荷 | 独立贡献工具(贡献者住宅 IP) | 随 PR | `data/incoming/`(经甄别后入库) |
 | 贡献鸣谢名录 | promote_incoming.py 自动累计 | 随入库 | `data/community/contributors.csv` |
 | PGN | Chess-Results Game Database、赛事官网 PGN | 每周 | `docs/data/pgn/` |
 | 百万级 bulk PGN | Lichess official broadcast archive | 每月 | `docs/data/bulk/` |

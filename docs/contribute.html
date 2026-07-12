@@ -6,7 +6,7 @@
     <title>网页贡献向导 · 中国国际象棋棋手数据库</title>
     <meta name="description" content="无需 Python，在网页中整理赛事、棋手与身份线索贡献。">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="styles.css?v=20260712-1">
+    <link rel="stylesheet" href="styles.css?v=20260712-2">
   </head>
   <body class="contribute-page">
     <main class="contribute-shell">
@@ -14,7 +14,8 @@
       <header class="contribute-head">
         <span class="eyebrow">Community data desk</span>
         <h1>网页贡献向导</h1>
-        <p>无需安装 Python。填写你知道的部分，网页会整理成可复制、可下载的标准贡献包；空白字段不会阻止提交。</p>
+        <p>无需安装 Python。填写你知道的部分，授权 GitHub 后向导会直接创建数据 Issue；不用复制 JSON，也不用切换到微信。</p>
+        <p class="tool-download-note">需要整取完整赛事或棋手记录？下载<a href="https://github.com/keluoke/china-chess-contributor/releases/latest">独立桌面工具</a>，无需克隆主数据库。</p>
       </header>
 
       <form id="contributionForm" class="contribution-form">
@@ -42,23 +43,28 @@
         </div>
         <label class="consent-row"><input name="public_evidence" type="checkbox" required><span>我确认以上内容可作为公开数据线索，并同意维护者核验后入库。</span></label>
         <div class="contribution-actions">
-          <button class="primary-button" type="submit">生成贡献内容</button>
+          <button class="primary-button" type="submit">授权 GitHub 并提交</button>
           <button id="resetContribution" class="secondary-button" type="reset">清空</button>
         </div>
       </form>
 
       <section id="contributionOutput" class="contribution-output" hidden aria-live="polite">
-        <div class="section-heading"><h2>贡献内容已整理</h2><span>无需 Python</span></div>
-        <p>优先点击“复制”，通过你方便的社区渠道发给维护者；也可下载 JSON 留存。GitHub 只是可选通道。</p>
+        <div class="section-heading"><h2>贡献内容已整理</h2><span>直接提交 Issue</span></div>
+        <p id="contributionHint">向导只申请创建公开 Issue 所需的 GitHub 权限；联系方式不会写进 Issue。你仍可下载 JSON 留存。</p>
         <textarea id="contributionPreview" rows="13" readonly></textarea>
+        <div id="deviceAuthorization" class="device-authorization" hidden>
+          <span>GitHub 设备验证码</span>
+          <strong id="deviceCode"></strong>
+          <a id="deviceLink" class="primary-button" target="_blank" rel="noreferrer">打开 GitHub 完成授权</a>
+        </div>
         <div class="contribution-actions">
-          <button id="copyContribution" class="primary-button" type="button">复制贡献内容</button>
+          <button id="githubContribution" class="primary-button" type="button">重新提交到 GitHub</button>
+          <button id="copyContribution" class="secondary-button" type="button">复制贡献内容</button>
           <button id="downloadContribution" class="secondary-button" type="button">下载 JSON</button>
-          <a id="githubContribution" class="secondary-button" target="_blank" rel="noreferrer">可选：在 GitHub 提交</a>
         </div>
         <p id="contributionStatus" class="contribution-status"></p>
       </section>
     </main>
-    <script type="module" src="contribute.js?v=20260711-1"></script>
+    <script type="module" src="contribute.js?v=20260712-2"></script>
   </body>
 </html>
