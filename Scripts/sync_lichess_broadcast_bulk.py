@@ -10,33 +10,36 @@ packs and JSON indexes.
 from __future__ import annotations
 
 import argparse
+import codecs
 import datetime as dt
 import hashlib
 import html.parser
 import json
+import os
 import pathlib
 import re
-import shutil
-import ssl
 import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
+from source_http import download_to_path, fetch_bytes
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-DOCS_DATA = REPO_ROOT / "docs" / "data"
+PUBLIC_DOCS_DATA = REPO_ROOT / "docs" / "data"
+DOCS_DATA = pathlib.Path(os.environ.get("CHINA_CHESS_DOCS_DATA_OUTPUT") or PUBLIC_DOCS_DATA)
 BULK_ROOT = DOCS_DATA / "bulk"
 LICHESS_ROOT = BULK_ROOT / "lichess-broadcast"
 SHARD_ROOT = LICHESS_ROOT / "shards"
 YOUTH_ROOT = BULK_ROOT / "youth"
-REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
+EXISTING_SHARD_ROOT = PUBLIC_DOCS_DATA / "bulk" / "lichess-broadcast" / "shards"
+REGISTRY_PLAYERS_JSON = PUBLIC_DOCS_DATA / "registry" / "players.json"
 MANUAL_ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
 DATABASE_URL = "https://database.lichess.org/"
 USER_AGENT = "ChinaChessPlayerPGNBulkSync/1.0"
 COMPETITION_YEAR = 2026
-_TLS_CONTEXT: ssl.SSLContext | None = None
 
 
 @dataclass
@@ -54,6 +57,12 @@ class BroadcastShard:
 
     @property
     def shard_path(self) -> pathlib.Path:
+        output = SHARD_ROOT / self.file_name
+        existing = EXISTING_SHARD_ROOT / self.file_name
+        return output if output.exists() or not existing.exists() else existing
+
+    @property
+    def output_shard_path(self) -> pathlib.Path:
         return SHARD_ROOT / self.file_name
 
     def payload(self) -> dict[str, Any]:
@@ -79,6 +88,7 @@ class PlayerProfile:
     birth_year: int | None = None
     federation: str = ""
     display_name: str = ""
+    name: str = ""
     names: set[str] = field(default_factory=set)
 
 
@@ -157,20 +167,18 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    shards, source_meta = fetch_broadcast_metadata()
-    if args.max_shards:
-        shards = shards[: args.max_shards]
+    all_shards, source_meta = fetch_broadcast_metadata()
+    selected_shards = all_shards[: args.max_shards] if args.max_shards else all_shards
 
     if args.mirror:
-        mirror_shards(shards, args.force, args.delay, args.dry_run)
+        mirror_shards(selected_shards, args.force, args.delay, args.dry_run)
 
-    all_shards, _ = fetch_broadcast_metadata()
     enrich_local_shards(all_shards)
     write_bulk_manifest(all_shards, source_meta, args.dry_run)
 
     youth_stats = None
     if args.index_youth:
-        youth_stats = build_youth_index(all_shards[: args.max_shards or None], args.dry_run)
+        youth_stats = build_youth_index(selected_shards, args.dry_run)
     elif not args.dry_run and not (YOUTH_ROOT / "manifest.json").exists():
         write_empty_youth_manifest()
 
@@ -187,8 +195,13 @@ def main() -> int:
 
 def fetch_broadcast_metadata() -> tuple[list[BroadcastShard], dict[str, Any]]:
     request = urllib.request.Request(DATABASE_URL, headers={"User-Agent": USER_AGENT})
-    with open_url(request) as response:
-        html = decode_response(response.read())
+    body, _final_url, _headers = fetch_bytes(
+        request,
+        timeout=90,
+        retries=2,
+        expected_types=("text/html", "application/xhtml+xml"),
+    )
+    html = decode_response(body)
     parser = BroadcastTableParser()
     parser.feed(html)
 
@@ -221,29 +234,68 @@ def fetch_broadcast_metadata() -> tuple[list[BroadcastShard], dict[str, Any]]:
         )
 
     shards.sort(key=lambda shard: shard.month, reverse=True)
+    validate_metadata(shards)
     return shards, {
         "source": "Lichess Broadcasts",
         "sourceURL": DATABASE_URL,
         "totalGamesText": parser.total_games,
         "license": "Creative Commons Attribution-ShareAlike 4.0",
         "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "attributionURL": DATABASE_URL,
+        "licenseNotice": parser.license_text,
     }
+
+
+def validate_metadata(shards: list[BroadcastShard]) -> None:
+    if len(shards) < 12:
+        raise RuntimeError(f"PARSER_LAYOUT_CHANGED: Lichess Broadcast 目录仅解析到 {len(shards)} 个分片")
+    months = [shard.month for shard in shards]
+    files = [shard.file_name for shard in shards]
+    if len(set(months)) != len(months) or len(set(files)) != len(files):
+        raise RuntimeError("PARSER_LAYOUT_CHANGED: Lichess Broadcast 目录出现重复月份或文件")
+    if any(
+        not re.fullmatch(r"\d{4}-\d{2}", shard.month)
+        or urllib.parse.urlparse(shard.url).hostname != "database.lichess.org"
+        or not shard.file_name.endswith(".pgn.zst")
+        or shard.games <= 0
+        or shard.size_bytes <= 0
+        for shard in shards
+    ):
+        raise RuntimeError("PARSER_LAYOUT_CHANGED: Lichess Broadcast 目录字段不完整")
+
+
+def validate_local_shard(path: pathlib.Path, expected_size: int) -> None:
+    size = path.stat().st_size
+    if size <= 0 or (expected_size and size < int(expected_size * 0.5)):
+        raise RuntimeError(f"VALIDATION_REGRESSION: Lichess 分片尺寸异常：{path.name} ({size}/{expected_size})")
+    with path.open("rb") as handle:
+        if handle.read(4) != b"\x28\xb5\x2f\xfd":
+            raise RuntimeError(f"VALIDATION_REGRESSION: Lichess 分片签名无效：{path.name}")
 
 
 def mirror_shards(shards: list[BroadcastShard], force: bool, delay: float, dry_run: bool) -> None:
     SHARD_ROOT.mkdir(parents=True, exist_ok=True)
     for shard in shards:
-        target = shard.shard_path
-        if target.exists() and not force and target.stat().st_size > 0:
-            continue
+        target = shard.output_shard_path
+        if shard.shard_path.exists() and not force:
+            try:
+                validate_local_shard(shard.shard_path, shard.size_bytes)
+                continue
+            except RuntimeError as error:
+                print(f"WARNING: {error}; 重新下载", flush=True)
         print(f"mirror {shard.file_name} {shard.size_text}", flush=True)
         if dry_run:
             continue
-        tmp = target.with_suffix(target.suffix + ".tmp")
         request = urllib.request.Request(shard.url, headers={"User-Agent": USER_AGENT})
-        with open_url(request, timeout=180) as response, tmp.open("wb") as handle:
-            shutil.copyfileobj(response, handle)
-        tmp.replace(target)
+        download_to_path(
+            request,
+            target,
+            timeout=180,
+            retries=2,
+            expected_size=shard.size_bytes,
+            minimum_ratio=0.5,
+            magic=b"\x28\xb5\x2f\xfd",
+        )
         if delay:
             time.sleep(delay)
 
@@ -251,6 +303,7 @@ def mirror_shards(shards: list[BroadcastShard], force: bool, delay: float, dry_r
 def enrich_local_shards(shards: list[BroadcastShard]) -> None:
     for shard in shards:
         if shard.shard_path.exists():
+            validate_local_shard(shard.shard_path, shard.size_bytes)
             shard.local_path = public_data_path(shard.shard_path)
             shard.size_bytes = shard.shard_path.stat().st_size
             shard.sha256 = sha256_file(shard.shard_path)
@@ -369,6 +422,8 @@ def build_youth_index(shards: list[BroadcastShard], dry_run: bool) -> dict[str, 
         "source": "Lichess Broadcasts",
         "sourceURL": DATABASE_URL,
         "license": "Creative Commons Attribution-ShareAlike 4.0",
+        "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "attributionURL": DATABASE_URL,
         "totals": {
             "scannedGames": scanned_games,
             "games": sum(stage["games"] for stage in stage_payloads),
@@ -393,6 +448,8 @@ def write_empty_youth_manifest() -> None:
             "source": "Lichess Broadcasts",
             "sourceURL": DATABASE_URL,
             "license": "Creative Commons Attribution-ShareAlike 4.0",
+            "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+            "attributionURL": DATABASE_URL,
             "totals": {"scannedGames": 0, "games": 0, "players": 0, "stages": len(stages)},
             "stages": stages,
         },
@@ -425,7 +482,9 @@ def youth_matches(
             result.append(
                 {
                     "fideID": fide_id,
-                    "name": headers.get(name_key, profile.display_name),
+                    "name": profile.name,
+                    "displayName": profile.display_name,
+                    "sourcePlayerName": headers.get(name_key, ""),
                     "role": role,
                     "stage": stage,
                 }
@@ -462,6 +521,7 @@ def load_profiles() -> tuple[dict[str, PlayerProfile], dict[str, str]]:
             profile.birth_year = parse_int(player.get("birthYear")) or profile.birth_year
             profile.federation = clean(player.get("federation")) or profile.federation
             profile.display_name = clean(player.get("displayName") or player.get("name") or fide_id)
+            profile.name = clean(player.get("name"))
             add_name(profile, fide_id)
             for key in ["displayName", "name", "chineseName", "pinyin"]:
                 add_name(profile, player.get(key))
@@ -534,29 +594,21 @@ def iter_zst_pgn_games(path: pathlib.Path) -> Iterator[str]:
         except Exception:
             pass
         if proc is not None:
-            proc.wait()
+            return_code = proc.wait()
+            if return_code != 0:
+                raise RuntimeError(f"VALIDATION_REGRESSION: zstd 解压失败（exit {return_code}）: {path.name}")
 
 
 class TextChunkReader:
     def __init__(self, reader: Any) -> None:
         self.reader = reader
-        self.pending = b""
+        self.decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
 
     def read(self, size: int) -> str:
         data = self.reader.read(size)
         if not data:
-            pending = self.pending
-            self.pending = b""
-            return pending.decode("utf-8", errors="replace")
-        data = self.pending + data
-        try:
-            text = data.decode("utf-8")
-            self.pending = b""
-            return text
-        except UnicodeDecodeError as error:
-            valid = data[: error.start]
-            self.pending = data[error.start :]
-            return valid.decode("utf-8", errors="replace")
+            return self.decoder.decode(b"", final=True)
+        return self.decoder.decode(data, final=False)
 
 
 def pgn_headers(game: str) -> dict[str, str]:
@@ -597,45 +649,23 @@ def stage_for_age(age: int) -> str:
     return ""
 
 
-def open_url(request: urllib.request.Request, timeout: int = 90):
-    last_error: Exception | None = None
-    for attempt in range(3):
-        try:
-            return urllib.request.urlopen(request, timeout=timeout, context=tls_context())
-        except Exception as error:
-            last_error = error
-            if attempt < 2:
-                time.sleep(1.2 * (attempt + 1))
-    assert last_error is not None
-    raise last_error
-
-
-def tls_context() -> ssl.SSLContext:
-    global _TLS_CONTEXT
-    if _TLS_CONTEXT is not None:
-        return _TLS_CONTEXT
-    try:
-        import certifi  # type: ignore[import-not-found]
-
-        _TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-    except Exception:
-        _TLS_CONTEXT = ssl.create_default_context()
-    if hasattr(ssl, "OP_IGNORE_UNEXPECTED_EOF"):
-        _TLS_CONTEXT.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
-    return _TLS_CONTEXT
-
-
 def decode_response(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 
 
 def parse_size(value: str) -> int:
-    match = re.search(r"([0-9.]+)\s*([KMG]B)", value, flags=re.IGNORECASE)
+    match = re.search(r"([0-9.]+)\s*([KMGT]?i?B)", value, flags=re.IGNORECASE)
     if not match:
         return 0
     amount = float(match.group(1))
     unit = match.group(2).upper()
-    factor = {"KB": 1024, "MB": 1024 * 1024, "GB": 1024 * 1024 * 1024}[unit]
+    factor = {
+        "B": 1,
+        "KB": 1024, "KIB": 1024,
+        "MB": 1024**2, "MIB": 1024**2,
+        "GB": 1024**3, "GIB": 1024**3,
+        "TB": 1024**4, "TIB": 1024**4,
+    }[unit]
     return int(amount * factor)
 
 
@@ -730,7 +760,12 @@ def write_json(path: pathlib.Path, data: Any) -> None:
 
 
 def public_data_path(path: pathlib.Path) -> str:
-    return "data/" + str(path.relative_to(DOCS_DATA))
+    for root in (DOCS_DATA, PUBLIC_DOCS_DATA):
+        try:
+            return "data/" + str(path.relative_to(root))
+        except ValueError:
+            continue
+    raise ValueError(f"path is outside public/staged docs data: {path}")
 
 
 if __name__ == "__main__":

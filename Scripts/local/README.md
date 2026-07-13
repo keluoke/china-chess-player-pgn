@@ -1,91 +1,108 @@
-# 本地抓取（Scripts/local）
+# 维护者本地数据采集
 
-chess-results.com 和 ratings.fide.com 会封 GitHub Actions 的数据中心 IP，所以**抓取放在本地跑**（住宅 IP），**索引和部署交给 GitHub Actions**。
+所有网络采集只能由维护者在本机住宅网络执行。GitHub Actions、社区贡献工具和
+公开 runner 不访问 Chess-Results、FIDE 或 Lichess；CI 只接收经过校验的发布
+manifest，并离线重建派生索引。
 
-## 用法
+## 数据边界
+
+- `data/community/`、`data/manual/`：人工维护，抓取脚本禁止写入或自动提交。
+- `data/generated/`：允许发布的机器投影；禁止存放 Chess-Results 原始 HTML。
+- 本地私有运行区：原始响应、解析结果、日志、配额和诊断文件，默认位于
+  `~/Library/Application Support/ChinaChessPlayerPGN/`。
+- Chess-Results 默认 `link-only`：页面、排名、配对、别名候选和 PGN 不进入公开
+  仓库。即使棋步属于事实，也不等于获得了数据库提取或再发布授权。
+- Lichess Broadcast 数据保留 CC BY-SA 4.0 名称、许可证 URL 和来源署名。
+- registry 是姓名和等级分的唯一权威；`name-corrections.csv` 在每次 FIDE 重建中
+  最后强制应用，并在发布前再次断言。
+
+## 控制面板
+
+双击仓库根目录的「一键抓取面板.command」或「一键抓取.app」，也可运行：
 
 ```bash
-# 常规增量刷新：先更新 FIDE 注册表，再爬 Chess-Results 赛事
+python3 Scripts/local/panel.py
+```
+
+面板只监听 `127.0.0.1`，POST 请求带随机本地令牌。任务锁、run-id、状态和日志
+都持久化在仓库外；关闭或重启面板不会遗失正在运行的任务。
+
+## 安全命令
+
+```bash
+# 建议先运行；默认探测三个来源，--offline 只检查本机
+bash Scripts/local/refresh.sh health
+bash Scripts/local/refresh.sh health -- --offline
+
+# 安全常规刷新：FIDE 满 25 天才更新，并私有采集队列前 3 个赛事
 bash Scripts/local/refresh.sh all
 
-# 单项
-bash Scripts/local/refresh.sh registry      # 下载 FIDE 榜、重建 CHN 注册表
-bash Scripts/local/refresh.sh crawl          # 爬棋手赛事 + 抓 PGN
-bash Scripts/local/refresh.sh events         # 起始排名名字 + 整赛事 PGN
-bash Scripts/local/refresh.sh aliases        # 抓中文名并入注册表
-bash Scripts/local/refresh.sh promote        # 晋升可公开 PGN
-bash Scripts/local/refresh.sh reconcile      # 核对覆盖 + 补抓
-bash Scripts/local/refresh.sh bulk           # 镜像 Lichess broadcast 分片
-bash Scripts/local/refresh.sh pgn            # 补抓缺失赛事 PGN
+# FIDE：唯一临时下载 -> ZIP/语义/人数/分片/勘误校验 -> 原子晋升
+bash Scripts/local/refresh.sh registry
 
-# 只提交、不推送（不触发 Actions）
-bash Scripts/local/refresh.sh crawl --no-push
+# Chess-Results：只写仓库外私有运行区
+bash Scripts/local/refresh.sh event-queue
+bash Scripts/local/refresh.sh event-queue -- --from-queue 10
+bash Scripts/local/refresh.sh event-queue -- 1110333
+bash Scripts/local/refresh.sh candidates -- --tournament-id 1110333
 
-# 透传参数给底层脚本（-- 之后原样传入）
-bash Scripts/local/refresh.sh crawl -- --player 8622388
+# Lichess：暂存、验证、BY-SA manifest、精确发布
+bash Scripts/local/refresh.sh bulk
+bash Scripts/local/refresh.sh bulk-full
 
-# 本地纯重建索引（一般不用，Actions 会做；无网络）
+# GitHub 网络失败后只重投已提交发布包，不重新抓取
+bash Scripts/local/refresh.sh push
+
+# 仅本地诊断，不自动提交或推送
 bash Scripts/local/refresh.sh reindex
 ```
 
-## 流程（免 pull 设计）
+`crawl*`、`pgn*`、`events*`、`aliases`、`promote`、`reconcile`、`verify` 和
+`contrib` 已从一键入口退役。社区只提交赛事 URL/tnr、优先级、身份勘误、联邦
+变更证据及质量问题，不提交自动抓取文件。
 
-本机**永不 pull / rebase**，与远端的唯一交互是一次 force-push：
+## 发布事务
 
-1. 脚本在本地跑对应的网络抓取脚本（直连，不走代理）。
-2. 提交**原始**抓取数据到本地历史。
-3. `git push --force` 到单写者分支 `local-data`——强推永不被拒，无需拉取远端。
-4. GitHub 上 `ingest-local-data.yml` 把该分支的数据目录镜像进 main（bot 身份），
-   随后 `rebuild-indexes.yml` 重建全部派生索引并触发 `deploy.yml` 发布双端。
+每次运行创建独立目录：
 
-即：**抓取 = 本地；合入 + 索引 + 部署 = Actions。** 冲突在结构上不可能：
-本机是原始数据唯一生产者，且独占 local-data 分支。
-
-若普通 Git HTTPS 在代理探测后仍不可达，可用 API 精确补推少量已审核数据：
-
-```bash
-python3 Scripts/local/publish_data_via_api.py \
-  --path data/manual/domestic-player-sightings.csv \
-  --path data/generated/federation-snapshots/2026-07.json
+```text
+runs/<run-id>/
+  run.json
+  run.log
+  raw/
+  extracted/
+  staging/
+  diagnostics/
+  release-manifest.json   # 仅存在于可发布运行
 ```
 
-该命令只接受显式数据路径，以远端当前 `main` 为父提交并强制更新单写者
-`local-data`，不会把本地旧派生索引或代码历史带入数据分支。
+FIDE/Lichess 发布前必须满足：
 
-## 代码修改（同样免 pull，但禁止走 local-data）
+1. 发布归属路径和 Git 暂存区在运行前是干净的；
+2. 下载写入唯一临时文件，长度、文件签名和内容校验通过；
+3. 输出先写 staging，再原子晋升或逐文件原子 overlay；
+4. `run_manager.py` 生成精确路径、操作和 SHA-256 manifest；
+5. Git 只暂存 manifest 中的文件，不再执行宽目录 `git add`；
+6. force-push 到单写者 `local-data`；
+7. `ingest-local-data.yml` 使用同一验证器，只把 manifest 文件清单应用到 main；
+8. Actions 离线重建索引和部署。
 
-`local-data` 只传原始/人工数据。代码、工作流和页面修改必须发布为一个直接基于
-GitHub 当前 `main` 的短命 PR 分支，避免把本地抓取历史和生成物带进代码 PR：
+任何 `data/manual`、`data/community`、`data/incoming`、原始 HTML/WARC 路径都会
+被本地发布器和 CI 双重拒绝。
 
-```bash
-python3 Scripts/local/publish_code_via_api.py \
-  --source-base <修改前提交> \
-  --source-head HEAD \
-  --branch codex/<主题>-main \
-  --message "修改说明"
+## 常见错误码
 
-# dry-run 没有 conflicts 后再真正发布
-python3 Scripts/local/publish_code_via_api.py ... --publish
+- `DIRTY_RELEASE_PATH`：机器发布路径已有未提交修改，工具不会覆盖。
+- `FIDE_DOWNLOAD_OR_VALIDATION_FAILED`：新文件无效；有效 last-good 不会被替换。
+- `SOURCE_CIRCUIT_OPEN`：连续失败后熔断，等待后再试。
+- `VISIT_BUDGET_EXHAUSTED`：当日来源预算已耗尽。
+- `PARSER_LAYOUT_CHANGED`：来源页面不再符合解析器预期。
+- `VALIDATION_REGRESSION`：人数、分片、勘误或解析行数出现异常。
+- `COMPLIANCE_POLICY_BLOCKED`：操作违反 link-only 或人工数据边界。
+- `GIT_PUSH_FAILED`：数据已按 manifest 提交，可直接运行 `push`。
 
-# PR 分支已存在时，安全追加一个 fast-forward 修复提交
-python3 Scripts/local/publish_code_via_api.py ... --publish --update-existing
-```
+## 本地不 pull
 
-脚本通过 GitHub API 读取最新 main，对每个代码/人工数据文件执行三方合并，并默认
-排除 `docs/data/`、`data/generated/`、`data/incoming/`。冲突会写到
-`.git/code-publish-conflicts/`，处理完成前不会创建远端分支。PR 合并后由
-`rebuild-indexes.yml` 在最新 main 数据上重建派生产物。
-
-git push 连不上 GitHub 时自动探测代理：macOS 系统代理（Veee/Clash 等登记的）→
-环境变量 → 常见本地端口；也可 `GITHUB_PROXY=http://127.0.0.1:端口` 指定。
-推送失败时数据已提交在本地，之后任意时刻选「push」补推即可。
-
-## 前置
-
-- 已装 `python3`，并按需 `pip install certifi python-chess`。
-- 已 clone 仓库并配置好 `git push` 权限。
-- 首次可 `chmod +x Scripts/local/refresh.sh` 后直接 `./Scripts/local/refresh.sh ...`。
-
-## 也可用自托管 runner
-
-抓取类 workflow 仍保留在 `.github/workflows/`，但已改为 `runs-on: [self-hosted]` + 仅手动触发。如果你挂了自托管 runner，也可以直接在 GitHub UI 上手动 dispatch，效果与本地脚本一致（抓取→提交→触发 rebuild-indexes）。
+采集机仍然不执行 pull/rebase。GitHub 推送自动尝试直连、macOS 系统代理和常见
+本地代理端口；代理只传给 Git，不传给数据来源请求。代码修改不能通过
+`local-data` 发布，仍应走普通短命 PR 分支。

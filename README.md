@@ -3,13 +3,16 @@
 社区共建的开源中国国际象棋棋手数据库:全量 CHN 棋手注册表(含转出/转入棋手标注)、赛事记录、对局 PGN、全年龄组排行榜(U8-U18 / U20 / 成年 / S50 / S65),并以[静态数据 API](docs/API.md) 对外提供数据。
 
 - 贡献数据:见 [CONTRIBUTING.md](CONTRIBUTING.md)(网页上改 CSV 提 PR 即可；赛事中文名维护在 `data/community/tournament-name-mappings.csv`)
-- **轻量贡献**:网页向导授权 GitHub 后直接开 Issue；完整赛事抓取使用[独立桌面工具](https://github.com/keluoke/china-chess-contributor/releases/latest)，无需下载主数据库。审核入库后才进入鸣谢名录(治理机制见 [docs/GOVERNANCE.md](docs/GOVERNANCE.md))
+- **轻量贡献**:网页向导授权 GitHub 后直接开 Issue；社区提交目标线索和人工勘误，不运行或上传抓取结果（见 [docs/GOVERNANCE.md](docs/GOVERNANCE.md)）
 - 数据 API:见 [docs/API.md](docs/API.md)(风格引擎等外部项目请走 API,本仓库不再内置风格模拟)
-- 许可:代码 MIT,数据 CC BY 4.0(见 [LICENSE-DATA.md](LICENSE-DATA.md))
+- 许可:代码 MIT；人工数据见 [LICENSE-DATA.md](LICENSE-DATA.md)，第三方来源按文件 manifest 分别标注（Lichess Broadcast 为 CC BY-SA 4.0）
 
-数据源以 Chess-Results 为主，辅以 FIDE/Lichess 公开资料和中文别名索引。
+数据源包括 FIDE、Lichess 和人工审核资料。Chess-Results 默认只用于维护者本地
+link-only 核验，不新增公开 HTML、排名镜像或 PGN 发布。
 
-**架构：抓取与索引/部署分离。** chess-results.com 和 ratings.fide.com 会封 GitHub Actions 的数据中心 IP，因此**抓取在本地（住宅 IP）跑**，见 [`Scripts/local/refresh.sh`](Scripts/local/README.md)；**索引重建和站点部署由 GitHub Actions 完成**。本地 push 原始数据后，`rebuild-indexes.yml` 会纯计算重建全部派生索引并触发 `deploy.yml` 发布。
+**架构：私有采集、审批发布、离线构建。** 所有网络采集只在维护者本机运行，
+见 [`Scripts/local/refresh.sh`](Scripts/local/README.md)。原始响应留在仓库外；本地只
+push 带精确路径和 SHA-256 的发布 manifest，Actions 验证后离线重建并部署。
 
 ## 网页版
 
@@ -25,28 +28,27 @@ python3 -m http.server 4173 -d docs
 
 ## 数据同步
 
-分两类：**抓取类**（需住宅 IP，本地脚本或自托管 runner 手动跑）和**索引/部署类**（纯计算，GitHub-hosted Actions 自动跑）。
+分两类：**维护者本地采集/发布**和**GitHub 离线索引/部署**。
 
-### 抓取类（本地 / 自托管，仅手动）
+### 维护者本地（唯一网络采集入口）
 
-在本地跑 [`Scripts/local/refresh.sh`](Scripts/local/README.md)（推荐），或在挂了自托管 runner 时从 GitHub UI 手动 dispatch 对应 workflow。它们只提交**原始**数据，随后由 Actions 重建索引并部署。
+运行 [`Scripts/local/refresh.sh`](Scripts/local/README.md) 或本地控制面板。仓库不再
+提供抓取 workflow，也不接受社区抓取载荷。
 
-| workflow / 本地命令 | 数据源 | 功能 |
+| 本地命令 | 数据源 | 功能 |
 |---------------------|--------|------|
-| `crawl` · Crawl player events | Chess-Results | 爬取赛事记录，生成棋手-赛事索引和中文名映射 |
-| `pgn` · Update static PGN archive | Chess-Results | 抓取缺失 PGN 到 `docs/data/pgn/` |
-| `promote` · Promote public PGN | Chess-Results | 晋升可公开分发的新棋局到静态归档 |
-| `events` · Ingest event archive | Chess-Results | 起始排名名字 + 整赛事 PGN 分棋手 |
-| `aliases` · Update name aliases | Chess-Results | 抓中文名并入注册表 |
-| `reconcile` · Reconcile PGN sources | Chess-Results | 核对覆盖、探测缺口、补抓 |
-| `registry` · Update Chinese player registry | FIDE | 从 legacy XML 同步 CHN 全量注册表 |
-| `bulk` · Update Lichess broadcast bulk | Lichess | 镜像 broadcast PGN 并生成 U8-U18 包 |
+| `health` | 全部 | 检查缓存、发布路径、TLS、配额和连通性 |
+| `event-queue` / `candidates` | Chess-Results | 私有采集，不写人工层或公开数据 |
+| `registry` | FIDE | staging + last-good + registry/勘误校验 + manifest |
+| `bulk` | Lichess | 验证分片，保留 CC BY-SA 4.0 署名并按 manifest 发布 |
+| `push` | GitHub | 重投最近发布包，不重新抓取 |
 
 ### 索引/部署类（GitHub Actions，自动）
 
 | Workflow | 触发 | 功能 |
 |----------|------|------|
-| **Rebuild indexes and deploy** | 原始数据 push / 抓取后 dispatch | 纯计算重建全部派生索引（`sync_static_pgn`、`build_static_player_pgn`、离线注册表/别名），提交后触发部署 |
+| **Ingest local data branch** | local-data push | 校验 manifest 并只应用精确文件清单 |
+| **Rebuild indexes and deploy** | ingest / 人工数据 push | 纯计算重建派生索引，提交后触发部署 |
 | **Deploy static site** | `docs/**` 变化 / 被调用 | 把 `docs/` 发布到 Cloudflare Pages |
 | **Update domestic player registry** | CSV 变化 | 纯计算从 CSV 生成国内临时身份层 |
 | **CI** | push / PR | 字节编译脚本、校验 workflow 与 action YAML |
@@ -74,20 +76,16 @@ docs/data/index/by-player/fide-<fideID>.json
 ## 常用命令
 
 ```bash
-# 从静态索引抓取缺失 PGN
-python3 Scripts/sync_static_pgn.py --fetch-missing --max-downloads 50
+# 健康检查与安全常规刷新
+bash Scripts/local/refresh.sh health
+bash Scripts/local/refresh.sh all
 
-# 按 FIDE ID 更新
-python3 Scripts/sync_static_pgn.py --player 8657238 --fetch-missing
+# 单独更新可发布来源
+bash Scripts/local/refresh.sh registry
+bash Scripts/local/refresh.sh bulk
 
-# 爬取全部 CHN 棋手赛事记录（增量、断点续爬）
-python3 Scripts/crawl_player_events.py
-
-# 爬取并立即下载对局 PGN
-python3 Scripts/crawl_player_events.py --player 8603677 --fetch-games
-
-# 刷新棋手注册表
-python3 Scripts/sync_chinese_players.py
+# 私有采集目标赛事
+bash Scripts/local/refresh.sh event-queue -- 1110333
 
 # 重建 by-player 聚合层
 python3 Scripts/build_static_player_pgn.py
@@ -99,13 +97,13 @@ python3 Scripts/build_static_player_pgn.py
 Lichess broadcast 数据压缩分片存放于 `docs/data/bulk/`，包含 77 个 `.pgn.zst` 分片、1,109,301 盘棋，并按年龄段生成全部 CHN 棋手对局 PGN 包(U8-U18 + 成年 19+)。
 
 ```bash
-python3 Scripts/sync_lichess_broadcast_bulk.py --metadata-only --mirror --index-youth
+bash Scripts/local/refresh.sh bulk
 ```
 
 ## 中国棋手全量注册表
 
 ```bash
-python3 Scripts/sync_chinese_players.py
+bash Scripts/local/refresh.sh registry
 ```
 
 输出 `docs/data/registry/players.json`（按 CHN federation 过滤的 FIDE 全量棋手）。中文别名维护在 `data/manual/player-aliases.csv`。
@@ -120,10 +118,10 @@ python3 Scripts/sync_domestic_players.py
 
 ## 数据源
 
-- 棋手和赛事：Chess-Results Player-Database
-- 对局 PGN：Chess-Results Game-Database `Download as PGN-File`
-- FIDE 分：FIDE / Lichess FIDE 公开资料
-- 中文别名：`data/manual/player-aliases.csv` + 爬虫自动采集
+- 棋手身份与等级分权威：FIDE rating list
+- 大批量授权棋谱：Lichess Broadcast（CC BY-SA 4.0）
+- 赛事目标/本地核验：Chess-Results（默认 link-only，不新增公开镜像）
+- 中文别名和勘误：人工审核的 `data/manual/`、`data/community/`
 
 ## 架构说明
 

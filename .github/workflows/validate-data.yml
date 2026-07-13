@@ -1,7 +1,7 @@
 name: Validate community data
 
-# Offline-only validation (chess-results blocks GitHub IPs; source
-# cross-verification runs locally via `refresh.sh verify`).
+# Offline-only validation. Source links are reviewed by the maintainer; CI and
+# community contributors never fetch Chess-Results.
 on:
   pull_request:
     paths:

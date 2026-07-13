@@ -1,35 +1,37 @@
-# data/incoming/ — 社区抓取载荷暂存区
+# data/incoming/ — 社区目标线索暂存区
 
-社区贡献工具(`Scripts/contrib/contrib_tool.py`,双击仓库根目录的
-「贡献工具-双击启动」)抓取 Chess-Results 数据后,自动以 PR 形式把载荷提交到
-本目录:`data/incoming/<submission-id>/`。
+社区可以提交“应该由维护者采集什么”，但不能提交任何自动抓取结果。本目录仅接受
+目标 URL、Chess-Results tnr、FIDE ID、缺失原因和优先级提示。
 
-**这里是暂存区,不是正式数据。** 正式入库路径:
+禁止提交：
 
-```text
-贡献者本地抓取(住宅 IP,分摊 2000 visits/day 限制)
-  → PR 到 data/incoming/<id>/(manifest + 解析结果 + 原始 HTML/PGN 证据)
-  → CI 离线甄别(Scripts/validate_incoming.py:sha256、证据重解析逐行比对、
-    PGN 重切逐字节比对;CI 无法访问 chess-results,不做在线核验)
-  → 维护者合并 PR
-  → 维护者本地 `refresh.sh contrib`(promote_incoming.py --verify 抽查回抓)
-  → 并入 data/generated / docs/data/pgn,贡献者记入
-    data/community/contributors.csv 鸣谢名录
-  → reindex 重建派生索引 → 网站上线,鸣谢名录展示昵称
+- HTML、WARC、截图式网页存档；
+- PGN、棋局切分文件；
+- 抓取后生成的 rows/standings/pairings/games；
+- cookies、请求/响应头、代理或访问额度信息；
+- 未成年人联系方式或其他敏感身份材料。
+
+每个提交目录只能包含一个 `manifest.json`：
+
+```json
+{
+  "schema": "china-chess-target-submission/v2",
+  "contributor": {"nickname": "可选昵称", "github": "optional-user"},
+  "targets": [
+    {
+      "type": "event-target",
+      "tournamentID": "1110333",
+      "sourceURL": "https://chess-results.com/tnr1110333.aspx?lan=1",
+      "reason": "赛事缺失",
+      "priority": 70
+    }
+  ]
+}
 ```
 
-## 载荷结构
+支持的 `type`：`event-target`、`player-target`、`source-clue`、
+`quality-report`。每次 1-20 条，manifest 最大 64 KiB。
 
-```text
-<submission-id>/               # YYYYMMDD-HHMMSS-hex6
-├── manifest.json              # 贡献者、目标、统计、每个文件的 sha256
-├── players/<fideID>/
-│   ├── rows.json              # SpielerSuche 解析出的参赛记录
-│   └── spielersuche.html.gz   # 原始响应快照(证据)
-└── events/tnr<ID>/
-    ├── raw.pgn.gz             # 赛事原始 PGN(证据)
-    └── split/fide-*.pgn       # 按中国棋手切分的对局
-```
-
-规则:载荷 PR 不得修改本目录以外的任何路径(CI 强制);单载荷 ≤ 25 MB;
-已入库的载荷记录在 `data/generated/contrib-processed.json`,可由维护者清理。
+CI 的 `Scripts/validate_incoming.py` 会拒绝额外附件、抓取产物字段、HTML/PGN 内容、
+凭据 URL 和公开联系方式。通过审核的线索由维护者加入人工目标队列，再通过
+`Scripts/local/refresh.sh event-queue` 在本机私有采集；本目录本身永不晋升为数据。

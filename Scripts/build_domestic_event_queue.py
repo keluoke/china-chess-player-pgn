@@ -14,6 +14,8 @@ import pathlib
 import re
 from typing import Any
 
+from stable_json import write_json
+
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 STARTING_RANK = ROOT / "data" / "manual" / "chess-results-starting-rank-sources.csv"
@@ -181,8 +183,8 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
 def main() -> int:
     event_queue, demand_queue = build()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(event_queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    DEMAND_OUTPUT.write_text(json.dumps(demand_queue, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_json(OUTPUT, event_queue, ensure_ascii=False, indent=2)
+    write_json(DEMAND_OUTPUT, demand_queue, ensure_ascii=False, indent=2)
     print(json.dumps({"eventTargets": event_queue["totals"], "demand": demand_queue["totals"]}, ensure_ascii=False))
     return 0
 

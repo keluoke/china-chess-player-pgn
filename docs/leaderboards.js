@@ -20,15 +20,19 @@ function render() {
   const group = groups.find(item => item.id === active) || groups[0];
   tabs.querySelectorAll("[data-group]").forEach(button => button.setAttribute("aria-selected", String(button.dataset.group === active)));
   if (!group) { page.innerHTML = '<div class="empty-state">暂无排行数据</div>'; return; }
-  const rows = (group.players ?? []).slice(0, 20).map((player, index) => {
+  const rowFor = (player, index) => {
     const rating = ratingFor(player);
     return `<a class="leaderboard-row-link" href="./?fideID=${encodeURIComponent(player.fideID)}">
       <span class="rank-badge">${index + 1}</span>
       <span><strong>${escapeHTML(player.displayName || player.chineseName || player.name)}</strong><small>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(player.title || "无称号")} · ${escapeHTML(player.age != null ? `${player.age} 岁` : "年龄待补")}</small></span>
       <span class="rating-value">${escapeHTML(rating ? rating.value : "—")}<small>${escapeHTML(rating?.kind || "无等级分")}</small></span>
     </a>`;
-  }).join("");
-  page.innerHTML = `<article class="leaderboard-card leaderboard-page-card"><div class="card-head"><div><h2 class="stage-title">${escapeHTML(group.id === "OPEN" ? "成年公开组" : group.label || group.id)}</h2><div class="stage-range">${escapeHTML(group.minAge != null ? `${group.minAge}${group.maxAge ? `–${group.maxAge}` : "+"} 岁` : "全年龄")}</div></div><span class="stage-chip">${Number(group.totalEligible || 0).toLocaleString("zh-CN")} 人</span></div>${rows || '<div class="empty-state compact">暂无排行数据</div>'}</article>`;
+  };
+  const all = group.players ?? [];
+  const rows = all.slice(0, 20).map(rowFor).join("");
+  const rest = all.slice(20).map((player, index) => rowFor(player, index + 20)).join("");
+  const more = rest ? `<details class="leaderboard-more"><summary>查看第 21–${all.length} 名</summary>${rest}</details>` : "";
+  page.innerHTML = `<article class="leaderboard-card leaderboard-page-card"><div class="card-head"><div><h2 class="stage-title">${escapeHTML(group.id === "OPEN" ? "成年公开组" : group.label || group.id)}</h2><div class="stage-range">${escapeHTML(group.minAge != null ? `${group.minAge}${group.maxAge ? `–${group.maxAge}` : "+"} 岁` : "全年龄")}</div></div><span class="stage-chip">${Number(group.totalEligible || 0).toLocaleString("zh-CN")} 人</span></div>${rows || '<div class="empty-state compact">暂无排行数据</div>'}${more}</article>`;
 }
 
 function ratingFor(player) {

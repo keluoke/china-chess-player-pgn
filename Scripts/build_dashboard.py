@@ -20,12 +20,14 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from public_metrics import canonical_public_metrics  # noqa: E402
+from stable_json import write_json  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_DATA = REPO_ROOT / "docs" / "data"
 OUTPUT = DOCS_DATA / "dashboard.json"
 
 BOT_MARKERS = ("github-actions", "[bot]", "actions@github.com", "noreply@github.com")
+PLACEHOLDER_AUTHORS = {"test", "unknown", "root", "local"}
 
 
 def read_json(path: pathlib.Path, default=None):
@@ -52,6 +54,8 @@ def git_contributors() -> dict:
         blob = f"{name} {email}".lower()
         if any(marker in blob for marker in BOT_MARKERS):
             continue
+        if name.strip().casefold() in PLACEHOLDER_AUTHORS or email.lower().endswith(("@local", "@localhost")):
+            continue
         key = email.lower() or name.lower()
         humans.setdefault(key, name)
         if latest is None:
@@ -60,7 +64,7 @@ def git_contributors() -> dict:
 
 
 def data_contributors(limit: int = 30) -> list[dict]:
-    """鸣谢名录:通过贡献工具入库的社区数据贡献者(data/community/contributors.csv)。"""
+    """鸣谢名录：经审核的人工线索、勘误和质量贡献者。"""
     path = REPO_ROOT / "data" / "community" / "contributors.csv"
     if not path.exists():
         return []
@@ -83,11 +87,21 @@ def data_contributors(limit: int = 30) -> list[dict]:
     return rows[:limit]
 
 
+def is_event_level(entry: dict) -> bool:
+    """Hierarchy: canonical event → section → round → game.
+
+    Rows tagged level="source-item" (e.g. Lichess "Round 6: A - B" broadcast
+    fragments) are crawl/evidence units and must not surface as 赛事. Rows
+    without a level (older builds) count as events for compatibility.
+    """
+    return (entry.get("level") or "event") == "event"
+
+
 def recent_events(limit: int = 8) -> list[dict]:
     events = read_json(DOCS_DATA / "index" / "events.json", []) or []
     # "Latest archived games" is intentionally based on usable PGN coverage,
     # not merely the latest event in a player's prospective tournament list.
-    dated = [e for e in events if e.get("date") and e.get("gameCount")]
+    dated = [e for e in events if e.get("date") and e.get("gameCount") and is_event_level(e)]
     dated.sort(key=lambda e: str(e.get("date")), reverse=True)
     return [
         {
@@ -127,8 +141,11 @@ def main() -> int:
             "domesticIdentityReview": domestic.get("lowConfidence"),
             "withChineseName": registry.get("withChineseName"),
             "games": public_metrics["totals"]["games"],
-            "events": len(events) or index_manifest.get("events"),
-            "eventsWithChineseName": sum(1 for event in events if event.get("chineseName")),
+            # 赛事数只统计真实赛事层;round/game 级 source item 单独计数,
+            # 仅作为证据与抓取单元存在。
+            "events": sum(1 for event in events if is_event_level(event)) or index_manifest.get("events"),
+            "sourceItems": sum(1 for event in events if not is_event_level(event)),
+            "eventsWithChineseName": sum(1 for event in events if event.get("chineseName") and is_event_level(event)),
             "canonicalEvents": len(canonical_events),
             "playersWithGames": public_metrics["totals"]["playersWithGames"],
         },
@@ -137,7 +154,7 @@ def main() -> int:
         "latestDelta": (changelog[0] if changelog else None),
         "recentEvents": recent_events(),
     }
-    OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_json(OUTPUT, payload, ensure_ascii=False, indent=1)
     print(json.dumps({"totals": payload["totals"], "community": payload["community"], "recentEvents": len(payload["recentEvents"])}, ensure_ascii=False))
     return 0
 

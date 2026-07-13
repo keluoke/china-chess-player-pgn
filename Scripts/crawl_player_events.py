@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
-"""Crawl the Chess-Results player database (SpielerSuche.aspx) by FIDE ID.
+"""Legacy full Chess-Results player crawler (disabled by default).
 
-For every Chinese player already in the data warehouse this script:
+This module is retained only to read/reproduce historical artifacts under a
+separately documented publication authorization. Normal maintenance uses the
+private target collector in ``Scripts/local/refresh.sh event-queue``. The
+one-click entrypoint blocks this crawler, and its machine name map is never an
+input to the authoritative registry.
+
+Under the exceptional authorization gate, for every selected player it:
 
 1. POSTs the player's FIDE ID to the Player-Database search form
    (``https://s3.chess-results.com/SpielerSuche.aspx?lan=1``) and parses the
@@ -10,27 +16,14 @@ For every Chinese player already in the data warehouse this script:
    federation.
 2. Builds a per-player tournament index (CSV) and a global tnrid catalog (JSON)
    under ``docs/data/index``.
-3. Harvests any Chinese-character name variant it sees as name-mapping evidence
-   (``data/generated/chess-results-player-name-map.csv``) so the warehouse can
-   reconcile FIDE-ID -> 中文名.
+3. Writes sanitized Chinese-character candidates to the legacy machine map;
+   candidates still require human review before entering manual/correction data.
 4. Optionally (``--fetch-games``) feeds the freshly discovered tnrids into the
    existing per-tournament PGN pipeline (``fetch_event_pgn.process_event``),
    which downloads the tournament PGN and splits games per Chinese player.
 
-Crawl state is persisted so an 11k-player run can resume and refresh
-incrementally.
-
-Examples
---------
-    # crawl every CHN FIDE ID in the registry, 1 req/sec, resume-aware
-    python3 Scripts/crawl_player_events.py
-
-    # only a few players, then immediately pull their games
-    python3 Scripts/crawl_player_events.py --player 8603677 --player 8601429 \
-        --fetch-games
-
-    # re-crawl only players not seen in the last 30 days
-    python3 Scripts/crawl_player_events.py --refresh-days 30
+Crawl state is persisted for historical reproducibility. Do not use this as a
+routine collection command.
 """
 
 from __future__ import annotations
@@ -58,9 +51,10 @@ from sync_static_pgn import (  # noqa: E402
     STATIC_PGN_ROOT,
     USER_AGENT,
     decode_response,
-    open_url,
     load_form,
 )
+from source_http import SourceHTTPError, fetch_bytes  # noqa: E402
+from source_policy import require_chess_results_publication  # noqa: E402
 import fetch_event_pgn as fep  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -308,8 +302,19 @@ def search_player(fide_id: str, html_sink: list[str] | None = None) -> list[dict
         },
         method="POST",
     )
-    with open_url(request) as response:
-        html_text = decode_response(response.read())
+    def validate(data: bytes, _headers: Any) -> None:
+        sample = data[:20000].lower()
+        if b"<html" not in sample and b"<table" not in sample:
+            raise SourceHTTPError("PARSER_LAYOUT_CHANGED", f"FIDE {fide_id} SpielerSuche 返回内容不可解析。")
+
+    data, _final_url, _headers = fetch_bytes(
+        request,
+        timeout=60,
+        retries=2,
+        expected_types=("text/html", "application/xhtml+xml"),
+        validator=validate,
+    )
+    html_text = decode_response(data)
     if html_sink is not None:
         html_sink.append(html_text)
 
@@ -535,6 +540,10 @@ def pick_players(args: argparse.Namespace, state: dict[str, Any]) -> list[str]:
 
 
 def crawl(args: argparse.Namespace) -> dict[str, Any]:
+    # This legacy full-player crawler writes public derived tables.  Keep it
+    # behind the same explicit authorization gate as Chess-Results PGN; the
+    # normal local panel uses the private, target-queue event collector.
+    require_chess_results_publication()
     state = load_state()
     events = _read_events_csv()
     name_map = _read_name_map()

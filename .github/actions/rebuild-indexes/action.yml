@@ -1,8 +1,8 @@
 name: Rebuild derived indexes
 description: >-
   Rebuild every derived / index artifact from data already committed to the
-  repository. This step performs NO network access, so it is safe to run on
-  GitHub-hosted runners. It is the "index" half of the scrape/index split.
+  repository. This step performs NO source access, so it is safe to run on
+  GitHub-hosted runners. It is the derived half of the local-release pipeline.
 
 inputs:
   apply-registry-aliases:
@@ -28,6 +28,9 @@ runs:
            && [ -f docs/data/registry/players.json ]; then
           python3 Scripts/apply_aliases_to_registry.py
         fi
+        python3 Scripts/validate_registry_release.py \
+          --registry docs/data/registry \
+          --corrections data/community/name-corrections.csv
 
         # Domestic (non-FIDE) identity layer built from reviewed CSVs.
         if [ "${{ inputs.rebuild-domestic }}" = "true" ] \
@@ -89,6 +92,10 @@ runs:
         if [ -f Scripts/build_dashboard.py ]; then
           python3 Scripts/build_dashboard.py
         fi
+
+        # Identity/current-rating fields in every consumer layer must be exact
+        # registry projections; old derived outputs may never fill gaps.
+        python3 Scripts/validate_registry_authority.py
 
         # Public totals are an API contract; never deploy contradictory counts.
         python3 Scripts/validate_public_metrics.py

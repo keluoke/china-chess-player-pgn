@@ -16,11 +16,18 @@ RawPGNScout/
 data/raw/
 data/scout-cache/
 data/imports/
+# Maintainer-only Chess-Results captures live under the local state root.
+# Historical tracked files remain readable, but new raw/parsed captures must
+# never be added to the repository.
+data/generated/chess-results-event-details/
+data/generated/chess-results-event-snapshots/
 mimic-engine/webplay/vendor/nn-*.nnue
 
 # Local one-click launcher (machine-specific, not part of the repo)
 /一键抓取.app/
 .local-refresh.log
+.local-refresh.status
+.local-panel.port
 .git-token
 
 # Community contribution tool local state (token, visit counter, staged payloads)

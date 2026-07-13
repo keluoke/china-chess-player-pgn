@@ -12,13 +12,16 @@ import html.parser
 import json
 import pathlib
 import re
-import ssl
 import time
 import urllib.parse
 import urllib.request
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
+
+from source_http import open_response
+from source_policy import require_chess_results_publication
+from stable_json import write_json as write_stable_json
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -35,7 +38,6 @@ CHESS_RESULTS_TOURNAMENT_URL = "https://chess-results.com/tnr{tournament_id}.asp
 USER_AGENT = "ChinaChessPlayerPGNReconciler/1.0"
 SCHEMA_VERSION = 1
 CURRENT_YEAR = dt.datetime.now(dt.timezone.utc).year
-_TLS_CONTEXT: ssl.SSLContext | None = None
 
 
 @dataclass
@@ -136,6 +138,9 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
+    if args.discover_chess_results:
+        require_chess_results_publication()
+
     if not args.write_audit and not args.discover_chess_results:
         args.write_audit = True
 
@@ -202,8 +207,19 @@ def write_audit_reports(
         write_json(AUDIT_ROOT / "missing-pgn-events.json", missing_events)
         write_json(AUDIT_ROOT / "player-coverage.json", player_coverage)
         write_json(AUDIT_ROOT / "chess-results-targets.json", known_targets)
-        write_json(AUDIT_ROOT / "manifest.json", summary)
-        write_audit_markdown(AUDIT_ROOT / "README.md", summary, source_coverage, player_coverage, missing_events)
+        manifest_path = AUDIT_ROOT / "manifest.json"
+        write_json(manifest_path, summary)
+        # The stable JSON writer may retain the previous generatedAt for a
+        # semantically unchanged report.  Render Markdown from the persisted
+        # manifest so both surfaces share that same snapshot timestamp.
+        persisted_summary = read_json(manifest_path)
+        write_audit_markdown(
+            AUDIT_ROOT / "README.md",
+            persisted_summary,
+            source_coverage,
+            player_coverage,
+            missing_events,
+        )
     return summary["headline"]
 
 
@@ -698,31 +714,7 @@ def load_form(url: str) -> dict[str, Any]:
 
 
 def open_url(request: urllib.request.Request):
-    last_error: Exception | None = None
-    for attempt in range(3):
-        try:
-            return urllib.request.urlopen(request, timeout=90, context=tls_context())
-        except Exception as error:  # noqa: BLE001 - network retry wrapper.
-            last_error = error
-            if attempt < 2:
-                time.sleep(0.8 * (attempt + 1))
-    assert last_error is not None
-    raise last_error
-
-
-def tls_context() -> ssl.SSLContext:
-    global _TLS_CONTEXT
-    if _TLS_CONTEXT is not None:
-        return _TLS_CONTEXT
-    try:
-        import certifi  # type: ignore[import-not-found]
-
-        _TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-    except Exception:
-        _TLS_CONTEXT = ssl.create_default_context()
-    if hasattr(ssl, "OP_IGNORE_UNEXPECTED_EOF"):
-        _TLS_CONTEXT.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
-    return _TLS_CONTEXT
+    return open_response(request, timeout=90, retries=2)
 
 
 def write_player_batch(path: pathlib.Path, players: list[PlayerProfile]) -> None:
@@ -809,7 +801,13 @@ def write_audit_markdown(
             "",
         ]
     )
-    path.write_text("\n".join(lines), encoding="utf-8")
+    text = "\n".join(lines)
+    try:
+        if path.read_text(encoding="utf-8") == text:
+            return
+    except OSError:
+        pass
+    path.write_text(text, encoding="utf-8")
 
 
 def player_payload(profile: PlayerProfile) -> dict[str, Any]:
@@ -836,8 +834,7 @@ def read_json(path: pathlib.Path) -> Any:
 
 
 def write_json(path: pathlib.Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+    write_stable_json(path, data, ensure_ascii=False, indent=2, sort_keys=False)
 
 
 def docs_path(public_path: str) -> pathlib.Path:

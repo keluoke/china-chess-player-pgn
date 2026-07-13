@@ -63,4 +63,7 @@ curl -sO $BASE/data/pgn/by-player/fide-8622388/all.pgn
 
 ## 许可
 
-数据以 CC BY 4.0 提供(署名:china-chess-player-pgn contributors)。PGN 棋谱源自 Chess-Results / Lichess broadcast 公开页面,再分发请保留来源信息,详见仓库 LICENSE-DATA.md。
+API 不对所有字段作统一许可：社区原创审核数据为 CC BY 4.0，
+Lichess Broadcast 派生数据为 CC BY-SA 4.0 并须保留署名，FIDE 为事实
+注册表投影。Chess-Results 新采集默认 link-only，不进入 API；历史静态资料
+不因本项目声明而自动获得 CC BY 许可。详见 `LICENSE-DATA.md` 和各数据 manifest。

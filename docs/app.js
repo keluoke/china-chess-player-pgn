@@ -81,8 +81,11 @@ let activeLichessViewer = null;
 let viewerAutoplayTimer = null;
 let searchDebounceTimer = null;
 let composingSearch = false;
+let domesticSearchReady = false;
 
 initialize();
+loadDomesticSearchIndex();
+renderSearchTrustLine();
 
 async function loadData() {
   try {
@@ -116,6 +119,41 @@ async function loadData() {
   } catch (error) {
     document.body.innerHTML = `<main class="empty-state">无法加载静态数据：${escapeHTML(error.message)}</main>`;
     throw error;
+  }
+}
+
+// Deferred second stage: no-FIDE domestic entities are ~2/3 of the search pool
+// but not needed for first paint. Fetch them in the background, merge, and
+// re-run any live query so results silently upgrade.
+async function loadDomesticSearchIndex() {
+  const path = data.deferred?.domestic;
+  if (!path) { domesticSearchReady = true; return; }
+  try {
+    const payload = await fetchJSON(`./${path}`, false);
+    (payload?.players ?? []).forEach(row => {
+      players.push(preparePlayer({
+        ...row,
+        domesticID: row.domesticID || row.id,
+        playerID: row.id || row.domesticID,
+        entityType: "domestic-player",
+        federation: row.federation || "CHN",
+        name: row.displayName || row.chineseName || row.pinyin,
+        title: row.title || "",
+        detailPath: row.detailPath || (row.shard ? `data/registry/domestic/shards/${row.shard}.json` : "")
+      }));
+    });
+  } catch (_error) {
+    // Search stays usable with FIDE players only.
+  } finally {
+    domesticSearchReady = true;
+    // Deep links to a no-FIDE profile (?player=domestic-…) can only resolve
+    // once this second stage has arrived.
+    const routedID = initialSelectedPlayerID();
+    if (!state.selectedFideID && routedID && players.some(player => playerKey(player) === routedID)) {
+      state.selectedFideID = routedID;
+      renderDetail();
+    }
+    if (state.query) renderSearch();
   }
 }
 
@@ -252,14 +290,32 @@ function initialize() {
   els.searchResults.addEventListener("click", event => {
     const gapLink = event.target.closest("[data-gap-query]");
     if (gapLink) recordLocalGap(gapLink.dataset.gapQuery);
-    if (event.target.closest("[data-player],[data-event-id]")) rememberSearch(state.query);
+    const anchor = event.target.closest("a[data-player],a[data-event-id]");
+    if (!anchor) return;
+    rememberSearch(state.query);
+    // Progressive enhancement: plain left-clicks stay in-page (pushState via
+    // selectPlayer/selectEvent) instead of a full reload; modified clicks
+    // (⌘/Ctrl/Shift/middle) keep native new-tab behaviour through the href.
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (anchor.dataset.player) selectPlayer(anchor.dataset.player);
+    else selectEvent(anchor.dataset.eventId);
   });
   els.searchResults.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      els.searchInput.focus();
+      return;
+    }
     if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
     const buttons = [...els.searchResults.querySelectorAll("[data-player],[data-event-id]")];
     const index = buttons.indexOf(document.activeElement);
     if (index < 0) return;
     event.preventDefault();
+    if (event.key === 'ArrowUp' && index === 0) {
+      els.searchInput.focus();
+      return;
+    }
     buttons[(index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length]?.focus();
   });
   window.history.replaceState(routeSnapshot(), "", window.location.href);
@@ -374,10 +430,46 @@ function scheduleSearch(value) {
   }, 180);
 }
 
+// U4: lightweight trust line under the search hero — how much data, how fresh.
+async function renderSearchTrustLine() {
+  const target = document.querySelector("#searchTrust");
+  if (!target) return;
+  try {
+    const metrics = await fetchJSON("./data/public-metrics.json", false);
+    const totals = metrics?.totals ?? {};
+    const updated = String(metrics?.generatedAt || "").slice(0, 10);
+    const parts = [
+      totals.players ? `${Number(totals.players).toLocaleString("zh-CN")} 名注册棋手` : "",
+      totals.games ? `${Number(totals.games).toLocaleString("zh-CN")} 盘对局` : "",
+      updated ? `更新于 ${updated}` : ""
+    ].filter(Boolean);
+    if (!parts.length) return;
+    target.innerHTML = `${escapeHTML(parts.join(" · "))} · <a href="./coverage.html">数据覆盖 →</a>`;
+    target.hidden = false;
+  } catch (_error) {
+    /* trust line is optional */
+  }
+}
+
+let defaultSuggestionCache = null;
+function defaultSearchSuggestions() {
+  // Derive examples from the live data (top rated players that actually have
+  // games and a Chinese name) instead of a hardcoded list that can go stale.
+  if (defaultSuggestionCache) return defaultSuggestionCache;
+  const names = players
+    .filter(player => player.chineseName && Number(player.gameCount || 0) > 0 && Number.isFinite(player.standard))
+    .sort((a, b) => (b.standard ?? 0) - (a.standard ?? 0))
+    .slice(0, 2)
+    .map(player => player.chineseName);
+  defaultSuggestionCache = [...names, "李成智杯"].filter(Boolean);
+  if (!names.length) defaultSuggestionCache = ["侯逸凡", "李成智杯"];
+  return defaultSuggestionCache;
+}
+
 function renderSearchSuggestions() {
   if (!els.searchSuggestions) return;
   const recent = readLocalList("china-chess-recent-searches-v1");
-  const suggestions = recent.length ? recent.slice(0, 6) : ["丁天一", "侯逸凡", "李成智杯"];
+  const suggestions = recent.length ? recent.slice(0, 6) : defaultSearchSuggestions();
   els.searchSuggestions.innerHTML = `<span>${recent.length ? "最近搜索" : "试试"}</span>${suggestions.map(value => `<button type="button" data-search-suggestion="${escapeAttribute(value)}">${escapeHTML(value)}</button>`).join("")}`;
   els.searchSuggestions.querySelectorAll("[data-search-suggestion]").forEach(button => button.addEventListener("click", () => {
     els.searchInput.value = button.dataset.searchSuggestion;
@@ -412,6 +504,11 @@ function handleSearchInputKeydown(event) {
   } else if (event.key === "Enter") {
     const first = els.searchResults?.querySelector("[data-player],[data-event-id]");
     if (first) { event.preventDefault(); first.click(); }
+  } else if (event.key === "Escape") {
+    if (!state.query && !els.searchInput.value) return;
+    event.preventDefault();
+    els.searchInput.value = "";
+    scheduleSearch("");
   }
 }
 
@@ -528,7 +625,7 @@ function renderDashboard() {
       <div class="credit-howto">
         <strong>不需要 Python：</strong>在网页里填写赛事 tnr、棋手线索或数据勘误，即可生成结构化贡献内容。
         <a class="contribute-cta" href="./contribute.html">打开网页贡献向导</a>
-        需要批量抓取时可下载独立的<a href="https://github.com/keluoke/china-chess-contributor/releases/latest">桌面贡献工具</a>，无需下载主数据库。
+        请勿上传 HTML、PGN 或自动抓取结果；维护者会把有效线索加入本地私有采集队列。
       </div>`;
   }
 }
@@ -642,7 +739,7 @@ function renderSearch() {
   if (els.searchHome) els.searchHome.hidden = hasQuery || Boolean(selectedPlayer()) || Boolean(state.selectedEventID);
   const ambiguousNames = playerGroups.filter(group => group.length > 1).length;
   els.searchCount.textContent = queryReady
-    ? `找到 ${playerSearch.total} 位棋手${ambiguousNames ? `（${ambiguousNames} 个姓名待区分）` : ""}`
+    ? `找到 ${playerSearch.total} 位棋手${ambiguousNames ? `（${ambiguousNames} 个姓名待区分）` : ""}${domesticSearchReady ? "" : " · 无 FIDE 档案加载中…"}`
     : "请至少输入两个字符";
   const eventResults = eventMatches.length ? `
     <section class="search-result-group">
@@ -1861,32 +1958,6 @@ function routeSnapshot() {
   };
 }
 
-function selectEvent(eventID) {
-  if (!eventID) return;
-  resetPGNViewer(null);
-  state.selectedFideID = null;
-  state.selectedEventID = eventID;
-  state.downloadStatus = "";
-  updateRoute({ eventID });
-  if (state.query) {
-    state.query = "";
-    if (els.searchInput) els.searchInput.value = "";
-    renderSearch();
-  }
-  renderDetail();
-  renderEvent();
-  scrollDetailIntoViewOnMobile();
-}
-
-function clearSelection() {
-  state.selectedFideID = null;
-  state.selectedEventID = null;
-  state.downloadStatus = "";
-  updateRoute({});
-  renderDetail();
-  renderEvent();
-}
-
 function scrollDetailIntoViewOnMobile() {
   if (!window.matchMedia("(max-width: 720px)").matches) return;
   window.requestAnimationFrame(() => {
@@ -1999,6 +2070,9 @@ function searchEvents(query) {
   const normalized = normalize(query);
   if (!normalized || !eventCatalog) return [];
   return eventCatalog
+    // 只把真实赛事层暴露给搜索;round/game 级 source item(如 Lichess
+    // "Round 6: A - B" 广播片段)是证据单元,不作为赛事出现。
+    .filter(event => (event.level || "event") === "event")
     .map(event => {
       const terms = [
         event.displayName,
@@ -2112,6 +2186,9 @@ function publicLocationFromSightings(sightings) {
 }
 
 function publicLocationFromSighting(sighting) {
+  // Data layer now ships province-level `publicLocation` instead of the raw
+  // club/school string; keep club-based fallback for stale cached payloads.
+  if (sighting?.publicLocation) return String(sighting.publicLocation);
   if (sighting?.province) return String(sighting.province);
   const text = String(sighting?.club ?? "");
   const places = ["北京", "上海", "天津", "重庆", "河北", "山西", "辽宁", "吉林", "黑龙江", "江苏", "浙江", "安徽", "福建", "江西", "山东", "河南", "湖北", "湖南", "广东", "海南", "四川", "贵州", "云南", "陕西", "甘肃", "青海", "内蒙古", "广西", "西藏", "宁夏", "新疆", "香港", "澳门"];

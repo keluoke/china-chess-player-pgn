@@ -107,6 +107,27 @@ def static_event_stats() -> dict[tuple[str, str], dict[str, Any]]:
     return result
 
 
+# Event hierarchy: canonical event → section/group → round → game.
+# PGN-header derived rows from broadcast archives are frequently a single
+# round/board/game title ("Round 6: A - B"), i.e. crawl/evidence units — NOT
+# tournaments. They stay in the catalog for provenance but are tagged
+# level="source-item" so product surfaces (dashboard counts, 最新赛事, event
+# search) only treat level="event" rows as赛事.
+ROUND_ITEM_RE = re.compile(
+    r"^\s*(round|rd\.?|game|board|tiebreak)\s*\d+\s*([:.\-–—]|$)", re.IGNORECASE
+)
+
+
+def classify_level(source: str, name: str, game_count: int, player_count: int) -> str:
+    if ROUND_ITEM_RE.match(name or ""):
+        return "source-item"
+    if str(source).lower().startswith("lichess") and game_count <= 4 and player_count <= 4:
+        # Untitled/singleton broadcast fragments without a recognizable
+        # tournament aggregate are evidence units, not events.
+        return "source-item"
+    return "event"
+
+
 def build_catalog() -> list[dict[str, Any]]:
     mappings = load_mappings()
     master_groups = load_master_groups()
@@ -159,6 +180,57 @@ def build_catalog() -> list[dict[str, Any]]:
             "pgnPlayerCount": len(stats.get("players", set())),
             "pgnCount": int(stats.get("pgnCount") or 0),
             "gameCount": int(stats.get("gameCount") or 0),
+            "level": "event",
+        }
+        if event_detail:
+            events[key]["detailPath"] = event_detail.get("path")
+            events[key]["coverageScope"] = "domestic-full"
+            events[key]["standingCount"] = event_detail.get("standingCount")
+        if canonical_event_id:
+            events[key]["canonicalEventID"] = canonical_event_id
+            events[key]["sourceRefs"] = [{"source": source, "tournamentID": tournament_id, "url": clean(upstream.get("url")) or None}]
+        if master_group:
+            events[key]["sectionID"] = master_group.get("section_id")
+            events[key]["groupCode"] = master_group.get("group_code")
+            events[key]["station"] = master_group.get("station")
+
+    # A reviewed mapping is useful metadata even before the player crawler has
+    # discovered participants. Keep these sections visible and let later
+    # player/PGN refreshes enrich the same stable source key.
+    for (source_key, tournament_id), mapping in mappings.items():
+        key = (source_key, tournament_id)
+        if key in events:
+            continue
+        source = "Chess-Results" if source_key == "chess-results" else source_key.title()
+        master_group = master_groups.get(tournament_id, {})
+        chinese_name = mapping.get("chineseName") or ""
+        year = master_group.get("year") or ""
+        events[key] = {
+            "id": event_id(source, tournament_id, chinese_name, year),
+            "source": source,
+            "tournamentID": tournament_id,
+            "canonicalEventID": mapping.get("canonicalEventID") or None,
+            "name": chinese_name,
+            "chineseName": chinese_name,
+            "displayName": chinese_name or f"{source} {tournament_id}",
+            # The master list identifies the season, not an exact start date.
+            # Do not invent January 1st: consumers can display the year until
+            # the direct Chess-Results sync supplies authoritative dates.
+            "date": None,
+            "year": year or None,
+            "url": mapping.get("evidenceURL") or None,
+            "evidenceURL": mapping.get("evidenceURL") or None,
+            "sourceRefs": [{"source": source, "tournamentID": tournament_id, "url": mapping.get("evidenceURL") or None}],
+            "players": [],
+            "playerCount": 0,
+            "pgnPlayerCount": 0,
+            "pgnCount": 0,
+            "gameCount": 0,
+            "coverageScope": "metadata-only",
+            "sectionID": master_group.get("section_id") or None,
+            "groupCode": master_group.get("group_code") or None,
+            "station": master_group.get("station") or None,
+            "level": "event",
         }
         if event_detail:
             events[key]["detailPath"] = event_detail.get("path")
@@ -235,6 +307,7 @@ def build_catalog() -> list[dict[str, Any]]:
             "pgnPlayerCount": len(stats["players"]),
             "pgnCount": int(stats["pgnCount"]),
             "gameCount": int(stats["gameCount"]),
+            "level": classify_level(source, name, int(stats["gameCount"]), len(stats["players"])),
         }
 
     return sorted(events.values(), key=lambda item: (item.get("date") or "", item["id"]), reverse=True)
