@@ -1,19 +1,31 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-07-09T18:04:18+00:00",
-  "storage": {
-    "pgnRoot": "data/pgn",
-    "playerIndexRoot": "data/index/players",
-    "pathPattern": "data/pgn/<source>/<eventKey>/fide-<fideID>-<eventKey>.pgn"
-  },
-  "totals": {
-    "players": 1757,
-    "events": 698,
-    "pgnFiles": 4370,
-    "games": 27064,
-    "bytes": 25815836
-  },
-  "sources": [
-    "Chess-Results"
-  ]
+ "schemaVersion": 1,
+ "generatedAt": "2026-07-12T17:05:18+00:00",
+ "storage": {
+  "pgnRoot": "data/pgn",
+  "playerIndexRoot": "data/index/players",
+  "pathPattern": "data/pgn/<source>/<eventKey>/fide-<fideID>-<eventKey>.pgn"
+ },
+ "totals": {
+  "players": 2589,
+  "events": 698,
+  "pgnFiles": 4370,
+  "games": 72610,
+  "bytes": 25815836
+ },
+ "sources": [
+  "Chess-Results"
+ ],
+ "sourceTotals": {
+  "players": 1757,
+  "events": 698,
+  "pgnFiles": 4370,
+  "games": 27064,
+  "bytes": 25815836
+ },
+ "metricContract": {
+  "version": 1,
+  "scope": "去重后的全部可用 PGN；包含 direct、bulk 与已入库社区来源；按棋手聚合索引计数",
+  "source": "data/public-metrics.json"
+ }
 }

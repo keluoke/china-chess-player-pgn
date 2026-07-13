@@ -41,6 +41,41 @@ bash Scripts/local/refresh.sh reindex
 即：**抓取 = 本地；合入 + 索引 + 部署 = Actions。** 冲突在结构上不可能：
 本机是原始数据唯一生产者，且独占 local-data 分支。
 
+若普通 Git HTTPS 在代理探测后仍不可达，可用 API 精确补推少量已审核数据：
+
+```bash
+python3 Scripts/local/publish_data_via_api.py \
+  --path data/manual/domestic-player-sightings.csv \
+  --path data/generated/federation-snapshots/2026-07.json
+```
+
+该命令只接受显式数据路径，以远端当前 `main` 为父提交并强制更新单写者
+`local-data`，不会把本地旧派生索引或代码历史带入数据分支。
+
+## 代码修改（同样免 pull，但禁止走 local-data）
+
+`local-data` 只传原始/人工数据。代码、工作流和页面修改必须发布为一个直接基于
+GitHub 当前 `main` 的短命 PR 分支，避免把本地抓取历史和生成物带进代码 PR：
+
+```bash
+python3 Scripts/local/publish_code_via_api.py \
+  --source-base <修改前提交> \
+  --source-head HEAD \
+  --branch codex/<主题>-main \
+  --message "修改说明"
+
+# dry-run 没有 conflicts 后再真正发布
+python3 Scripts/local/publish_code_via_api.py ... --publish
+
+# PR 分支已存在时，安全追加一个 fast-forward 修复提交
+python3 Scripts/local/publish_code_via_api.py ... --publish --update-existing
+```
+
+脚本通过 GitHub API 读取最新 main，对每个代码/人工数据文件执行三方合并，并默认
+排除 `docs/data/`、`data/generated/`、`data/incoming/`。冲突会写到
+`.git/code-publish-conflicts/`，处理完成前不会创建远端分支。PR 合并后由
+`rebuild-indexes.yml` 在最新 main 数据上重建派生产物。
+
 git push 连不上 GitHub 时自动探测代理：macOS 系统代理（Veee/Clash 等登记的）→
 环境变量 → 常见本地端口；也可 `GITHUB_PROXY=http://127.0.0.1:端口` 指定。
 推送失败时数据已提交在本地，之后任意时刻选「push」补推即可。

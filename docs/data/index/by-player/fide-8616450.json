@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8616450",
     "id": "fide-8616450",
@@ -19,10 +19,10 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "events": 1,
-    "packages": 2,
-    "bytes": 3976,
+    "games": 5,
+    "events": 2,
+    "packages": 3,
+    "bytes": 36164,
     "stages": {
       "U12": 2
     }
@@ -32,14 +32,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8616450/all.pgn",
-      "gameCount": 2,
-      "pgnBytes": 1988,
-      "sha256": "300415f4fe0d757709d980035e9581c975e683fa47ea4eb2ec1ed0d3981c4329",
+      "gameCount": 5,
+      "pgnBytes": 18016,
+      "sha256": "a9199dbf1d16012ac43808bdbfad9c3515f12b77a9e42aa8cc167d484443fb30",
       "stages": {
         "U12": 2
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
@@ -48,12 +49,24 @@
       "pgnPath": "data/pgn/by-player/fide-8616450/U12.pgn",
       "gameCount": 2,
       "pgnBytes": 1988,
-      "sha256": "ac44a03eaa8df25fe1127bbbeccc80b2cdc24f3e1e5808de904089a7a96874a9",
+      "sha256": "6e7bea092288d56bc4ae011a0994010b4bc3f49984099b871745a6a269ca4bfd",
       "stages": {
         "U12": 2
       },
       "sources": [
         "Chess-Results"
+      ]
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8616450/adult.pgn",
+      "gameCount": 3,
+      "pgnBytes": 16160,
+      "sha256": "a668cec296a2c3f262a951c51c8c1b23da3bdb81cec02c6c8e20ea4ed7336942",
+      "stages": {},
+      "sources": [
+        "Lichess Broadcasts"
       ]
     }
   ],
@@ -64,10 +77,26 @@
       "date": "2015-05-07",
       "tournamentID": "169478",
       "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
       "gameCount": 2,
       "results": {
         "0-1": 1,
         "1-0": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Chinese National Youth Chess Championship 2024",
+      "date": "",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 3,
+      "results": {
+        "1/2-1/2": 1,
+        "1-0": 2
       }
     }
   ],
@@ -80,7 +109,9 @@
       "black": "Assaubayeva, Bibissara",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "7",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "white",
       "tournamentID": "169478",
       "sourcePgnPath": "data/pgn/chess-results/tnr169478/fide-8616450-169478.pgn",
@@ -94,11 +125,61 @@
       "black": "Wu, Hao",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "6",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "tournamentID": "169478",
       "sourcePgnPath": "data/pgn/chess-results/tnr169478/fide-8616450-169478.pgn",
       "sha256": "d4622491e07b54d380d0d32a6625ba3a39b2ead17c02dbf71a8e23cc130c2696"
+    },
+    {
+      "id": "9a101f3b5a604ef2f9a6c3c86f93e4d5e12aec3519490eac1a95a5639d555f3d",
+      "event": "Chinese National Youth Chess Championship 2024",
+      "white": "Jiazhen Gu",
+      "black": "Hao Wu",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "11",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2024-02.pgn.zst",
+      "sha256": "9a101f3b5a604ef2f9a6c3c86f93e4d5e12aec3519490eac1a95a5639d555f3d"
+    },
+    {
+      "id": "ad001dd8dec3a6e9e780ce0f4cdbc33d4d1f587368d0e2d9624fc6d32851eb38",
+      "event": "Chinese National Youth Chess Championship 2024",
+      "white": "Haoxu Zhang",
+      "black": "Hao Wu",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "3",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2024-02.pgn.zst",
+      "sha256": "ad001dd8dec3a6e9e780ce0f4cdbc33d4d1f587368d0e2d9624fc6d32851eb38"
+    },
+    {
+      "id": "30d94c4edc2daaa089815b73c135392aeb3050016f6878d56b500b684c6b5e64",
+      "event": "Chinese National Youth Chess Championship 2024",
+      "white": "Hao Wu",
+      "black": "Runyi Zhou",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "10",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2024-02.pgn.zst",
+      "sha256": "30d94c4edc2daaa089815b73c135392aeb3050016f6878d56b500b684c6b5e64"
     }
   ]
 }

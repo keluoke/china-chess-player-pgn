@@ -9,6 +9,7 @@ enforces structure and plausibility rules.
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import json
 import pathlib
 import re
@@ -117,6 +118,231 @@ def check_sightings() -> None:
             src = (row.get("source_url") or "").strip()
             if src and not url_ok(src):
                 err(path, i, f"source_url domain not allow-listed: {src!r}")
+            event_name = (row.get("event_name") or "").strip()
+            if event_name and sanitize_person_name(event_name) == event_name:
+                err(path, i, f"event_name looks like a person name: {event_name!r}")
+            event_date = (row.get("event_date") or "").strip()
+            if event_date:
+                try:
+                    parsed = dt.date.fromisoformat(event_date[:10])
+                    if parsed > dt.date.today() + dt.timedelta(days=366):
+                        warn(path, i, f"event_date is more than one year in the future: {event_date!r}")
+                except ValueError:
+                    warn(path, i, f"event_date is not ISO YYYY-MM-DD: {event_date!r}")
+
+
+def check_domestic_source_catalog() -> None:
+    path = REPO_ROOT / "data" / "manual" / "domestic-source-catalog.csv"
+    if not path.exists():
+        return
+    required = {"source_id", "event_name", "event_type", "official_url", "tournament_id", "status", "priority", "refresh_tier"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        seen: set[str] = set()
+        for i, row in enumerate(reader, start=2):
+            if not any((value or "").strip() for value in row.values()):
+                continue
+            source_id = (row.get("source_id") or "").strip()
+            if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", source_id):
+                err(path, i, f"invalid source_id {source_id!r}")
+            if source_id in seen:
+                err(path, i, f"duplicate source_id {source_id!r}")
+            seen.add(source_id)
+            url = (row.get("official_url") or "").strip()
+            if url and not url_ok(url):
+                err(path, i, f"official_url domain not allow-listed: {url!r}")
+            priority = (row.get("priority") or "").strip()
+            if priority and (not priority.isdigit() or not 0 <= int(priority) <= 1000):
+                err(path, i, f"priority outside 0-1000: {priority!r}")
+
+
+def check_demand_gaps() -> None:
+    path = REPO_ROOT / "data" / "manual" / "data-demand-gaps.csv"
+    if not path.exists():
+        return
+    required = {"gap_id", "query_type", "display_query", "normalized_query", "tournament_id", "demand_count", "last_requested_at", "status"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        for i, row in enumerate(reader, start=2):
+            if not any((value or "").strip() for value in row.values()):
+                continue
+            if (row.get("query_type") or "").strip() not in {"player", "event", "tnr", "missing-pgn"}:
+                err(path, i, f"invalid query_type {(row.get('query_type') or '')!r}")
+            count = (row.get("demand_count") or "").strip()
+            if not count.isdigit() or int(count) < 1:
+                err(path, i, f"demand_count must be a positive integer, got {count!r}")
+
+
+def check_tournament_name_mappings() -> None:
+    """Validate the reviewed event-name layer without touching crawler data."""
+    path = REPO_ROOT / "data" / "community" / "tournament-name-mappings.csv"
+    if not path.exists():
+        return
+    required = {"source", "tournament_id", "canonical_event_id", "chinese_name", "evidence_url", "notes"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        actual = set(reader.fieldnames or [])
+        missing = required - actual
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        seen: set[tuple[str, str]] = set()
+        for i, row in enumerate(reader, start=2):
+            if not any((value or "").strip() for value in row.values()):
+                continue
+            source = (row.get("source") or "").strip()
+            tournament_id = (row.get("tournament_id") or "").strip()
+            chinese_name = (row.get("chinese_name") or "").strip()
+            canonical_id = (row.get("canonical_event_id") or "").strip()
+            if not source:
+                err(path, i, "source required")
+            if not tournament_id or not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", tournament_id):
+                err(path, i, f"invalid tournament_id {tournament_id!r}")
+            if not (2 <= len(chinese_name) <= 100):
+                err(path, i, "chinese_name must be 2-100 characters")
+            if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", canonical_id):
+                err(path, i, f"invalid canonical_event_id {canonical_id!r}")
+            key = (source.lower(), tournament_id)
+            if key in seen:
+                err(path, i, f"duplicate source+tournament_id {source!r}/{tournament_id!r}")
+            seen.add(key)
+            evidence = (row.get("evidence_url") or "").strip()
+            if not url_ok(evidence):
+                err(path, i, f"evidence_url missing or domain not allow-listed: {evidence!r}")
+
+
+def check_master_tournament_groups() -> None:
+    path = REPO_ROOT / "data" / "community" / "master-tournament-groups.csv"
+    if not path.exists():
+        return
+    required = {"canonical_event_id", "section_id", "year", "station", "group_code", "tournament_id", "source_url", "rounds", "promotion_rate", "evidence_status"}
+    allowed_groups = {"OPEN", "WOMEN_OPEN", "MEN_CANDIDATE", "WOMEN_CANDIDATE", "MEN_LEVEL_1", "WOMEN_LEVEL_1"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        seen_sections: set[str] = set()
+        seen_tnr: set[str] = set()
+        for i, row in enumerate(reader, start=2):
+            section = (row.get("section_id") or "").strip()
+            tnr = (row.get("tournament_id") or "").strip()
+            group = (row.get("group_code") or "").strip()
+            if section in seen_sections:
+                err(path, i, f"duplicate section_id {section!r}")
+            if tnr in seen_tnr:
+                err(path, i, f"duplicate tournament_id {tnr!r}")
+            seen_sections.add(section)
+            seen_tnr.add(tnr)
+            if group not in allowed_groups:
+                err(path, i, f"invalid group_code {group!r}")
+            if not FIDE_ID_RE.fullmatch(tnr):
+                err(path, i, f"invalid Chess-Results tournament_id {tnr!r}")
+            try:
+                rounds = int(row.get("rounds") or 0)
+                rate = float(row.get("promotion_rate") or 0)
+                if not 1 <= rounds <= 20:
+                    raise ValueError
+                if not 0.5 <= rate <= 1:
+                    raise ValueError
+            except ValueError:
+                err(path, i, "rounds/promotion_rate outside plausible range")
+            if not url_ok((row.get("source_url") or "").strip()):
+                err(path, i, "source_url missing or domain not allow-listed")
+
+
+def check_contributors() -> None:
+    """鸣谢名录:昵称合规、唯一,统计字段为非负整数,日期格式正确。"""
+    path = REPO_ROOT / "data" / "community" / "contributors.csv"
+    if not path.exists():
+        return
+    required = {"nickname", "github", "first_contribution", "last_contribution",
+                "submissions", "players", "events", "games", "notes"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        reader = csv.DictReader(fh)
+        missing = required - set(reader.fieldnames or [])
+        if missing:
+            err(path, 1, f"missing required columns: {', '.join(sorted(missing))}")
+            return
+        seen: set[str] = set()
+        for i, row in enumerate(reader, start=2):
+            if not any((value or "").strip() for value in row.values()):
+                continue
+            nickname = (row.get("nickname") or "").strip()
+            if not (1 <= len(nickname) <= 20) or re.search(r"https?://", nickname):
+                err(path, i, f"invalid nickname {nickname!r} (1-20 chars, no URL)")
+            if nickname in seen:
+                err(path, i, f"duplicate nickname {nickname!r}")
+            seen.add(nickname)
+            github = (row.get("github") or "").strip()
+            if github and not re.fullmatch(r"[A-Za-z0-9-]{1,39}", github):
+                err(path, i, f"invalid github login {github!r}")
+            for col in ("first_contribution", "last_contribution"):
+                value = (row.get(col) or "").strip()
+                if value and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                    err(path, i, f"invalid date in {col}: {value!r}")
+            for col in ("submissions", "players", "events", "games"):
+                value = (row.get(col) or "").strip()
+                if value and not value.isdigit():
+                    err(path, i, f"{col} must be a non-negative integer, got {value!r}")
+
+
+def check_name_corrections_pinned() -> None:
+    """Pinned identity assertions: once a name mistake is corrected via
+    data/community/name-corrections.csv, no committed artifact may ever carry
+    the wrong value again (regression guard for e.g. 8602980 居文君→侯逸凡)."""
+    path = REPO_ROOT / "data" / "community" / "name-corrections.csv"
+    if not path.exists():
+        return
+    corrections: dict[str, tuple[str, str]] = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        for i, row in enumerate(csv.DictReader(fh), start=2):
+            fid = (row.get("fide_id") or "").strip()
+            wrong = (row.get("wrong_chinese_name") or "").strip()
+            correct = (row.get("correct_chinese_name") or "").strip()
+            if not fid:
+                continue
+            if not FIDE_ID_RE.match(fid):
+                err(path, i, f"invalid fide_id {fid!r}")
+                continue
+            if not correct:
+                err(path, i, "correct_chinese_name required")
+                continue
+            if not url_ok((row.get("evidence_url") or "").strip()):
+                err(path, i, "evidence_url missing or domain not allow-listed")
+            corrections[fid] = (wrong, correct)
+
+    for artifact in [
+        REPO_ROOT / "docs" / "data" / "registry" / "players.json",
+        REPO_ROOT / "docs" / "data" / "index" / "players.json",
+    ]:
+        if not artifact.exists():
+            continue
+        try:
+            players = json.loads(artifact.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{artifact.relative_to(REPO_ROOT)}: unreadable ({exc})")
+            continue
+        for player in players:
+            fid = str(player.get("fideID") or "").strip()
+            pin = corrections.get(fid)
+            if not pin:
+                continue
+            wrong, correct = pin
+            cn = str(player.get("chineseName") or "").strip()
+            if wrong and cn == wrong:
+                errors.append(
+                    f"{artifact.relative_to(REPO_ROOT)}: fide {fid} still carries corrected-away name {wrong!r} (must be {correct!r})"
+                )
 
 
 def check_tournament_name_mappings() -> None:
@@ -217,7 +443,11 @@ def main() -> int:
     check_federation_overrides()
     check_player_aliases()
     check_sightings()
+    check_domestic_source_catalog()
+    check_demand_gaps()
     check_tournament_name_mappings()
+    check_master_tournament_groups()
+    check_contributors()
     check_name_corrections_pinned()
     check_generated_untouched_note()
 

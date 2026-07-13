@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8692912",
     "id": "fide-8692912",
@@ -20,12 +20,12 @@
     ]
   },
   "totals": {
-    "games": 3,
-    "events": 1,
+    "games": 6,
+    "events": 4,
     "packages": 2,
-    "bytes": 6902,
+    "bytes": 42022,
     "stages": {
-      "U12": 3
+      "U12": 6
     }
   },
   "packages": [
@@ -33,38 +33,81 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8692912/all.pgn",
-      "gameCount": 3,
-      "pgnBytes": 3451,
-      "sha256": "e9712f108ff4f190cf5f3f208e4c2d9274cad425fd85cbb02e759d021b051c69",
+      "gameCount": 6,
+      "pgnBytes": 21011,
+      "sha256": "78937d561bccf9d544a9f9e768c4b532fa82da5c09096c42251a7669fe2b298a",
       "stages": {
-        "U12": 3
+        "U12": 6
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8692912/U12.pgn",
-      "gameCount": 3,
-      "pgnBytes": 3451,
-      "sha256": "361fce58278b7f9d2d183af0e6ab877abfd9e0bde3d4ef417118cf866f83b21b",
+      "gameCount": 6,
+      "pgnBytes": 21011,
+      "sha256": "5b0e86d03fa3e4aaf8ea2b45f9d9f2e64c151bcb1c79d6c5080061d98e00ecfb",
       "stages": {
-        "U12": 3
+        "U12": 6
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 4: Huang, Ziwen - Guo, Yihan",
+      "date": "2026-06-05",
+      "tournamentID": "",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 3: Zhang, Jiaxuan - Huang, Ziwen",
+      "date": "2026-06-05",
+      "tournamentID": "",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 2: Huang, Ziwen - Li, Shanning",
+      "date": "2026-06-05",
+      "tournamentID": "",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
       "date": "2026-06-05",
       "tournamentID": "1429695",
       "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
       "gameCount": 3,
       "results": {
         "1-0": 2,
@@ -74,6 +117,57 @@
   ],
   "games": [
     {
+      "id": "0d6640e462bca6978e8791551fdee5af3620682c126893b79aff3c8436fcbb34",
+      "event": "Round 4: Huang, Ziwen - Guo, Yihan",
+      "date": "2026-06-05",
+      "white": "Huang, Ziwen",
+      "black": "Guo, Yihan",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "4.8",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
+      "sha256": "0d6640e462bca6978e8791551fdee5af3620682c126893b79aff3c8436fcbb34"
+    },
+    {
+      "id": "6327d30a2d1faafaa8f8765f9938f35edb3891af9926e31d45d779620348c6c2",
+      "event": "Round 3: Zhang, Jiaxuan - Huang, Ziwen",
+      "date": "2026-06-05",
+      "white": "Zhang, Jiaxuan",
+      "black": "Huang, Ziwen",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "3.4",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
+      "sha256": "6327d30a2d1faafaa8f8765f9938f35edb3891af9926e31d45d779620348c6c2"
+    },
+    {
+      "id": "d95a6992b57e9335b3bde7741cf006a5ecd04a0a546359768c324c21d7bdf5bd",
+      "event": "Round 2: Huang, Ziwen - Li, Shanning",
+      "date": "2026-06-05",
+      "white": "Huang, Ziwen",
+      "black": "Li, Shanning",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "2.8",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
+      "sha256": "d95a6992b57e9335b3bde7741cf006a5ecd04a0a546359768c324c21d7bdf5bd"
+    },
+    {
       "id": "00e714dfd984540f201bf0e3d3837805d280ec40326d9516a0659f9fa96972e1",
       "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
       "date": "2026-06-05",
@@ -81,7 +175,9 @@
       "black": "Huang, Ziwen",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "3",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "tournamentID": "1429695",
       "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8692912-1429695.pgn",
@@ -95,7 +191,9 @@
       "black": "Li, Shanning",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "2",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "white",
       "tournamentID": "1429695",
       "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8692912-1429695.pgn",
@@ -109,7 +207,9 @@
       "black": "Guo, Yihan",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "4",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "white",
       "tournamentID": "1429695",
       "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8692912-1429695.pgn",

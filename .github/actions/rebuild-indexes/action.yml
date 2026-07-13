@@ -41,10 +41,35 @@ runs:
         # By-player aggregate packs consumed directly by the web frontend.
         python3 Scripts/build_static_player_pgn.py
 
+        # Homepage search becomes interactive from one compact payload.
+        python3 Scripts/build_search_bootstrap.py
+
+        # One public metric contract: all manifests consume this aggregate.
+        python3 Scripts/build_public_metrics.py
+
+        # Full domestic event details: final standings, every-round pairings,
+        # and links from pairings back to locally archived PGNs.
+        if [ -f Scripts/build_event_details.py ]; then
+          python3 Scripts/build_event_details.py
+        fi
+
         # First-class event catalog: joins crawler catalog, archived PGN
         # coverage, and reviewed Chinese display-name mappings.
         if [ -f Scripts/build_event_catalog.py ]; then
           python3 Scripts/build_event_catalog.py
+        fi
+
+        # Demand-ranked event queue and offline metadata/result anomalies.
+        if [ -f Scripts/build_domestic_event_queue.py ]; then
+          python3 Scripts/build_domestic_event_queue.py
+        fi
+        if [ -f Scripts/build_data_quality_audit.py ]; then
+          python3 Scripts/build_data_quality_audit.py
+        fi
+
+        # Coverage reports must describe the same data snapshot being deployed.
+        if [ -f Scripts/reconcile_pgn_sources.py ]; then
+          python3 Scripts/reconcile_pgn_sources.py --write-audit
         fi
 
         # All-age leaderboards (youth U8-U18 + U20/OPEN/S50/S65).
@@ -64,3 +89,6 @@ runs:
         if [ -f Scripts/build_dashboard.py ]; then
           python3 Scripts/build_dashboard.py
         fi
+
+        # Public totals are an API contract; never deploy contradictory counts.
+        python3 Scripts/validate_public_metrics.py

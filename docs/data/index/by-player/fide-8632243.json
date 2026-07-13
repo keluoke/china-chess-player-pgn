@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8632243",
     "id": "fide-8632243",
@@ -19,10 +19,10 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 2,
+    "events": 2,
     "packages": 2,
-    "bytes": 2064,
+    "bytes": 12258,
     "stages": {}
   },
   "packages": [
@@ -30,24 +30,26 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8632243/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1031,
-      "sha256": "f5cfebc9cf1b153f6486c80aaaea7fca6f9b402746f509c7845fa2101492e031",
+      "gameCount": 2,
+      "pgnBytes": 6128,
+      "sha256": "d4ff51b7df2bcb47c23377e3ffbb15bf1e354094587ab05a19226aa1dd77a9e0",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8632243/adult.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1033,
-      "sha256": "b4651a6befdacde47685629fdce4f073a441c725dccce1967bbf34781fab094f",
+      "gameCount": 2,
+      "pgnBytes": 6130,
+      "sha256": "71766e95b27d66c56fcee68854c47337bb742fea381dd669c62599a967717a4f",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
@@ -58,6 +60,21 @@
       "date": "2026-02-22",
       "tournamentID": "1356509",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
+      "date": "2026-02-22",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 1,
       "results": {
         "1-0": 1
@@ -73,11 +90,30 @@
       "black": "Cui, Shengxuan",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "1",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1356509",
       "sourcePgnPath": "data/pgn/chess-results/tnr1356509/fide-8632243-1356509.pgn",
       "sha256": "157704ceb74dd599d6a6e6ccc13e0d3e82a7b4bae57c6244b5ae38aa902427f5"
+    },
+    {
+      "id": "8df4f0f08e935fecba3cbee1158fc64092e1be6ddc06da2c35341e953d0697c2",
+      "event": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
+      "date": "2026-02-22",
+      "white": "Chen, Hongsen",
+      "black": "Cui, Shengxuan",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "1.2",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
+      "sha256": "8df4f0f08e935fecba3cbee1158fc64092e1be6ddc06da2c35341e953d0697c2"
     }
   ]
 }

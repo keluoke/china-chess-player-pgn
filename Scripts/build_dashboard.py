@@ -11,10 +11,15 @@ locally and on Actions checkouts):
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
 import json
 import pathlib
 import subprocess
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from public_metrics import canonical_public_metrics  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_DATA = REPO_ROOT / "docs" / "data"
@@ -54,6 +59,30 @@ def git_contributors() -> dict:
     return {"count": len(humans) or None, "latest": latest}
 
 
+def data_contributors(limit: int = 30) -> list[dict]:
+    """鸣谢名录:通过贡献工具入库的社区数据贡献者(data/community/contributors.csv)。"""
+    path = REPO_ROOT / "data" / "community" / "contributors.csv"
+    if not path.exists():
+        return []
+    rows: list[dict] = []
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        for row in csv.DictReader(fh):
+            nickname = (row.get("nickname") or "").strip()
+            if not nickname:
+                continue
+            rows.append({
+                "nickname": nickname,
+                "github": (row.get("github") or "").strip() or None,
+                "submissions": int(row.get("submissions") or 0),
+                "players": int(row.get("players") or 0),
+                "events": int(row.get("events") or 0),
+                "games": int(row.get("games") or 0),
+                "since": (row.get("first_contribution") or "").strip() or None,
+            })
+    rows.sort(key=lambda r: (-r["submissions"], r["since"] or ""))
+    return rows[:limit]
+
+
 def recent_events(limit: int = 8) -> list[dict]:
     events = read_json(DOCS_DATA / "index" / "events.json", []) or []
     # "Latest archived games" is intentionally based on usable PGN coverage,
@@ -78,21 +107,33 @@ def recent_events(limit: int = 8) -> list[dict]:
 
 
 def main() -> int:
+    public_metrics = canonical_public_metrics()
     registry = (read_json(DOCS_DATA / "registry" / "manifest.json", {}) or {}).get("totals", {})
+    domestic = (read_json(DOCS_DATA / "registry" / "domestic" / "manifest.json", {}) or {}).get("totals", {})
     by_player = (read_json(DOCS_DATA / "index" / "by-player" / "manifest.json", {}) or {}).get("totals", {})
     index_manifest = (read_json(DOCS_DATA / "index" / "manifest.json", {}) or {}).get("totals", {})
+    events = read_json(DOCS_DATA / "index" / "events.json", []) or []
+    canonical_events = read_json(DOCS_DATA / "index" / "canonical-events.json", []) or []
     changelog = (read_json(DOCS_DATA / "changelog.json", {}) or {}).get("entries", [])
 
     payload = {
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "totals": {
             "players": registry.get("players"),
+            "domesticPlayers": domestic.get("unlinked"),
+            "domesticUniqueNames": domestic.get("uniqueNameCount"),
+            "domesticSightings": domestic.get("sightings"),
+            "searchablePlayers": (registry.get("players") or 0) + (domestic.get("unlinked") or 0),
+            "domesticIdentityReview": domestic.get("lowConfidence"),
             "withChineseName": registry.get("withChineseName"),
-            "games": by_player.get("games"),
-            "events": index_manifest.get("events") or len(read_json(DOCS_DATA / "index" / "events.json", []) or []),
-            "playersWithGames": by_player.get("players"),
+            "games": public_metrics["totals"]["games"],
+            "events": len(events) or index_manifest.get("events"),
+            "eventsWithChineseName": sum(1 for event in events if event.get("chineseName")),
+            "canonicalEvents": len(canonical_events),
+            "playersWithGames": public_metrics["totals"]["playersWithGames"],
         },
         "community": git_contributors(),
+        "dataContributors": data_contributors(),
         "latestDelta": (changelog[0] if changelog else None),
         "recentEvents": recent_events(),
     }

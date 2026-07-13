@@ -9,6 +9,8 @@ on:
       - "data/manual/domestic-player-sightings.csv"
       - "data/manual/player-identity-links.csv"
       - "Scripts/sync_domestic_players.py"
+      - "Scripts/build_domestic_progressions.py"
+      - "data/community/master-tournament-groups.csv"
       - ".github/workflows/update-domestic-registry.yml"
   workflow_dispatch:
 
@@ -32,7 +34,9 @@ jobs:
         uses: ./.github/actions/setup-python-deps
 
       - name: Sync domestic player registry
-        run: python3 Scripts/sync_domestic_players.py
+        run: |
+          python3 Scripts/sync_domestic_players.py
+          python3 Scripts/build_domestic_progressions.py
 
       - name: Commit updated domestic registry
         id: commit

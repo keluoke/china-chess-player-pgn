@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8621420",
     "id": "fide-8621420",
@@ -20,10 +20,10 @@
     ]
   },
   "totals": {
-    "games": 4,
-    "events": 2,
+    "games": 5,
+    "events": 3,
     "packages": 2,
-    "bytes": 6508,
+    "bytes": 19400,
     "stages": {}
   },
   "packages": [
@@ -31,24 +31,26 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8621420/all.pgn",
-      "gameCount": 4,
-      "pgnBytes": 3253,
-      "sha256": "c5afe45e8e02f61ab64ae6c1855ca6c2bd26ceb9f886e7a329a7a8accaf82583",
+      "gameCount": 5,
+      "pgnBytes": 9699,
+      "sha256": "e497606dd28ddd96604736b76ad09c0bc7dfe6ac05678703a162ce6319e26eca",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8621420/adult.pgn",
-      "gameCount": 4,
-      "pgnBytes": 3255,
-      "sha256": "cb29bf475696983d764cbf797c25af89dfe311ac2214381f9f397570328aa292",
+      "gameCount": 5,
+      "pgnBytes": 9701,
+      "sha256": "8b93ab00d63a738e0b148a65be983e043ac8093705faff8226f1933ead8a50d2",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
@@ -59,6 +61,8 @@
       "date": "2026-07-05",
       "tournamentID": "1449113",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 2,
       "results": {
         "1-0": 1,
@@ -71,10 +75,25 @@
       "date": "2025-07-12",
       "tournamentID": "1214031",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 2,
       "results": {
         "0-1": 1,
         "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "date": "",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
       }
     }
   ],
@@ -87,7 +106,9 @@
       "black": "Dai, Chenyi",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "3",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1449113",
       "sourcePgnPath": "data/pgn/chess-results/tnr1449113/fide-8621420-1449113.pgn",
@@ -101,7 +122,9 @@
       "black": "Guo, Shiran(Zj)",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "4",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1449113",
       "sourcePgnPath": "data/pgn/chess-results/tnr1449113/fide-8621420-1449113.pgn",
@@ -115,7 +138,9 @@
       "black": "Gong, Yiming",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "2",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1214031",
       "sourcePgnPath": "data/pgn/chess-results/tnr1214031/fide-8621420-1214031.pgn",
@@ -129,11 +154,29 @@
       "black": "Deng, Junjie",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "9",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1214031",
       "sourcePgnPath": "data/pgn/chess-results/tnr1214031/fide-8621420-1214031.pgn",
       "sha256": "825e8115cbc1f0e20c615c93705dbe4f561be8a05b9076dd14f41fae0f16308e"
+    },
+    {
+      "id": "975445c0795206633449882dda3b0322155eec7641ca08955cc0e90c2982ce6b",
+      "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+      "white": "Dai, Chenyi",
+      "black": "Song, Xuyang",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "1.11",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "975445c0795206633449882dda3b0322155eec7641ca08955cc0e90c2982ce6b"
     }
   ]
 }

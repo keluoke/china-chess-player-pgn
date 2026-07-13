@@ -42,3 +42,12 @@ Chess-Results 同一赛事可能只有截断英文名，也会随界面语言变
 
 CI 校验唯一性、ID 格式和证据域名。派生脚本只读取本表：映射不会覆盖原始赛事标题，
 会同时保留 `name`（信源原文）与 `chineseName`（社区核验名），方便复核。
+
+## contributors.csv — 社区数据贡献鸣谢名录
+
+通过[独立贡献工具](https://github.com/keluoke/china-chess-contributor)或网页向导入库的数据贡献者。由
+`Scripts/promote_incoming.py` 在载荷入库时自动累计,**请勿手工添加自己**;
+更正昵称/GitHub 名可提 PR。列:`nickname, github, first_contribution,
+last_contribution, submissions, players, events, games, notes`。
+网站首页「社区数据贡献鸣谢」按提交次数展示本表。治理机制见
+`docs/GOVERNANCE.md`。

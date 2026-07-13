@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8615748",
     "id": "fide-8615748",
@@ -18,10 +18,10 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 2,
+    "events": 2,
     "packages": 2,
-    "bytes": 2202,
+    "bytes": 9178,
     "stages": {}
   },
   "packages": [
@@ -29,34 +29,51 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8615748/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1100,
-      "sha256": "f618d68af2687eb84fe968f674d58d26e8e6000dc79839af07ce89cd37943577",
+      "gameCount": 2,
+      "pgnBytes": 4588,
+      "sha256": "2e24f283d42654635a301b2f43147b4f8ed1d848d9b8ca97858e8e5ee821fee4",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8615748/adult.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1102,
-      "sha256": "42b37da707419e33034ef60d512ce312b6bddad89571b7e62c6bbdad81d6f55d",
+      "gameCount": 2,
+      "pgnBytes": 4590,
+      "sha256": "73ceafcffa40b2c04d0641157b18e19dbd556e0b4aed4b13d235f52a4bca2332",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-26",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2025 Chinese Chess Team Championship (women)",
       "date": "2025-04-25",
       "tournamentID": "1163666",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 1,
       "results": {
         "1/2-1/2": 1
@@ -65,6 +82,23 @@
   ],
   "games": [
     {
+      "id": "3899634db50a3b47fcf6035efc76095f5938c9889ce11a60470fd94ecfa1a297",
+      "event": "2025 Chinese Chess Team Championship (women)",
+      "date": "2025-04-26",
+      "white": "Yi, Ruiyu",
+      "black": "Shi Shuhua",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "2.21",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-04.pgn.zst",
+      "sha256": "3899634db50a3b47fcf6035efc76095f5938c9889ce11a60470fd94ecfa1a297"
+    },
+    {
       "id": "3aace3f82e2fc0c1aa0c5fab3f4c351d4bca7741656b3e2a94f0f281d2f906b8",
       "event": "2025 Chinese Chess Team Championship (women)",
       "date": "2025-04-25",
@@ -72,7 +106,9 @@
       "black": "Shi, Shuhua",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "2",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1163666",
       "sourcePgnPath": "data/pgn/chess-results/tnr1163666/fide-8615748-1163666.pgn",

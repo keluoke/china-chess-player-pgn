@@ -24,6 +24,32 @@ jobs:
       - name: Validate community-maintained data
         run: python3 Scripts/validate_community_data.py
 
+      - name: Vet community contribution payloads (offline evidence check)
+        run: python3 Scripts/validate_incoming.py
+
+      - name: Public manifests must share one metric contract
+        run: |
+          python3 Scripts/build_public_metrics.py
+          python3 Scripts/build_api.py
+          python3 Scripts/build_changelog.py
+          python3 Scripts/build_dashboard.py
+          python3 Scripts/validate_public_metrics.py
+
+      - name: Contribution PRs must only touch data/incoming/
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin "${{ github.base_ref }}"
+          # This is a path-scope check, so compare the two trees directly.
+          # A three-dot diff requires a locally available merge base and fails
+          # on shallow/API-created PR branches with "no merge base".
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}" HEAD)
+          if echo "$changed" | grep -q '^data/incoming/'; then
+            outside=$(echo "$changed" | grep -v '^data/incoming/' || true)
+            if [ -n "$outside" ]; then
+              echo "载荷 PR 不允许同时修改其他路径:"; echo "$outside"; exit 1
+            fi
+          fi
+
       - name: Validate workflow and action YAML
         run: |
           python3 - <<'PY'

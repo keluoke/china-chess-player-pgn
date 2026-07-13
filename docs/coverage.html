@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>数据覆盖与状态 · 中国国际象棋棋手数据库</title>
+    <meta name="description" content="查看各年龄组棋谱覆盖率、数据源状态、赛事抓取队列与最近更新时间。">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css?v=20260712-2">
+  </head>
+  <body class="coverage-page">
+    <main class="coverage-shell">
+      <nav class="page-nav"><a href="./">← 棋手数据库</a><a href="./contribute.html">贡献数据</a></nav>
+      <header class="coverage-head">
+        <span class="eyebrow">Coverage & provenance</span>
+        <h1>数据覆盖与状态</h1>
+        <p>“查不到”不等于棋手不存在。这里公开展示已缓存、待比对和待补源的范围，以及当前数据快照的更新时间。</p>
+      </header>
+      <section id="coverageHeadline" class="coverage-headline" aria-live="polite"></section>
+      <div class="coverage-grid">
+        <section class="coverage-panel"><div class="section-heading"><h2>最新收录赛事</h2><span id="recentEventsMeta"></span></div><div id="coverageRecentEvents" class="recent-events"></div></section>
+        <section class="coverage-panel"><div class="section-heading"><h2>数据更新记录</h2><span id="coverageChangelogMeta"></span></div><div id="coverageChangelog" class="changelog-list"></div></section>
+      </div>
+      <section class="coverage-panel">
+        <div class="section-heading"><h2>各年龄段 PGN 覆盖</h2><span id="coverageUpdated"></span></div>
+        <div id="stageCoverage" class="stage-coverage"></div>
+      </section>
+      <div class="coverage-grid">
+        <section class="coverage-panel"><div class="section-heading"><h2>赛事整取队列</h2><span>需求驱动</span></div><div id="eventQueue"></div></section>
+        <section class="coverage-panel"><div class="section-heading"><h2>质量审核</h2><span>纯离线</span></div><div id="qualityQueue"></div></section>
+      </div>
+      <section class="coverage-panel">
+        <div class="section-heading"><h2>社区贡献漏斗</h2><span>每日更新</span></div>
+        <div id="contributionFunnel"></div>
+      </section>
+      <section class="coverage-panel status-language">
+        <div class="section-heading"><h2>全站状态语言</h2><span>统一口径</span></div>
+        <div><span class="data-status cached">PGN 已缓存</span><p>本库已有可在线播放或下载的棋谱。</p></div>
+        <div><span class="data-status compare">待数据源比对</span><p>已有赛事或棋手线索，尚未确认可公开棋谱。</p></div>
+        <div><span class="data-status missing">待补源</span><p>只有公开成绩记录，仍缺明确棋谱来源。</p></div>
+      </section>
+      <p class="privacy-foundation">未认领低龄棋手默认只公开姓名、年龄组和赛事成绩；参赛单位收敛到省市级。删除或匿名化请求可通过贡献页面提交。</p>
+    </main>
+    <script type="module" src="coverage.js?v=20260712-3"></script>
+  </body>
+</html>

@@ -7,7 +7,7 @@
     <meta name="description" content="社区共建的中国国际象棋棋手数据库:全年龄组 FIDE 排行榜、棋手查询与对局 PGN。">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="vendor/lichess-pgn-viewer/lichess-pgn-viewer.css">
-    <link rel="stylesheet" href="styles.css?v=20260710-4">
+    <link rel="stylesheet" href="styles.css?v=20260712-2">
   </head>
   <body>
     <div class="app-shell">
@@ -22,25 +22,25 @@
 
         <label class="search-box">
           <span aria-hidden="true">⌕</span>
-          <input id="searchInput" type="search" autocomplete="off" aria-label="搜索棋手" placeholder="搜索棋手：中文名、拼音或 FIDE ID">
+          <input id="searchInput" type="search" autocomplete="off" aria-label="搜索棋手或赛事" placeholder="正在加载 2.6 万名棋手…" disabled>
         </label>
+
+        <nav class="topnav" aria-label="主要页面">
+          <a href="./leaderboards.html">FIDE 排行榜</a>
+          <a href="./coverage.html">数据覆盖</a>
+          <a href="./contribute.html">贡献数据</a>
+        </nav>
 
       </header>
 
-      <main class="workspace">
-        <section class="content-pane">
-          <section class="leaderboards" aria-label="FIDE 排行榜">
-            <div class="section-heading">
-              <h2>中国棋手 FIDE 积分排行榜</h2>
-              <span id="rankingMeta">Top 20</span>
-            </div>
-            <div class="stage-tabs" id="stageTabs" role="tablist" aria-label="年龄组"></div>
-            <p class="ranking-note" id="ageRuleText">加载年龄组定义...</p>
-            <div class="leaderboard-grid" id="leaderboardGrid"></div>
+      <main class="workspace search-workspace">
+        <section class="main-pane search-main-pane" id="mainPane">
+          <section class="search-home" id="searchHome">
+            <span class="eyebrow">China chess player archive</span>
+            <h1>查找中国国际象棋棋手</h1>
+            <p>输入中文名、拼音、FIDE ID，或赛事名称。至少输入两个字符。</p>
+            <div class="search-suggestions" id="searchSuggestions"></div>
           </section>
-        </section>
-
-        <section class="main-pane" id="mainPane">
           <section class="search-results" id="searchResultsSection" hidden>
             <div class="section-heading">
               <h2>搜索结果</h2>
@@ -49,44 +49,12 @@
             <div class="result-list" id="searchResults"></div>
           </section>
 
-          <section class="dashboard" id="dashboardSection" aria-label="数据看板">
-            <div class="dashboard-intro">
-              <div>
-                <span class="eyebrow">China chess data atlas</span>
-                <h1>中国国际象棋棋手数据总览</h1>
-              </div>
-              <p>公开赛事记录、棋手身份与可复现 PGN 档案。</p>
-            </div>
-            <div class="stat-grid" id="statGrid"></div>
-            <div class="dash-panels">
-              <section class="dash-panel">
-                <div class="section-heading">
-                  <h2>最新收录赛事</h2>
-                  <span id="recentEventsMeta"></span>
-                </div>
-                <div class="recent-events" id="recentEvents"></div>
-              </section>
-              <section class="dash-panel">
-                <div class="section-heading">
-                  <h2>数据更新记录</h2>
-                  <span id="changelogMeta"></span>
-                </div>
-                <div class="changelog-list" id="changelogList"></div>
-                <div class="section-heading">
-                  <h2>年龄组棋手分布</h2>
-                  <span>现役有分棋手</span>
-                </div>
-                <div class="age-overview" id="ageOverview"></div>
-              </section>
-            </div>
-          </section>
-
           <aside class="detail-pane" id="detailPane" aria-label="棋手看板" hidden></aside>
           <aside class="event-pane" id="eventPane" aria-label="赛事看板" hidden></aside>
         </section>
       </main>
     </div>
 
-    <script type="module" src="app.js?v=20260710-4"></script>
+    <script type="module" src="app.js?v=20260712-3"></script>
   </body>
 </html>

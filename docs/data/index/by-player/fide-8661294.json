@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8661294",
     "id": "fide-8661294",
@@ -16,10 +16,10 @@
     ]
   },
   "totals": {
-    "games": 13,
-    "events": 2,
+    "games": 15,
+    "events": 4,
     "packages": 2,
-    "bytes": 24838,
+    "bytes": 47120,
     "stages": {}
   },
   "packages": [
@@ -27,34 +27,51 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8661294/all.pgn",
-      "gameCount": 13,
-      "pgnBytes": 12418,
-      "sha256": "3dcf477b727899ac640e82baceff18197970b92572390515a298a1dccdf1eec2",
+      "gameCount": 15,
+      "pgnBytes": 23559,
+      "sha256": "7434af360e62dd71cc81390f08fef1fa5d2bc97a18147560d5e2de6ddf60184e",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8661294/adult.pgn",
-      "gameCount": 13,
-      "pgnBytes": 12420,
-      "sha256": "6e6922d4e33b96e04698481a46afdc9f0823425987b5280316af569080df1d47",
+      "gameCount": 15,
+      "pgnBytes": 23561,
+      "sha256": "76c2b6ccd3552d6cc0ce4322e5bcdc7d379eec473e80f04315af3d7e5ebe0a86",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 2: Gao, Jiazheng - Tuerxun Sidike",
+      "date": "2025-12-06",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2025 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
       "date": "2025-08-20",
       "tournamentID": "1204657",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 7,
       "results": {
         "1/2-1/2": 2,
@@ -68,14 +85,46 @@
       "date": "2024-10-16",
       "tournamentID": "1030481",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 6,
       "results": {
         "0-1": 4,
         "1-0": 2
       }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 3: Tuerxun Sidike - Ren, Yibai",
+      "date": "",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
     }
   ],
   "games": [
+    {
+      "id": "e7f7343126418931711c556a6fef9cb45644b65460d8824918af4f3f5222b357",
+      "event": "Round 2: Gao, Jiazheng - Tuerxun Sidike",
+      "date": "2025-12-06",
+      "white": "Gao, Jiazheng",
+      "black": "Tuerxun Sidike",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "2.7",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
+      "sha256": "e7f7343126418931711c556a6fef9cb45644b65460d8824918af4f3f5222b357"
+    },
     {
       "id": "a07c18f7ee37c140ee3816307e06b9347ebde01e9e9bdeaa56ab3df469c59b7b",
       "event": "2025 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
@@ -84,7 +133,9 @@
       "black": "Tuerxun, Sidike",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "4",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8661294-1204657.pgn",
@@ -98,7 +149,9 @@
       "black": "Ren, Yibai",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "3",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8661294-1204657.pgn",
@@ -112,7 +165,9 @@
       "black": "Qian, Zhihong",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "9",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8661294-1204657.pgn",
@@ -126,7 +181,9 @@
       "black": "Li, Antong",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "1",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8661294-1204657.pgn",
@@ -140,7 +197,9 @@
       "black": "Tuerxun, Sidike",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "2",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8661294-1204657.pgn",
@@ -154,7 +213,9 @@
       "black": "Tuerxun, Sidike",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "8",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8661294-1204657.pgn",
@@ -168,7 +229,9 @@
       "black": "Tuerxun, Sidike",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "6",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8661294-1204657.pgn",
@@ -182,7 +245,9 @@
       "black": "Tuerxun, Sidike",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "5",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1030481",
       "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661294-1030481.pgn",
@@ -196,7 +261,9 @@
       "black": "Tuerxun, Sidike",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "3",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1030481",
       "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661294-1030481.pgn",
@@ -210,7 +277,9 @@
       "black": "Zhang, Qianyi",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "6",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1030481",
       "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661294-1030481.pgn",
@@ -224,7 +293,9 @@
       "black": "Yi, Ruiyu",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "2",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1030481",
       "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661294-1030481.pgn",
@@ -238,7 +309,9 @@
       "black": "Xu, Chang(Cq)",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "4",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1030481",
       "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661294-1030481.pgn",
@@ -252,11 +325,29 @@
       "black": "Tuerxun, Sidike",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "8",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1030481",
       "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661294-1030481.pgn",
       "sha256": "5d97f73a82568d46da4ebd47003708022a50cb972872558b7b45e21d529698cb"
+    },
+    {
+      "id": "6db604207f3544d9daa88b1423996fa226e0ee53aeaee5db15f14f8f290f6752",
+      "event": "Round 3: Tuerxun Sidike - Ren, Yibai",
+      "white": "Tuerxun Sidike",
+      "black": "Ren, Yibai",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "3.21",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "6db604207f3544d9daa88b1423996fa226e0ee53aeaee5db15f14f8f290f6752"
     }
   ]
 }

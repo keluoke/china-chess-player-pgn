@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8670617",
     "id": "fide-8670617",
@@ -20,12 +20,12 @@
     ]
   },
   "totals": {
-    "games": 10,
-    "events": 2,
+    "games": 12,
+    "events": 4,
     "packages": 2,
-    "bytes": 27694,
+    "bytes": 44398,
     "stages": {
-      "U12": 10
+      "U12": 12
     }
   },
   "packages": [
@@ -33,11 +33,11 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8670617/all.pgn",
-      "gameCount": 10,
-      "pgnBytes": 13847,
-      "sha256": "9c2188d6c33668df61937f25957d4f4b9af9a10bb16643b5ab7c2773b818ece7",
+      "gameCount": 12,
+      "pgnBytes": 22199,
+      "sha256": "d5fbcbf58c4a190327a2eca89d49293ed70243c27403bf758346437979a313bf",
       "stages": {
-        "U12": 10
+        "U12": 12
       },
       "sources": [
         "Chess-Results",
@@ -48,11 +48,11 @@
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8670617/U12.pgn",
-      "gameCount": 10,
-      "pgnBytes": 13847,
-      "sha256": "a7bb69bfaecf650897747596239f598e18cb088835bf63198871e73e7f693eb9",
+      "gameCount": 12,
+      "pgnBytes": 22199,
+      "sha256": "e3e3f795c320de186101d9b0fb67f34de0662d4e02476f5cc99c8788fc906245",
       "stages": {
-        "U12": 10
+        "U12": 12
       },
       "sources": [
         "Chess-Results",
@@ -76,10 +76,53 @@
     },
     {
       "source": "Lichess Broadcasts",
+      "name": "Round 3: Ni, Chen - Xie, Jianjun",
+      "date": "2026-06-18",
+      "tournamentID": "",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 1: Ni, Chen - Yu, Xiangbo",
+      "date": "2026-06-16",
+      "tournamentID": "",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Chess-Results",
+      "name": "2025 National Chess Open (Su Zhou,China)",
+      "date": "2025-10-06",
+      "tournamentID": "1250419",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 9,
+      "results": {
+        "0-1": 4,
+        "1-0": 3,
+        "1/2-1/2": 2
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
       "name": "Round 1: Zhang, Zhi - Ni, Chen",
       "date": "2025-10-05",
       "tournamentID": "",
       "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
       "gameCount": 1,
       "results": {
         "1-0": 1
@@ -88,6 +131,40 @@
   ],
   "games": [
     {
+      "id": "44b6094f0c33b2b431d90abd6e0ab5a5c22506ef8097c46813339b014abdc4ad",
+      "event": "Round 3: Ni, Chen - Xie, Jianjun",
+      "date": "2026-06-18",
+      "white": "Ni, Chen",
+      "black": "Xie, Jianjun",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "3.17",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
+      "sha256": "44b6094f0c33b2b431d90abd6e0ab5a5c22506ef8097c46813339b014abdc4ad"
+    },
+    {
+      "id": "24427a606a2e806ba23d98ee904cb090ade99fba449b42c03a4328d28b8c1953",
+      "event": "Round 1: Ni, Chen - Yu, Xiangbo",
+      "date": "2026-06-16",
+      "white": "Ni, Chen",
+      "black": "Yu, Xiangbo",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "1.5",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
+      "sha256": "24427a606a2e806ba23d98ee904cb090ade99fba449b42c03a4328d28b8c1953"
+    },
+    {
       "id": "a63d576f3ac1606d3508182d42db8109303b3cb93f530d9169044c0bc654cbe5",
       "event": "2025 National Chess Open (Su Zhou,China)",
       "date": "2025-10-06",
@@ -95,7 +172,9 @@
       "black": "Ni, Chen",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "3",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -109,7 +188,9 @@
       "black": "Ni, Chen",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "1",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -123,7 +204,9 @@
       "black": "Ni, Chen",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "5",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -137,7 +220,9 @@
       "black": "Ni, Chen",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "9",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -151,7 +236,9 @@
       "black": "Lau, Great Boyou",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "8",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "white",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -165,7 +252,9 @@
       "black": "Feng, Kuixiu",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "4",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "white",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -179,7 +268,9 @@
       "black": "Ding, Yiran",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "2",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "white",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -193,7 +284,9 @@
       "black": "Cao, Jing Yang",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "6",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "white",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -207,7 +300,9 @@
       "black": "Ni, Chen",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "7",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "tournamentID": "1250419",
       "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8670617-1250419.pgn",
@@ -221,7 +316,9 @@
       "black": "Ni, Chen",
       "result": "1-0",
       "source": "Lichess Broadcasts",
+      "round": "1.1",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U12/games.json",

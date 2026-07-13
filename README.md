@@ -3,6 +3,7 @@
 社区共建的开源中国国际象棋棋手数据库:全量 CHN 棋手注册表(含转出/转入棋手标注)、赛事记录、对局 PGN、全年龄组排行榜(U8-U18 / U20 / 成年 / S50 / S65),并以[静态数据 API](docs/API.md) 对外提供数据。
 
 - 贡献数据:见 [CONTRIBUTING.md](CONTRIBUTING.md)(网页上改 CSV 提 PR 即可；赛事中文名维护在 `data/community/tournament-name-mappings.csv`)
+- **轻量贡献**:网页向导授权 GitHub 后直接开 Issue；完整赛事抓取使用[独立桌面工具](https://github.com/keluoke/china-chess-contributor/releases/latest)，无需下载主数据库。审核入库后才进入鸣谢名录(治理机制见 [docs/GOVERNANCE.md](docs/GOVERNANCE.md))
 - 数据 API:见 [docs/API.md](docs/API.md)(风格引擎等外部项目请走 API,本仓库不再内置风格模拟)
 - 许可:代码 MIT,数据 CC BY 4.0(见 [LICENSE-DATA.md](LICENSE-DATA.md))
 

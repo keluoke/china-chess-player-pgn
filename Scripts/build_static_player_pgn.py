@@ -76,7 +76,10 @@ class PlayerGame:
     black: str
     result: str
     source: str
+    round: str = ""
     stage: str = ""
+    natural_stage: str = ""
+    event_stage: str = ""
     source_pgn_path: str = ""
     source_index_path: str = ""
     source_shard: str = ""
@@ -95,7 +98,10 @@ class PlayerGame:
                 "black": self.black,
                 "result": self.result,
                 "source": self.source,
+                "round": self.round,
                 "stage": self.stage,
+                "naturalStage": self.natural_stage,
+                "eventStage": self.event_stage,
                 "role": self.role,
                 "rank": self.rank,
                 "tournamentID": self.tournament_id,
@@ -175,15 +181,21 @@ def ingest_static_event_pgns(
                 game = repair_pgn_text(game)
                 headers = pgn_headers(game)
                 date = normalize_pgn_date(headers.get("EventDate") or headers.get("Date") or clean(event.get("date")))
+                event_name = headers.get("Event") or clean(event.get("name"))
+                natural_stage = natural_stage_for_player(profile, date)
+                entered_stage = event_stage_from_name(event_name)
                 game_record = PlayerGame(
                     pgn=game,
-                    event=headers.get("Event") or clean(event.get("name")),
+                    event=event_name,
                     date=date,
                     white=headers.get("White", ""),
                     black=headers.get("Black", ""),
                     result=headers.get("Result", ""),
                     source=clean(event.get("source")) or "Static PGN",
-                    stage=stage_for_player(profile, date, clean(event.get("name"))),
+                    round=clean(headers.get("Round")),
+                    stage=natural_stage or entered_stage,
+                    natural_stage=natural_stage,
+                    event_stage=entered_stage,
                     source_pgn_path=pgn_path,
                     role=role_for_profile(profile, headers),
                     rank=event.get("rank", ""),
@@ -236,15 +248,19 @@ def ingest_bulk_youth_pgns(
             if not game:
                 continue
             headers = pgn_headers(game)
+            event_name = headers.get("Event") or clean(entry.get("event"))
             game_record = PlayerGame(
                 pgn=game,
-                event=headers.get("Event") or clean(entry.get("event")),
+                event=event_name,
                 date=normalize_pgn_date(headers.get("EventDate") or headers.get("Date") or clean(entry.get("date"))),
                 white=headers.get("White") or clean(entry.get("white")),
                 black=headers.get("Black") or clean(entry.get("black")),
                 result=headers.get("Result") or clean(entry.get("result")),
                 source=clean(entry.get("source")) or "Lichess Broadcasts",
+                round=clean(headers.get("Round")),
                 stage=stage_id,
+                natural_stage=stage_id,
+                event_stage=event_stage_from_name(event_name),
                 source_pgn_path=pgn_path,
                 source_index_path=index_path,
                 source_shard=clean(entry.get("sourceShard")),
@@ -409,6 +425,8 @@ def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
                 "date": game.date,
                 "tournamentID": game.tournament_id,
                 "stage": game.stage,
+                "naturalStage": game.natural_stage,
+                "eventStage": game.event_stage,
                 "gameCount": 0,
                 "results": {},
             },
@@ -573,16 +591,25 @@ def stable_game_hash(game: str) -> str:
     return hashlib.sha256(re.sub(r"\s+", " ", game).strip().encode("utf-8")).hexdigest()
 
 
-def stage_for_player(profile: PlayerProfile, date: str, event_name: str) -> str:
+def natural_stage_for_player(profile: PlayerProfile, date: str) -> str:
     if profile.birth_year and date[:4].isdigit():
         stage = stage_for_age(int(date[:4]) - profile.birth_year)
         if stage:
             return stage
+    return ""
+
+
+def event_stage_from_name(event_name: str) -> str:
     upper = event_name.upper()
     for stage in ["U18", "U16", "U14", "U12", "U10", "U8"]:
         if stage in upper:
             return stage
     return ""
+
+
+def stage_for_player(profile: PlayerProfile, date: str, event_name: str) -> str:
+    """Backward-compatible aggregate stage: prefer natural age over entered section."""
+    return natural_stage_for_player(profile, date) or event_stage_from_name(event_name)
 
 
 def stage_for_age(age: int) -> str:

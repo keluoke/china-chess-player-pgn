@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8603065",
     "id": "fide-8603065",
@@ -19,10 +19,10 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 2,
+    "events": 2,
     "packages": 2,
-    "bytes": 1792,
+    "bytes": 10078,
     "stages": {}
   },
   "packages": [
@@ -30,34 +30,51 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8603065/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 895,
-      "sha256": "43bedfcedbb7e7f367f574495973fa8eb157bf113de1f081c73e95c3bf1d8f26",
+      "gameCount": 2,
+      "pgnBytes": 5038,
+      "sha256": "a48437b0c933fc5d4e69d8d17b991632f0cb20ef6d980ae1bc90bfccc05f4173",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8603065/adult.pgn",
-      "gameCount": 1,
-      "pgnBytes": 897,
-      "sha256": "36198b7b75dda6081dc1b5ac5b45ab3a1d09dd228b46ede2dcc90b6fd892564d",
+      "gameCount": 2,
+      "pgnBytes": 5040,
+      "sha256": "192c2a11233bbb05cf942873e0ff90f624a47f752c42a5ce464a5e3fc11135d6",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "2026年全国国际象棋公开赛（吉安站）",
+      "date": "2026-04-02",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2026 National Chess Open (Jian,China)",
       "date": "2026-04-02",
       "tournamentID": "1371093",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 1,
       "results": {
         "0-1": 1
@@ -66,6 +83,23 @@
   ],
   "games": [
     {
+      "id": "f900d3f85a4d69e904a56507579686c4f15d6c8e77bb9e2cbf1ef5225600ec9c",
+      "event": "2026年全国国际象棋公开赛（吉安站）",
+      "date": "2026-04-02",
+      "white": "Liu, Guangning",
+      "black": "Lv, Ruiqi",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "1.15",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-04.pgn.zst",
+      "sha256": "f900d3f85a4d69e904a56507579686c4f15d6c8e77bb9e2cbf1ef5225600ec9c"
+    },
+    {
       "id": "ad3ad3e2369df5110f10c1d785cabb5c070c98c24e363eb49a99749f462b899d",
       "event": "2026 National Chess Open (Jian,China)",
       "date": "2026-04-02",
@@ -73,7 +107,9 @@
       "black": "Lv, Ruiqi",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "1",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1371093",
       "sourcePgnPath": "data/pgn/chess-results/tnr1371093/fide-8603065-1371093.pgn",

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8603650",
     "id": "fide-8603650",
@@ -19,10 +19,10 @@
     ]
   },
   "totals": {
-    "games": 7,
-    "events": 2,
+    "games": 8,
+    "events": 3,
     "packages": 3,
-    "bytes": 16664,
+    "bytes": 24098,
     "stages": {
       "U18": 5
     }
@@ -32,14 +32,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8603650/all.pgn",
-      "gameCount": 7,
-      "pgnBytes": 8266,
-      "sha256": "bf894952c5c8f6ce594ae2bebaa9e31523ae1fafe513d3ff894cc8220967289d",
+      "gameCount": 8,
+      "pgnBytes": 11983,
+      "sha256": "4b566c1ccbf4658c1897394a1206b971dba59de1bb4bb75846eadc4a76190020",
       "stages": {
         "U18": 5
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
@@ -48,7 +49,7 @@
       "pgnPath": "data/pgn/by-player/fide-8603650/U18.pgn",
       "gameCount": 5,
       "pgnBytes": 6730,
-      "sha256": "148dd1e8e951fcd84f22d5771c10e9a1f1efab54b01ce84660a1f03790b41ec6",
+      "sha256": "157eab599e7158d57e5563336587b6bc055cd3dd7e596560d4ede5c6887200ee",
       "stages": {
         "U18": 5
       },
@@ -60,22 +61,38 @@
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8603650/adult.pgn",
-      "gameCount": 2,
-      "pgnBytes": 1668,
-      "sha256": "7f3d332f84d072e9bdcef225118385a7da06c3e3a829c159131fe64dcc96f6e5",
+      "gameCount": 3,
+      "pgnBytes": 5385,
+      "sha256": "d5406d30623104d5d3514a0038e93c11f1b76fc7346094ace759dda912e0ab13",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "new tournament description",
+      "date": "2026-04-13",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "23rd Bangkok Chess Club Open 2026 &#128052; Masters",
       "date": "2026-04-11",
       "tournamentID": "1334185",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 2,
       "results": {
         "0-1": 2
@@ -87,6 +104,8 @@
       "date": "2015-10-25",
       "tournamentID": "187413",
       "stage": "U18",
+      "naturalStage": "U18",
+      "eventStage": "",
       "gameCount": 5,
       "results": {
         "1/2-1/2": 4,
@@ -96,6 +115,23 @@
   ],
   "games": [
     {
+      "id": "0e626b85f051e735b1b2803b18ba5da71b69fde55998fcb8543c2ccba79ea6d9",
+      "event": "new tournament description",
+      "date": "2026-04-13",
+      "white": "Xu, Yining",
+      "black": "Shyaam Nikhil P",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "3.12",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-04.pgn.zst",
+      "sha256": "0e626b85f051e735b1b2803b18ba5da71b69fde55998fcb8543c2ccba79ea6d9"
+    },
+    {
       "id": "00ece85c22d352d4c60d780d6fbf74d214a71b931510de4e15e0b4ecd190fbcc",
       "event": "23rd Bangkok Chess Club Open 2026 &#128052; Masters",
       "date": "2026-04-11",
@@ -103,7 +139,9 @@
       "black": "Shyaam, Nikhil P",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "3",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1334185",
       "sourcePgnPath": "data/pgn/chess-results/tnr1334185/fide-8603650-1334185.pgn",
@@ -117,7 +155,9 @@
       "black": "Chitlange, Sakshi",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "5",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "white",
       "tournamentID": "1334185",
       "sourcePgnPath": "data/pgn/chess-results/tnr1334185/fide-8603650-1334185.pgn",
@@ -131,7 +171,9 @@
       "black": "Saiyn, Zhanat",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "10",
       "stage": "U18",
+      "naturalStage": "U18",
       "role": "white",
       "tournamentID": "187413",
       "sourcePgnPath": "data/pgn/chess-results/tnr187413/fide-8603650-187413.pgn",
@@ -145,7 +187,9 @@
       "black": "Alekseenko, Kirill",
       "result": "0-1",
       "source": "Chess-Results",
+      "round": "1",
       "stage": "U18",
+      "naturalStage": "U18",
       "role": "white",
       "tournamentID": "187413",
       "sourcePgnPath": "data/pgn/chess-results/tnr187413/fide-8603650-187413.pgn",
@@ -159,7 +203,9 @@
       "black": "Xu, Yining",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "9",
       "stage": "U18",
+      "naturalStage": "U18",
       "role": "black",
       "tournamentID": "187413",
       "sourcePgnPath": "data/pgn/chess-results/tnr187413/fide-8603650-187413.pgn",
@@ -173,7 +219,9 @@
       "black": "Xu, Yining",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "11",
       "stage": "U18",
+      "naturalStage": "U18",
       "role": "black",
       "tournamentID": "187413",
       "sourcePgnPath": "data/pgn/chess-results/tnr187413/fide-8603650-187413.pgn",
@@ -187,7 +235,9 @@
       "black": "Xu, Yining",
       "result": "1/2-1/2",
       "source": "Chess-Results",
+      "round": "7",
       "stage": "U18",
+      "naturalStage": "U18",
       "role": "black",
       "tournamentID": "187413",
       "sourcePgnPath": "data/pgn/chess-results/tnr187413/fide-8603650-187413.pgn",

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>网页贡献向导 · 中国国际象棋棋手数据库</title>
+    <meta name="description" content="无需 Python，在网页中整理赛事、棋手与身份线索贡献。">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css?v=20260712-2">
+  </head>
+  <body class="contribute-page">
+    <main class="contribute-shell">
+      <a class="contribute-back" href="./">← 返回棋手数据库</a>
+      <header class="contribute-head">
+        <span class="eyebrow">Community data desk</span>
+        <h1>网页贡献向导</h1>
+        <p>无需安装 Python。填写你知道的部分，授权 GitHub 后向导会直接创建数据 Issue；不用复制 JSON，也不用切换到微信。</p>
+        <p class="tool-download-note">需要整取完整赛事或棋手记录？下载<a href="https://github.com/keluoke/china-chess-contributor/releases/latest">独立桌面工具</a>，无需克隆主数据库。</p>
+      </header>
+
+      <form id="contributionForm" class="contribution-form">
+        <label><span>贡献类型</span><select name="type" required>
+          <option value="event-tnr">补充 Chess-Results 赛事</option>
+          <option value="player-correction">棋手资料勘误</option>
+          <option value="domestic-sighting">无 FIDE 棋手参赛记录</option>
+          <option value="identity-clue">疑似同一人身份线索</option>
+          <option value="event-name">赛事中文名</option>
+          <option value="data-gap">数据缺口 / 缺少棋谱</option>
+          <option value="privacy-request">删除或匿名化请求</option>
+        </select></label>
+        <div class="contribution-fields two-column">
+          <label><span>棋手姓名</span><input name="player_name" autocomplete="name" placeholder="例如：丁天一"></label>
+          <label><span>棋手 ID</span><input name="player_id" placeholder="FIDE ID 或 domestic-…"></label>
+        </div>
+        <label><span>赛事 tnr 或 Chess-Results 链接</span><input name="event_ref" inputmode="url" placeholder="例如：tnr759985 或完整链接"></label>
+        <label><span>待补数据关键词</span><input name="data_query" placeholder="未命中的姓名、拼音、FIDE ID 或赛事"></label>
+        <label><span>赛事中文名 / 参赛组别</span><input name="event_name" placeholder="例如：2023 全国棋协大师赛南京站 · 女子一级组"></label>
+        <label><span>证据链接</span><input name="evidence_url" inputmode="url" placeholder="成绩页、报名表或官方公告链接"></label>
+        <label><span>补充说明</span><textarea name="notes" rows="5" placeholder="可写参赛单位、年龄组、轮次、同名区分依据等"></textarea></label>
+        <div class="contribution-fields two-column">
+          <label><span>贡献者昵称（可选）</span><input name="nickname" placeholder="用于鸣谢"></label>
+          <label><span>联系方式（可选，不公开）</span><input name="contact" placeholder="便于维护者核对"></label>
+        </div>
+        <label class="consent-row"><input name="public_evidence" type="checkbox" required><span>我确认以上内容可作为公开数据线索，并同意维护者核验后入库。</span></label>
+        <div class="contribution-actions">
+          <button class="primary-button" type="submit">授权 GitHub 并提交</button>
+          <button id="resetContribution" class="secondary-button" type="reset">清空</button>
+        </div>
+      </form>
+
+      <section id="contributionOutput" class="contribution-output" hidden aria-live="polite">
+        <div class="section-heading"><h2>贡献内容已整理</h2><span>直接提交 Issue</span></div>
+        <p id="contributionHint">向导只申请创建公开 Issue 所需的 GitHub 权限；联系方式不会写进 Issue。你仍可下载 JSON 留存。</p>
+        <textarea id="contributionPreview" rows="13" readonly></textarea>
+        <div id="deviceAuthorization" class="device-authorization" hidden>
+          <span>GitHub 设备验证码</span>
+          <strong id="deviceCode"></strong>
+          <a id="deviceLink" class="primary-button" target="_blank" rel="noreferrer">打开 GitHub 完成授权</a>
+        </div>
+        <div class="contribution-actions">
+          <button id="githubContribution" class="primary-button" type="button">重新提交到 GitHub</button>
+          <button id="copyContribution" class="secondary-button" type="button">复制贡献内容</button>
+          <button id="downloadContribution" class="secondary-button" type="button">下载 JSON</button>
+        </div>
+        <p id="contributionStatus" class="contribution-status"></p>
+      </section>
+    </main>
+    <script type="module" src="contribute.js?v=20260712-2"></script>
+  </body>
+</html>

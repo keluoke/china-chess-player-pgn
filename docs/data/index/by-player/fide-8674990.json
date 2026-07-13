@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8674990",
     "id": "fide-8674990",
@@ -20,13 +20,13 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "events": 2,
+    "games": 3,
+    "events": 3,
     "packages": 3,
-    "bytes": 4348,
+    "bytes": 11234,
     "stages": {
       "U12": 1,
-      "U14": 1
+      "U14": 2
     }
   },
   "packages": [
@@ -34,15 +34,16 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8674990/all.pgn",
-      "gameCount": 2,
-      "pgnBytes": 2109,
-      "sha256": "4e06be8e3d74f9bb92239c54c7f7d03f0bac2af22533a10939270028e9d6d940",
+      "gameCount": 3,
+      "pgnBytes": 5552,
+      "sha256": "e822a0ba5486250d93ce25f6ff1a6ac968f20fc394bd6fe57147d65090621ce5",
       "stages": {
         "U12": 1,
-        "U14": 1
+        "U14": 2
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
@@ -51,7 +52,7 @@
       "pgnPath": "data/pgn/by-player/fide-8674990/U12.pgn",
       "gameCount": 1,
       "pgnBytes": 1168,
-      "sha256": "02d77efaeb2f68cee425a594d1a36dc166831a8996688d5154970bec5455e569",
+      "sha256": "d4eca5f412fe02b50761e3f0b270d94f464e783ce97250c88c583344c4d1d415",
       "stages": {
         "U12": 1
       },
@@ -63,24 +64,40 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8674990/U14.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1071,
-      "sha256": "4699e1e9b2f209d0d859e18119be301dc211a2011da8240b8e9900d51f9f36b6",
+      "gameCount": 2,
+      "pgnBytes": 4514,
+      "sha256": "8025df02bb4ec49866b74daffd19e2ceb9b1466628cab288b2ccc655c71435c4",
       "stages": {
-        "U14": 1
+        "U14": 2
       },
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 2: Huang, Juliang - Wang, Hengshuo",
+      "date": "2026-06-05",
+      "tournamentID": "",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Chess-Results",
       "name": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
       "date": "2026-06-05",
       "tournamentID": "1429695",
       "stage": "U14",
+      "naturalStage": "U14",
+      "eventStage": "",
       "gameCount": 1,
       "results": {
         "1-0": 1
@@ -92,6 +109,8 @@
       "date": "2025-07-12",
       "tournamentID": "1214031",
       "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
       "gameCount": 1,
       "results": {
         "1-0": 1
@@ -100,6 +119,23 @@
   ],
   "games": [
     {
+      "id": "87a4f0fb310754ae8880a021c45700532052c39161ae620083d2447ab447f849",
+      "event": "Round 2: Huang, Juliang - Wang, Hengshuo",
+      "date": "2026-06-05",
+      "white": "Huang, Juliang",
+      "black": "Wang, Hengshuo",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "2.10",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
+      "sha256": "87a4f0fb310754ae8880a021c45700532052c39161ae620083d2447ab447f849"
+    },
+    {
       "id": "93f306ad84c24421e18dd5cee661e20df9376fc4d3a3cbe4965e190e99331d98",
       "event": "2026 National Amateur Chess Master Tournament - Open (Anyang Station)",
       "date": "2026-06-05",
@@ -107,7 +143,9 @@
       "black": "Wang, Hengshuo",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "2",
       "stage": "U14",
+      "naturalStage": "U14",
       "role": "black",
       "tournamentID": "1429695",
       "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8674990-1429695.pgn",
@@ -121,7 +159,9 @@
       "black": "Wang, Hengshuo",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "2",
       "stage": "U12",
+      "naturalStage": "U12",
       "role": "black",
       "tournamentID": "1214031",
       "sourcePgnPath": "data/pgn/chess-results/tnr1214031/fide-8674990-1214031.pgn",

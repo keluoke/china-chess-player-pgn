@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8684995",
     "id": "fide-8684995",
@@ -16,10 +16,10 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 2,
+    "events": 2,
     "packages": 2,
-    "bytes": 1466,
+    "bytes": 6550,
     "stages": {}
   },
   "packages": [
@@ -27,24 +27,26 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8684995/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 732,
-      "sha256": "300b4f9fd2be6c8d2400133fa0d3e12dec8915bf1fb48026a56d9408c2d3ccc2",
+      "gameCount": 2,
+      "pgnBytes": 3274,
+      "sha256": "6018c569615ca4e9b502cb75c37d73dc5f1232084f7d9f01785f9a0941f0e063",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8684995/adult.pgn",
-      "gameCount": 1,
-      "pgnBytes": 734,
-      "sha256": "398a4737801d3b798374aa79f2aff1409052082a3326b7fe5f4b44b21942392b",
+      "gameCount": 2,
+      "pgnBytes": 3276,
+      "sha256": "ef96183914ab7c109b7dccc97f2d93dcab75b3c24309fcf5d80765ac23879912",
       "stages": {},
       "sources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ]
     }
   ],
@@ -55,6 +57,21 @@
       "date": "2025-08-20",
       "tournamentID": "1204657",
       "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 1: Xia Yimaierdanapaer - Ayinigare, Yimingjiang",
+      "date": "",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
       "gameCount": 1,
       "results": {
         "1-0": 1
@@ -70,11 +87,29 @@
       "black": "Ayinigare, Yimingjiang",
       "result": "1-0",
       "source": "Chess-Results",
+      "round": "1",
       "stage": "adult",
+      "naturalStage": "adult",
       "role": "black",
       "tournamentID": "1204657",
       "sourcePgnPath": "data/pgn/chess-results/tnr1204657/fide-8684995-1204657.pgn",
       "sha256": "79166f88f81c0af82f3d99fd5da328fadd2a4cd6a50ade330253478839ffcb96"
+    },
+    {
+      "id": "b42c46138347c0e1bbccb8d7c964ca71589f5c9cfe7eb43bbe5ecea9366ce9f4",
+      "event": "Round 1: Xia Yimaierdanapaer - Ayinigare, Yimingjiang",
+      "white": "Xia Yimaierdanapaer",
+      "black": "Ayinigare, Yimingjiang",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "1.22",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+      "sha256": "b42c46138347c0e1bbccb8d7c964ca71589f5c9cfe7eb43bbe5ecea9366ce9f4"
     }
   ]
 }

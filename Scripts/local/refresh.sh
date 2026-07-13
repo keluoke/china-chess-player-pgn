@@ -25,6 +25,7 @@
 #   registry     Download the FIDE rating list and rebuild the CHN registry.
 #   crawl        Crawl Chess-Results player events (incremental) + fetch PGN.
 #   events       Scrape event names + registry + full-event PGN (li-chengzhi).
+#   event-queue  Demand-ranked full-event ingestion (default top 3 targets).
 #   aliases      Scrape Chinese names from Chess-Results and apply to registry.
 #   promote      Promote publicly distributable Chess-Results PGN.
 #   reconcile    Probe Chess-Results coverage gaps, promote + fetch missing PGN.
@@ -33,6 +34,8 @@
 #   all          Routine incremental refresh: registry, then crawl.
 #   push         Re-push data left behind by an earlier failed push.
 #   verify       Locally verify community evidence URLs (residential IP).
+#   contrib      Promote merged community payloads (data/incoming) into the
+#                canonical data after residential-IP spot verification.
 #   reindex      LOCAL pure rebuild (indexes/registry aliases/domestic). Optional;
 #                normally Actions does this. No network.
 #
@@ -282,14 +285,29 @@ case "$command" in
     ;;
 
   events)
+    ensure_pymod pypinyin
     py Scripts/sync_chess_results_starting_rank_aliases.py --delay 1.0
+    py Scripts/backfill_domestic_pinyin.py
     py Scripts/sync_chinese_players.py || py Scripts/apply_aliases_to_registry.py
     py Scripts/fetch_event_pgn.py --workers 3 --category li-chengzhi ${EXTRA[@]+"${EXTRA[@]}"}
     commit_and_push "Ingest event archive names and PGN (local)" data/manual data/generated docs/data
     ;;
 
+  event-queue)
+    ensure_pymod pypinyin
+    py Scripts/build_domestic_event_queue.py
+    if [ "${#EXTRA[@]}" -eq 0 ]; then
+      py Scripts/sync_chess_results_event.py --from-queue 3
+    else
+      py Scripts/sync_chess_results_event.py ${EXTRA[@]+"${EXTRA[@]}"}
+    fi
+    commit_and_push "Ingest demand-ranked domestic events" data/manual data/generated docs/data
+    ;;
+
   aliases)
+    ensure_pymod pypinyin
     py Scripts/sync_chess_results_starting_rank_aliases.py ${EXTRA[@]+"${EXTRA[@]}"}
+    py Scripts/backfill_domestic_pinyin.py
     py Scripts/sync_chinese_players.py || py Scripts/apply_aliases_to_registry.py
     commit_and_push "Update Chinese name aliases (local)" data/manual docs/data/registry
     ;;
@@ -343,12 +361,32 @@ case "$command" in
     fi
     ;;
 
+  contrib)
+    # 社区载荷入库:拉取 main 上已合并的 data/incoming/(HTTP,不动 git 历史),
+    # 住宅 IP 抽查回验,并入正式数据并记入鸣谢名录,再重建派生索引一并推送。
+    py Scripts/promote_incoming.py --verify ${EXTRA[@]+"${EXTRA[@]}"}
+    py Scripts/sync_static_pgn.py
+    py Scripts/build_static_player_pgn.py
+    [ -f Scripts/build_event_details.py ] && py Scripts/build_event_details.py
+    [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py
+    [ -f Scripts/build_domestic_event_queue.py ] && py Scripts/build_domestic_event_queue.py
+    [ -f Scripts/build_data_quality_audit.py ] && py Scripts/build_data_quality_audit.py
+    [ -f Scripts/reconcile_pgn_sources.py ] && py Scripts/reconcile_pgn_sources.py --write-audit
+    py Scripts/build_leaderboards.py
+    [ -f Scripts/build_api.py ] && py Scripts/build_api.py
+    [ -f Scripts/build_changelog.py ] && py Scripts/build_changelog.py
+    [ -f Scripts/build_dashboard.py ] && py Scripts/build_dashboard.py
+    commit_and_push "Promote community contributions (locally verified)" data/manual data/community data/generated docs/data
+    ;;
+
   reindex)
     # Pure, no network — mirrors what rebuild-indexes.yml does on Actions.
     [ -f docs/data/registry/players.json ] && py Scripts/apply_aliases_to_registry.py || true
     py Scripts/sync_domestic_players.py
+    [ -f Scripts/build_domestic_progressions.py ] && py Scripts/build_domestic_progressions.py
     py Scripts/sync_static_pgn.py
     py Scripts/build_static_player_pgn.py
+    [ -f Scripts/build_event_details.py ] && py Scripts/build_event_details.py
     [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py
     py Scripts/build_leaderboards.py
     [ -f Scripts/build_api.py ] && py Scripts/build_api.py
@@ -364,7 +402,7 @@ case "$command" in
     ;;
 
   ""|-h|--help|help)
-    sed -n '2,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,45p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
 

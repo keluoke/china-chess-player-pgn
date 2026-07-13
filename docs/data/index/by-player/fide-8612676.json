@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-09T17:29:38+00:00",
+  "generatedAt": "2026-07-12T17:19:13+00:00",
   "player": {
     "fideID": "8612676",
     "id": "fide-8612676",
@@ -21,10 +21,10 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 6124,
+    "games": 3,
+    "events": 3,
+    "packages": 3,
+    "bytes": 33652,
     "stages": {
       "U18": 1
     }
@@ -34,9 +34,9 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8612676/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 3062,
-      "sha256": "64d5b7413c45d6167044c7263704c9b60fa9046c6794cd1d8463ca84fb849e1d",
+      "gameCount": 3,
+      "pgnBytes": 16760,
+      "sha256": "6066784eae376eb41400cdfe43e5c23cac36411de3e50de9e9cf050f6c85393e",
       "stages": {
         "U18": 1
       },
@@ -50,10 +50,22 @@
       "pgnPath": "data/pgn/by-player/fide-8612676/U18.pgn",
       "gameCount": 1,
       "pgnBytes": 3062,
-      "sha256": "35bad6171cd0353d1030b858450ddb0740892a02872566799b49f17fad6675cf",
+      "sha256": "c59c3087ef4b2a585b68a4762a7840d5055307bb534d08d69a6e7575890b7392",
       "stages": {
         "U18": 1
       },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8612676/adult.pgn",
+      "gameCount": 2,
+      "pgnBytes": 13830,
+      "sha256": "2708ad33d43c7c1afd7c6ed59c2a6634a4c419162e311d66fae38b805b7bcb45",
+      "stages": {},
       "sources": [
         "Lichess Broadcasts"
       ]
@@ -62,10 +74,38 @@
   "events": [
     {
       "source": "Lichess Broadcasts",
+      "name": "Round 2: Fus, Jakub - Wen, Yili",
+      "date": "2026-01-03",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
+      "name": "Round 5: Wen, Yili - Bensky, Zachary",
+      "date": "2025-01-04",
+      "tournamentID": "",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
+    {
+      "source": "Lichess Broadcasts",
       "name": "Round 2: Yili Wen - Alexander Shabalov",
       "date": "",
       "tournamentID": "",
       "stage": "U18",
+      "naturalStage": "U18",
+      "eventStage": "",
       "gameCount": 1,
       "results": {
         "0-1": 1
@@ -74,6 +114,40 @@
   ],
   "games": [
     {
+      "id": "80c3262a0a061682ed94592a93a99cd83ec80921f3ed87eeb4413a885ab24b1e",
+      "event": "Round 2: Fus, Jakub - Wen, Yili",
+      "date": "2026-01-03",
+      "white": "Fus, Jakub",
+      "black": "Wen, Yili",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "2.12",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-01.pgn.zst",
+      "sha256": "80c3262a0a061682ed94592a93a99cd83ec80921f3ed87eeb4413a885ab24b1e"
+    },
+    {
+      "id": "3b5e1f7b8351d681f6c457f24958cc95c219976b41dd271b5120ce460e17de72",
+      "event": "Round 5: Wen, Yili - Bensky, Zachary",
+      "date": "2025-01-04",
+      "white": "Wen, Yili",
+      "black": "Bensky, Zachary",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "5.20",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-01.pgn.zst",
+      "sha256": "3b5e1f7b8351d681f6c457f24958cc95c219976b41dd271b5120ce460e17de72"
+    },
+    {
       "id": "0b4adbc56cedfd46dfd75ad65caf8295f97425e6f086307c84a73548b6d71dd6",
       "event": "Round 2: Yili Wen - Alexander Shabalov",
       "white": "Yili Wen",
@@ -81,6 +155,7 @@
       "result": "0-1",
       "source": "Lichess Broadcasts",
       "stage": "U18",
+      "naturalStage": "U18",
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U18/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U18/games.json",
