@@ -17,9 +17,10 @@ import hashlib
 import json
 import pathlib
 import re
-import shutil
 from dataclasses import dataclass, field
 from typing import Any
+
+from stable_json import write_json as write_stable_json
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -27,7 +28,6 @@ DOCS_DATA = REPO_ROOT / "docs" / "data"
 STATIC_INDEX_ROOT = DOCS_DATA / "index"
 STATIC_PLAYER_ROOT = STATIC_INDEX_ROOT / "players"
 REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
-LEADERBOARD_JSON = DOCS_DATA / "youth-leaderboards.json"
 BULK_YOUTH_MANIFEST = DOCS_DATA / "bulk" / "youth" / "manifest.json"
 OUTPUT_INDEX_ROOT = STATIC_INDEX_ROOT / "by-player"
 OUTPUT_PGN_ROOT = DOCS_DATA / "pgn" / "by-player"
@@ -41,7 +41,7 @@ class PlayerProfile:
     chinese_name: str = ""
     pinyin: str = ""
     name: str = ""
-    federation: str = "CHN"
+    federation: str = ""
     birth_year: int | None = None
     standard: int | None = None
     rapid: int | None = None
@@ -57,7 +57,7 @@ class PlayerProfile:
                 "chineseName": self.chinese_name,
                 "pinyin": self.pinyin,
                 "name": self.name,
-                "federation": self.federation or "CHN",
+                "federation": self.federation,
                 "birthYear": self.birth_year,
                 "standard": self.standard,
                 "rapid": self.rapid,
@@ -144,9 +144,12 @@ def main() -> int:
     stats["bulkYouthGames"] = ingest_bulk_youth_pgns(buckets, profiles)
     stats["dedupedGames"] = sum(len(bucket.games) for bucket in buckets.values())
 
+    existing_packages = load_existing_package_metadata() if not args.dry_run else {}
     if not args.dry_run:
-        reset_output_roots()
-    manifest = write_outputs(buckets, dry_run=args.dry_run)
+        ensure_output_roots()
+    manifest = write_outputs(buckets, dry_run=args.dry_run, existing_packages=existing_packages)
+    if not args.dry_run:
+        prune_stale_outputs(buckets)
     summary = {**stats, **manifest["totals"]}
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
@@ -162,13 +165,12 @@ def ingest_static_event_pgns(
         fide_id = clean(detail.get("fideID"))
         if not fide_id:
             continue
-        # The static detail file is last build's OUTPUT; the registry-backed
-        # profile (if present) must win over it, or a rating freezes at
-        # whatever value first entered the index.
-        existing = profiles.get(fide_id)
-        detail_profile = profile_from_static_detail(detail)
-        profile = merge_profile(detail_profile, existing) if existing else detail_profile
-        profiles[fide_id] = profile
+        # Static details are last build's output and therefore never an
+        # identity source. Only registry members (including reviewed transfer
+        # overrides) may get a by-player derivative.
+        profile = profiles.get(fide_id)
+        if profile is None:
+            continue
         for event in detail.get("events", []):
             pgn_path = clean(event.get("pgnPath"))
             if not pgn_path:
@@ -238,12 +240,9 @@ def ingest_bulk_youth_pgns(
             fide_id = clean(entry.get("fideID"))
             if not fide_id:
                 continue
-            profile = profiles.get(fide_id) or PlayerProfile(
-                fide_id=fide_id,
-                display_name=clean(entry.get("name")) or f"FIDE {fide_id}",
-                name=clean(entry.get("name")),
-            )
-            profiles[fide_id] = profile
+            profile = profiles.get(fide_id)
+            if profile is None:
+                continue
             game = first_matching_game(games_by_key, games, entry)
             if not game:
                 continue
@@ -272,7 +271,11 @@ def ingest_bulk_youth_pgns(
     return total
 
 
-def write_outputs(buckets: dict[str, PlayerBucket], dry_run: bool) -> dict[str, Any]:
+def write_outputs(
+    buckets: dict[str, PlayerBucket],
+    dry_run: bool,
+    existing_packages: dict[str, tuple[str, str]],
+) -> dict[str, Any]:
     generated_at = now()
     player_summaries: list[dict[str, Any]] = []
     all_packages = 0
@@ -294,6 +297,7 @@ def write_outputs(buckets: dict[str, PlayerBucket], dry_run: bool) -> dict[str, 
             games=bucket.games,
             target=player_dir / "all.pgn",
             dry_run=dry_run,
+            existing_packages=existing_packages,
         )
         packages.append(all_package)
 
@@ -309,6 +313,7 @@ def write_outputs(buckets: dict[str, PlayerBucket], dry_run: bool) -> dict[str, 
                     games=stage_games,
                     target=player_dir / f"{stage_id}.pgn",
                     dry_run=dry_run,
+                    existing_packages=existing_packages,
                 )
             )
 
@@ -383,20 +388,28 @@ def build_package(
     games: list[PlayerGame],
     target: pathlib.Path,
     dry_run: bool,
+    existing_packages: dict[str, tuple[str, str]],
 ) -> dict[str, Any]:
     body = "\n\n".join(game.pgn.strip() for game in games if game.pgn.strip()).strip()
-    text = "\n".join(
+    created_at = now()
+    semantic_text = "\n".join(
         [
             "% Built by 中国棋手 PGN static by-player index",
             f"% FIDE: {fide_id}",
             f"% Package: {package_id}",
             f"% Games: {len(games)}",
-            f"% Created: {now()}",
+            "% Created:",
             "",
             body,
             "",
         ]
     )
+    relative = str(target.relative_to(OUTPUT_PGN_ROOT))
+    previous = existing_packages.get(relative)
+    semantic_hash = semantic_package_hash(semantic_text)
+    if previous and previous[1] == semantic_hash:
+        created_at = previous[0]
+    text = semantic_text.replace("% Created:\n", f"% Created: {created_at}\n", 1)
     if not dry_run:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
@@ -411,6 +424,26 @@ def build_package(
         "stages": stage_game_counts(games),
         "sources": sorted({game.source for game in games if game.source}),
     }
+
+
+def semantic_package_hash(text: str) -> str:
+    normalized = re.sub(r"^% Created:.*$", "% Created:", text, count=1, flags=re.MULTILINE)
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def load_existing_package_metadata() -> dict[str, tuple[str, str]]:
+    result: dict[str, tuple[str, str]] = {}
+    if not OUTPUT_PGN_ROOT.exists():
+        return result
+    for path in OUTPUT_PGN_ROOT.rglob("*.pgn"):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        match = re.search(r"^% Created:\s*(.+?)\s*$", text, flags=re.MULTILINE)
+        if match:
+            result[str(path.relative_to(OUTPUT_PGN_ROOT))] = (
+                match.group(1),
+                semantic_package_hash(text),
+            )
+    return result
 
 
 def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
@@ -446,26 +479,17 @@ def stage_game_counts(games: list[PlayerGame]) -> dict[str, int]:
 
 def load_profiles() -> dict[str, PlayerProfile]:
     profiles: dict[str, PlayerProfile] = {}
-    # Ascending authority: merge_profile prefers the later (incoming) value,
-    # so the live FIDE registry must be loaded LAST — otherwise stale
-    # leaderboard ratings permanently mask fresh FIDE downloads.
-    for path in [LEADERBOARD_JSON, REGISTRY_PLAYERS_JSON]:
-        if not path.exists():
+    if not REGISTRY_PLAYERS_JSON.exists():
+        return profiles
+    data = read_json(REGISTRY_PLAYERS_JSON)
+    players = data.get("players", []) if isinstance(data, dict) else data
+    for player in players:
+        if not isinstance(player, dict):
             continue
-        data = read_json(path)
-        players = data.get("players", []) if isinstance(data, dict) else data
-        for player in players:
-            if not isinstance(player, dict):
-                continue
-            profile = profile_from_mapping(player)
-            if not profile.fide_id:
-                continue
-            profiles[profile.fide_id] = merge_profile(profiles.get(profile.fide_id), profile)
+        profile = profile_from_mapping(player)
+        if profile.fide_id:
+            profiles[profile.fide_id] = profile
     return profiles
-
-
-def profile_from_static_detail(detail: dict[str, Any]) -> PlayerProfile:
-    return profile_from_mapping(detail)
 
 
 def profile_from_mapping(player: dict[str, Any]) -> PlayerProfile:
@@ -476,7 +500,7 @@ def profile_from_mapping(player: dict[str, Any]) -> PlayerProfile:
         chinese_name=clean(player.get("chineseName")),
         pinyin=clean(player.get("pinyin")),
         name=clean(player.get("name")),
-        federation=clean(player.get("federation")) or "CHN",
+        federation=clean(player.get("federation")),
         birth_year=parse_int(player.get("birthYear")),
         standard=parse_int(player.get("standard")),
         rapid=parse_int(player.get("rapid")),
@@ -485,32 +509,11 @@ def profile_from_mapping(player: dict[str, Any]) -> PlayerProfile:
     )
 
 
-def merge_profile(current: PlayerProfile | None, incoming: PlayerProfile) -> PlayerProfile:
-    if current is None:
-        return incoming
-    aliases = ordered_unique(current.aliases + incoming.aliases)
-    return PlayerProfile(
-        fide_id=current.fide_id or incoming.fide_id,
-        display_name=first_non_empty(incoming.display_name, current.display_name),
-        chinese_name=first_non_empty(incoming.chinese_name, current.chinese_name),
-        pinyin=first_non_empty(incoming.pinyin, current.pinyin),
-        name=first_non_empty(incoming.name, current.name),
-        federation=first_non_empty(incoming.federation, current.federation, "CHN"),
-        birth_year=incoming.birth_year or current.birth_year,
-        standard=incoming.standard or current.standard,
-        rapid=incoming.rapid or current.rapid,
-        blitz=incoming.blitz or current.blitz,
-        aliases=aliases,
-    )
-
-
 def bucket_for(buckets: dict[str, PlayerBucket], profile: PlayerProfile) -> PlayerBucket:
     bucket = buckets.get(profile.fide_id)
     if bucket is None:
         bucket = PlayerBucket(profile=profile)
         buckets[profile.fide_id] = bucket
-    else:
-        bucket.profile = merge_profile(bucket.profile, profile)
     return bucket
 
 
@@ -643,11 +646,31 @@ def role_for_profile(profile: PlayerProfile, headers: dict[str, str]) -> str:
     return ""
 
 
-def reset_output_roots() -> None:
+def ensure_output_roots() -> None:
     for root in [OUTPUT_INDEX_ROOT, OUTPUT_PGN_ROOT]:
-        if root.exists():
-            shutil.rmtree(root)
         root.mkdir(parents=True, exist_ok=True)
+
+
+def prune_stale_outputs(buckets: dict[str, PlayerBucket]) -> None:
+    active = {fide_id: bucket for fide_id, bucket in buckets.items() if bucket.games}
+    expected_index = {OUTPUT_INDEX_ROOT / "manifest.json", OUTPUT_INDEX_ROOT / "players.json"}
+    expected_pgn: set[pathlib.Path] = set()
+    for fide_id, bucket in active.items():
+        expected_index.add(OUTPUT_INDEX_ROOT / f"fide-{fide_id}.json")
+        player_dir = OUTPUT_PGN_ROOT / f"fide-{fide_id}"
+        expected_pgn.add(player_dir / "all.pgn")
+        for stage_id in ["U8", "U10", "U12", "U14", "U16", "U18", "adult"]:
+            if any(game.stage == stage_id for game in bucket.games):
+                expected_pgn.add(player_dir / f"{stage_id}.pgn")
+    for root, expected in ((OUTPUT_INDEX_ROOT, expected_index), (OUTPUT_PGN_ROOT, expected_pgn)):
+        for path in root.rglob("*"):
+            if path.is_file() and path not in expected:
+                path.unlink()
+        for directory in sorted((path for path in root.rglob("*") if path.is_dir()), reverse=True):
+            try:
+                directory.rmdir()
+            except OSError:
+                pass
 
 
 def docs_path(public_path: str) -> pathlib.Path:
@@ -681,23 +704,6 @@ def parse_int(value: Any) -> int | None:
         return value
     text = re.sub(r"[,\s]", "", str(value or ""))
     return int(text) if text.isdigit() else None
-
-
-def first_non_empty(*values: Any) -> Any:
-    for value in values:
-        if value not in (None, "", [], {}):
-            return value
-    return ""
-
-
-def ordered_unique(values: list[str]) -> list[str]:
-    seen = set()
-    result = []
-    for value in values:
-        if value and value not in seen:
-            seen.add(value)
-            result.append(value)
-    return result
 
 
 def without_empty(payload: dict[str, Any]) -> dict[str, Any]:
@@ -793,10 +799,7 @@ def read_json(path: pathlib.Path) -> Any:
 
 
 def write_json(path: pathlib.Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    write_stable_json(path, data, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":

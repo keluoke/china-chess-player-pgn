@@ -1,75 +1,76 @@
-# 社区治理机制
+# 社区治理与数据采集边界
 
-本仓库是社区共建的中国国际象棋棋手数据库。治理目标:**数据正确性优先、
-证据可追溯、贡献门槛尽量低、维护者单点压力尽量小**。
+治理目标是数据正确、证据可追溯、社区贡献门槛低，同时把第三方来源访问和发布
+责任集中到明确的维护者流程。
 
 ## 角色
 
 | 角色 | 权限与职责 |
 |---|---|
-| 访客 | 浏览网站与 API;报错开 Issue(有模板) |
-| 数据贡献者 | 优先用网页向导直接开结构化 Issue;完整抓取用独立工具提交载荷 PR |
-| 审核者/维护者 | 审 PR、跑本地核验、入库、管理白名单与勘误层 |
+| 访客 | 浏览网站/API，提交错误或缺失线索 |
+| 数据贡献者 | 提交 URL、tnr、FIDE ID、人工名称、勘误和质量报告；不抓取数据 |
+| 审核者 | 审核人工证据、身份消歧、姓名勘误和联邦覆盖 |
+| 采集维护者 | 在登记的本机住宅网络运行抓取、清洗、私有留存和发布审批 |
 
-新增审核者由现任维护者邀请;标准:多次高质量贡献 + 熟悉数据边界规则。
-
-## 数据分层与写入权(谁能改什么)
+## 数据分层与写入权
 
 | 层 | 路径 | 写入方 |
 |---|---|---|
-| 注册表(权威) | `docs/data/registry/` | 仅维护者爬虫 |
-| 机器产出 | `data/generated/` | 仅爬虫与 promote 脚本 |
-| 人工/社区数据 | `data/manual/`、`data/community/` | PR(CI 校验) |
-| 贡献载荷暂存 | `data/incoming/` | 贡献工具 PR(CI 甄别) |
-| 派生索引/网站 | `docs/data/`、`docs/api/` | 仅 Actions 重建 |
+| 注册表权威 | `docs/data/registry/` | 维护者 FIDE 发布包 |
+| 机器投影 | `data/generated/` | 维护者发布包 / Actions 构建 |
+| 人工知识 | `data/manual/`、`data/community/` | 社区 PR + 审核 |
+| 目标线索 | `data/incoming/` | target-only 社区 PR |
+| 私有原始区 | 仓库外 `runs/<run-id>/raw/` | 仅采集维护者本机 |
+| 派生索引/API | `docs/data/`、`docs/api/` | GitHub Actions 离线重建 |
 
-铁律见 `AGENTS.md`:注册表是姓名与等级分唯一权威;勘误进
-`data/community/name-corrections.csv` 并由 CI 钉死;派生层禁止反写。
+铁律见 `AGENTS.md`：registry 是姓名与等级分唯一权威；已确认姓名错误必须进入
+`data/community/name-corrections.csv` 并由 CI 钉死；任何派生层不得反写 registry。
 
-## 抓取额度的分摊(为什么需要社区抓取)
+## 社区可以做什么
 
-Chess-Results 限制约 2000 visits/day/IP,且封锁数据中心 IP(含 GitHub
-Actions)。维护者一台机器跑不完 1.1 万名棋手的增量。因此:
+- 提交赛事 URL、tnr、FIDE ID、缺失原因和优先级；
+- 维护中文赛事名、人工别名及官方来源链接；
+- 提交姓名勘误、联邦变更证据和身份关联建议；
+- 参与数据质量审核、消歧和产品反馈；
+- 对涉及未成年人的敏感材料使用私下渠道。
 
-- **维护者机器**:跑全量增量(registry / crawl / bulk);
-- **贡献者机器**:用贡献工具按需抓「某棋手 / 某赛事」,各自消耗自己的住宅
-  IP 额度(工具内置 1.5s 间隔、单次 ≤20 个目标、每日软上限提醒);
-- **CI**:永不抓 chess-results,只做离线校验与重建。
+社区不得：
 
-## 贡献载荷的生命周期(甄别 → 入库 → 鸣谢)
+- 运行项目的 Chess-Results/FIDE/Lichess 抓取管线；
+- 上传 HTML、PGN、WARC、解析表、响应头或抓取缓存；
+- 共享访问额度、代理、cookie 或绕过限制的方法；
+- 把第三方内容作为自己的 CC BY 数据重新授权。
 
-1. **抓取**:贡献者从独立工具仓库的 Release 下载免 Python 版本,输入 FIDE ID 或 tnr 赛事号,
-   工具抓取并同时归档原始 HTML / 原始 PGN 作为证据;
-2. **提交**:GitHub 设备码授权后自动 fork + PR 到 `data/incoming/<id>/`;
-   无 GitHub 账号可打 zip 包由维护者代交;
-3. **CI 甄别(离线,自动)**:
-   - manifest sha256 / 字节数逐文件比对,禁止载荷外改动;
-   - 用仓库同款解析器重新解析 HTML 快照,与 rows.json 逐行比对;
-   - 用同款切分逻辑重切 raw.pgn,与 split/*.pgn 逐字节比对;
-   - FIDE ID 必须在注册表;昵称合规;≤25 MB。
-   伪造解析结果而不同时伪造出能通过同一解析器的证据,成本极高;
-4. **人工核验(维护者)**:合并 PR 后本地 `refresh.sh contrib`,
-   `promote_incoming.py --verify` 在住宅 IP 抽查回抓比对,防"精心伪造证据";
-5. **入库**:载荷并入 `data/generated` 与 `docs/data/pgn`(与维护者爬虫
-   同一套 absorb 逻辑),中文名证据照常过 `sanitize_person_name` 与勘误层;
-6. **鸣谢**:贡献者昵称(+可选 GitHub 名)累计进
-   `data/community/contributors.csv`,网站首页「社区数据贡献鸣谢」展示。
+## 目标线索生命周期
 
-## 争议与回滚
+1. 贡献者通过网页 Issue 或 `data/incoming/<id>/manifest.json` 提交目标；
+2. CI 只校验 schema、URL、标识符和“无抓取产物”边界；
+3. 审核者把有效线索加入人工目标队列；
+4. 采集维护者运行 `Scripts/local/refresh.sh event-queue`；
+5. Chess-Results 原始与解析数据保存在仓库外，默认 link-only；
+6. 只有符合来源许可、隐私和质量策略的数据才可能形成 release manifest；
+7. 社区贡献者可进入鸣谢名录，但鸣谢不意味着其执行过数据抓取。
 
-- 数据争议:开 Issue 引用证据;两名审核者意见一致即可裁定;
-- 已入库数据被证伪:走 `name-corrections.csv`(姓名类)或直接修正
-  `data/generated`+ 重建(记录类),并在 changelog 中留痕;
-- 恶意载荷:关闭 PR、submission-id 加入 `contrib-processed.json` 拉黑,
-  屡犯者由维护者在 GitHub 层面 block。
+## 维护者采集控制
 
-## 独立贡献工具
+- 使用持久化跨进程锁，同一时间只有一个采集任务；
+- 三个来源共享本地配额账本、全局间隔和熔断状态；
+- FIDE 使用唯一临时下载、完整 ZIP/名单校验和多个 last-good 版本；
+- Chess-Results 默认 `link-only`，不得公开原始 HTML、赛事镜像或 PGN；
+- Lichess Broadcast 明确标注 CC BY-SA 4.0；
+- 失败运行不形成发布 manifest；
+- Git 与 CI 只处理 manifest 精确列出的路径和 SHA-256；
+- `data/manual`、`data/community` 和原始网页路径被发布器硬拒绝。
 
-桌面工具源码、打包工作流与 Release 均位于
-[`keluoke/china-chess-contributor`](https://github.com/keluoke/china-chess-contributor)。
-主仓库不再携带工具源码和运行状态，避免用户为几十 MB 的工具下载 GB 级数据库。
-网页向导复用同一个 OAuth App 的设备码流，隐私请求例外：永不创建公开 Issue。
+## 争议、勘误与回滚
+
+- 姓名错误必须写入 `name-corrections.csv`，不能只改生成 JSON；
+- 联邦转入/转出必须写入 `federation-overrides.csv` 并附证据；
+- 身份争议至少由两名审核者复核，未决项不得进入确定性身份层；
+- 发布包异常时停止 ingest，保留 run-id、日志和私有诊断；
+- 已发布数据被证伪时，通过人工纠错机制修正并在 changelog 留痕。
 
 ## 许可
 
-代码 MIT;数据 CC BY 4.0。提交载荷即表示同意按此授权,鸣谢名录即署名途径。
+代码采用 MIT。人工社区数据遵守 `LICENSE-DATA.md`；第三方来源按来源级 manifest
+分别处理，不能用仓库默认数据许可覆盖其原始许可或条款。

@@ -1,0 +1,24 @@
+# Cloudflare Pages cache rules (U2): keep repeat visits / full-page
+# navigations cheap. Data files change only on rebuild; SWR lets the browser
+# reuse the cached copy instantly while revalidating in the background.
+
+/data/search-bootstrap.json
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+
+/data/search-bootstrap-domestic.json
+  Cache-Control: public, max-age=300, stale-while-revalidate=86400
+
+/data/pgn/*
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+/data/bulk/*
+  Cache-Control: public, max-age=604800
+
+/data/*
+  Cache-Control: public, max-age=600, stale-while-revalidate=86400
+
+/api/*
+  Cache-Control: public, max-age=600, stale-while-revalidate=86400
+
+/vendor/*
+  Cache-Control: public, max-age=604800

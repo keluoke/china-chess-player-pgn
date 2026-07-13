@@ -1697,3 +1697,13 @@ button.pairing-pgn {
   .search-home { min-height: 46vh; padding: 2rem 0.5rem; }
   .search-main-pane > .search-results { inset: 156px 10px 10px; width: auto; max-height: none; transform: none; }
 }
+
+/* U4: trust line under the search hero */
+.search-trust { margin-top: 1.1rem; font-size: 0.82rem; color: var(--muted); }
+.search-trust a { color: var(--accent-strong); text-decoration: none; }
+.search-trust a:hover { text-decoration: underline; }
+
+/* U6: expandable leaderboard tail (rows 21+) */
+.leaderboard-more > summary { padding: 0.7rem 0.4rem; color: var(--accent-strong); font-size: 0.85rem; cursor: pointer; list-style: none; text-align: center; }
+.leaderboard-more > summary::-webkit-details-marker { display: none; }
+.leaderboard-more[open] > summary { color: var(--muted); }

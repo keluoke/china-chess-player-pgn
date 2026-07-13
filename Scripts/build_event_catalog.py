@@ -107,6 +107,27 @@ def static_event_stats() -> dict[tuple[str, str], dict[str, Any]]:
     return result
 
 
+# Event hierarchy: canonical event → section/group → round → game.
+# PGN-header derived rows from broadcast archives are frequently a single
+# round/board/game title ("Round 6: A - B"), i.e. crawl/evidence units — NOT
+# tournaments. They stay in the catalog for provenance but are tagged
+# level="source-item" so product surfaces (dashboard counts, 最新赛事, event
+# search) only treat level="event" rows as赛事.
+ROUND_ITEM_RE = re.compile(
+    r"^\s*(round|rd\.?|game|board|tiebreak)\s*\d+\s*([:.\-–—]|$)", re.IGNORECASE
+)
+
+
+def classify_level(source: str, name: str, game_count: int, player_count: int) -> str:
+    if ROUND_ITEM_RE.match(name or ""):
+        return "source-item"
+    if str(source).lower().startswith("lichess") and game_count <= 4 and player_count <= 4:
+        # Untitled/singleton broadcast fragments without a recognizable
+        # tournament aggregate are evidence units, not events.
+        return "source-item"
+    return "event"
+
+
 def build_catalog() -> list[dict[str, Any]]:
     mappings = load_mappings()
     master_groups = load_master_groups()
@@ -159,6 +180,7 @@ def build_catalog() -> list[dict[str, Any]]:
             "pgnPlayerCount": len(stats.get("players", set())),
             "pgnCount": int(stats.get("pgnCount") or 0),
             "gameCount": int(stats.get("gameCount") or 0),
+            "level": "event",
         }
         if event_detail:
             events[key]["detailPath"] = event_detail.get("path")
@@ -208,6 +230,7 @@ def build_catalog() -> list[dict[str, Any]]:
             "sectionID": master_group.get("section_id") or None,
             "groupCode": master_group.get("group_code") or None,
             "station": master_group.get("station") or None,
+            "level": "event",
         }
 
     # Preserve event data sourced exclusively from PGN archives (for example
@@ -235,6 +258,7 @@ def build_catalog() -> list[dict[str, Any]]:
             "pgnPlayerCount": len(stats["players"]),
             "pgnCount": int(stats["pgnCount"]),
             "gameCount": int(stats["gameCount"]),
+            "level": classify_level(source, name, int(stats["gameCount"]), len(stats["players"])),
         }
 
     return sorted(events.values(), key=lambda item: (item.get("date") or "", item["id"]), reverse=True)

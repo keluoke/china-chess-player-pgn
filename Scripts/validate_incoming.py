@@ -1,193 +1,167 @@
 #!/usr/bin/env python3
-"""离线甄别 data/incoming/ 社区抓取载荷(CI 与维护者本地共用)。
+"""Validate target-only community submissions under ``data/incoming``.
 
-CI 无法回抓 chess-results(GitHub IP 被封),因此甄别 = 证据一致性复核:
-
-1. manifest 模式、submission-id 格式、sha256 与字节数逐文件比对,不允许有
-   manifest 之外的文件混入;
-2. 棋手载荷:用仓库自己的解析器(crawl_player_events._extract_rows)重新解析
-   随载荷提交的原始 SpielerSuche HTML 快照,与提交的 rows.json 逐行比对——
-   伪造解析结果而不同时伪造出可通过同一解析器的 HTML 是非常困难的;
-3. 赛事载荷:用 fetch_event_pgn 的切分逻辑对 raw.pgn.gz 重切,与提交的
-   split/*.pgn 逐字节比对;split 中的 FIDE ID 必须在注册表中;
-4. 中文名过 sanitize_person_name;昵称 1-20 字不含链接;
-5. 体积上限:单载荷 25 MB(gzip 后)。
-
-真实性(数据确实来自 chess-results)由维护者在住宅 IP 环境用
-``promote_incoming.py --verify`` 抽查回验,与本脚本互补。
-
-Exit 非零 = 拒绝。用法:python3 Scripts/validate_incoming.py [submission-id ...]
+Community submissions may contain URLs, tournament/FIDE identifiers, reasons
+and priority hints.  They must never contain downloaded HTML/PGN, parsed rows,
+cookies, response headers or any other product of automated collection.
 """
 
 from __future__ import annotations
 
-import gzip
-import hashlib
 import json
 import pathlib
 import re
 import sys
+import urllib.parse
+from typing import Any
 
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "Scripts"))
-
-import crawl_player_events as cpe  # noqa: E402
-import fetch_event_pgn as fep  # noqa: E402
-from sync_static_pgn import count_pgn_games  # noqa: E402
-
-INCOMING = REPO_ROOT / "data" / "incoming"
-MAX_PAYLOAD_BYTES = 25 * 1024 * 1024
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+INCOMING = ROOT / "data" / "incoming"
 SUB_ID_RE = re.compile(r"^\d{8}-\d{6}-[0-9a-f]{6}$")
+FIDE_ID_RE = re.compile(r"^\d{4,10}$")
+TNR_RE = re.compile(r"^\d{5,9}$")
+ALLOWED_TYPES = {"event-target", "player-target", "source-clue", "quality-report"}
+TOP_LEVEL_KEYS = {"schema", "createdAt", "contributor", "targets"}
+CONTRIBUTOR_KEYS = {"nickname"}
+TARGET_KEYS = {
+    "type", "tournamentID", "fideID", "sourceURL", "evidenceURL",
+    "reason", "priority", "eventName", "playerName", "notes",
+}
+FORBIDDEN_KEYS = {
+    "files", "html", "raw", "pgn", "rows", "parsed", "response", "headers",
+    "cookies", "snapshot", "payload", "games", "standings", "pairings",
+}
 ERRORS: list[str] = []
 
 
-def err(sub: str, msg: str) -> None:
-    ERRORS.append(f"{sub}: {msg}")
+def error(submission: str, message: str) -> None:
+    ERRORS.append(f"{submission}: {message}")
 
 
-def sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+def clean(value: Any) -> str:
+    return " ".join(str(value or "").split()).strip()
 
 
-def compare_rows(submitted: list[dict], reparsed: list[dict], fide_id: str) -> str | None:
-    """rows.json must equal a fresh parse of the archived HTML."""
-    keep = [r for r in reparsed if not r["fide_id_seen"] or r["fide_id_seen"] == fide_id]
-    for r in keep:
-        r["fide_id"] = fide_id
-    if len(submitted) != len(keep):
-        return f"rows.json 有 {len(submitted)} 行,但 HTML 快照重解析得到 {len(keep)} 行"
-    for i, (a, b) in enumerate(zip(submitted, keep)):
-        for key in ("tnrid", "tournament", "end_date", "rank", "rounds", "participants",
-                    "player_name", "club", "federation", "player_snr"):
-            if str(a.get(key, "")) != str(b.get(key, "")):
-                return f"第 {i + 1} 行字段 {key} 不一致:{a.get(key)!r} != {b.get(key)!r}"
-    return None
+def valid_url(value: str) -> bool:
+    if not value:
+        return True
+    parsed = urllib.parse.urlparse(value)
+    return parsed.scheme == "https" and bool(parsed.hostname) and not parsed.username and not parsed.password
 
 
-def validate_payload(sub_dir: pathlib.Path) -> None:
-    sub = sub_dir.name
-    if not SUB_ID_RE.fullmatch(sub):
-        err(sub, "submission-id 格式不合规(YYYYMMDD-HHMMSS-hex6)")
+def forbidden_content(value: Any) -> bool:
+    if isinstance(value, dict):
+        if any(clean(key).casefold() in FORBIDDEN_KEYS for key in value):
+            return True
+        return any(forbidden_content(item) for item in value.values())
+    if isinstance(value, list):
+        return any(forbidden_content(item) for item in value)
+    if isinstance(value, str):
+        sample = value.casefold()
+        return "<html" in sample or '[event "' in sample or "__viewstate" in sample
+    return False
+
+
+def validate_target(submission: str, index: int, target: Any) -> None:
+    prefix = f"target[{index}]"
+    if not isinstance(target, dict):
+        error(submission, f"{prefix} 必须是对象")
         return
-    manifest_path = sub_dir / "manifest.json"
-    if not manifest_path.exists():
-        err(sub, "缺少 manifest.json")
+    unknown = sorted(set(target) - TARGET_KEYS)
+    if unknown:
+        error(submission, f"{prefix} 包含非目标字段：{', '.join(unknown)}")
+    kind = clean(target.get("type"))
+    if kind not in ALLOWED_TYPES:
+        error(submission, f"{prefix}.type 不支持：{kind}")
+    tournament_id = clean(target.get("tournamentID"))
+    fide_id = clean(target.get("fideID"))
+    source_url = clean(target.get("sourceURL") or target.get("evidenceURL"))
+    if tournament_id and not TNR_RE.fullmatch(tournament_id):
+        error(submission, f"{prefix}.tournamentID 不合规")
+    if fide_id and not FIDE_ID_RE.fullmatch(fide_id):
+        error(submission, f"{prefix}.fideID 不合规")
+    if kind == "event-target" and not tournament_id:
+        error(submission, f"{prefix} 缺少 tournamentID")
+    if kind == "player-target" and not fide_id:
+        error(submission, f"{prefix} 缺少 fideID")
+    if not valid_url(source_url):
+        error(submission, f"{prefix} URL 必须为不带凭据的 https 地址")
+    reason = clean(target.get("reason"))
+    if len(reason) > 500:
+        error(submission, f"{prefix}.reason 超过 500 字")
+    try:
+        priority = int(target.get("priority") or 0)
+    except (TypeError, ValueError):
+        priority = -1
+    if priority not in range(0, 101):
+        error(submission, f"{prefix}.priority 必须为 0-100")
+    for key in ("eventName", "playerName", "notes"):
+        if len(clean(target.get(key))) > 500:
+            error(submission, f"{prefix}.{key} 超过 500 字")
+
+
+def validate_submission(path: pathlib.Path) -> None:
+    submission = path.name
+    if not SUB_ID_RE.fullmatch(submission):
+        error(submission, "目录名必须为 YYYYMMDD-HHMMSS-hex6")
+        return
+    manifest_path = path / "manifest.json"
+    files = [item for item in path.rglob("*") if item.is_file() or item.is_symlink()]
+    if files != [manifest_path] or manifest_path.is_symlink():
+        error(submission, "目标提交只允许一个 manifest.json；禁止 HTML/PGN/解析结果附件")
+        return
+    if manifest_path.stat().st_size > 64 * 1024:
+        error(submission, "manifest 超过 64 KiB")
         return
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        err(sub, f"manifest.json 不是合法 JSON:{exc}")
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        error(submission, f"manifest JSON 无效：{exc}")
         return
-
-    nickname = str(manifest.get("contributor", {}).get("nickname") or "")
-    if not (1 <= len(nickname) <= 20) or re.search(r"https?://", nickname):
-        err(sub, f"贡献者昵称不合规:{nickname!r}")
-    github = str(manifest.get("contributor", {}).get("github") or "")
-    if github and not re.fullmatch(r"[A-Za-z0-9-]{1,39}", github):
-        err(sub, f"GitHub 用户名不合规:{github!r}")
-
-    listed = {f["path"]: f for f in manifest.get("files", [])}
-    on_disk = {str(p.relative_to(sub_dir)).replace("\\", "/")
-               for p in sub_dir.rglob("*") if p.is_file()} - {"manifest.json"}
-    for extra in sorted(on_disk - set(listed)):
-        err(sub, f"manifest 之外的文件:{extra}")
-    for missing in sorted(set(listed) - on_disk):
-        err(sub, f"manifest 声明但缺失:{missing}")
-
-    total = 0
-    for rel, meta in sorted(listed.items()):
-        path = sub_dir / rel
-        if not path.exists():
-            continue
-        if ".." in pathlib.PurePosixPath(rel).parts:
-            err(sub, f"非法路径:{rel}")
-            continue
-        data = path.read_bytes()
-        total += len(data)
-        if sha256_bytes(data) != meta.get("sha256"):
-            err(sub, f"sha256 不匹配:{rel}")
-        if len(data) != meta.get("bytes"):
-            err(sub, f"字节数不匹配:{rel}")
-    if total > MAX_PAYLOAD_BYTES:
-        err(sub, f"载荷过大:{total} 字节(上限 {MAX_PAYLOAD_BYTES})")
-
-    # -- players: reparse archived HTML and diff -----------------------------
-    for rows_path in sorted(sub_dir.glob("players/*/rows.json")):
-        fide_id = rows_path.parent.name
-        if not re.fullmatch(r"\d{4,10}", fide_id):
-            err(sub, f"players/{fide_id}: FIDE ID 不合规")
-            continue
-        try:
-            submitted = json.loads(rows_path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            err(sub, f"players/{fide_id}/rows.json 解析失败:{exc}")
-            continue
-        html_path = rows_path.parent / "spielersuche.html.gz"
-        if not html_path.exists():
-            err(sub, f"players/{fide_id}: 缺少 HTML 证据快照")
-            continue
-        try:
-            html_text = gzip.decompress(html_path.read_bytes()).decode("utf-8", "replace")
-        except Exception as exc:
-            err(sub, f"players/{fide_id}: HTML 快照无法解压:{exc}")
-            continue
-        reparsed = cpe._extract_rows(html_text, "https://s3.chess-results.com/")
-        problem = compare_rows(submitted, reparsed, fide_id)
-        if problem:
-            err(sub, f"players/{fide_id}: 证据不一致 - {problem}")
-
-    # -- events: re-split raw PGN and diff ----------------------------------
-    china_ids = fep.load_china_fide_ids()
-    names = fep.load_name_index()
-    for raw_path in sorted(sub_dir.glob("events/tnr*/raw.pgn.gz")):
-        tnr_dir = raw_path.parent
-        tid = tnr_dir.name.removeprefix("tnr")
-        if not re.fullmatch(r"\d{3,9}", tid):
-            err(sub, f"{tnr_dir.name}: 赛事号不合规")
-            continue
-        try:
-            pgn = gzip.decompress(raw_path.read_bytes()).decode("utf-8", "replace")
-        except Exception as exc:
-            err(sub, f"{tnr_dir.name}: raw.pgn.gz 无法解压:{exc}")
-            continue
-        if count_pgn_games(pgn) == 0:
-            err(sub, f"{tnr_dir.name}: raw.pgn 中没有可识别的对局")
-            continue
-        import tempfile
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_root = pathlib.Path(tmp)
-            fep.process_event(tid, china_ids, names, tmp_root, overwrite=True,
-                              dry_run=False, pgn_text=pgn)
-            expected = {p.name: p.read_bytes() for p in sorted((tmp_root / f"tnr{tid}").glob("*.pgn"))} \
-                if (tmp_root / f"tnr{tid}").exists() else {}
-        got = {p.name: p.read_bytes() for p in sorted((tnr_dir / "split").glob("*.pgn"))}
-        if set(expected) != set(got):
-            err(sub, f"{tnr_dir.name}: split 文件集合与 raw.pgn 重切结果不一致 "
-                     f"(提交 {sorted(got)} vs 重切 {sorted(expected)})")
-        else:
-            for name, data in expected.items():
-                if got[name] != data:
-                    err(sub, f"{tnr_dir.name}/split/{name}: 内容与 raw.pgn 重切结果不一致")
-        for name in got:
-            m = re.fullmatch(r"fide-(\d{4,10})-\d{3,9}\.pgn", name)
-            if not m:
-                err(sub, f"{tnr_dir.name}/split/{name}: 文件名不合规")
-            elif m.group(1) not in china_ids:
-                err(sub, f"{tnr_dir.name}/split/{name}: FIDE {m.group(1)} 不在注册表中")
+    if not isinstance(payload, dict):
+        error(submission, "manifest 必须是 JSON 对象")
+        return
+    if payload.get("schema") != "china-chess-target-submission/v2":
+        error(submission, "schema 必须为 china-chess-target-submission/v2")
+    unknown = sorted(set(payload) - TOP_LEVEL_KEYS)
+    if unknown:
+        error(submission, f"manifest 包含非目标字段：{', '.join(unknown)}")
+    if forbidden_content(payload):
+        error(submission, "检测到抓取产物字段或 HTML/PGN 内容")
+    contributor = payload.get("contributor") or {}
+    if not isinstance(contributor, dict):
+        error(submission, "contributor 必须是对象")
+        contributor = {}
+    contributor_unknown = sorted(set(contributor) - CONTRIBUTOR_KEYS)
+    if contributor_unknown:
+        error(submission, f"contributor 禁止字段：{', '.join(contributor_unknown)}")
+    nickname = clean(contributor.get("nickname"))
+    if nickname and (len(nickname) > 20 or "http" in nickname.casefold()):
+        error(submission, "贡献者昵称不合规")
+    if any(key in contributor for key in ("email", "phone", "wechat", "contact")):
+        error(submission, "公开目标提交禁止联系方式；敏感线索请私下联系维护者")
+    targets = payload.get("targets")
+    if not isinstance(targets, list) or not 1 <= len(targets) <= 20:
+        error(submission, "targets 必须包含 1-20 条线索")
+        return
+    for index, target in enumerate(targets):
+        validate_target(submission, index, target)
 
 
 def main() -> int:
     if not INCOMING.exists():
-        print(json.dumps({"payloads": 0, "errors": 0}))
+        print(json.dumps({"submissions": 0, "errors": 0}))
         return 0
     wanted = set(sys.argv[1:])
-    dirs = [d for d in sorted(INCOMING.iterdir())
-            if d.is_dir() and (not wanted or d.name in wanted)]
-    for sub_dir in dirs:
-        validate_payload(sub_dir)
-    for line in ERRORS:
-        print(f"ERROR {line}", file=sys.stderr)
-    print(json.dumps({"payloads": len(dirs), "errors": len(ERRORS)}))
+    directories = [
+        path for path in sorted(INCOMING.iterdir())
+        if path.is_dir() and (not wanted or path.name in wanted)
+    ]
+    for path in directories:
+        validate_submission(path)
+    for message in ERRORS:
+        print(f"ERROR {message}", file=sys.stderr)
+    print(json.dumps({"submissions": len(directories), "errors": len(ERRORS)}))
     return 1 if ERRORS else 0
 
 

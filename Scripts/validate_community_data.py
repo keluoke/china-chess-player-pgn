@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Offline validation of community-editable data files. Runs in CI on PRs.
 
-NO network access: chess-results blocks GitHub datacenter IPs, so source
-cross-verification happens locally (refresh.sh verify) — this script only
-enforces structure and plausibility rules.
+NO network access: this script validates reviewed human-maintained records and
+source links structurally. Network collection is a separate maintainer-local
+operation and community records are never converted into scraping payloads.
 """
 
 from __future__ import annotations

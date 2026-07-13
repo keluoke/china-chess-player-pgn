@@ -24,7 +24,6 @@ import pathlib
 import re
 import shutil
 import sqlite3
-import ssl
 import subprocess
 import sys
 import tempfile
@@ -34,6 +33,9 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass, field
 from typing import Any
+
+from source_http import open_response
+from source_policy import require_local_collector
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -46,7 +48,6 @@ DEFAULT_ROOT = DEFAULT_APP_SUPPORT / "RawPGNScout"
 CHESS_RESULTS_FORM_URL = "https://chess-results.com/PartieSuche.aspx?lan=1"
 LICHESS_DATABASE_URL = "https://database.lichess.org/"
 USER_AGENT = "ChinaChessPlayerPGNScout/1.0"
-_TLS_CONTEXT: ssl.SSLContext | None = None
 
 
 @dataclass
@@ -154,6 +155,8 @@ def main() -> int:
     report.add_argument("--write", type=pathlib.Path, help="optional markdown report path")
 
     args = parser.parse_args()
+    if args.command in {"fetch-chess-results", "fetch-lichess", "fetch-chesscom", "fetch-twic"}:
+        require_local_collector(args.command)
     root = args.root.expanduser()
     ensure_store(root)
 
@@ -896,31 +899,7 @@ def decode_response(data: bytes) -> str:
 
 
 def open_url(request: urllib.request.Request):
-    last_error: Exception | None = None
-    for attempt in range(3):
-        try:
-            return urllib.request.urlopen(request, timeout=90, context=tls_context())
-        except Exception as error:
-            last_error = error
-            if attempt < 2:
-                time.sleep(0.8 * (attempt + 1))
-    assert last_error is not None
-    raise last_error
-
-
-def tls_context() -> ssl.SSLContext:
-    global _TLS_CONTEXT
-    if _TLS_CONTEXT is not None:
-        return _TLS_CONTEXT
-    try:
-        import certifi  # type: ignore[import-not-found]
-
-        _TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-    except Exception:
-        _TLS_CONTEXT = ssl.create_default_context()
-    if hasattr(ssl, "OP_IGNORE_UNEXPECTED_EOF"):
-        _TLS_CONTEXT.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
-    return _TLS_CONTEXT
+    return open_response(request, timeout=90, retries=2)
 
 
 def sha256_file(path: pathlib.Path) -> str:

@@ -9,6 +9,8 @@ import pathlib
 import re
 from typing import Any
 
+from stable_json import write_json
+
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EVENTS = ROOT / "docs" / "data" / "index" / "events.json"
@@ -24,6 +26,30 @@ def clean(value: Any) -> str:
 def normalized_latin_name(value: Any) -> str:
     text = clean(value).casefold().replace(",", " ")
     return re.sub(r"[^a-z0-9]+", "", text)
+
+
+# Canonical game-result enum. Sources spell the same result many ways
+# ("0 - 1" vs "0-1", "½ - ½" vs "1/2-1/2", "+ - -" forfeit notations); compare
+# the normalized enum, never raw strings.
+_RESULT_ALIASES = {
+    "1-0": "1-0", "1:0": "1-0", "+--": "1-0", "1-0f": "1-0", "+-": "1-0",
+    "0-1": "0-1", "0:1": "0-1", "--+": "0-1", "0-1f": "0-1", "-+": "0-1",
+    "1/2-1/2": "1/2", "0.5-0.5": "1/2", "½-½": "1/2", "1/2": "1/2", "½": "1/2",
+    "*": "*", "": "",
+}
+
+
+def normalized_result(value: Any) -> str:
+    text = clean(value).casefold()
+    # Drop all whitespace, unify unicode halves and dash variants.
+    text = re.sub(r"\s+", "", text)
+    text = text.replace("–", "-").replace("—", "-")
+    text = text.replace("½", "1/2")
+    if text in _RESULT_ALIASES:
+        return _RESULT_ALIASES[text]
+    # Forfeit / adjudication markers such as "1-0(forfeit)" or "+/-".
+    compact = re.sub(r"[^01/2+*-]", "", text)
+    return _RESULT_ALIASES.get(compact, text)
 
 
 def person_name_index() -> set[str]:
@@ -68,16 +94,17 @@ def main() -> int:
                 local = pairing.get("localGame") or {}
                 if not local:
                     continue
-                result = clean(pairing.get("result"))
-                local_result = clean(local.get("result"))
-                if result and local_result and result != local_result:
+                result = normalized_result(pairing.get("result"))
+                local_result = normalized_result(local.get("result"))
+                if result and local_result and result != "*" and local_result != "*" and result != local_result:
                     issues.append({
                         "type": "pgn-result-mismatch",
                         "canonicalEventID": canonical_id,
                         "round": round_no,
                         "playerRef": "|".join(filter(None, [normalized_latin_name(pairing.get("white", {}).get("name")), normalized_latin_name(pairing.get("black", {}).get("name"))])),
-                        "resultTable": result,
-                        "resultPGN": local_result,
+                        "resultTable": clean(pairing.get("result")),
+                        "resultPGN": clean(local.get("result")),
+                        "normalized": [result, local_result],
                         "severity": "review",
                     })
 
@@ -89,7 +116,7 @@ def main() -> int:
         "issues": issues,
     }
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_json(OUTPUT, payload, ensure_ascii=False, indent=2)
     print(json.dumps(payload["totals"], ensure_ascii=False))
     return 0
 

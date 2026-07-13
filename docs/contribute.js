@@ -27,6 +27,7 @@ form.addEventListener("submit", async event => {
   const data = Object.fromEntries(new FormData(form));
   payload = Object.fromEntries(Object.entries({
     schema: "china-chess-community-contribution/v1",
+    collection_policy: "target-only-no-scraped-content",
     created_at: new Date().toISOString(),
     type: data.type,
     player_name: data.player_name,

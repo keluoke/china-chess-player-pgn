@@ -16,12 +16,16 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import hashlib
 import io
 import json
+import os
 import pathlib
 import re
+import shutil
 import ssl
 import sys
+import tempfile
 import time
 import urllib.request
 import zipfile
@@ -29,12 +33,16 @@ from dataclasses import dataclass, field
 from typing import Any
 from xml.etree import ElementTree
 
+from source_http import record_provider_result, reserve_provider_request
+from source_policy import require_local_collector
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_ROOT = REPO_ROOT / "docs" / "data" / "registry"
 SHARD_ROOT = REGISTRY_ROOT / "shards"
 MANUAL_ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
 FEDERATION_OVERRIDES_CSV = REPO_ROOT / "data" / "community" / "federation-overrides.csv"
+NAME_CORRECTIONS_CSV = REPO_ROOT / "data" / "community" / "name-corrections.csv"
 SNAPSHOT_DIR = REPO_ROOT / "data" / "generated" / "federation-snapshots"
 TRANSFER_CANDIDATES_JSON = REPO_ROOT / "data" / "generated" / "transfer-candidates.json"
 DEFAULT_CACHE = pathlib.Path.home() / "Library" / "Caches" / "ChinaChessPlayerPGN" / "fide"
@@ -138,6 +146,14 @@ def main() -> int:
     parser.add_argument("--federation", default="CHN")
     parser.add_argument("--manual-aliases", type=pathlib.Path, default=MANUAL_ALIAS_CSV)
     parser.add_argument("--output-root", type=pathlib.Path, default=REGISTRY_ROOT)
+    parser.add_argument(
+        "--previous-registry",
+        type=pathlib.Path,
+        default=REGISTRY_ROOT,
+        help="previous public registry used only for population-regression checks",
+    )
+    parser.add_argument("--snapshot-dir", type=pathlib.Path, default=SNAPSHOT_DIR)
+    parser.add_argument("--transfer-candidates", type=pathlib.Path, default=TRANSFER_CANDIDATES_JSON)
     parser.add_argument("--max-players", type=int, default=0, help="test limit after federation filtering")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -148,14 +164,35 @@ def main() -> int:
         fide_id for fide_id, o in overrides.items() if o.get("type") == "transferred_out"
     )
 
-    source_path = args.input or download_to_cache(args.url, args.cache_dir)
+    if args.input:
+        source_path = args.input
+    else:
+        source_path = download_to_cache(
+            args.url,
+            args.cache_dir,
+            validator=lambda path: validate_registry_population(
+                read_players(path, federation), args.previous_registry
+            ),
+        )
     aliases = load_manual_aliases(args.manual_aliases)
+    corrections = load_name_corrections(NAME_CORRECTIONS_CSV)
     players = read_players(source_path, federation)
+    validate_registry_population(players, args.previous_registry)
     if args.max_players:
+        if not args.dry_run:
+            raise SystemExit("VALIDATION_REGRESSION: --max-players 只允许与 --dry-run 一起用于诊断")
         players = players[: args.max_players]
     apply_aliases(players, aliases)
+    apply_name_corrections(players, corrections)
     annotate_transfers(players, overrides, federation)
-    transfer_report = update_federation_snapshot(players, overrides, federation, args.dry_run)
+    transfer_report = update_federation_snapshot(
+        players,
+        overrides,
+        federation,
+        args.dry_run,
+        snapshot_dir=args.snapshot_dir,
+        candidates_path=args.transfer_candidates,
+    )
     write_registry(players, args.output_root, source_path, args.url, federation, args.dry_run)
 
     stats = {
@@ -229,6 +266,8 @@ def update_federation_snapshot(
     overrides: dict[str, dict[str, str]],
     federation: str,
     dry_run: bool,
+    snapshot_dir: pathlib.Path = SNAPSHOT_DIR,
+    candidates_path: pathlib.Path = TRANSFER_CANDIDATES_JSON,
 ) -> dict[str, Any]:
     """Keep a monthly snapshot of federation membership and diff against the
     previous one so transfers surface automatically as review candidates."""
@@ -240,8 +279,8 @@ def update_federation_snapshot(
 
     previous_ids: set[str] = set()
     previous_month = ""
-    if SNAPSHOT_DIR.exists():
-        snaps = sorted(p for p in SNAPSHOT_DIR.glob("*.json") if p.stem != month)
+    if snapshot_dir.exists():
+        snaps = sorted(p for p in snapshot_dir.glob("*.json") if p.stem != month)
         if snaps:
             data = json.loads(snaps[-1].read_text(encoding="utf-8"))
             previous_month = data.get("month", snaps[-1].stem)
@@ -254,8 +293,8 @@ def update_federation_snapshot(
         appeared = sorted(set(current_ids) - previous_ids, key=numeric_sort_key)
         report.update({"departed": len(departed), "appeared": len(appeared)})
         if not dry_run and (departed or appeared):
-            TRANSFER_CANDIDATES_JSON.parent.mkdir(parents=True, exist_ok=True)
-            TRANSFER_CANDIDATES_JSON.write_text(
+            candidates_path.parent.mkdir(parents=True, exist_ok=True)
+            candidates_path.write_text(
                 json.dumps(
                     {
                         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
@@ -272,8 +311,8 @@ def update_federation_snapshot(
             )
 
     if not dry_run:
-        SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
-        (SNAPSHOT_DIR / f"{month}.json").write_text(
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        (snapshot_dir / f"{month}.json").write_text(
             json.dumps({"month": month, "federation": federation, "count": len(current_ids), "ids": current_ids}, ensure_ascii=False)
             + "\n",
             encoding="utf-8",
@@ -281,32 +320,166 @@ def update_federation_snapshot(
     return report
 
 
-def download_to_cache(url: str, cache_dir: pathlib.Path) -> pathlib.Path:
+def validate_fide_archive(path: pathlib.Path) -> None:
+    """Reject HTML/error bodies, truncated zips and archives without a list."""
+    if path.stat().st_size < 1024 * 1024:
+        raise IOError(f"FIDE 文件异常小：{path.stat().st_size} 字节")
+    if path.suffix.lower() != ".zip":
+        return
+    if not zipfile.is_zipfile(path):
+        raise IOError("FIDE 文件不是完整 ZIP（可能下载中断或返回错误页）")
+    with zipfile.ZipFile(path) as archive:
+        bad_member = archive.testzip()
+        if bad_member:
+            raise IOError(f"FIDE ZIP 成员校验失败：{bad_member}")
+        candidates = [
+            item for item in archive.infolist()
+            if not item.is_dir() and item.filename.lower().endswith((".xml", ".txt", ".csv", ".tsv"))
+        ]
+        if not candidates:
+            raise IOError("FIDE ZIP 中没有 XML/TXT 等等级分名单")
+        if max(item.file_size for item in candidates) < 5 * 1024 * 1024:
+            raise IOError("FIDE ZIP 内名单异常小，拒绝替换 last-good 缓存")
+
+
+def validate_registry_population(players: list[RegistryPlayer], previous_registry: pathlib.Path) -> None:
+    """Semantic guardrail after archive validation and XML parsing."""
+    count = len(players)
+    if count < 5000 or count > 50000:
+        raise ValueError(f"FIDE CHN 棋手数异常：{count}（安全范围 5000-50000）")
+    ids = [player.fide_id for player in players]
+    if len(set(ids)) != len(ids):
+        raise ValueError("FIDE 名单包含重复 FIDE ID")
+    if sum(bool(player.name) for player in players) < int(count * 0.98):
+        raise ValueError("FIDE 名单姓名缺失比例异常")
+    manifest_path = previous_registry / "manifest.json"
+    if manifest_path.exists():
+        try:
+            previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+            previous_count = int((previous.get("totals") or {}).get("players") or 0)
+        except (OSError, ValueError, json.JSONDecodeError):
+            previous_count = 0
+        if previous_count and not (previous_count * 0.7 <= count <= previous_count * 1.3):
+            raise ValueError(f"FIDE CHN 棋手数相对上次突变：{previous_count} -> {count}")
+
+
+def _cache_candidates(target: pathlib.Path) -> list[pathlib.Path]:
+    versions = target.parent / "versions"
+    candidates = [target] if target.exists() else []
+    if versions.exists():
+        candidates.extend(sorted(versions.glob(f"*{target.suffix}"), reverse=True))
+    return candidates
+
+
+def file_sha256(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _valid_cached_copy(
+    target: pathlib.Path,
+    validator: Any | None,
+) -> pathlib.Path | None:
+    for candidate in _cache_candidates(target):
+        try:
+            validate_fide_archive(candidate)
+            if validator:
+                validator(candidate)
+            return candidate
+        except Exception as error:
+            print(f"WARNING: 忽略无效 FIDE 缓存 {candidate.name}: {error}", file=sys.stderr)
+    return None
+
+
+def _promote_cache_version(
+    tmp: pathlib.Path,
+    target: pathlib.Path,
+    last_good: pathlib.Path | None,
+) -> pathlib.Path:
+    versions = target.parent / "versions"
+    versions.mkdir(parents=True, exist_ok=True)
+    # Preserve only the current copy that passed the semantic validator.  A
+    # structurally valid but population-corrupt target must not be promoted to
+    # the versioned last-good set when a replacement arrives.
+    if last_good == target and target.exists():
+        old_digest = file_sha256(target)[:12]
+        if not any(old_digest in path.name for path in versions.glob(f"*{target.suffix}")):
+            old_version = versions / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}-previous-{old_digest}{target.suffix}"
+            shutil.copy2(target, old_version)
+    digest = file_sha256(tmp)[:12]
+    version = versions / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}-{digest}{target.suffix}"
+    shutil.copy2(tmp, version)
+    os.replace(tmp, target)
+    for old in sorted(versions.glob(f"*{target.suffix}"), reverse=True)[3:]:
+        old.unlink(missing_ok=True)
+    return target
+
+
+def download_to_cache(
+    url: str,
+    cache_dir: pathlib.Path,
+    validator: Any | None = None,
+) -> pathlib.Path:
     cache_dir.mkdir(parents=True, exist_ok=True)
     file_name = pathlib.Path(urllib.request.urlparse(url).path).name or "fide_players.zip"
     target = cache_dir / file_name
-    tmp = target.with_suffix(target.suffix + ".tmp")
-
+    require_local_collector("fide")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     last_error: Exception | None = None
     for attempt in range(3):
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.download-", suffix=target.suffix, dir=cache_dir)
+        os.close(fd)
+        tmp = pathlib.Path(tmp_name)
         try:
+            reserve_provider_request("fide")
             with urllib.request.urlopen(request, timeout=180, context=tls_context()) as response, tmp.open("wb") as handle:
+                content_type = (response.headers.get_content_type() or "").lower()
+                if content_type.startswith("text/html"):
+                    raise IOError("FIDE 返回 HTML，可能是错误页或限流页")
+                expected = response.headers.get("Content-Length")
+                written = 0
                 while True:
                     chunk = response.read(1024 * 1024)
                     if not chunk:
                         break
+                    written += len(chunk)
                     handle.write(chunk)
-            tmp.replace(target)
-            return target
+            # FIDE sometimes serves an HTML error/ratelimit page as 200, or the
+            # connection drops mid-body (a zip missing its central directory).
+            # Validate BEFORE replacing any previously good cached copy.
+            if expected is not None and written != int(expected):
+                raise IOError(f"下载不完整:收到 {written} 字节,应为 {expected} 字节")
+            validate_fide_archive(tmp)
+            previous = _valid_cached_copy(target, validator)
+            if previous and previous.exists():
+                previous_size = previous.stat().st_size
+                if tmp.stat().st_size < previous_size * 0.6:
+                    raise IOError(f"FIDE 文件相对 last-good 异常缩小：{previous_size} -> {tmp.stat().st_size}")
+            if validator:
+                validator(tmp)
+            promoted = _promote_cache_version(tmp, target, previous)
+            record_provider_result("fide", True)
+            return promoted
         except Exception as error:
             last_error = error
-            if tmp.exists():
-                tmp.unlink()
+            # Budget/circuit errors did not perform a request and must not
+            # extend the breaker; all other failures count toward it.
+            if getattr(error, "code", "") not in {"VISIT_BUDGET_EXHAUSTED", "SOURCE_CIRCUIT_OPEN"}:
+                record_provider_result("fide", False)
+            tmp.unlink(missing_ok=True)
             if attempt < 2:
+                print(f"下载失败(第 {attempt + 1} 次):{error},稍候重试…")
                 time.sleep(1.5 * (attempt + 1))
 
     assert last_error is not None
+    fallback = _valid_cached_copy(target, validator)
+    if fallback:
+        age_hours = (time.time() - fallback.stat().st_mtime) / 3600
+        print(f"WARNING: 本次下载失败({last_error});改用 {age_hours:.0f} 小时前 last-good FIDE 名单:{fallback}")
+        return fallback
     raise last_error
 
 
@@ -458,6 +631,22 @@ def load_manual_aliases(path: pathlib.Path) -> dict[str, dict[str, Any]]:
     return aliases
 
 
+def load_name_corrections(path: pathlib.Path) -> dict[str, dict[str, str]]:
+    corrections: dict[str, dict[str, str]] = {}
+    if not path.exists():
+        return corrections
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        for row in csv.DictReader(handle):
+            fide_id = clean_text(row.get("fide_id"))
+            correct = clean_text(row.get("correct_chinese_name"))
+            if fide_id and correct:
+                corrections[fide_id] = {
+                    "wrong": clean_text(row.get("wrong_chinese_name")),
+                    "correct": correct,
+                }
+    return corrections
+
+
 def apply_aliases(players: list[RegistryPlayer], aliases: dict[str, dict[str, Any]]) -> None:
     for player in players:
         entry = aliases.get(player.fide_id)
@@ -466,6 +655,23 @@ def apply_aliases(players: list[RegistryPlayer], aliases: dict[str, dict[str, An
         player.chinese_name = entry.get("chineseName") or player.chinese_name
         player.pinyin = entry.get("pinyin") or player.pinyin
         player.aliases = ordered_unique([*player.aliases, *entry.get("aliases", [])])
+
+
+def apply_name_corrections(
+    players: list[RegistryPlayer], corrections: dict[str, dict[str, str]]
+) -> None:
+    """Force corrections last so no scraped/manual alias can revive a bad identity."""
+    by_id = {player.fide_id: player for player in players}
+    for fide_id, correction in corrections.items():
+        player = by_id.get(fide_id)
+        if not player:
+            continue
+        wrong = correction.get("wrong", "")
+        correct = correction["correct"]
+        player.chinese_name = correct
+        player.aliases = ordered_unique(
+            [value for value in player.aliases if value and value != wrong] + [correct]
+        )
 
 
 def write_registry(

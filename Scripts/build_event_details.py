@@ -11,6 +11,9 @@ import re
 from collections import defaultdict
 from typing import Any
 
+from apply_aliases_to_registry import sanitize_person_name
+from stable_json import write_json
+
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 GENERATED = ROOT / "data" / "generated" / "chess-results-event-details"
@@ -18,6 +21,12 @@ OUTPUT = ROOT / "docs" / "data" / "index" / "event-details"
 BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
 REGISTRY = ROOT / "docs" / "data" / "registry" / "players.json"
 MAPPINGS = ROOT / "data" / "community" / "tournament-name-mappings.csv"
+PUBLIC_REGIONS = (
+    "北京", "上海", "天津", "重庆", "河北", "山西", "辽宁", "吉林", "黑龙江",
+    "江苏", "浙江", "安徽", "福建", "江西", "山东", "河南", "湖北", "湖南",
+    "广东", "海南", "四川", "贵州", "云南", "陕西", "甘肃", "青海", "内蒙古",
+    "广西", "西藏", "宁夏", "新疆", "香港", "澳门",
+)
 
 
 def clean(value: Any) -> str:
@@ -62,6 +71,68 @@ def name_index() -> dict[str, str]:
             if key:
                 hits[key].add(fide_id)
     return {key: next(iter(values)) for key, values in hits.items() if len(values) == 1}
+
+
+def registry_index() -> dict[str, dict[str, Any]]:
+    return {
+        clean(player.get("fideID")): player
+        for player in read_json(REGISTRY, [])
+        if clean(player.get("fideID"))
+    }
+
+
+def apply_registry_identity(person: dict[str, Any], registry: dict[str, dict[str, Any]]) -> None:
+    fide_id = clean(person.get("fideID"))
+    authority = registry.get(fide_id)
+    if not authority:
+        # Unresolved source text is event evidence, not a player-authority row.
+        if person.get("chineseName"):
+            person["chineseName"] = sanitize_person_name(person.get("chineseName"))
+        return
+    mappings = (
+        ("name", "name", "sourceName"),
+        ("chineseName", "chineseName", "sourceChineseName"),
+        ("federation", "federation", "sourceFederation"),
+    )
+    for target_key, registry_key, source_key in mappings:
+        old = clean(person.get(target_key))
+        new = clean(authority.get(registry_key))
+        if old and old != new:
+            person[source_key] = old
+        if new:
+            person[target_key] = new
+        else:
+            person.pop(target_key, None)
+    person["displayName"] = clean(authority.get("displayName") or authority.get("name") or f"FIDE {fide_id}")
+    pinyin = clean(authority.get("pinyin"))
+    if pinyin:
+        person["pinyin"] = pinyin
+    else:
+        person.pop("pinyin", None)
+
+
+def minimize_public_location(person: dict[str, Any]) -> None:
+    """Remove raw club/school affiliation from the public event projection."""
+    raw_club = clean(person.pop("club", ""))
+    explicit = clean(person.pop("province", "") or person.get("publicLocation"))
+    if explicit:
+        person["publicLocation"] = explicit
+        return
+    for region in PUBLIC_REGIONS:
+        if region in raw_club:
+            person["publicLocation"] = region
+            return
+    person.pop("publicLocation", None)
+
+
+def prepare_public_person(
+    person: dict[str, Any],
+    names: dict[str, str],
+    registry: dict[str, dict[str, Any]],
+) -> None:
+    attach_fide_id(person, names)
+    apply_registry_identity(person, registry)
+    minimize_public_location(person)
 
 
 def event_game_lookup() -> dict[tuple[str, str, tuple[str, str]], dict[str, Any]]:
@@ -113,6 +184,7 @@ def attach_fide_id(side: dict[str, Any], names: dict[str, str]) -> None:
 def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
     mappings = mapping_index()
     names = name_index()
+    registry = registry_index()
     games = event_game_lookup()
     manifest_events: list[dict[str, Any]] = []
     totals = {"events": 0, "standings": 0, "rounds": 0, "pairings": 0, "pairingsWithLocalPGN": 0}
@@ -126,13 +198,15 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
         payload["canonicalEventID"] = mapping.get("canonical_event_id") or None
         payload["chineseName"] = mapping.get("chinese_name") or None
         payload["displayName"] = mapping.get("chinese_name") or payload.get("sourceName") or f"tnr{tid}"
+        for player in payload.get("players", []):
+            prepare_public_person(player, names, registry)
         for standing in payload.get("standings", []):
-            attach_fide_id(standing, names)
+            prepare_public_person(standing, names, registry)
         for round_row in payload.get("rounds", []):
             round_id = round_number(round_row.get("round"))
             for pairing in round_row.get("pairings", []):
-                attach_fide_id(pairing.get("white", {}), names)
-                attach_fide_id(pairing.get("black", {}), names)
+                prepare_public_person(pairing.get("white", {}), names, registry)
+                prepare_public_person(pairing.get("black", {}), names, registry)
                 key = (tid, round_id, tuple(sorted([
                     normalize_name(pairing.get("white", {}).get("name")),
                     normalize_name(pairing.get("black", {}).get("name")),
@@ -143,7 +217,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
                     totals["pairingsWithLocalPGN"] += 1
                 totals["pairings"] += 1
         output_path = OUTPUT / f"tnr{tid}.json"
-        output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        write_json(output_path, payload, ensure_ascii=False, indent=2)
         manifest_events.append({
             "tournamentID": tid,
             "path": f"data/index/event-details/tnr{tid}.json",
@@ -165,7 +239,7 @@ def main() -> int:
         "totals": totals,
         "events": events,
     }
-    (OUTPUT / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    write_json(OUTPUT / "manifest.json", manifest, ensure_ascii=False, indent=2)
     print(json.dumps(totals, ensure_ascii=False))
     return 0
 

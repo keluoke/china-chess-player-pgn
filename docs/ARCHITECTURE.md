@@ -9,7 +9,7 @@
 - 用户可以用中文名、拼音、英文 PGN 名或 FIDE ID 查询同一名棋手。
 - 棋手唯一身份使用 `player_id`，有 FIDE ID 时固定为 `fide-<FIDE_ID>`；无 FIDE ID 的国内赛事棋手使用 `domestic-<hash>` 临时身份。
 - 数据源可扩展，Chess-Results 只是第一批 provider。
-- 抓取只在本地 / 自托管住宅 IP 运行；GitHub Actions 只做离线索引重建与部署，`docs/` 为纯静态发布。
+- 抓取只在登记的维护者本机住宅 IP 运行；社区和 GitHub Actions 不抓取，`docs/` 为经过来源策略过滤的静态发布。
 
 ## 静态数据存储
 
@@ -37,22 +37,15 @@ docs/data/
 - `data/manual/player-identity-links.csv`：人工审核链接
 - `docs/data/registry/domestic/players.json`：输出
 
-## 赛事索引
+## 赛事目标与私有采集
 
-由 `Scripts/crawl_player_events.py` 遍历 registry 中所有 CHN FIDE ID，通过 Chess-Results SpielerSuche 爬取赛事记录。输出：
+公开仓库只保存社区/人工登记的目标 URL、tnr、中文映射和历史上已经审核发布的
+静态投影。`Scripts/local/refresh.sh event-queue` 读取目标队列，把 Chess-Results
+HTML 和结构化解析结果写到仓库外 `runs/<run-id>/raw|extracted`。
 
-- `data/manual/chess-results-player-events.csv`：棋手-赛事关系表
-- `data/manual/chess-results-player-name-map.csv`：中文名映射证据
-- `docs/data/index/chess-results-tournaments.json`：赛事目录
-- `docs/data/index/chess-results-spielersuche-manifest.json`：爬取清单
-
-`Scripts/build_event_catalog.py` 在离线构建时把 Chess-Results 赛事目录、已归档
-PGN 覆盖和 `data/community/tournament-name-mappings.csv` 合并为
-`docs/data/index/events.json`。其中 `name` 始终保留信源原文，`chineseName` 只来自
-社区核验映射；两者不可相互覆盖。每项赛事都带稳定 `source:tournamentID`、中国棋手
-FIDE ID 列表和 PGN 覆盖计数，供网站完成赛事 → 棋手 → 对局的链接。
-
-增量爬取，断点续爬，支持 `--refresh-days` 参数。
+默认发布策略是 `link-only`：新采集的排名、配对、PGN、HTML 和机器姓名候选不
+进入公开索引。`build_event_catalog.py` 只离线组合已经获准保留的仓库输入，且
+registry 姓名字段不得被赛事索引覆盖。
 
 ## PGN 静态归档
 
@@ -84,38 +77,32 @@ docs/data/pgn/by-player/fide-8657238/U12.pgn
 
 ### `sync_static_pgn.py`
 
-统一同步入口。在 GitHub Actions 上读取静态索引，按 FIDE ID 和赛事 ID 抓取缺失 PGN，校验后写入 `docs/data/pgn/`，生成 manifest/索引。
+离线静态索引维护入口。Chess-Results 网络下载功能受授权策略硬门控；GitHub
+Actions 只读取既有文件并重建 manifest/索引。
 
 ### `build_static_player_pgn.py`
 
 派生入口。从已晋升的赛事 PGN + bulk 青少年数据按 FIDE ID 去重，生成 `by-player` 聚合层。
 
-### `crawl_player_events.py`
+### `crawl_player_events.py` / `fetch_event_pgn.py`
 
-核心爬虫。遍历 CHN FIDE ID，从 Chess-Results SpielerSuche 爬取每名棋手的完整赛事历史，持久化到 CSV + JSON。可选 `--fetch-games` 联动 `fetch_event_pgn.py` 下载对局。
-
-### `fetch_event_pgn.py`
-
-批量赛事 PGN 下载。按 tnrid 从 Chess-Results 下载完整赛事 PGN，按 FIDE ID / 别名匹配分配给中国棋手。
+保留为历史兼容/授权后工具，默认由 `COMPLIANCE_POLICY_BLOCKED` 阻止公开写入；
+不在面板、社区流程或 GitHub workflow 中执行。
 
 ## 数据流水线
 
 ```
-FIDE legacy XML  →  sync_chinese_players.py  →  registry/players.json
-Chess-Results    →  crawl_player_events.py   →  player-events.csv + tournament catalog
-                 →  fetch_event_pgn.py        →  docs/data/pgn/<source>/tnr<id>/*.pgn
-                                              →  build_static_player_pgn.py → by-player/
-                                              →  build_event_catalog.py → events.json
+社区目标线索 → 人工目标队列 → 维护者本地 Chess-Results 私有运行区（默认不发布）
+FIDE XML → staging → registry/勘误校验 → release manifest → local-data
+Lichess Broadcast → staging/文件签名校验 → BY-SA manifest → local-data
+local-data manifest → CI 精确 ingest → 离线派生索引 → 部署
 ```
 
 ## 社区贡献流水线
 
-贡献者住宅 IP 分摊 Chess-Results 的 2000 visits/day 限制(治理机制见
-`GOVERNANCE.md`,流程细节见 `data/incoming/README.md`):
+社区只贡献目标和人工知识（治理机制见 `GOVERNANCE.md`）：
 
 ```
-独立贡献工具(china-chess-contributor) → PR: data/incoming/<id>/(解析结果 + HTML/PGN 证据)
-  → CI 离线甄别(validate_incoming.py:证据重解析/重切逐字节比对)
-  → 维护者合并 → 本地 refresh.sh contrib(promote_incoming.py --verify 抽查回抓)
-  → 并入 data/generated + docs/data/pgn → contributors.csv 鸣谢 → reindex 上线
+网页 Issue / target-only manifest → CI 拒绝抓取附件 → 人工审核和排队
+  → 维护者本地私有采集 → 合规/隐私/质量过滤 → 获准来源才形成发布包
 ```

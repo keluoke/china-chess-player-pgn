@@ -25,13 +25,16 @@ import json
 import os
 import pathlib
 import re
-import ssl
 import sys
 import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
+
+from source_http import SourceHTTPError, fetch_bytes
+from source_policy import require_chess_results_publication
+from stable_json import write_json as write_stable_json
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -42,7 +45,6 @@ PLAYER_INDEX_ROOT = INDEX_ROOT / "players"
 LEADERBOARD_JSON = DOCS_DATA / "youth-leaderboards.json"
 REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
 USER_AGENT = "ChinaChessPlayerPGNStaticSync/1.0"
-_TLS_CONTEXT: ssl.SSLContext | None = None
 _REGISTRY_PROFILES: dict[str, dict[str, Any]] | None = None
 
 
@@ -146,10 +148,17 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
+    if args.fetch_missing:
+        require_chess_results_publication()
+
     stats = SyncStats()
     ensure_dirs()
 
     all_records = records_from_static_indexes()
+    # A derived index may describe events for a registry player, but it may
+    # never recreate a player identity that is absent from the authoritative
+    # registry. Transfer exceptions belong in federation-overrides first.
+    all_records = [record for record in all_records if profile_for_fide(record.fide_id)]
     records = all_records
     if args.player:
         allowed = {str(item) for item in args.player}
@@ -265,16 +274,28 @@ def download_chess_results_pgn(fide_id: str, tournament_id: str) -> str:
         },
         method="POST",
     )
-    with open_url(request) as response:
-        data = response.read()
+    def validate(data: bytes, _headers: Any) -> None:
+        if data.lstrip().lower().startswith((b"<!doctype html", b"<html")):
+            raise SourceHTTPError("SOURCE_UNEXPECTED_CONTENT_TYPE", "Chess-Results PGN 下载返回了 HTML 页面。")
+
+    data, _final_url, _headers = fetch_bytes(
+        request,
+        timeout=60,
+        retries=2,
+        validator=validate,
+    )
     return decode_response(data)
 
 
 def load_form(url: str) -> dict[str, Any]:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with open_url(request) as response:
-        final_url = response.geturl()
-        html = decode_response(response.read())
+    data, final_url, _headers = fetch_bytes(
+        request,
+        timeout=60,
+        retries=2,
+        expected_types=("text/html", "application/xhtml+xml"),
+    )
+    html = decode_response(data)
     parser = FormParser(final_url)
     parser.feed(html)
     return {"base_url": final_url, "action_url": parser.action_url, "fields": parser.fields}
@@ -407,6 +428,38 @@ def update_leaderboard_json(records: list[EventRecord], dry_run: bool) -> None:
         return
     data = read_json(LEADERBOARD_JSON)
     players = {str(player.get("fideID")): player for player in data.get("players", [])}
+    authority_text = (
+        "displayName", "chineseName", "pinyin", "name", "federation",
+        "sex", "title", "womenTitle", "formerFederation",
+    )
+    authority_optional = ("birthYear", "standard", "rapid", "blitz")
+    authority_structured = ("transfer", "aliases")
+    # Purge stale identity/rating values across the whole legacy leaderboard,
+    # including players with no PGN rows in this rebuild.
+    retained = []
+    for player in data.get("players", []):
+        fide_id = str(player.get("fideID") or "")
+        profile = profile_for_fide(fide_id)
+        if not profile:
+            continue
+        for key in authority_text:
+            player[key] = profile.get(key) or (f"FIDE {fide_id}" if key == "displayName" else "")
+        for key in authority_optional:
+            value = profile.get(key)
+            if value is None:
+                player.pop(key, None)
+            else:
+                player[key] = value
+        player["inactive"] = bool(profile.get("inactive"))
+        for key in authority_structured:
+            value = profile.get(key)
+            if value in (None, "", [], {}):
+                player.pop(key, None)
+            else:
+                player[key] = value
+        retained.append(player)
+    data["players"] = retained
+    players = {str(player.get("fideID")): player for player in retained}
     by_player: dict[str, list[EventRecord]] = {}
     for record in records:
         by_player.setdefault(record.fide_id, []).append(record)
@@ -422,16 +475,20 @@ def update_leaderboard_json(records: list[EventRecord], dry_run: bool) -> None:
             }
             data.setdefault("players", []).append(player)
             players[fide_id] = player
-        # Ratings and birth year always refresh from the profile (which now
-        # prefers the live FIDE registry); names only fill gaps so curated
-        # Chinese names in the leaderboard are never clobbered.
-        for key in ["standard", "rapid", "blitz", "birthYear"]:
+        for key in authority_text:
+            player[key] = profile.get(key) or (f"FIDE {fide_id}" if key == "displayName" else "")
+        for key in authority_optional:
             value = profile.get(key)
-            if value not in (None, ""):
+            if value is None:
+                player.pop(key, None)
+            else:
                 player[key] = value
-        for key in ["chineseName", "pinyin", "name"]:
+        player["inactive"] = bool(profile.get("inactive"))
+        for key in authority_structured:
             value = profile.get(key)
-            if value not in (None, "") and player.get(key) in (None, ""):
+            if value in (None, "", [], {}):
+                player.pop(key, None)
+            else:
                 player[key] = value
         player["detailPath"] = f"data/index/players/fide-{fide_id}.json"
         player["eventCount"] = len(player_records)
@@ -453,29 +510,34 @@ def update_leaderboard_json(records: list[EventRecord], dry_run: bool) -> None:
 def player_profile(records: list[EventRecord]) -> dict[str, Any]:
     first = records[0]
     registry = profile_for_fide(first.fide_id)
-    # Names: the registry (curated aliases + crawler evidence + forced
-    # corrections) is authoritative. Values read back from last build's index
-    # must NOT win, or an identity mistake persists forever (8602980 was
-    # mislabeled 居文君 for months this way — it is 侯逸凡).
+    if not registry:
+        return {
+            "displayName": f"FIDE {first.fide_id}",
+            "chineseName": "", "pinyin": "", "name": "", "federation": "",
+            "sex": "", "title": "", "womenTitle": "", "formerFederation": "",
+            "birthYear": None, "standard": None, "rapid": None, "blitz": None,
+            "inactive": False, "transfer": None, "aliases": [],
+        }
+    # Every identity/rating field comes directly from the registry, including
+    # empty values. Falling back to last build's output would make a bad name
+    # or stale rating self-perpetuating.
     return {
-        "displayName": registry.get("chineseName")
-        or registry.get("displayName")
-        or first.chinese_name
-        or first.english_name
-        or first.display_name
-        or registry.get("name")
-        or f"FIDE {first.fide_id}",
-        "chineseName": registry.get("chineseName") or first.chinese_name,
-        "pinyin": registry.get("pinyin") or first.pinyin_name,
-        "name": registry.get("name") or first.english_name or first.display_name,
-        "federation": first.federation or registry.get("federation", "CHN"),
-        "birthYear": registry.get("birthYear") or first.birth_year,
-        # Ratings: the registry mirrors the live FIDE rating list and must win
-        # over values read back from the previous index build, otherwise a
-        # rating never updates after it first lands in the index.
-        "standard": registry.get("standard") or first.standard_rating,
-        "rapid": registry.get("rapid") or first.rapid_rating,
-        "blitz": registry.get("blitz") or first.blitz_rating,
+        "displayName": registry.get("displayName") or registry.get("name") or f"FIDE {first.fide_id}",
+        "chineseName": registry.get("chineseName") or "",
+        "pinyin": registry.get("pinyin") or "",
+        "name": registry.get("name") or "",
+        "federation": registry.get("federation") or "",
+        "sex": registry.get("sex") or "",
+        "title": registry.get("title") or "",
+        "womenTitle": registry.get("womenTitle") or "",
+        "formerFederation": registry.get("formerFederation") or "",
+        "birthYear": registry.get("birthYear"),
+        "standard": registry.get("standard"),
+        "rapid": registry.get("rapid"),
+        "blitz": registry.get("blitz"),
+        "inactive": bool(registry.get("inactive")),
+        "transfer": registry.get("transfer"),
+        "aliases": list(registry.get("aliases") or []),
     }
 
 
@@ -489,26 +551,15 @@ def registry_profiles() -> dict[str, dict[str, Any]]:
         return _REGISTRY_PROFILES
 
     profiles: dict[str, dict[str, Any]] = {}
-    # Merge order = ascending authority: later files override earlier ones.
-    # The FIDE registry must come LAST — it is the live source of truth for
-    # ratings. (It used to come first, so stale ratings baked into the old
-    # index/leaderboard silently overrode every fresh FIDE download.)
-    for path in [INDEX_ROOT / "players.json", LEADERBOARD_JSON, REGISTRY_PLAYERS_JSON]:
-        if not path.exists():
-            continue
-        data = read_json(path)
+    if REGISTRY_PLAYERS_JSON.exists():
+        data = read_json(REGISTRY_PLAYERS_JSON)
         players = data.get("players", []) if isinstance(data, dict) else data
         for player in players:
             if not isinstance(player, dict):
                 continue
             fide_id = str(player.get("fideID") or "").strip()
-            if not fide_id:
-                continue
-            current = profiles.get(fide_id, {})
-            profiles[fide_id] = {
-                **current,
-                **{key: value for key, value in player.items() if value not in (None, "")},
-            }
+            if fide_id:
+                profiles[fide_id] = dict(player)
     _REGISTRY_PROFILES = profiles
     return profiles
 
@@ -550,10 +601,7 @@ def read_json(path: pathlib.Path) -> Any:
 
 
 def write_json(path: pathlib.Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    write_stable_json(path, data, ensure_ascii=False, indent=2)
 
 
 def decode_response(data: bytes) -> str:
@@ -563,35 +611,6 @@ def decode_response(data: bytes) -> str:
         except UnicodeDecodeError:
             continue
     return data.decode("utf-8", errors="replace")
-
-
-def open_url(request: urllib.request.Request):
-    last_error: Exception | None = None
-    for attempt in range(3):
-        try:
-            return urllib.request.urlopen(request, timeout=60, context=tls_context())
-        except Exception as error:
-            last_error = error
-            if attempt < 2:
-                time.sleep(0.8 * (attempt + 1))
-    assert last_error is not None
-    raise last_error
-
-
-def tls_context() -> ssl.SSLContext:
-    global _TLS_CONTEXT
-    if _TLS_CONTEXT is not None:
-        return _TLS_CONTEXT
-
-    try:
-        import certifi  # type: ignore[import-not-found]
-
-        _TLS_CONTEXT = ssl.create_default_context(cafile=certifi.where())
-    except Exception:
-        _TLS_CONTEXT = ssl.create_default_context()
-    if hasattr(ssl, "OP_IGNORE_UNEXPECTED_EOF"):
-        _TLS_CONTEXT.options |= ssl.OP_IGNORE_UNEXPECTED_EOF
-    return _TLS_CONTEXT
 
 
 def sha256_file(path: pathlib.Path) -> str:

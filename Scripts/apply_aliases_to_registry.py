@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
-"""Apply Chinese-name sources to the static registry JSON in place.
+"""Apply reviewed Chinese-name sources to the static registry JSON in place.
 
-Sources, in descending priority:
-  1. data/manual/player-aliases.csv           (curated by hand)
-  2. data/generated/chess-results-player-name-map.csv
-     (auto-collected by crawl_player_events.py from SpielerSuche CJK
-     columns; values are sanitized here — the raw cells carry trailing
-     commas like "薛皓文," and the variants column can contain tournament
-     titles, so only plausible person names are accepted)
+Only ``data/manual/player-aliases.csv`` and the forced correction layer are
+accepted. Machine-collected Chess-Results names are private candidates and may
+not flow directly into the registry, even when they look syntactically valid.
 
 Unlike sync_chinese_players.py this does NOT download the FIDE rating list; it
 surgically merges Chinese names, pinyin, and aliases into the already committed
@@ -26,10 +22,11 @@ import pathlib
 import re
 from typing import Any
 
+from stable_json import write_json as write_stable_json
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_ROOT = REPO_ROOT / "docs" / "data" / "registry"
 ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
-NAME_MAP_CSV = REPO_ROOT / "data" / "generated" / "chess-results-player-name-map.csv"
 # Force-correction layer: authoritative fixes for past identity mistakes
 # (e.g. 8602980 mislabeled 居文君 — it is 侯逸凡; 8608288 徐翔宇 → 许翔宇).
 # Highest priority: REPLACES an existing wrong chineseName and PURGES the
@@ -70,10 +67,40 @@ def merge_aliases(existing: list[str], additions: list[str]) -> list[str]:
     return merged
 
 
+def english_reversed(name: str) -> str:
+    pieces = [piece.strip() for piece in name.replace(",", " ").split() if piece.strip()]
+    return " ".join([*pieces[1:], pieces[0]]) if len(pieces) >= 2 else ""
+
+
+def reset_to_source_identity(player: dict[str, Any]) -> bool:
+    """Remove every previous enrichment before applying reviewed inputs.
+
+    This makes the operation reproducible from FIDE identity fields plus the
+    manual/correction layers. It must never treat last build's registry output
+    as an enrichment source.
+    """
+    before = {
+        key: player.get(key)
+        for key in ("displayName", "chineseName", "pinyin", "aliases")
+    }
+    fide_id = clean(player.get("fideID"))
+    name = clean(player.get("name"))
+    player["displayName"] = name or f"FIDE {fide_id}"
+    player.pop("chineseName", None)
+    player.pop("pinyin", None)
+    player["aliases"] = merge_aliases(
+        [],
+        [fide_id, name, name.replace(",", ""), english_reversed(name)],
+    )
+    after = {
+        key: player.get(key)
+        for key in ("displayName", "chineseName", "pinyin", "aliases")
+    }
+    return before != after
+
+
 def write_json(path: pathlib.Path, data: Any) -> None:
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    write_stable_json(path, data, ensure_ascii=False, indent=2)
 
 
 def load_corrections() -> dict[str, dict[str, str]]:
@@ -99,10 +126,9 @@ def apply_correction(player: dict[str, Any], correction: dict[str, str]) -> bool
     if clean(player.get("chineseName")) != correct:
         player["chineseName"] = correct
         changed = True
-    if clean(player.get("displayName")) in ("", wrong) or clean(player.get("displayName")) == clean(player.get("name")):
-        if player.get("displayName") != correct:
-            player["displayName"] = correct
-            changed = True
+    if clean(player.get("displayName")) != correct:
+        player["displayName"] = correct
+        changed = True
     aliases = [clean(v) for v in player.get("aliases", []) if clean(v)]
     purged = [v for v in aliases if v != wrong]
     if correct not in purged:
@@ -159,41 +185,22 @@ def main() -> int:
                     "aliases": clean(row.get("aliases")),
                 }
 
-    # Crawler-collected names fill the gaps the curated file doesn't cover.
-    # Curated entries always win; crawler values go through strict
-    # person-name sanitation because the raw SpielerSuche cells are dirty.
-    crawler_entries = 0
-    if NAME_MAP_CSV.exists():
-        with NAME_MAP_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
-            for row in csv.DictReader(handle):
-                fide_id = clean(row.get("fide_id"))
-                if not fide_id or fide_id in entries:
-                    continue
-                chinese = sanitize_person_name(row.get("chinese_name"))
-                if not chinese:
-                    continue
-                variants = [
-                    v for v in (
-                        sanitize_person_name(part)
-                        for part in clean(row.get("name_variants")).split("|")
-                    ) if v and v != chinese
-                ]
-                entries[fide_id] = {
-                    "chinese_name": chinese,
-                    "pinyin_name": clean(row.get("pinyin_name")),
-                    "aliases": "|".join(variants),
-                }
-                crawler_entries += 1
-
     players_path = args.registry_root / "players.json"
     players = json.loads(players_path.read_text(encoding="utf-8"))
     by_fide = {clean(player.get("fideID")): player for player in players}
 
     matched = 0
     updated = 0
+    reset_players = 0
     conflicts = 0
     corrected = 0
     touched_shards: set[str] = set()
+    for player in players:
+        shard = clean(player.get("registryShard"))
+        if shard:
+            touched_shards.add(shard)
+        if reset_to_source_identity(player):
+            reset_players += 1
     for fide_id, entry in entries.items():
         player = by_fide.get(fide_id)
         if player is None:
@@ -221,12 +228,13 @@ def main() -> int:
 
     shard_updated = 0
     for shard_rel in sorted(touched_shards):
-        shard_path = REPO_ROOT / "docs" / shard_rel
+        shard_path = args.registry_root / "shards" / pathlib.Path(shard_rel).name
         if not shard_path.exists():
             continue
         shard_players = json.loads(shard_path.read_text(encoding="utf-8"))
         shard_changed = False
         for player in shard_players:
+            shard_changed = reset_to_source_identity(player) or shard_changed
             fid = clean(player.get("fideID"))
             entry = entries.get(fid)
             if entry is not None:
@@ -251,8 +259,9 @@ def main() -> int:
     print(json.dumps(
         {
             "aliasEntries": len(entries),
-            "fromCrawlerNameMap": crawler_entries,
+            "fromMachineCandidates": 0,
             "forcedCorrections": corrected,
+            "resetFromPreviousOutput": reset_players,
             "matchedInRegistry": matched,
             "playersUpdated": updated,
             "shardPlayersUpdated": shard_updated,

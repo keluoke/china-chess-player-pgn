@@ -38,6 +38,7 @@ from sync_static_pgn import (  # noqa: E402
     count_pgn_games,
     download_chess_results_pgn,
 )
+from source_policy import require_chess_results_publication  # noqa: E402
 
 SOURCES_CSV = REPO_ROOT / "data" / "manual" / "chess-results-starting-rank-sources.csv"
 ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
@@ -190,6 +191,7 @@ def process_event(
     contribution tool archives the raw PGN as evidence, then splits the same
     bytes) instead of hitting Chess-Results a second time.
     """
+    require_chess_results_publication()
     result: dict[str, Any] = {
         "tid": tournament_id,
         "status": "ok",

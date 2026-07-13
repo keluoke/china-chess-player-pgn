@@ -23,6 +23,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from age_groups import LEADERBOARD_GROUPS  # noqa: E402
 from public_metrics import canonical_public_metrics  # noqa: E402
+from stable_json import write_json as write_stable_json  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS = REPO_ROOT / "docs"
@@ -33,8 +34,12 @@ API_ROOT = DOCS / "api" / "v1"
 API_VERSION = "1"
 
 LICENSE_BLOCK = {
-    "data": "CC BY 4.0 — attribution: china-chess-player-pgn contributors",
-    "note": "PGN game scores originate from public Chess-Results/Lichess broadcast pages; see LICENSE-DATA.md in the repository for source attribution requirements.",
+    "data": "Source-specific terms; no blanket database relicense",
+    "community": "Original reviewed community contributions: CC BY 4.0",
+    "lichess": "Lichess Broadcast derivatives: CC BY-SA 4.0 with attribution",
+    "fide": "Factual registry projection; source attribution retained",
+    "chessResults": "Legacy material is not automatically CC BY; new collection is link-only and private",
+    "note": "See LICENSE-DATA.md for the source-level policy.",
 }
 
 
@@ -43,8 +48,7 @@ def read_json(path: pathlib.Path):
 
 
 def write_json(path: pathlib.Path, data) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    write_stable_json(path, data, ensure_ascii=False, separators=(",", ":"))
 
 
 def compact_player(p: dict) -> dict:
@@ -100,6 +104,8 @@ def main() -> int:
         detail = read_json(detail_file)
         fide_id = str(detail.get("player", {}).get("fideID") or detail_file.stem.replace("fide-", ""))
         reg = registry_by_id.get(fide_id, {})
+        if not reg:
+            raise RuntimeError(f"REGISTRY_AUTHORITY_MISMATCH: by-player identity {fide_id} is absent from registry")
         packages = []
         for pkg in detail.get("packages", []):
             packages.append({
@@ -119,9 +125,14 @@ def main() -> int:
             }
             for e in detail.get("events", [])
         ]
+        # The registry is the only identity/rating authority. Never merge an
+        # old by-player identity underneath a sparse registry row: missing
+        # registry values must clear stale derivatives instead of reviving
+        # them.
+        identity = reg
         payload = {
             "generatedAt": generated_at,
-            **compact_player({**detail.get("player", {}), **reg}),
+            **compact_player(identity),
             "gameCount": detail.get("totals", {}).get("games"),
             "eventCount": len(events),
             "packages": packages,

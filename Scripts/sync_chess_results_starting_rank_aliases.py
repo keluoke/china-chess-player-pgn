@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Import Chinese player names from Chess-Results starting-rank tables.
+"""Collect private Chinese-name candidates from Chess-Results starting ranks.
 
 China Chess Association master-event pages often put the player's Chinese name
 in the Swiss-Manager "Typ" column. This script treats those rows as identity
 evidence:
 
-- rows with FIDE ID update data/manual/player-aliases.csv;
-- rows without FIDE ID become immutable domestic sightings.
+- rows with FIDE ID become machine-generated review candidates;
+- rows without FIDE ID become private domestic sighting candidates.
 
 Some lower/candidate groups have no Typ column and put Chinese names directly
 in the Name column. Those rows are still useful as domestic sightings.
 
-The script is conservative. It never merges no-FIDE players by name and it does
-not overwrite an existing reviewed Chinese name with a newly scraped value.
+The script never writes ``data/manual`` or ``data/community``. Promotion into
+those human-owned layers is a separate reviewed action.
 """
 
 from __future__ import annotations
@@ -22,14 +22,12 @@ import csv
 import datetime as dt
 import hashlib
 import html
-import http.client
 import json
+import os
 import pathlib
 import re
-import ssl
 import sys
 import time
-import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -37,6 +35,8 @@ from html.parser import HTMLParser
 from typing import Any
 
 from apply_aliases_to_registry import sanitize_person_name
+from source_http import SourceHTTPError, fetch_bytes
+from source_policy import local_state_root
 
 try:
     from pypinyin import lazy_pinyin
@@ -46,8 +46,12 @@ except ImportError:  # Local refresh installs it; CI remains network-free.
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SOURCE_CSV = REPO_ROOT / "data" / "manual" / "chess-results-starting-rank-sources.csv"
-ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
-SIGHTINGS_CSV = REPO_ROOT / "data" / "manual" / "domestic-player-sightings.csv"
+PRIVATE_CANDIDATE_ROOT = pathlib.Path(
+    os.environ.get("CHINA_CHESS_PRIVATE_EXTRACTED_ROOT")
+    or (local_state_root() / "candidates" / "chess-results")
+)
+ALIAS_CSV = PRIVATE_CANDIDATE_ROOT / "player-alias-candidates.csv"
+SIGHTINGS_CSV = PRIVATE_CANDIDATE_ROOT / "domestic-sighting-candidates.csv"
 SOURCE_NAME = "chess-results-starting-rank"
 USER_AGENT = "ChinaChessPlayerPGN/StartingRankAliasSync"
 MASTER_TITLE_TERMS = (
@@ -208,6 +212,14 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
+    for output in (args.player_aliases, args.domestic_sightings):
+        try:
+            relative = output.resolve().relative_to(REPO_ROOT)
+        except ValueError:
+            continue
+        if relative.parts[:2] in {("data", "manual"), ("data", "community")}:
+            raise SystemExit(f"机器抓取禁止写入人工数据层：{relative}")
+
     sources = [] if args.only_explicit else load_sources(args.sources)
     sources.extend(SourcePage(tournament_id_from_url(url) or "", normalize_starting_rank_url(url)) for url in args.url)
     sources.extend(SourcePage(tournament_id=tid, url=url_for_tournament(tid)) for tid in args.tournament_id)
@@ -353,20 +365,20 @@ def fetch_text(url: str, *, timeout: float, retries: int) -> tuple[str, str]:
             "Connection": "close",
         },
     )
-    context = ssl._create_unverified_context()
-    last_error: Exception | None = None
-    for attempt in range(max(1, retries + 1)):
-        try:
-            with urllib.request.urlopen(request, timeout=timeout, context=context) as response:
-                content = response.read()
-                charset = response.headers.get_content_charset() or "utf-8"
-                return content.decode(charset, errors="replace"), response.geturl()
-        except (http.client.IncompleteRead, urllib.error.URLError, TimeoutError, OSError) as error:
-            last_error = error
-            if attempt < retries:
-                time.sleep(1.2 * (attempt + 1))
-    assert last_error is not None
-    raise last_error
+    def validate(content: bytes, _headers: Any) -> None:
+        sample = content[:20000].lower()
+        if b"<html" not in sample and b"<table" not in sample:
+            raise SourceHTTPError("PARSER_LAYOUT_CHANGED", "Chess-Results 起始名单不是可解析 HTML。")
+
+    content, final_url, headers = fetch_bytes(
+        request,
+        timeout=timeout,
+        retries=retries,
+        expected_types=("text/html", "application/xhtml+xml"),
+        validator=validate,
+    )
+    charset = headers.get_content_charset() or "utf-8"
+    return content.decode(charset, errors="replace"), final_url
 
 
 def parse_html(text: str) -> ChessResultsHTMLParser:

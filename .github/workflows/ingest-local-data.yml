@@ -1,17 +1,9 @@
 name: Ingest local data branch
 
-# The no-pull half of the pipeline. The local machine NEVER pulls or rebases:
-# it scrapes, commits to its own history, and force-pushes HEAD to the
-# single-writer branch `local-data`. This workflow mirrors that branch's data
-# tree into main as the bot, then triggers rebuild-indexes.yml (which
-# regenerates every derived index and deploys).
-#
-# Why conflicts are structurally impossible:
-#   - the local machine is the ONLY producer of raw data (all scraping
-#     workflows are self-hosted / manual);
-#   - humans never edit main's data tree directly;
-#   - bot-rebuilt derived indexes on main may be overwritten by this mirror,
-#     but rebuild-indexes regenerates them right after, deterministically.
+# The local machine force-pushes a single-writer branch, but CI no longer
+# mirrors broad data directories.  It validates the release manifest and
+# applies only its exact hashed file list.  Manual/community paths and raw
+# Chess-Results evidence are rejected by the shared policy validator.
 on:
   push:
     branches: ["local-data"]
@@ -35,14 +27,23 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Mirror data tree from local-data
+      - name: Apply exact validated local release
         run: |
           set -euo pipefail
           git fetch origin local-data
-          # Exact mirror: main's raw-data paths := local-data's, including
-          # deletions. Derived indexes are rebuilt afterwards anyway.
-          git rm -rq --ignore-unmatch -- data/manual data/community data/generated docs/data
-          git checkout origin/local-data -- data/manual data/community data/generated docs/data
+          python3 Scripts/local/run_manager.py apply \
+            --repo . \
+            --source-ref origin/local-data \
+            --path-list "$RUNNER_TEMP/local-release-paths.txt"
+
+      - name: Validate staged registry when present
+        run: |
+          set -euo pipefail
+          if grep -q '^docs/data/registry/' "$RUNNER_TEMP/local-release-paths.txt"; then
+            python3 Scripts/validate_registry_release.py \
+              --registry docs/data/registry \
+              --corrections data/community/name-corrections.csv
+          fi
 
       - name: Commit as bot
         id: commit
@@ -50,7 +51,13 @@ jobs:
           # Triggered by a push to local-data, but the mirror commit goes to
           # main — without this the script would push HEAD:local-data.
           PUSH_BRANCH: main
-        run: bash Scripts/ci_commit_push.sh "Ingest local scraped data" data/manual data/community data/generated docs/data
+        run: |
+          set -euo pipefail
+          paths=()
+          while IFS= read -r path; do
+            [ -n "$path" ] && paths+=("$path")
+          done < "$RUNNER_TEMP/local-release-paths.txt"
+          bash Scripts/ci_commit_push.sh "Ingest validated local release" "${paths[@]}"
 
       - name: Trigger index rebuild + deploy
         if: steps.commit.outputs.committed == 'true'

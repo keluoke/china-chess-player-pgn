@@ -10,13 +10,14 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from public_metrics import DOCS_DATA, canonical_public_metrics, read_json  # noqa: E402
+from stable_json import write_json as write_stable_json  # noqa: E402
 
 OUTPUT = DOCS_DATA / "public-metrics.json"
 INDEX_MANIFEST = DOCS_DATA / "index" / "manifest.json"
 
 
 def write_json(path: pathlib.Path, data: dict) -> None:
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_stable_json(path, data, ensure_ascii=False, indent=1)
 
 
 def main() -> int:

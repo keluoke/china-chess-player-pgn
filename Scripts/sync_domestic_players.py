@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from collections import Counter
 from typing import Any
 
+from stable_json import write_json as write_stable_json
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SIGHTINGS_CSV = REPO_ROOT / "data" / "manual" / "domestic-player-sightings.csv"
@@ -64,8 +66,10 @@ class Sighting:
                 "pinyin": self.pinyin_name,
                 "sex": self.sex,
                 "birthYear": self.birth_year,
-                "province": self.province,
-                "club": self.club,
+                # Public payload: never expose the raw club/school string for
+                # minors. Only province/city-level `publicLocation` leaves the
+                # public data surface; the full club stays in data/manual/.
+                "publicLocation": location_from_text(" ".join(filter(None, (self.province, self.club)))),
                 "rank": self.rank,
                 "score": self.score,
                 "sourcePlayerNo": self.source_player_no,
@@ -135,8 +139,7 @@ class DomesticPlayer:
                 "federation": "CHN",
                 "sex": self.sex,
                 "birthYear": self.birth_year,
-                "province": self.province,
-                "club": self.club,
+                "publicLocation": public_location(self),
                 "identityStatus": self.identity_status,
                 "publicIdentityStatus": self.public_status,
                 "entityType": "domestic-player",
@@ -667,7 +670,13 @@ def parse_int(value: Any) -> int | None:
 def public_location(player: DomesticPlayer) -> str:
     if player.province:
         return player.province
-    text = " ".join(s.club for s in player.sightings if s.club)
+    return location_from_text(" ".join(s.club for s in player.sightings if s.club))
+
+
+def location_from_text(text: str) -> str:
+    """Reduce a club/school string to a province/city-level public location."""
+    if not text:
+        return ""
     for name in ("北京", "上海", "天津", "重庆", "河北", "山西", "辽宁", "吉林", "黑龙江", "江苏", "浙江", "安徽", "福建", "江西", "山东", "河南", "湖北", "湖南", "广东", "海南", "四川", "贵州", "云南", "陕西", "甘肃", "青海", "内蒙古", "广西", "西藏", "宁夏", "新疆", "香港", "澳门"):
         if name in text:
             return name
@@ -692,10 +701,7 @@ def without_empty(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def write_json(path: pathlib.Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    write_stable_json(path, data, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":

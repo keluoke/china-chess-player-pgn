@@ -1,12 +1,12 @@
 name: Rebuild indexes and deploy
 
-# The "index + deploy" half of the scrape/index split. Scraping runs off-GitHub
-# (local script or self-hosted runner) and commits RAW data; this GitHub-hosted
-# workflow rebuilds every derived artifact (no network) and then deploys.
+# The offline index/deploy half of the local-release pipeline. Maintainer-local
+# collection delivers only validated, manifest-listed public projections;
+# this GitHub-hosted workflow rebuilds derived artifacts without source access.
 #
 # Triggers:
-#   - push to main touching raw inputs, by a real user (local-scrape path)
-#   - workflow_dispatch, including gh-dispatch from self-hosted scrapers
+#   - push to main touching reviewed/manual or validated machine inputs
+#   - workflow_dispatch from the manifest ingest workflow or a maintainer
 #
 # Loop guard: the job's own commit is authored by github-actions[bot]; the
 # `if` below skips bot-authored pushes so a rebuild never retriggers itself.

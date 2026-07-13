@@ -2,9 +2,8 @@
 """Locally verify community-submitted evidence URLs (residential IP required).
 
 CI cannot reach chess-results.com (datacenter IPs are blocked), so this runs
-on the maintainer's machine via `Scripts/local/refresh.sh verify`. It fetches
-every evidence/source URL referenced by community files and records
-reachability in data/generated/verification-report.json.
+only as a maintainer-local diagnostic. It records reachability outside the
+repository and never turns community evidence into a scraping payload.
 """
 
 from __future__ import annotations
@@ -18,10 +17,12 @@ import time
 import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from sync_static_pgn import USER_AGENT, tls_context  # noqa: E402
+from source_http import fetch_bytes  # noqa: E402
+from source_policy import local_state_root  # noqa: E402
+from sync_static_pgn import USER_AGENT  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-REPORT = REPO_ROOT / "data" / "generated" / "verification-report.json"
+REPORT = local_state_root() / "verification" / "community-source-report.json"
 
 SOURCES = [
     (REPO_ROOT / "data" / "community" / "federation-overrides.csv", "evidence_url"),
@@ -32,9 +33,8 @@ SOURCES = [
 def probe(url: str) -> str:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT}, method="GET")
     try:
-        with urllib.request.urlopen(request, timeout=30, context=tls_context()) as resp:
-            body = resp.read(4096)
-            return "ok" if resp.status == 200 and body else f"http-{resp.status}"
+        body, _final_url, _headers = fetch_bytes(request, timeout=30, retries=1)
+        return "ok" if body else "empty"
     except Exception as exc:  # noqa: BLE001
         return f"error: {exc}"
 
@@ -76,7 +76,7 @@ def main() -> int:
         encoding="utf-8",
     )
     failed = sum(1 for r in results if r["status"] != "ok")
-    print(f"checked={len(results)} failed={failed} -> {REPORT.relative_to(REPO_ROOT)}")
+    print(f"checked={len(results)} failed={failed} -> {REPORT}")
     return 0
 
 

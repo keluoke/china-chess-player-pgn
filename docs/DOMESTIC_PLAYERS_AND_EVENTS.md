@@ -15,7 +15,10 @@
 - `domesticPlayers`：未审核合并前的保守临时实体数；
 - `uniqueNameCount`：姓名池去重数，仅用于覆盖度展示，同名者仍可能是不同人。
 
-全量补录已整理来源时运行 `python3 Scripts/sync_chess_results_starting_rank_aliases.py`；粘贴单站 tnr 时由 `sync_chess_results_event.py` 使用 `--only-explicit`，只访问该赛事。自动 sightings 只追加、不因网络失败删除历史证据。完整证据按哈希分片，首页只加载轻量搜索索引。
+网络采集不再直接补录 sightings 或别名。维护者可运行
+`Scripts/local/refresh.sh candidates` 在仓库外生成候选，人工核对后再分别写入
+`name-corrections.csv`、`player-aliases.csv` 或身份链接机制。网络失败不会删除任何
+已审核人工数据。
 
 `identity-name-groups.json` 按同名观察生成审核分组，`identity-candidates.json` 与 `fide-link-candidates.json` 按跨赛事、俱乐部一致、年龄连续和全库唯一性加权排序；它们都只是审核队列，禁止自动写入 `player-identity-links.csv`。同名簇达到 3 条时标记为 `parent-only`，机器不生成合并提名。
 
@@ -23,9 +26,14 @@
 
 `Scripts/build_domestic_event_queue.py` 把既有 starting-rank 目标、大师赛五组目录、`domestic-source-catalog.csv` 和人工确认的 `data-demand-gaps.csv` 合成维护者队列。排序固定为李成智杯 > 棋协大师赛 > 省级青少年赛，并叠加查询需求热度和缺失源页快照的优先分。
 
-本地住宅网络运行 `Scripts/local/refresh.sh event-queue`，默认整取队首 3 项赛事；也可用 `python3 Scripts/sync_chess_results_event.py --from-queue 5` 指定数量。每次抓取把 starting rank、standings 和逐轮页面压缩保存到 `data/generated/chess-results-event-snapshots/`，同时在赛事产物写入 URL、字节数和 SHA-256。
+本地住宅网络运行 `Scripts/local/refresh.sh event-queue`，默认整取队首 3 项
+赛事，单次上限 10 项。starting rank、standings、逐轮页面及解析结果全部
+写入维护者应用数据目录下的私有运行区（0700/0600），仅在私有元数据中保留
+URL、字节数和 SHA-256；不写入 `data/generated/`。成功事件逐个检查点落盘，
+30 天内已采集目标默认跳过。
 
-网页搜索未命中时只先写浏览器本机队列，用户明确生成并发送贡献包后，维护者运行 `python3 Scripts/import_web_contribution.py <贡献包.json>` 才会增加 `data-demand-gaps.csv` 的需求计数。隐私请求和身份线索被导入器硬性拒绝写入公开仓库，必须私下处理。
+网页未命中只能生成目标线索 Issue（URL、tnr/FIDE ID、原因和优先级），
+不能包含 HTML、PGN、解析行、Cookie 或响应头。隐私请求必须通过私密渠道处理。
 
 ## 棋协大师赛
 
@@ -50,10 +58,12 @@
 维护者拿到一个 Chess-Results 链接后，在本地住宅网络运行：
 
 ```bash
-python3 Scripts/sync_chess_results_event.py 'https://chess-results.com/tnr1429695.aspx?lan=1'
+Scripts/local/refresh.sh event-queue -- 1429695
 ```
 
-也可以直接粘贴 `tnr1429695` 或纯数字 ID。命令会抓取起始名单、棋手中文名、最终排名和所有轮次对阵，并调用既有 PGN/棋手索引重建流程；原始抓取结果写入 `data/generated/chess-results-event-details/`。抓取必须在本地完成，GitHub Actions 只根据已提交数据离线生成赛事详情页，绝不回抓 Chess-Results。
+也可以传入 `tnr1429695` 或完整 URL。命令仅在私有运行区保存起始名单、
+最终排名和逐轮对阵，不调用 PGN、棋手索引或公开赛事详情重建流程。
+GitHub Actions 不读取该私有运行区，也不访问 Chess-Results。
 
 纯国内赛事可把每轮比分、累计分和轮后名次写入 `data/manual/domestic-event-round-results.csv`。棋局仍以 PGN 为事实表，轮次成绩表用于 standings 快照；两者通过 `canonical_event_id + section_id + round + player_ref` 关联。
 
@@ -67,12 +77,14 @@ python3 Scripts/sync_chess_results_event.py 'https://chess-results.com/tnr142969
 | 数据层 | 增量频率 | 全量校验 | 说明 |
 |---|---:|---:|---|
 | FIDE 注册表与等级分 | 每月 FIDE 新榜后 | 每月全量 | 注册表是权威，不由派生层回写 |
-| Chess-Results 新赛事/新轮次 | 赛期每日；平时每周 | 每季度 | 本地住宅 IP 抓取，CI 不回抓 |
-| 大师赛五组 tnr 与 standings | 开赛前登记；赛期每日 | 每站赛后一次 | 赛后锁定实际轮次与最终成绩 |
-| 李成智杯低龄组 sightings | 赛期每日 | 每届赛后一次 | 优先保留无 FIDE 名单与年龄组证据 |
-| PGN | 新赛事发布后每日增量 | 每季度去重重建 | 以棋局哈希去重，不按姓名合并 |
+| Chess-Results 私有目标采集 | 赛期按需 | 无公开全量发布 | 仅维护者本地；30 天检查点；不进仓库 |
+| 大师赛五组 tnr 目标 | 开赛前人工登记 | 每站赛后复核 | 公开层只保留人工元数据和来源链接 |
+| 国内棋手 sightings | 有已审核证据时 | 每届赛后人工复核 | 机器候选不自动写人工层 |
+| PGN | Lichess 新分片发布后 | 每月去重重建 | Lichess 保留 CC BY-SA 4.0 署名；Chess-Results 新 PGN 不发布 |
 | 中文赛事名 | 每周审核候选队列 | 每季度覆盖率审计 | 必须保留证据 URL |
 | identity links | 有新证据即更新 | 每月低置信队列复核 | 低置信不能自动合并 |
 | 静态索引、看板、canonical events | 每次数据变更后 | 每次发布 | 纯计算，可在 CI 重建 |
 
-增量抓取保存游标（最近事件日期、已见 tnr、最近完整轮次和内容哈希），只追加新证据或更新仍在进行的赛事。全量重刷只重建 `data/generated/`，随后与上次 manifest 做数量、身份和哈希差异检查；任何人工修正继续只写 `data/manual/` 与 `data/community/`。
+Chess-Results 增量状态保存在仓库外的 `capture-state.json`，只记录最近成功时间和数量统计。
+FIDE/Lichess 公开发布必须经过 staging、数量/结构检查和精确 manifest；任何人工
+修正继续只写 `data/manual/` 与 `data/community/`。

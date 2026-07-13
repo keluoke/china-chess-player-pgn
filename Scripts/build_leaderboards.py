@@ -17,6 +17,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from age_groups import LEADERBOARD_GROUPS, age_of, reference_year  # noqa: E402
+from stable_json import write_json  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_PLAYERS = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
@@ -91,7 +92,7 @@ def main() -> int:
         "groups": groups_out,
     }
     if not args.dry_run:
-        OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        write_json(OUTPUT, payload, ensure_ascii=False, indent=1)
     print(json.dumps({g["id"]: g["totalEligible"] for g in groups_out}, ensure_ascii=False))
     return 0
 
