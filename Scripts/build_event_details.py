@@ -42,6 +42,29 @@ def round_number(value: Any) -> str:
     return match.group(1) if match else clean(value)
 
 
+# Legitimate Chess-Results results are built from 0/1/½/+/- plus an optional
+# forfeit marker "K". Letters otherwise (e.g. a federation code "CHN" landing
+# in the result column) or a digits-only player name (e.g. "0") indicate a
+# column-shift misparse of the source table.
+RESULT_LETTER_RE = re.compile(r"[A-JL-Za-jl-z]")
+RESULT_CORE_RE = re.compile(r"[01½+\-]")
+
+
+def round_anomalies(rounds: list[dict[str, Any]]) -> int:
+    """Count structurally impossible pairings in per-round data."""
+    count = 0
+    for round_row in rounds or []:
+        for pairing in round_row.get("pairings") or []:
+            result = clean(pairing.get("result"))
+            white = clean((pairing.get("white") or {}).get("name"))
+            black = clean((pairing.get("black") or {}).get("name"))
+            if result and (RESULT_LETTER_RE.search(result) or not RESULT_CORE_RE.search(result)):
+                count += 1
+            if (white and white.isdigit()) or (black and black.isdigit()):
+                count += 1
+    return count
+
+
 def read_json(path: pathlib.Path, default: Any) -> Any:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
 
@@ -202,6 +225,16 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
             prepare_public_person(player, names, registry)
         for standing in payload.get("standings", []):
             prepare_public_person(standing, names, registry)
+        # Structural gate: misparsed rounds (result "CHN", digit-only names)
+        # are never published. Final standings stay; rounds are withheld and
+        # visibly marked pending re-verification.
+        anomalies = round_anomalies(payload.get("rounds", []))
+        if anomalies:
+            payload["roundsPendingVerification"] = True
+            payload["roundAnomalies"] = anomalies
+            payload["withheldRounds"] = len(payload.get("rounds", []))
+            payload["rounds"] = []
+            totals["withheldRoundEvents"] = totals.get("withheldRoundEvents", 0) + 1
         for round_row in payload.get("rounds", []):
             round_id = round_number(round_row.get("round"))
             for pairing in round_row.get("pairings", []):
@@ -224,6 +257,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
             "displayName": payload["displayName"],
             "roundCount": payload.get("roundCount") or len(payload.get("rounds", [])),
             "standingCount": len(payload.get("standings", [])),
+            **({"roundsPendingVerification": True} if payload.get("roundsPendingVerification") else {}),
         })
         totals["events"] += 1
         totals["standings"] += len(payload.get("standings", []))

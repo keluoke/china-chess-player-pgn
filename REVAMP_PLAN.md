@@ -92,7 +92,7 @@
    - `data/generated/`:爬虫产出(events csv、name-map csv、spielersuche-state、federation-snapshots)
    - 迁移脚本一次性完成 + 兼容读取旧路径一个过渡期
 3. **CI 校验**(全部离线):`validate_community_data.py`——YAML schema、FIDE ID 与文件名一致、CJK 人名规则(复用已实现的 sanitize_person_name)、别名去重、覆盖表引用存在性、sightings 域名白名单;PR 触发,校验失败阻断。
-4. **本地核验队列**:CI 对带 chess-results 证据的提交打 `needs-local-verification`;`refresh.sh verify` 在住宅 IP 回抓比对,结果(verified/mismatch)以提交回写。
+4. **本地核验队列**(历史方案,已退役):CI 对带 chess-results 证据的提交打 `needs-local-verification`;旧 `verify` 命令曾在住宅 IP 回抓比对——该命令已退役,现行入口是 `event-queue` 私有采集。
 5. **Changelog 与贡献者**:rebuild 时生成 `docs/data/changelog.json`(新增棋手/新中文名/新 PGN 计数),前端展示;贡献者列表由 git log + YAML contributors 生成。
 6. **前端贡献入口**:棋手页"数据有误?"→ Issue 模板预填该棋手;"补充信息"→ GitHub 网页编辑对应 YAML(不存在则从模板创建)。
 

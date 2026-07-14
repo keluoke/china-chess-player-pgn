@@ -219,6 +219,273 @@ class RunManagerTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "RELEASE_SOURCE_PATH_MISMATCH")
 
 
+class OutboxTests(unittest.TestCase):
+    """The delivery outbox decouples collection from GitHub delivery."""
+
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.temp.name)
+        self.repo = self.root / "repo"
+        self.repo.mkdir()
+        git(self.repo, "init", "-q")
+        git(self.repo, "config", "user.email", "test@example.com")
+        git(self.repo, "config", "user.name", "Test")
+        (self.repo / "docs/data/registry").mkdir(parents=True)
+        (self.repo / "data/generated").mkdir(parents=True)
+        (self.repo / "docs/data/registry/players.json").write_text("[]\n")
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-qm", "base")
+        self.run_dir = self.root / "run"
+        self.run_dir.mkdir()
+        run_manager.atomic_json(
+            self.run_dir / "run.json",
+            {"runId": "outbox-test-run", "command": "registry", "status": "running"},
+        )
+        self.state_patch = mock.patch.object(
+            run_manager, "local_state_root", return_value=self.root / "state"
+        )
+        self.state_patch.start()
+
+    def tearDown(self) -> None:
+        self.state_patch.stop()
+        self.temp.cleanup()
+
+    def prepare_commit(self) -> str:
+        allow = ["docs/data/registry"]
+        run_manager.preflight(self.repo, self.run_dir, allow)
+        (self.repo / "docs/data/registry/players.json").write_text('[{"fideID":"1"}]\n')
+        run_manager.prepare_release(self.repo, self.run_dir, "registry", allow)
+        git(self.repo, "commit", "-qm", "release")
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo, text=True).strip()
+
+    def test_save_list_update_round_trip(self) -> None:
+        sha = self.prepare_commit()
+        saved = run_manager.outbox_save(self.repo, self.run_dir, sha)
+        self.assertEqual(saved["runId"], "outbox-test-run")
+        entry = pathlib.Path(saved["outbox"])
+        self.assertTrue((entry / "manifest.json").is_file())
+        self.assertTrue((entry / "files" / "docs/data/registry/players.json").is_file())
+        pending = run_manager.outbox_entries("pending")
+        self.assertEqual(len(pending), 1)
+        self.assertEqual(pending[0]["commit"], sha)
+        updated = run_manager.outbox_update("outbox-test-run", "pushed", sha, "git", None)
+        self.assertEqual(updated["status"], "pushed")
+        self.assertEqual(run_manager.outbox_entries("pending"), [])
+
+    def test_bundle_content_must_match_manifest_hash(self) -> None:
+        sha = self.prepare_commit()
+        manifest = json.loads((self.run_dir / "release-manifest.json").read_text())
+        manifest["files"][0]["sha256"] = "0" * 64
+        run_manager.atomic_json(self.run_dir / "release-manifest.json", manifest)
+        with self.assertRaises(run_manager.RunManagerError) as caught:
+            run_manager.outbox_save(self.repo, self.run_dir, sha)
+        self.assertEqual(caught.exception.code, "RELEASE_HASH_MISMATCH")
+
+    def test_pending_entries_deliver_oldest_first(self) -> None:
+        sha = self.prepare_commit()
+        run_manager.outbox_save(self.repo, self.run_dir, sha)
+        run_manager.atomic_json(
+            self.run_dir / "run.json",
+            {"runId": "outbox-test-run-2", "command": "registry", "status": "running"},
+        )
+        manifest = json.loads((self.run_dir / "release-manifest.json").read_text())
+        manifest["runId"] = "outbox-test-run-2"
+        run_manager.atomic_json(self.run_dir / "release-manifest.json", manifest)
+        run_manager.outbox_save(self.repo, self.run_dir, sha)
+        pending = run_manager.outbox_entries("pending")
+        self.assertEqual([item["runId"] for item in pending], ["outbox-test-run", "outbox-test-run-2"])
+
+
+class ApiFallbackPolicyTests(unittest.TestCase):
+    def test_fails_closed_without_a_validated_bundle(self) -> None:
+        import publish_data_via_api
+
+        with tempfile.TemporaryDirectory() as temp:
+            with mock.patch.object(run_manager, "local_state_root", return_value=pathlib.Path(temp)):
+                with self.assertRaises(SystemExit) as caught:
+                    publish_data_via_api.load_bundle(None)
+        self.assertIn("API_DELIVERY_BLOCKED", str(caught.exception))
+
+    def test_api_path_shares_the_single_manifest_policy(self) -> None:
+        # The API transport validates through run_manager.validate_manifest:
+        # manual/community/incoming and raw HTML are rejected identically.
+        payload = {
+            "schemaVersion": 1,
+            "runId": "x",
+            "source": {"source": "FIDE Rating List", "releasePolicy": "factual-registry-projection"},
+            "files": [{"path": "data/manual/x.csv", "operation": "upsert", "sha256": "0" * 64, "bytes": 1}],
+        }
+        with self.assertRaises(run_manager.RunManagerError):
+            run_manager.validate_manifest(payload)
+
+
+REFRESH_SH = LOCAL / "refresh.sh"
+
+
+def bash_snippet(script: str, env: dict[str, str] | None = None) -> str:
+    result = subprocess.run(
+        ["bash", "-c", script], capture_output=True, text=True, env={**os.environ, **(env or {})}
+    )
+    return result.stdout.strip()
+
+
+class GitTransportTests(unittest.TestCase):
+    def classify(self, log: str) -> str:
+        # eval "$(sed ...)" instead of source <(...): macOS ships bash 3.2
+        # where sourcing from process substitution is unreliable.
+        script = (
+            f'eval "$(sed -n "/^classify_git_error()/,/^}}/p" "{REFRESH_SH}")"; '
+            f"classify_git_error \"$1\""
+        )
+        result = subprocess.run(["bash", "-c", script, "_", log], capture_output=True, text=True)
+        return result.stdout.strip()
+
+    def test_error_classification_is_structured(self) -> None:
+        cases = {
+            "fatal: unable to access: Could not resolve host: github.com": "GIT_DNS_FAILURE",
+            "SSL certificate problem: unable to get local issuer": "GIT_TLS_FAILURE",
+            "Received HTTP code 407 from proxy after CONNECT": "GIT_PROXY_FAILURE",
+            "fatal: Authentication failed for 'https://github.com/x'": "GIT_AUTH_FAILED",
+            "! [remote rejected] main -> main (pre-receive hook declined)": "GIT_REMOTE_REJECTED",
+            "fatal: unable to access: Connection timed out": "GIT_CONNECT_FAILURE",
+            "some other unknown failure": "GIT_PUSH_FAILED",
+        }
+        for log, expected in cases.items():
+            self.assertEqual(self.classify(log), expected, log)
+
+    def probe_with_curl_stub(self, status: str) -> int:
+        with tempfile.TemporaryDirectory() as temp:
+            stub = pathlib.Path(temp) / "curl"
+            stub.write_text(f"#!/bin/sh\nprintf '{status}'\n")
+            stub.chmod(0o755)
+            script = (
+                f'eval "$(sed -n "/^github_ok()/,/^}}/p" "{REFRESH_SH}")"; '
+                'github_probe_url() { echo "https://example.invalid/info/refs"; }; '
+                'github_ok ""; echo $?'
+            )
+            result = subprocess.run(
+                ["bash", "-c", script],
+                capture_output=True, text=True,
+                env={**os.environ, "PATH": f"{temp}:{os.environ['PATH']}"},
+            )
+            return int(result.stdout.strip().splitlines()[-1])
+
+    def test_http_502_gateway_page_is_not_a_usable_route(self) -> None:
+        self.assertEqual(self.probe_with_curl_stub("502"), 1)
+
+    def test_smart_http_200_and_auth_401_prove_the_route(self) -> None:
+        self.assertEqual(self.probe_with_curl_stub("200"), 0)
+        self.assertEqual(self.probe_with_curl_stub("401"), 0)
+
+
+class SharedStateProjectionTests(unittest.TestCase):
+    """Panel display and collector scheduling must agree on 'schedulable'."""
+
+    def test_panel_schedulable_equals_scheduler_selection(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            queue_path = root / "queue.json"
+            state_path = root / "capture-state.json"
+            queue_path.write_text(json.dumps({"targets": [
+                {"nextAction": "capture-event", "tournamentID": "100001", "eventName": "A"},
+                {"nextAction": "capture-event", "tournamentID": "100002", "eventName": "B"},
+                {"nextAction": "capture-event", "tournamentID": "100003", "eventName": "C"},
+                {"nextAction": "monitor", "tournamentID": "100004", "eventName": "D"},
+            ]}))
+            state_path.write_text(json.dumps({"schemaVersion": 2, "events": {
+                "100001": {"status": "complete", "capturedAt": "2999-01-01T00:00:00+00:00"},
+                "100002": {
+                    "status": "quarantined", "nextRetryAt": "2999-01-01T00:00:00+00:00",
+                    "parserVersion": sync_chess_results_event.PARSER_VERSION,
+                },
+            }}))
+            with (
+                mock.patch.object(local_panel, "QUEUE_PATH", queue_path),
+                mock.patch.object(local_panel, "CAPTURE_STATE_PATH", state_path),
+                mock.patch.object(sync_chess_results_event, "EVENT_QUEUE", queue_path),
+                mock.patch.object(sync_chess_results_event, "CAPTURE_STATE", state_path),
+            ):
+                panel_view = local_panel.queue_payload()
+                scheduler = sync_chess_results_event.queue_targets(10, local_panel.REFRESH_DAYS)
+            schedulable = [t["tournamentID"] for t in panel_view["targets"] if t["schedulable"]]
+            self.assertEqual(schedulable, scheduler)
+            self.assertEqual(panel_view["summary"]["schedulable"], len(scheduler))
+            self.assertEqual(panel_view["upcoming"], scheduler)
+
+    def test_recent_captures_include_off_queue_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            queue_path = root / "queue.json"
+            state_path = root / "capture-state.json"
+            queue_path.write_text(json.dumps({"targets": [
+                {"nextAction": "capture-event", "tournamentID": "100001"},
+            ]}))
+            state_path.write_text(json.dumps({"schemaVersion": 2, "events": {
+                "999888": {  # pasted TNR, not in the static queue
+                    "status": "complete", "capturedAt": "2026-07-14T12:00:00+00:00",
+                    "updatedAt": "2026-07-14T12:00:00+00:00", "players": 25, "rounds": 9,
+                },
+            }}))
+            with (
+                mock.patch.object(local_panel, "QUEUE_PATH", queue_path),
+                mock.patch.object(local_panel, "CAPTURE_STATE_PATH", state_path),
+            ):
+                entries = local_panel.recent_payload()["entries"]
+            self.assertEqual(entries[0]["tournamentID"], "999888")
+            self.assertFalse(entries[0]["inQueue"])
+            self.assertEqual(entries[0]["status"], "complete")
+
+
+class ReceiptAdvanceTests(unittest.TestCase):
+    def test_advance_stops_at_first_unconfirmed_stage(self) -> None:
+        import check_receipts
+
+        delivery = {"status": "pushed"}
+        self.assertEqual(check_receipts.advance(delivery, {}), "pushed")
+        self.assertEqual(
+            check_receipts.advance(delivery, {"ingested-to-main": {"ok": True}}),
+            "ingested-to-main",
+        )
+        self.assertEqual(
+            check_receipts.advance(delivery, {
+                "ingested-to-main": {"ok": True},
+                "indexes-rebuilt": {"ok": True},
+                "deployed": {"ok": True},
+            }),
+            "deployed",
+        )
+        self.assertEqual(
+            check_receipts.advance(delivery, {
+                "ingested-to-main": {"ok": True},
+                "indexes-rebuilt": {"ok": False},
+                "deployed": {"ok": True},  # out-of-order confirmations never skip a stage
+            }),
+            "ingested-to-main",
+        )
+        self.assertEqual(
+            check_receipts.advance({"status": "deployed"}, {"online-verified": {"ok": True}}),
+            "online-verified",
+        )
+
+    def test_pushed_is_never_displayed_as_published(self) -> None:
+        import check_receipts
+
+        self.assertEqual(
+            check_receipts.STAGE_ORDER,
+            ["pushed", "ingested-to-main", "indexes-rebuilt", "deployed", "online-verified"],
+        )
+        self.assertEqual(check_receipts.STAGE_ORDER[-1], "online-verified")
+
+
+class IngestWorkflowContractTests(unittest.TestCase):
+    def test_ingest_applies_the_immutable_event_sha(self) -> None:
+        workflow = (SCRIPTS.parent / ".github" / "workflows" / "ingest-local-data.yml").read_text(encoding="utf-8")
+        self.assertIn("github.sha", workflow)
+        self.assertIn("steps.source.outputs.sha", workflow)
+        self.assertNotIn("--source-ref origin/local-data", workflow)
+        self.assertIn("ingest receipt", workflow.lower())
+
+
 class FideArchiveTests(unittest.TestCase):
     def test_truncated_zip_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

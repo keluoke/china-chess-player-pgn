@@ -98,10 +98,17 @@ def is_event_level(entry: dict) -> bool:
 
 
 def recent_events(limit: int = 8) -> list[dict]:
-    events = read_json(DOCS_DATA / "index" / "events.json", []) or []
-    # "Latest archived games" is intentionally based on usable PGN coverage,
-    # not merely the latest event in a player's prospective tournament list.
-    dated = [e for e in events if e.get("date") and e.get("gameCount") and is_event_level(e)]
+    """Homepage "四类目标赛事更新": curated public catalog only.
+
+    The old behaviour surfaced whatever PGN arrived last — overseas opens,
+    test events and league fragments. The homepage now only shows the four
+    target series (棋协大师赛/李成智杯/世少赛/亚少赛) from public-events.json,
+    newest event date first.
+    """
+    payload = read_json(DOCS_DATA / "index" / "public-events.json", {}) or {}
+    events = payload.get("events") or []
+    today = dt.date.today().isoformat()
+    dated = [e for e in events if e.get("date") and str(e.get("date")) <= today]
     dated.sort(key=lambda e: str(e.get("date")), reverse=True)
     return [
         {
@@ -109,12 +116,15 @@ def recent_events(limit: int = 8) -> list[dict]:
             "displayName": e.get("displayName") or e.get("chineseName") or e.get("name"),
             "name": e.get("name"),
             "chineseName": e.get("chineseName"),
+            "series": e.get("series"),
+            "seriesLabel": e.get("seriesLabel"),
+            "groupLabel": e.get("groupLabel"),
             "date": e.get("date"),
-            "source": e.get("source"),
+            "source": "Chess-Results",
             "url": e.get("url"),
-            "players": (e.get("players") or [])[:4],
             "playerCount": e.get("playerCount"),
             "gameCount": e.get("gameCount"),
+            "detailStatus": e.get("detailStatus"),
         }
         for e in dated[:limit]
     ]

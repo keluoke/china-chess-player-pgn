@@ -107,14 +107,6 @@ local-data manifest → CI 精确 ingest → 离线派生索引 → 部署
   → 维护者本地私有采集 → 合规/隐私/质量过滤 → 获准来源才形成发布包
 ```
 
-## 社区贡献流水线
-
-贡献者住宅 IP 分摊 Chess-Results 的 2000 visits/day 限制(治理机制见
-`GOVERNANCE.md`,流程细节见 `data/incoming/README.md`):
-
-```
-独立贡献工具(china-chess-contributor) → PR: data/incoming/<id>/(解析结果 + HTML/PGN 证据)
-  → CI 离线甄别(validate_incoming.py:证据重解析/重切逐字节比对)
-  → 维护者合并 → 本地 refresh.sh contrib(promote_incoming.py --verify 抽查回抓)
-  → 并入 data/generated + docs/data/pgn → contributors.csv 鸣谢 → reindex 上线
-```
+> 历史废案说明：早期版本曾允许贡献者上传解析结果与 HTML/PGN 证据
+> （旧 contrib 流程）。该流程已被治理规则废止：社区只提交目标线索与
+> 人工勘误，抓取载荷一律由 CI 拒绝，任何采集只在维护者本机执行。
