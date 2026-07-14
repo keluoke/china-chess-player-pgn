@@ -20,7 +20,7 @@ document.querySelector("#coverageUpdated").textContent = `更新于 ${formatTime
 
 const recentEvents = dashboard?.recentEvents ?? [];
 document.querySelector("#recentEventsMeta").textContent = recentEvents.length ? `最近 ${recentEvents.length} 项` : "";
-document.querySelector("#coverageRecentEvents").innerHTML = recentEvents.length ? recentEvents.map(event => `<a class="recent-event" href="./?event=${encodeURIComponent(event.id)}"><div><strong>${escapeHTML(event.displayName || event.name || "未命名赛事")}</strong><span>${escapeHTML([event.date, event.playerCount ? `${event.playerCount} 位中国棋手` : "", event.gameCount ? `${event.gameCount} 盘` : ""].filter(Boolean).join(" · "))}</span></div></a>`).join("") : empty("暂无赛事更新");
+document.querySelector("#coverageRecentEvents").innerHTML = recentEvents.length ? recentEvents.map(event => `<a class="recent-event" href="./?event=${encodeURIComponent(event.id)}"><div><strong>${escapeHTML(event.displayName || event.name || "未命名赛事")}</strong><span>${escapeHTML([event.date, event.seriesLabel || "", event.playerCount ? `${event.playerCount} 位中国棋手` : "", event.gameCount ? `${event.gameCount} 盘` : "", event.detailStatus === "published" ? "完整赛果" : ""].filter(Boolean).join(" · "))}</span></div></a>`).join("") : empty("暂无四类目标赛事更新");
 
 const changes = (changelog?.entries ?? []).slice(0, 8);
 document.querySelector("#coverageChangelogMeta").textContent = changes.length ? `最近 ${changes.length} 次` : "";

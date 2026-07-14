@@ -97,8 +97,12 @@ class GovernanceLanguageTests(unittest.TestCase):
     def test_data_and_code_publication_are_distinguished(self) -> None:
         agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("publish_code_via_api", agents)
-        self.assertIn("PR 分支", agents)
         self.assertIn("link-only", agents)
+        # Default workflow is main-only; branches only on explicit request.
+        self.assertIn("默认只在 `main` 上工作", agents)
+        self.assertIn("不要为普通任务创建新分支", agents)
+        local_readme = (REPO / "Scripts" / "local" / "README.md").read_text(encoding="utf-8")
+        self.assertIn("默认直接在 `main` 上工作", local_readme)
 
 
 if __name__ == "__main__":

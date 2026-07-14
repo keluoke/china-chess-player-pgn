@@ -22,9 +22,11 @@
 4. 采集机永不 pull/rebase。GitHub 网络失败时只重投已生成的 release/outbox，禁止
    为了 push 失败重新抓取。GitHub 代理只用于 Git/GitHub API，来源请求必须直连
    住宅 IP（数据中心 IP 会被来源封禁）。
-5. 代码和人工数据不得通过 local-data 发布；走短命 PR 分支。普通 Git 不通时使用
-   文档化的代码 API publisher（`Scripts/local/publish_code_via_api.py`），先
-   dry-run 冲突检查。
+5. 代码和人工数据不得通过 local-data 发布。**默认只在 `main` 上工作和提交；
+   不要为普通任务创建新分支**——只有用户明确要求 PR/隔离分支时才建分支。
+   普通 Git 不通时使用文档化的代码 API publisher
+   （`Scripts/local/publish_code_via_api.py`，以远端 main 为基准，先 dry-run
+   冲突检查）。
 6. 禁止手改 data/generated；人工修正只进 data/manual 或 data/community。registry 是
    姓名和等级分唯一权威；姓名勘误写 name-corrections.csv，转会写 federation-overrides.csv。
 7. 旧 refresh 命令已退役，不得调用（在文档中只能作为"已退役"提及）。来源健康检查

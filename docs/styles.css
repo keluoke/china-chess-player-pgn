@@ -1707,3 +1707,9 @@ button.pairing-pgn {
 .leaderboard-more > summary { padding: 0.7rem 0.4rem; color: var(--accent-strong); font-size: 0.85rem; cursor: pointer; list-style: none; text-align: center; }
 .leaderboard-more > summary::-webkit-details-marker { display: none; }
 .leaderboard-more[open] > summary { color: var(--muted); }
+
+/* Foldable event-detail sections (概览常显，名单/逐轮/排名可折叠) */
+details.event-fold > summary { cursor: pointer; list-style: none; }
+details.event-fold > summary::-webkit-details-marker { display: none; }
+details.event-fold > summary > span::after { content: " ▾"; opacity: .6; }
+details.event-fold[open] > summary > span::after { content: " ▴"; opacity: .6; }

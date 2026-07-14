@@ -166,8 +166,9 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 
 ## 代码发布（与数据发布分离）
 
-代码修改永不通过 `local-data` 投递，走短命 PR 分支。普通 Git 不通时使用
-API 发布器（基于远端 main 创建 PR 分支，先做 dry-run 三方合并冲突检查）：
+代码修改永不通过 `local-data` 投递。**默认直接在 `main` 上工作和提交**，
+不为普通任务创建分支；仅当用户明确要求 PR/隔离时才建短命分支。普通 Git
+不通时使用 API 发布器（以远端 main 为基准，先做 dry-run 三方合并冲突检查）：
 
 ```bash
 python3 Scripts/local/publish_code_via_api.py --help

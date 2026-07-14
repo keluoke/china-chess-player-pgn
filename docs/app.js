@@ -71,6 +71,8 @@ const pgnViewerCache = new Map();
 const pgnViewerRequests = new Map();
 let eventCatalog = null;
 let eventCatalogRequest = null;
+let fullEventCatalog = null;
+let fullEventCatalogRequest = null;
 const eventDetailCache = new Map();
 const eventDetailRequests = new Map();
 const domesticDetailCache = new Map();
@@ -732,23 +734,25 @@ function renderSearch() {
   const playerSearch = queryReady ? searchPlayers(state.query) : { items: [], total: 0, truncated: false };
   const matches = playerSearch.items;
   const playerGroups = groupPlayerMatches(matches);
-  const eventMatches = queryReady ? searchEvents(state.query) : [];
+  const eventSearch = queryReady ? searchEvents(state.query) : { items: [], total: 0, truncated: false };
+  const eventMatches = eventSearch.items;
   const hasQuery = state.query.length > 0;
   if (queryReady && !eventCatalog) requestEventCatalog();
   els.searchResultsSection.hidden = !hasQuery;
   if (els.searchHome) els.searchHome.hidden = hasQuery || Boolean(selectedPlayer()) || Boolean(state.selectedEventID);
   const ambiguousNames = playerGroups.filter(group => group.length > 1).length;
   els.searchCount.textContent = queryReady
-    ? `找到 ${playerSearch.total} 位棋手${ambiguousNames ? `（${ambiguousNames} 个姓名待区分）` : ""}${domesticSearchReady ? "" : " · 无 FIDE 档案加载中…"}`
+    ? `找到 ${eventSearch.total} 项赛事 · ${playerSearch.total} 位棋手${ambiguousNames ? `（${ambiguousNames} 个姓名待区分）` : ""}${domesticSearchReady ? "" : " · 无 FIDE 档案加载中…"}`
     : "请至少输入两个字符";
   const eventResults = eventMatches.length ? `
     <section class="search-result-group">
-      <div class="search-result-group-title"><h3>赛事</h3><span>${eventMatches.length} 项</span></div>
+      <div class="search-result-group-title"><h3>赛事</h3><span>${eventSearch.truncated ? `显示 ${eventMatches.length} / ${eventSearch.total} 项` : `${eventSearch.total} 项`}</span></div>
       <div class="event-search-list">${eventMatches.map(event => `
         <a class="result-button event-search-result" href="?event=${encodeURIComponent(event.id)}" data-event-id="${escapeAttribute(event.id)}">
           <div class="player-name">${highlightMatch(event.displayName ?? event.chineseName ?? event.name ?? "未命名赛事", state.query)}</div>
-          <div class="player-meta">${escapeHTML([event.date || "日期待补", event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : "", event.source].filter(Boolean).join(" · "))}</div>
+          <div class="player-meta">${escapeHTML([event.date || "日期待补", event.groupLabel || "", event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : "", event.seriesLabel || event.source].filter(Boolean).join(" · "))}</div>
         </a>`).join("")}</div>
+      ${eventSearch.truncated ? `<p class="search-limit-note">赛事结果仅显示前 ${eventMatches.length} 条（共 ${eventSearch.total} 条），请补充年份、站点或组别缩小范围。</p>` : ""}
     </section>` : "";
   const playerResults = playerGroups.length ? `
     <section class="search-result-group">
@@ -883,7 +887,9 @@ function renderDetail() {
 }
 
 function renderDomesticPlayerDetail(player) {
-  if (!eventCatalog) requestEventCatalog();
+  // Per-sighting PGN checks need the full internal catalog, not just the
+  // curated public one.
+  if (!fullEventCatalog) requestFullEventCatalog();
   const cachedDetail = domesticDetailCache.get(player.domesticID);
   if (!player.sightings && cachedDetail) Object.assign(player, cachedDetail);
   if (!player.sightings && player.detailPath) {
@@ -960,8 +966,20 @@ function renderEvent() {
     requestEventCatalog();
     return;
   }
-  const event = eventCatalog.find(item => item.id === eventID);
+  const event = findCatalogEvent(eventID);
   if (!event) {
+    // Deep links may reference events outside the curated public catalog
+    // (e.g. historical Lichess broadcast IDs); fall back to the full
+    // internal catalog once before declaring the link dead.
+    if (!fullEventCatalog && !fullEventCatalogRequest) {
+      els.eventPane.innerHTML = `<div class="event-loading">正在载入完整赛事目录…</div>`;
+      requestFullEventCatalog();
+      return;
+    }
+    if (fullEventCatalogRequest) {
+      els.eventPane.innerHTML = `<div class="event-loading">正在载入完整赛事目录…</div>`;
+      return;
+    }
     els.eventPane.innerHTML = `
       <div class="event-empty">
         <h2>未找到赛事</h2>
@@ -983,6 +1001,8 @@ function renderEvent() {
     : "仅展示已收录中国棋手";
   const facts = [
     ["日期", event.date],
+    ["系列", event.seriesLabel],
+    ["组别", event.groupLabel],
     ["轮次", event.rounds],
     ["报名人数", event.participants],
     ["中国棋手", event.playerCount ? `${event.playerCount} 名` : null],
@@ -990,6 +1010,9 @@ function renderEvent() {
     ["已归档 PGN", event.gameCount ? `${compactNumber(event.gameCount)} 盘` : null],
     ["有棋谱棋手", event.pgnPlayerCount ? `${event.pgnPlayerCount} 名` : null]
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
+  // Long roster / per-round sections fold by default on narrow (mobile)
+  // screens; the overview stays always visible.
+  const foldOpen = (typeof window !== "undefined" && window.innerWidth > 720) ? " open" : "";
 
   els.eventPane.innerHTML = `
     <div class="detail-title event-title">
@@ -1006,13 +1029,13 @@ function renderEvent() {
     <div class="event-facts">
       ${facts.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(String(value))}</strong></div>`).join("")}
     </div>
-    <section class="event-roster">
-      <div class="section-heading"><h3>${eventDetail ? "已收录 FIDE 棋手" : "参赛中国棋手"}</h3><span>${eventPlayers.length ? `${eventPlayers.length} 名可跳转` : "名单待同步"}</span></div>
+    <details class="event-roster event-fold"${foldOpen}>
+      <summary class="section-heading"><h3>${eventDetail ? "已收录 FIDE 棋手" : "参赛中国棋手"}</h3><span>${eventPlayers.length ? `${eventPlayers.length} 名可跳转` : "名单待同步"}</span></summary>
       ${visiblePlayers.length ? `<div class="event-player-grid">${visiblePlayers.map(player => `
         <button class="event-player" type="button" data-action="select-event-player" data-fide="${escapeAttribute(player.fideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}">
           <strong>${escapeHTML(displayName(player))}</strong><span>FIDE ${escapeHTML(player.fideID)}</span>
         </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手；完整名单见信源赛事页。</p>` : ""}` : `<div class="empty-state compact">该赛事已有赛事记录，但棋手名单尚未同步。</div>`}
-    </section>
+    </details>
     ${eventDetail ? domesticEventData(event, eventDetail) : event.detailPath ? `<div class="event-loading">正在载入逐轮成绩与最终排名…</div>` : ""}
     <p class="event-provenance">${event.canonicalEventID ? `Canonical ID：${escapeHTML(event.canonicalEventID)} · ` : ""}信源 ID：${escapeHTML(event.tournamentID ?? event.id)}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
   `;
@@ -1040,30 +1063,45 @@ function domesticEventData(event, detail) {
   const selectedRound = rounds.find(item => Number(item.round) === Number(state.selectedEventRound)) ?? rounds[rounds.length - 1];
   if (selectedRound && state.selectedEventRound == null) state.selectedEventRound = Number(selectedRound.round);
   const standings = detail.standings ?? [];
-  return `
-    <section class="event-results-section">
-      <div class="section-heading"><h3>逐轮对阵结果</h3><span>${rounds.length} 轮</span></div>
+  const foldOpen = (typeof window !== "undefined" && window.innerWidth > 720) ? " open" : "";
+  const pendingRounds = Boolean(detail.roundsPendingVerification || event.roundsPendingVerification);
+  const roundsSection = pendingRounds && !rounds.length
+    ? `<section class="event-results-section"><div class="section-heading"><h3>逐轮对阵结果</h3><span>待核验</span></div>
+       <div class="empty-state compact"><strong>逐轮待核验</strong><span>源表结构异常（如赛果列错位），逐轮成绩暂缓发布；最终排名不受影响。</span></div></section>`
+    : `<details class="event-results-section event-fold"${foldOpen}>
+      <summary class="section-heading"><h3>逐轮对阵结果</h3><span>${rounds.length} 轮</span></summary>
       <div class="event-round-tabs" role="tablist" aria-label="赛事轮次">
         ${rounds.map(item => `<button type="button" data-event-round="${escapeAttribute(item.round)}" aria-selected="${Number(item.round) === Number(selectedRound?.round)}">第 ${escapeHTML(item.round)} 轮</button>`).join("")}
       </div>
       ${selectedRound ? `<div class="pairing-list">${(selectedRound.pairings ?? []).map(pairing => pairingRow(event, selectedRound.round, pairing)).join("") || `<div class="empty-state compact">该轮暂无对阵数据。</div>`}</div>` : `<div class="empty-state compact">暂无逐轮数据。</div>`}
-    </section>
-    <section class="event-results-section">
-      <div class="section-heading"><h3>最终成绩排行</h3><span>${standings.length} 名</span></div>
+    </details>`;
+  return `
+    ${roundsSection}
+    <details class="event-results-section event-fold"${foldOpen}>
+      <summary class="section-heading"><h3>最终成绩排行</h3><span>${standings.length} 名</span></summary>
       <div class="standings-table-wrap"><table class="standings-table"><thead><tr><th>名次</th><th>棋手</th><th>FIDE ID</th><th>等级分</th><th>得分</th><th>单位</th></tr></thead><tbody>
         ${standings.map(row => `<tr><td>${escapeHTML(row.rank ?? "-")}</td><td>${eventSideControl(event, row, "")}</td><td>${escapeHTML(row.fideID || "无FIDE")}</td><td>${escapeHTML(row.rating || "-")}</td><td><strong>${escapeHTML(row.score || "-")}</strong></td><td>${escapeHTML(row.fideID ? (row.club || "-") : (publicLocationFromSighting(row) || "未公开"))}</td></tr>`).join("")}
       </tbody></table></div>
-    </section>`;
+    </details>`;
 }
 
 function pairingRow(event, round, pairing) {
   const localGame = pairing.localGame;
   const focusFideID = localGame?.playerFideIDs?.[0] || pairing.white?.fideID || pairing.black?.fideID || "";
+  // Missing-PGN states carry a reason instead of a bare "无 PGN":
+  // hasPGN=false → the source never published a game for this board;
+  // hasPGN=true but neither local nor external copy → not yet collected or
+  // withheld by the current link-only authorization.
+  const missingReason = pairing.hasPGN === false
+    ? "来源未公开棋谱"
+    : pairing.hasPGN
+    ? "待抓取/授权受限"
+    : "无棋谱信息";
   const pgnAction = localGame && focusFideID
     ? `<button type="button" class="pairing-pgn available" data-action="select-event-player" data-fide="${escapeAttribute(focusFideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}" data-round="${escapeAttribute(round)}">● 本库 PGN</button>`
     : pairing.pgnURL
     ? `<a class="pairing-pgn external" href="${escapeAttribute(pairing.pgnURL)}" target="_blank" rel="noreferrer">PGN ↗</a>`
-    : `<span class="pairing-pgn missing">无 PGN</span>`;
+    : `<span class="pairing-pgn missing" title="${escapeAttribute(missingReason)}">${escapeHTML(missingReason)}</span>`;
   return `<article class="pairing-row"><span class="pairing-board">${escapeHTML(pairing.board || "-")}</span><div>${eventSideControl(event, pairing.white ?? {}, round)}</div><strong class="pairing-result">${escapeHTML(pairing.result || "*")}</strong><div>${eventSideControl(event, pairing.black ?? {}, round)}</div>${pgnAction}</article>`;
 }
 
@@ -1074,10 +1112,13 @@ function eventSideControl(event, side, round) {
 }
 
 function requestEventCatalog() {
+  // Curated public catalog (四类目标赛事) — the only catalog product surfaces
+  // read. The full events.json stays an internal evidence/audit artifact and
+  // is fetched lazily only for deep links / per-sighting PGN checks.
   if (eventCatalogRequest) return eventCatalogRequest;
-  eventCatalogRequest = fetchJSON("./data/index/events.json", true)
-    .then(catalog => {
-      eventCatalog = Array.isArray(catalog) ? catalog : [];
+  eventCatalogRequest = fetchJSON("./data/index/public-events.json", true)
+    .then(payload => {
+      eventCatalog = Array.isArray(payload?.events) ? payload.events : [];
       renderEvent();
       if (state.query) renderSearch();
       if (isDomesticPlayer(selectedPlayer())) renderDetail();
@@ -1087,6 +1128,24 @@ function requestEventCatalog() {
     })
     .finally(() => { eventCatalogRequest = null; });
   return eventCatalogRequest;
+}
+
+function requestFullEventCatalog() {
+  if (fullEventCatalogRequest) return fullEventCatalogRequest;
+  fullEventCatalogRequest = fetchJSON("./data/index/events.json", true)
+    .then(catalog => {
+      fullEventCatalog = Array.isArray(catalog) ? catalog : [];
+      renderEvent();
+      if (isDomesticPlayer(selectedPlayer())) renderDetail();
+    })
+    .catch(() => { fullEventCatalog = []; })
+    .finally(() => { fullEventCatalogRequest = null; });
+  return fullEventCatalogRequest;
+}
+
+function findCatalogEvent(eventID) {
+  return (eventCatalog ?? []).find(item => item.id === eventID)
+    ?? (fullEventCatalog ?? []).find(item => item.id === eventID);
 }
 
 function selectedPlayer() {
@@ -2068,11 +2127,8 @@ function searchPlayers(query) {
 
 function searchEvents(query) {
   const normalized = normalize(query);
-  if (!normalized || !eventCatalog) return [];
-  return eventCatalog
-    // 只把真实赛事层暴露给搜索;round/game 级 source item(如 Lichess
-    // "Round 6: A - B" 广播片段)是证据单元,不作为赛事出现。
-    .filter(event => (event.level || "event") === "event")
+  if (!normalized || !eventCatalog) return { items: [], total: 0, truncated: false };
+  const scored = eventCatalog
     .map(event => {
       const terms = [
         event.displayName,
@@ -2090,9 +2146,9 @@ function searchEvents(query) {
       return { event, score };
     })
     .filter(entry => entry.score > 0)
-    .sort((a, b) => b.score - a.score || String(b.event.date ?? "").localeCompare(String(a.event.date ?? "")))
-    .slice(0, 12)
-    .map(entry => entry.event);
+    .sort((a, b) => b.score - a.score || String(b.event.date ?? "").localeCompare(String(a.event.date ?? "")));
+  const items = scored.slice(0, 12).map(entry => entry.event);
+  return { items, total: scored.length, truncated: scored.length > items.length };
 }
 
 function sameNameCount(player) {
@@ -2136,7 +2192,7 @@ function sightingEventID(sighting) {
 
 function sightingHasPGN(sighting) {
   const eventID = sightingEventID(sighting);
-  const event = eventCatalog?.find(item => item.id === eventID);
+  const event = (fullEventCatalog ?? eventCatalog)?.find(item => item.id === eventID);
   return Boolean(event && (Number(event.gameCount) > 0 || Number(event.pgnCount) > 0 || event.detailPath));
 }
 
