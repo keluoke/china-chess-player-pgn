@@ -434,6 +434,127 @@ def validate_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return files
 
 
+# --- delivery outbox --------------------------------------------------------
+# A release bundle is an immutable snapshot of "what must reach local-data":
+# the exact manifest, the hashed file contents from the release commit, and a
+# delivery state machine. Collection finishes as soon as the bundle exists;
+# Git and API transports both consume the same bundle, so a GitHub failure
+# never requires re-scraping and can never widen the file list.
+
+OUTBOX_STATUSES = {
+    "pending", "pushed", "ingested-to-main", "indexes-rebuilt", "deployed",
+    "online-verified", "abandoned",
+}
+
+
+def outbox_root() -> pathlib.Path:
+    root = local_state_root() / "outbox"
+    root.mkdir(parents=True, exist_ok=True)
+    os.chmod(root, 0o700)
+    return root
+
+
+def _outbox_write_bundle(repo: pathlib.Path, commit: str, manifest: dict[str, Any]) -> pathlib.Path:
+    files = validate_manifest(manifest)
+    run_id = str(manifest.get("runId") or "")
+    if not run_id:
+        raise RunManagerError("RELEASE_MANIFEST_INVALID", "manifest 缺少 runId，无法建立 outbox 包。")
+    entry = outbox_root() / run_id
+    files_dir = entry / "files"
+    files_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(entry, 0o700)
+    for item in files:
+        if item["operation"] != "upsert":
+            continue
+        path = item["path"]
+        content = git(repo, "show", f"{commit}:{path}").stdout
+        digest = hashlib.sha256(content).hexdigest()
+        if digest != item.get("sha256"):
+            raise RunManagerError("RELEASE_HASH_MISMATCH", f"outbox 内容与 manifest 哈希不符：{path}")
+        target = files_dir / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        tmp = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+        tmp.write_bytes(content)
+        os.replace(tmp, target)
+        os.chmod(target, 0o600)
+    atomic_json(entry / "manifest.json", manifest)
+    atomic_json(entry / "delivery.json", {
+        "schemaVersion": 1,
+        "runId": run_id,
+        "commit": commit,
+        "status": "pending",
+        "attempts": 0,
+        "route": None,
+        "remoteSHA": None,
+        "lastError": None,
+        "createdAt": now(),
+        "updatedAt": now(),
+    })
+    prune_outbox()
+    return entry
+
+
+def outbox_save(repo: pathlib.Path, run_dir: pathlib.Path, commit: str) -> dict[str, Any]:
+    manifest = read_json(run_dir / "release-manifest.json")
+    if not manifest:
+        raise RunManagerError("RELEASE_MANIFEST_MISSING", f"本次运行没有 release manifest：{run_dir}")
+    entry = _outbox_write_bundle(repo, commit, manifest)
+    return {"outbox": str(entry), "runId": manifest.get("runId"), "commit": commit}
+
+
+def outbox_import(repo: pathlib.Path, commit: str) -> dict[str, Any]:
+    """Import a pre-outbox committed manifest (legacy HEAD) as a bundle."""
+    shown = git(repo, "show", f"{commit}:{MANIFEST_PATH}").stdout
+    manifest = json.loads(shown.decode("utf-8"))
+    entry = _outbox_write_bundle(repo, commit, manifest)
+    return {"outbox": str(entry), "runId": manifest.get("runId"), "commit": commit}
+
+
+def outbox_entries(status: str | None = None) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    root = outbox_root()
+    for path in sorted(root.iterdir()):
+        if not path.is_dir():
+            continue
+        delivery = read_json(path / "delivery.json")
+        if not delivery:
+            continue
+        if status and delivery.get("status") != status:
+            continue
+        delivery["path"] = str(path)
+        entries.append(delivery)
+    entries.sort(key=lambda item: str(item.get("createdAt") or ""))
+    return entries
+
+
+def outbox_update(run_id: str, status: str | None, remote_sha: str | None,
+                  route: str | None, error: str | None) -> dict[str, Any]:
+    entry = outbox_root() / run_id
+    delivery = read_json(entry / "delivery.json")
+    if not delivery:
+        raise RunManagerError("OUTBOX_ENTRY_MISSING", f"outbox 中没有 {run_id}")
+    if status:
+        if status not in OUTBOX_STATUSES:
+            raise RunManagerError("OUTBOX_STATUS_INVALID", f"非法投递状态：{status}")
+        delivery["status"] = status
+    if remote_sha:
+        delivery["remoteSHA"] = remote_sha
+    if route:
+        delivery["route"] = route
+    delivery["lastError"] = error or None
+    delivery["attempts"] = int(delivery.get("attempts") or 0) + (1 if (error or status == "pushed") else 0)
+    delivery["updatedAt"] = now()
+    atomic_json(entry / "delivery.json", delivery)
+    return delivery
+
+
+def prune_outbox(keep_delivered: int = 10) -> None:
+    delivered = [item for item in outbox_entries() if item.get("status") not in {"pending"}]
+    delivered.sort(key=lambda item: str(item.get("updatedAt") or ""), reverse=True)
+    for item in delivered[keep_delivered:]:
+        shutil.rmtree(item["path"], ignore_errors=True)
+
+
 def apply_release(repo: pathlib.Path, source_ref: str, path_list: pathlib.Path | None) -> dict[str, Any]:
     shown = git(repo, "show", f"{source_ref}:{MANIFEST_PATH}").stdout
     payload = json.loads(shown.decode("utf-8"))
@@ -499,6 +620,22 @@ def parser() -> argparse.ArgumentParser:
     apply_p.add_argument("--repo", required=True, type=pathlib.Path)
     apply_p.add_argument("--source-ref", default="origin/local-data")
     apply_p.add_argument("--path-list", type=pathlib.Path)
+    outbox_save_p = sub.add_parser("outbox-save")
+    outbox_save_p.add_argument("--repo", required=True, type=pathlib.Path)
+    outbox_save_p.add_argument("--run-dir", required=True, type=pathlib.Path)
+    outbox_save_p.add_argument("--commit", required=True)
+    outbox_import_p = sub.add_parser("outbox-import")
+    outbox_import_p.add_argument("--repo", required=True, type=pathlib.Path)
+    outbox_import_p.add_argument("--commit", required=True)
+    outbox_list_p = sub.add_parser("outbox-list")
+    outbox_list_p.add_argument("--status")
+    outbox_list_p.add_argument("--plain", action="store_true", help="print runId<TAB>commit lines for shell use")
+    outbox_update_p = sub.add_parser("outbox-update")
+    outbox_update_p.add_argument("--run-id", required=True)
+    outbox_update_p.add_argument("--status")
+    outbox_update_p.add_argument("--remote-sha")
+    outbox_update_p.add_argument("--route")
+    outbox_update_p.add_argument("--error")
     return root
 
 
@@ -534,6 +671,22 @@ def main() -> int:
             print(json.dumps(promote_staging(args.repo, args.run_dir, args.tree, args.overlay, args.file), ensure_ascii=False))
         elif args.action == "apply":
             print(json.dumps(apply_release(args.repo, args.source_ref, args.path_list), ensure_ascii=False))
+        elif args.action == "outbox-save":
+            print(json.dumps(outbox_save(args.repo, args.run_dir, args.commit), ensure_ascii=False))
+        elif args.action == "outbox-import":
+            print(json.dumps(outbox_import(args.repo, args.commit), ensure_ascii=False))
+        elif args.action == "outbox-list":
+            entries = outbox_entries(args.status)
+            if args.plain:
+                for item in entries:
+                    print(f"{item.get('runId')}\t{item.get('commit')}")
+            else:
+                print(json.dumps(entries, ensure_ascii=False, indent=2))
+        elif args.action == "outbox-update":
+            print(json.dumps(
+                outbox_update(args.run_id, args.status, args.remote_sha, args.route, args.error),
+                ensure_ascii=False,
+            ))
         return 0
     except RunManagerError as error:
         print(json.dumps({"ok": False, "code": error.code, "message": str(error)}, ensure_ascii=False), file=sys.stderr)

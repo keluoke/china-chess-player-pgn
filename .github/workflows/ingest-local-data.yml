@@ -27,14 +27,33 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Apply exact validated local release
+      - name: Resolve immutable source SHA
+        id: source
         run: |
           set -euo pipefail
-          git fetch origin local-data
-          python3 Scripts/local/run_manager.py apply \
+          # A push event carries the exact commit that triggered this run.
+          # Using it (instead of re-reading the moving local-data head) keeps
+          # two rapid force-pushes from cross-ingesting each other's release.
+          if [ "${{ github.event_name }}" = "push" ]; then
+            sha="${{ github.sha }}"
+          else
+            git fetch origin local-data
+            sha="$(git rev-parse origin/local-data)"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Apply exact validated local release
+        id: apply
+        run: |
+          set -euo pipefail
+          git fetch origin "${{ steps.source.outputs.sha }}"
+          result="$(python3 Scripts/local/run_manager.py apply \
             --repo . \
-            --source-ref origin/local-data \
-            --path-list "$RUNNER_TEMP/local-release-paths.txt"
+            --source-ref "${{ steps.source.outputs.sha }}" \
+            --path-list "$RUNNER_TEMP/local-release-paths.txt")"
+          echo "$result"
+          run_id="$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("runId") or "")')"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
 
       - name: Validate staged registry when present
         run: |
@@ -58,6 +77,21 @@ jobs:
             [ -n "$path" ] && paths+=("$path")
           done < "$RUNNER_TEMP/local-release-paths.txt"
           bash Scripts/ci_commit_push.sh "Ingest validated local release" "${paths[@]}"
+
+      - name: Write ingest receipt
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## Local release ingest receipt"
+            echo ""
+            echo "| field | value |"
+            echo "|---|---|"
+            echo "| release run-id | \`${{ steps.apply.outputs.run_id || 'n/a' }}\` |"
+            echo "| source (event) SHA | \`${{ steps.source.outputs.sha }}\` |"
+            echo "| main commit | \`$(git rev-parse HEAD)\` |"
+            echo "| committed | \`${{ steps.commit.outputs.committed || 'false' }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Trigger index rebuild + deploy
         if: steps.commit.outputs.committed == 'true'

@@ -18,7 +18,9 @@
 #   candidates   Collect starting-rank name candidates privately for review.
 #   bulk         Mirror Lichess Broadcasts under CC BY-SA 4.0 and release.
 #   bulk-full    Same as bulk, force-refresh every selected shard.
-#   push         Redeliver the latest committed manifest; never re-scrapes.
+#   deliver      Deliver pending outbox release bundles; never re-scrapes.
+#   push         Alias of deliver (kept for compatibility).
+#   receipts     Sync cloud ingest/rebuild/deploy receipts + online check.
 #   reindex      Offline diagnostic rebuild only; never commits or pushes.
 #
 # Retired/blocked by policy: crawl*, pgn*, events*, aliases, promote,
@@ -44,7 +46,7 @@ done
 
 case "$command" in
   ""|-h|--help|help)
-    sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    sed -n '2,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
 esac
@@ -89,6 +91,7 @@ ERROR_CODE=""
 ERROR_MESSAGE=""
 PUSH_SUMMARY=""
 DATA_COMMITTED=false
+DELIVERED_COUNT=0
 RUN_DIR=""
 
 RUN_DIR="$(py "$RUN_MANAGER" acquire --command "$command" --pid "$$")" || exit $?
@@ -121,7 +124,14 @@ on_exit() {
   result="ok"
   message="${PUSH_SUMMARY:-任务完成}"
   if [ "$status" -ne 0 ]; then
-    detected="$(tail -n 120 "$RUN_LOG" 2>/dev/null | grep -Eo 'LOCAL_MAINTAINER_ACK_REQUIRED|COMPLIANCE_POLICY_BLOCKED|SOURCE_CIRCUIT_OPEN|VISIT_BUDGET_EXHAUSTED|SOURCE_BLOCKED_OR_RATE_LIMITED|SOURCE_TRUNCATED_DOWNLOAD|SOURCE_FILE_SIGNATURE_INVALID|SOURCE_UNEXPECTED_CONTENT_TYPE|SOURCE_NETWORK_FAILURE|PARSER_LAYOUT_CHANGED|VALIDATION_REGRESSION|REGISTRY_AUTHORITY_MISMATCH|NAME_CORRECTION_REGRESSION|DIRTY_RELEASE_PATH|GIT_INDEX_NOT_CLEAN|WORKTREE_CHANGED_DURING_RUN|RELEASE_HASH_MISMATCH' | tail -1)"
+    # Mixed batch (exit 4, PARTIAL_FAILURE): keep the aggregate code — the
+    # last underlying per-target error in the log must not masquerade as the
+    # whole batch's outcome. Per-target codes live in result.json/capture-state.
+    if [ "$status" -eq 4 ] && [ "$ERROR_CODE" = "PARTIAL_FAILURE" ]; then
+      detected=""
+    else
+      detected="$(tail -n 120 "$RUN_LOG" 2>/dev/null | grep -Eo 'LOCAL_MAINTAINER_ACK_REQUIRED|COMPLIANCE_POLICY_BLOCKED|SOURCE_CIRCUIT_OPEN|VISIT_BUDGET_EXHAUSTED|SOURCE_BLOCKED_OR_RATE_LIMITED|SOURCE_TRUNCATED_DOWNLOAD|SOURCE_FILE_SIGNATURE_INVALID|SOURCE_UNEXPECTED_CONTENT_TYPE|SOURCE_NETWORK_FAILURE|EVENT_EMPTY|PAIRINGS_NOT_PUBLISHED|TEAM_FORMAT_UNSUPPORTED|ROUND_COUNT_UNKNOWN|PAIRING_REFS_OUTSIDE_ROSTER|PAGE_CACHE_MISS|PARSER_LAYOUT_CHANGED|VALIDATION_REGRESSION|REGISTRY_AUTHORITY_MISMATCH|NAME_CORRECTION_REGRESSION|DIRTY_RELEASE_PATH|GIT_INDEX_NOT_CLEAN|WORKTREE_CHANGED_DURING_RUN|RELEASE_HASH_MISMATCH|GIT_DNS_FAILURE|GIT_TLS_FAILURE|GIT_PROXY_FAILURE|GIT_AUTH_FAILED|GIT_REMOTE_REJECTED|GIT_CONNECT_FAILURE' | tail -1)"
+    fi
     [ -n "$detected" ] && ERROR_CODE="$detected"
     if [ "$DATA_COMMITTED" = "true" ]; then
       result="push-failed"
@@ -167,15 +177,39 @@ ensure_pymod() {
 }
 
 # --- GitHub delivery (scrapers never inherit these proxy settings) --------
-GIT_PROXY=""
-GIT_PROXY_PROBED=false
+# The proxy is passed per-invocation to curl/git only; it is never exported,
+# so Chess-Results/FIDE/Lichess requests always stay on the residential IP.
+GITHUB_PROBE_URL=""
+LAST_PUSH_ERROR=""
+
+github_probe_url() {
+  if [ -z "$GITHUB_PROBE_URL" ]; then
+    local remote repo
+    remote="$(git remote get-url origin 2>/dev/null || true)"
+    repo="$(printf '%s' "$remote" | sed -nE 's#.*github\.com[/:]([^/]+/[^/]+)$#\1#p' | sed 's/\.git$//')"
+    if [ -n "$repo" ]; then
+      GITHUB_PROBE_URL="https://github.com/${repo}.git/info/refs?service=git-upload-pack"
+    else
+      GITHUB_PROBE_URL="https://github.com/"
+    fi
+  fi
+  printf '%s' "$GITHUB_PROBE_URL"
+}
 
 github_ok() {
+  # Probe Git smart HTTP, not the github.com landing page. Inspecting the
+  # HTTP status keeps 5xx or local gateway error pages from counting as ok;
+  # 401 still proves the route reaches GitHub's Git endpoint.
+  local status
   if [ -n "$1" ]; then
-    curl -s --max-time 6 -o /dev/null -x "$1" "https://github.com/"
+    status="$(curl -s -o /dev/null --max-time 6 -x "$1" -w '%{http_code}' "$(github_probe_url)" || true)"
   else
-    curl -s --max-time 6 -o /dev/null "https://github.com/"
+    status="$(curl -s -o /dev/null --max-time 6 -w '%{http_code}' "$(github_probe_url)" || true)"
   fi
+  case "$status" in
+    200|301|401) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 system_proxy_candidates() {
@@ -193,33 +227,47 @@ system_proxy_candidates() {
     }'
 }
 
-detect_git_proxy() {
-  [ "$GIT_PROXY_PROBED" = "true" ] && return 0
-  GIT_PROXY_PROBED=true
-  if [ -n "${GITHUB_PROXY:-}" ]; then
-    GIT_PROXY="$GITHUB_PROXY"
-    return 0
-  fi
-  github_ok "" && return 0
-  local p
-  for p in $(system_proxy_candidates) "${https_proxy:-}" "${HTTPS_PROXY:-}" \
-           http://127.0.0.1:7890 http://127.0.0.1:1087 \
-           socks5h://127.0.0.1:1080 http://127.0.0.1:8118; do
-    [ -n "$p" ] || continue
-    if github_ok "$p"; then
-      GIT_PROXY="$p"
-      echo "GitHub 使用本机代理 ${p}；数据来源仍保持住宅 IP 直连。"
-      return 0
-    fi
-  done
-  return 1
+github_routes() {
+  # direct → explicit GITHUB_PROXY → macOS system proxies → env → common local
+  # proxies. Deduplicated, one route per line ("" = direct).
+  {
+    echo ""
+    [ -n "${GITHUB_PROXY:-}" ] && echo "$GITHUB_PROXY"
+    system_proxy_candidates
+    [ -n "${https_proxy:-}" ] && echo "$https_proxy"
+    [ -n "${HTTPS_PROXY:-}" ] && echo "$HTTPS_PROXY"
+    echo "http://127.0.0.1:7890"
+    echo "http://127.0.0.1:1087"
+    echo "socks5h://127.0.0.1:1080"
+    echo "http://127.0.0.1:8118"
+  } | awk '!seen[$0]++'
 }
 
 xgit() {
-  if [ -n "$GIT_PROXY" ]; then
-    git -c http.proxy="$GIT_PROXY" -c https.proxy="$GIT_PROXY" "$@"
+  local proxy="$1"; shift
+  if [ -n "$proxy" ]; then
+    git -c http.proxy="$proxy" -c https.proxy="$proxy" "$@"
   else
     git "$@"
+  fi
+}
+
+classify_git_error() {
+  local log="$1"
+  if printf '%s' "$log" | grep -qiE 'could not resolve host|name or service not known'; then
+    echo "GIT_DNS_FAILURE"
+  elif printf '%s' "$log" | grep -qiE 'ssl|tls|certificate'; then
+    echo "GIT_TLS_FAILURE"
+  elif printf '%s' "$log" | grep -qiE 'proxy'; then
+    echo "GIT_PROXY_FAILURE"
+  elif printf '%s' "$log" | grep -qiE 'authentication failed|permission denied|http 401|http 403|access denied'; then
+    echo "GIT_AUTH_FAILED"
+  elif printf '%s' "$log" | grep -qiE 'pre-receive hook|protected branch|remote rejected'; then
+    echo "GIT_REMOTE_REJECTED"
+  elif printf '%s' "$log" | grep -qiE 'timed out|failed to connect|connection (refused|reset)'; then
+    echo "GIT_CONNECT_FAILURE"
+  else
+    echo "GIT_PUSH_FAILED"
   fi
 }
 
@@ -227,19 +275,69 @@ DATA_BRANCH="local-data"
 STATE_ROOT="$(python3 -c 'import pathlib,sys; sys.path.insert(0,"Scripts"); from source_policy import local_state_root; print(local_state_root())')"
 PUSH_MARKER="$STATE_ROOT/last-local-data-push"
 
-push_with_retries() {
-  local attempt
-  detect_git_proxy || true
-  for attempt in 1 2 3; do
-    if xgit push --force origin "HEAD:refs/heads/${DATA_BRANCH}"; then
+push_commit_with_routes() {
+  # Push an exact, immutable commit SHA to the single-writer branch, rotating
+  # to the next route on failure instead of retrying the same dead route.
+  local sha="$1" route err classification
+  LAST_PUSH_ERROR=""
+  while IFS= read -r route; do
+    if ! github_ok "$route"; then
+      echo "GitHub 路线 ${route:-direct} smart HTTP 不可达，跳过。" >&2
+      continue
+    fi
+    [ -n "$route" ] && echo "GitHub 使用路线 ${route}；数据来源仍保持住宅 IP 直连。"
+    if err="$(xgit "$route" push --force origin "${sha}:refs/heads/${DATA_BRANCH}" 2>&1)"; then
+      printf '%s\n' "$err"
       mkdir -p "$(dirname "$PUSH_MARKER")"
-      git rev-parse HEAD > "$PUSH_MARKER"
+      printf '%s\n' "$sha" > "$PUSH_MARKER"
       return 0
     fi
-    echo "Push 失败（第 $attempt 次），稍后重试。" >&2
-    sleep $((attempt * 3))
-  done
+    classification="$(classify_git_error "$err")"
+    LAST_PUSH_ERROR="$classification"
+    printf '%s\n' "$err" | tail -5 >&2
+    echo "路线 ${route:-direct} 推送失败（${classification}）。" >&2
+    case "$classification" in
+      GIT_AUTH_FAILED|GIT_REMOTE_REJECTED)
+        # Rotating routes cannot fix auth or remote policy failures.
+        return 1
+        ;;
+    esac
+  done < <(github_routes)
   return 1
+}
+
+api_fallback_deliver() {
+  # Same manifest, same hashed files: the API path reuses the outbox bundle
+  # and run_manager.validate_manifest; it is not a second policy.
+  local run_id="$1"
+  command -v gh >/dev/null 2>&1 || return 1
+  gh auth status >/dev/null 2>&1 || return 1
+  echo "Git 路线全部失败；尝试 GitHub Git Database API 兜底投递 ${run_id}。"
+  py Scripts/local/publish_data_via_api.py --outbox "$run_id"
+}
+
+deliver_outbox() {
+  # Deliver every pending release bundle, oldest first. Never re-scrapes.
+  local line run_id sha delivered=0 failed=0
+  while IFS=$'\t' read -r run_id sha; do
+    [ -n "$run_id" ] || continue
+    echo "投递 outbox release ${run_id}（commit ${sha}）"
+    if push_commit_with_routes "$sha"; then
+      py "$RUN_MANAGER" outbox-update --run-id "$run_id" --status pushed \
+        --remote-sha "$sha" --route git >/dev/null
+      delivered=$((delivered + 1))
+    elif api_fallback_deliver "$run_id"; then
+      delivered=$((delivered + 1))
+    else
+      py "$RUN_MANAGER" outbox-update --run-id "$run_id" --status pending \
+        --error "${LAST_PUSH_ERROR:-GIT_PUSH_FAILED}" >/dev/null || true
+      failed=$((failed + 1))
+      # Deterministic auth/policy failures affect every bundle equally.
+      case "$LAST_PUSH_ERROR" in GIT_AUTH_FAILED|GIT_REMOTE_REJECTED) break ;; esac
+    fi
+  done < <(py "$RUN_MANAGER" outbox-list --status pending --plain)
+  DELIVERED_COUNT="$delivered"
+  [ "$failed" -eq 0 ]
 }
 
 commit_prepared_release() {
@@ -251,15 +349,20 @@ commit_prepared_release() {
   state "committing" "按 release manifest 精确提交"
   changed="$(git diff --cached --stat | tail -1)"
   git commit -m "$message" || return $?
+  # The immutable bundle (manifest + hashed files + delivery state) makes
+  # collection and GitHub delivery independent: a push failure never requires
+  # re-scraping, and multiple pending releases can queue up.
+  py "$RUN_MANAGER" outbox-save --repo "$REPO_ROOT" --run-dir "$RUN_DIR" \
+    --commit "$(git rev-parse HEAD)" >/dev/null || return $?
   DATA_COMMITTED=true
   if [ "$PUSH" = "true" ]; then
-    state "delivering" "force-push 单写者 local-data 分支"
-    push_with_retries || return 1
+    state "delivering" "投递 outbox 发布包到单写者 local-data 分支"
+    deliver_outbox || return 1
     DATA_COMMITTED=false
     PUSH_SUMMARY="已发布 $changed"
   else
     DATA_COMMITTED=false
-    PUSH_SUMMARY="已提交 ${changed}；未推送（--no-push）"
+    PUSH_SUMMARY="已提交 ${changed}；未推送（--no-push），发布包已保存到 outbox"
   fi
 }
 
@@ -326,15 +429,28 @@ run_registry() {
 }
 
 run_private_events() {
+  # Exit code 4 = partial batch: some targets failed but were isolated and
+  # recorded; completed targets are checkpointed and never re-scraped.
   reject_extra_flags --private-root --authorized-publication
   state "collecting-private" "按社区线索队列采集 Chess-Results；原始与解析数据仅写本地私有区"
   ERROR_CODE="CHESS_RESULTS_PRIVATE_COLLECTION_FAILED"
+  local rc=0
   if [ "${#EXTRA[@]}" -eq 0 ]; then
-    py Scripts/sync_chess_results_event.py --from-queue 3 --private-root "$RUN_DIR" || return $?
+    py Scripts/sync_chess_results_event.py --from-queue 3 --private-root "$RUN_DIR" || rc=$?
   else
-    py_extra Scripts/sync_chess_results_event.py --private-root "$RUN_DIR" || return $?
+    py_extra Scripts/sync_chess_results_event.py --private-root "$RUN_DIR" || rc=$?
   fi
-  PUSH_SUMMARY="私有采集完成；未向仓库发布 Chess-Results 内容"
+  if [ "$rc" -eq 0 ]; then
+    PUSH_SUMMARY="私有采集完成；未向仓库发布 Chess-Results 内容"
+  elif [ "$rc" -eq 4 ]; then
+    PUSH_SUMMARY="私有采集部分完成；失败目标已隔离记录，成功赛事已检查点保存"
+  else
+    # All targets failed. The collector already printed the structured code
+    # (e.g. EVENT_EMPTY) which on_exit extracts from the log; give the user a
+    # concrete pointer instead of a generic failure line.
+    ERROR_MESSAGE="全部目标失败；结构化原因、失败页面与原始证据已写入 capture-state 和本次 raw/ 目录，来源记录不存在的目标已自动隔离。"
+  fi
+  return "$rc"
 }
 
 run_private_candidates() {
@@ -394,7 +510,13 @@ case "$command" in
     ;;
 
   event-queue)
-    run_private_events
+    event_rc=0
+    run_private_events || event_rc=$?
+    if [ "$event_rc" -eq 4 ]; then
+      fail "PARTIAL_FAILURE" "部分赛事目标失败已隔离；成功赛事保留，失败原因见 capture-state 与本次日志。" 4
+    elif [ "$event_rc" -ne 0 ]; then
+      exit "$event_rc"
+    fi
     ;;
 
   candidates)
@@ -416,11 +538,17 @@ case "$command" in
       fail "UNSAFE_ARGUMENT_BLOCKED" "all 是固定安全流程，不接受额外采集参数；请分别运行 registry 或 event-queue。"
     fi
     partial=false
+    delivery_pending=false
     if registry_due; then
       step "FIDE registry 已到月度刷新窗口"
       if run_registry; then
+        # GitHub delivery failure must never block collection: the release
+        # bundle is already committed and saved to the outbox, so we mark it
+        # delivery-pending and continue with the event queue.
         if ! commit_prepared_release "Release validated FIDE registry (routine local manifest)"; then
-          fail "GIT_PUSH_FAILED" "FIDE 发布提交成功，但推送失败。"
+          delivery_pending=true
+          DATA_COMMITTED=false
+          echo "WARNING: GitHub 投递失败（${LAST_PUSH_ERROR:-GIT_PUSH_FAILED}）；发布包保留在 outbox，继续事件采集，稍后运行 deliver。" >&2
         fi
       else
         partial=true
@@ -429,22 +557,49 @@ case "$command" in
     else
       echo "FIDE registry 未到 25 天刷新窗口，本次跳过。"
     fi
-    if ! run_private_events; then
+    event_rc=0
+    run_private_events || event_rc=$?
+    if [ "$event_rc" -eq 4 ]; then
+      partial=true
+      echo "WARNING: Chess-Results 私有队列部分失败；失败目标已隔离，成功赛事已保留。" >&2
+    elif [ "$event_rc" -ne 0 ]; then
       partial=true
       echo "WARNING: Chess-Results 私有队列失败，不影响已经完成的 FIDE 发布。" >&2
     fi
     if [ "$partial" = "true" ]; then
       fail "PARTIAL_FAILURE" "部分独立来源失败；成功阶段已保留，失败阶段可单独重试。" 4
     fi
+    if [ "$delivery_pending" = "true" ]; then
+      PUSH_SUMMARY="采集完成；FIDE 发布包处于 delivery-pending，网络恢复后运行 refresh.sh deliver"
+      notify_mac "采集完成；发布待投递（deliver）"
+    fi
     ;;
 
-  push|redeliver)
-    state "delivering" "重新投递最近一次已提交的 release manifest"
-    [ -f data/generated/local-release-manifest.json ] || fail "RELEASE_MANIFEST_MISSING" "HEAD 没有本地发布 manifest，拒绝宽目录重推。"
-    DATA_COMMITTED=true
-    push_with_retries || fail "GIT_PUSH_FAILED" "GitHub 不可达；开启代理后重试 push。"
-    DATA_COMMITTED=false
-    PUSH_SUMMARY="最近一次发布包已重新推送"
+  deliver|push|redeliver)
+    state "delivering" "投递 outbox 中待发布的 release 包；不重新访问任何数据源"
+    if [ -z "$(py "$RUN_MANAGER" outbox-list --status pending --plain)" ]; then
+      # Legacy fallback: HEAD carries a committed manifest from before the
+      # outbox existed and it has not been pushed yet. Import it as a bundle.
+      if [ -f data/generated/local-release-manifest.json ] && ! cmp -s <(git rev-parse HEAD) "$PUSH_MARKER" 2>/dev/null; then
+        py "$RUN_MANAGER" outbox-import --repo "$REPO_ROOT" --commit "$(git rev-parse HEAD)" >/dev/null 2>&1 || true
+      fi
+    fi
+    if [ -z "$(py "$RUN_MANAGER" outbox-list --status pending --plain)" ]; then
+      PUSH_SUMMARY="outbox 没有待投递发布包"
+    else
+      deliver_outbox || fail "${LAST_PUSH_ERROR:-GIT_PUSH_FAILED}" "所有 GitHub 路线均不可用；发布包保留在 outbox，网络恢复后重试 deliver。"
+      PUSH_SUMMARY="已投递 ${DELIVERED_COUNT:-0} 个发布包"
+      # Best-effort receipt sync: pushed is not published. Failures here never
+      # affect the delivery result.
+      py Scripts/local/check_receipts.py || true
+    fi
+    ;;
+
+  receipts)
+    state "receipts" "查询云端 ingest/rebuild/deploy 回执并校验线上文件哈希"
+    ERROR_CODE="RECEIPT_CHECK_FAILED"
+    py_extra Scripts/local/check_receipts.py
+    PUSH_SUMMARY="云端回执已同步；线上验证结果见 outbox 状态"
     ;;
 
   reindex)

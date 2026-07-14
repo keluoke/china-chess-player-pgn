@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>已发布赛事目录</title>
+    <meta name="description" content="已收录并发布上线的国际象棋赛事完整目录：按日期倒序，可按来源、年份、名称、TNR 筛选。">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="styles.css?v=20260712-3">
+    <style>
+      .events-shell{max-width:1080px;margin:0 auto;padding:24px 18px 80px}
+      .events-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0}
+      .events-toolbar input[type=search],.events-toolbar select{padding:7px 10px;border:1px solid rgba(120,120,120,.35);border-radius:8px;background:inherit;color:inherit;font-size:.9rem}
+      .events-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+      .events-tabs button{border:1px solid rgba(120,120,120,.35);background:transparent;color:inherit;border-radius:999px;padding:5px 14px;cursor:pointer;font-size:.86rem}
+      .events-tabs button.active{border-color:#175bd3;color:#175bd3;font-weight:600}
+      table.events-table{width:100%;border-collapse:collapse;font-size:.88rem}
+      .events-table th,.events-table td{padding:8px 9px;border-bottom:1px solid rgba(120,120,120,.22);text-align:left;vertical-align:top}
+      .events-table a{text-decoration:none}
+      .tag{display:inline-block;border:1px solid rgba(120,120,120,.35);border-radius:999px;padding:1px 9px;font-size:.74rem;margin-left:6px;white-space:nowrap}
+      .tag.full{border-color:#177a3d;color:#177a3d}
+      .events-pager{display:flex;gap:10px;align-items:center;margin-top:14px;font-size:.86rem}
+      .events-pager button{border:1px solid rgba(120,120,120,.35);background:transparent;color:inherit;border-radius:8px;padding:6px 12px;cursor:pointer}
+      .events-pager button:disabled{opacity:.4;cursor:not-allowed}
+      .events-count{opacity:.75;font-size:.84rem}
+      #eventsStatus{padding:30px 0;opacity:.75}
+    </style>
+  </head>
+  <body class="coverage-page">
+    <main class="events-shell">
+      <nav class="page-nav"><a href="./">← 棋手搜索</a><a href="./leaderboards.html">FIDE 排行榜</a><a href="./coverage.html">数据覆盖</a></nav>
+      <header class="coverage-head">
+        <span class="eyebrow">Event catalog</span>
+        <h1>已发布赛事目录</h1>
+        <p>全部已收录并发布上线的赛事，按赛事日期倒序。「完整赛果」表示该赛事已带有完整最终排名与逐轮对阵。</p>
+      </header>
+
+      <div class="events-tabs" id="timeTabs">
+        <button data-tab="past" class="active">已结束</button>
+        <button data-tab="future">未来赛事</button>
+        <button data-tab="unknown">日期待补</button>
+      </div>
+
+      <div class="events-toolbar">
+        <select id="scopeFilter">
+          <option value="all">全部收录赛事</option>
+          <option value="full">仅完整赛果（排名+逐轮对阵）</option>
+        </select>
+        <select id="sourceFilter"><option value="">全部来源</option></select>
+        <select id="yearFilter"><option value="">全部年份</option></select>
+        <input type="search" id="searchBox" placeholder="搜索名称 / 中文名 / TNR…">
+        <span class="events-count" id="countInfo"></span>
+      </div>
+
+      <div id="eventsStatus">正在加载赛事目录…（首次加载数据较大，请稍候）</div>
+      <table class="events-table" id="eventsTable" hidden>
+        <thead><tr><th>日期</th><th>赛事</th><th>来源</th><th>人数</th><th>轮次</th><th>对局</th></tr></thead>
+        <tbody id="eventsBody"></tbody>
+      </table>
+      <div class="events-pager" id="pager" hidden>
+        <button id="prevPage">上一页</button>
+        <span id="pageInfo"></span>
+        <button id="nextPage">下一页</button>
+      </div>
+    </main>
+
+    <script>
+    (async function () {
+      const PAGE_SIZE = 100;
+      const $ = (s) => document.querySelector(s);
+      const state = { tab: "past", scope: "all", source: "", year: "", search: "", page: 0 };
+      let events = [];
+      let fullSet = new Set();
+
+      function esc(v) {
+        return String(v ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+      }
+
+      try {
+        const [eventsResp, detailsResp] = await Promise.all([
+          fetch("./data/index/events.json"),
+          fetch("./data/index/event-details/manifest.json").catch(() => null),
+        ]);
+        events = await eventsResp.json();
+        if (detailsResp && detailsResp.ok) {
+          const manifest = await detailsResp.json();
+          fullSet = new Set((manifest.events || []).map((e) => String(e.tournamentID)));
+        }
+      } catch (err) {
+        $("#eventsStatus").textContent = "赛事目录加载失败：" + err;
+        return;
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      for (const item of events) {
+        item._full = item.source === "Chess-Results" && fullSet.has(String(item.tournamentID || ""));
+        item._bucket = !item.date ? "unknown" : item.date > today ? "future" : "past";
+      }
+      // 日期倒序；无日期的排在各自分栏内按名称排序。
+      events.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")) || String(a.displayName || "").localeCompare(String(b.displayName || "")));
+
+      const sources = [...new Set(events.map((e) => e.source).filter(Boolean))].sort();
+      const years = [...new Set(events.map((e) => (e.date || "").slice(0, 4)).filter(Boolean))].sort().reverse();
+      $("#sourceFilter").innerHTML += sources.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+      $("#yearFilter").innerHTML += years.map((y) => `<option value="${esc(y)}">${esc(y)}</option>`).join("");
+
+      function filtered() {
+        const term = state.search.trim().toLowerCase();
+        return events.filter((e) => {
+          if (e._bucket !== state.tab) return false;
+          if (state.scope === "full" && !e._full) return false;
+          if (state.source && e.source !== state.source) return false;
+          if (state.year && (e.date || "").slice(0, 4) !== state.year) return false;
+          if (term) {
+            const hay = `${e.displayName || ""} ${e.name || ""} ${e.chineseName || ""} ${e.tournamentID || ""}`.toLowerCase();
+            if (!hay.includes(term)) return false;
+          }
+          return true;
+        });
+      }
+
+      function render() {
+        const rows = filtered();
+        const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+        state.page = Math.min(state.page, pages - 1);
+        const slice = rows.slice(state.page * PAGE_SIZE, (state.page + 1) * PAGE_SIZE);
+        $("#eventsBody").innerHTML = slice.map((e) => {
+          const link = `./?event=${encodeURIComponent(e.id)}`;
+          const name = esc(e.chineseName || e.displayName || e.name || e.id);
+          const sub = e.chineseName && e.displayName && e.chineseName !== e.displayName ? `<div style="opacity:.65;font-size:.8rem">${esc(e.displayName)}</div>` : "";
+          const tags = (e._full ? '<span class="tag full">完整赛果</span>' : "") + (e.tournamentID ? `<span class="tag">tnr${esc(e.tournamentID)}</span>` : "");
+          return `<tr><td>${esc(e.date || "待补")}</td><td><a href="${link}">${name}</a>${tags}${sub}</td><td>${esc(e.source || "-")}</td><td>${esc(e.participants || e.playerCount || "-")}</td><td>${esc(e.rounds || "-")}</td><td>${esc(e.gameCount || 0)}</td></tr>`;
+        }).join("") || '<tr><td colspan="6">该筛选下没有赛事</td></tr>';
+        $("#countInfo").textContent = `共 ${rows.length} 场`;
+        $("#pageInfo").textContent = `第 ${state.page + 1} / ${pages} 页`;
+        $("#prevPage").disabled = state.page <= 0;
+        $("#nextPage").disabled = state.page >= pages - 1;
+        $("#eventsStatus").hidden = true;
+        $("#eventsTable").hidden = false;
+        $("#pager").hidden = false;
+      }
+
+      document.querySelectorAll("#timeTabs button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll("#timeTabs button").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          state.tab = btn.dataset.tab;
+          state.page = 0;
+          render();
+        });
+      });
+      $("#scopeFilter").addEventListener("change", (e) => { state.scope = e.target.value; state.page = 0; render(); });
+      $("#sourceFilter").addEventListener("change", (e) => { state.source = e.target.value; state.page = 0; render(); });
+      $("#yearFilter").addEventListener("change", (e) => { state.year = e.target.value; state.page = 0; render(); });
+      $("#searchBox").addEventListener("input", (e) => { state.search = e.target.value; state.page = 0; render(); });
+      $("#prevPage").addEventListener("click", () => { state.page = Math.max(0, state.page - 1); render(); });
+      $("#nextPage").addEventListener("click", () => { state.page += 1; render(); });
+
+      render();
+    })();
+    </script>
+  </body>
+</html>
