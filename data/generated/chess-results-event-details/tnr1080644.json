@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "fetchedAt": "2026-07-12T16:13:15+00:00",
+  "schemaVersion": 2,
+  "fetchedAt": "2026-07-16T15:33:15+00:00",
   "source": "Chess-Results",
   "tournamentID": "1080644",
   "sourceName": "2024年全国国际象棋棋协大师赛（北京站） 男子候补棋协大师组",
@@ -8,7 +8,7 @@
     {
       "source": "Chess-Results",
       "tournamentID": "1080644",
-      "url": "https://chess-results.com/tnr1080644.aspx?lan=1&art=1"
+      "url": "https://S2.chess-results.com/tnr1080644.aspx?lan=1&art=1&zeilen=99999&SNode=S0"
     }
   ],
   "coverageScope": "domestic-full",
@@ -3477,23 +3477,34 @@
   ],
   "rounds": [],
   "evidence": {
-    "startingRankURL": "https://chess-results.com/tnr1080644.aspx?lan=1&art=0",
-    "standingsURL": "https://chess-results.com/tnr1080644.aspx?lan=1&art=1"
+    "startingRankURL": "https://S3.chess-results.com/tnr1080644.aspx?lan=1&art=0&zeilen=99999&SNode=S0",
+    "standingsURL": "https://S2.chess-results.com/tnr1080644.aspx?lan=1&art=1&zeilen=99999&SNode=S0"
   },
   "sourceSnapshots": [
     {
       "kind": "starting-rank",
-      "url": "https://chess-results.com/tnr1080644.aspx?lan=1&art=0",
-      "sha256": "afe366fc33fed8c36281132cb72d893fbe50a4c1caa9e1d006ffa4196a5cdf6f",
-      "bytes": 49896,
-      "path": "data/generated/chess-results-event-snapshots/tnr1080644/starting-rank.html.gz"
+      "url": "https://S3.chess-results.com/tnr1080644.aspx?lan=1&art=0&zeilen=99999&SNode=S0",
+      "sha256": "d45e30a893ec2b45505906cfac1bff1874958e6a647ef69de1914d9ff58152f7",
+      "bytes": 49913,
+      "localPrivatePath": "raw/chess-results/tnr1080644/starting-rank.html.gz"
     },
     {
       "kind": "standings",
-      "url": "https://chess-results.com/tnr1080644.aspx?lan=1&art=1",
-      "sha256": "292160d2cb6f7ace0cdeaa996d22e1b23fdf442795a83bbe2331d728a3ae460e",
-      "bytes": 67824,
-      "path": "data/generated/chess-results-event-snapshots/tnr1080644/standings.html.gz"
+      "url": "https://S2.chess-results.com/tnr1080644.aspx?lan=1&art=1&zeilen=99999&SNode=S0",
+      "sha256": "c154dcc3f7a40e1b75f78ac8f94b9aaf37c9ef12a1f2f20b8e67cf450c3e353e",
+      "bytes": 67841,
+      "localPrivatePath": "raw/chess-results/tnr1080644/standings.html.gz"
     }
-  ]
+  ],
+  "parserVersion": "chess-results-v4",
+  "format": "standings-only",
+  "captureStatus": "partial",
+  "captureErrorCode": "ROUND_COUNT_UNKNOWN",
+  "failedPage": null,
+  "roundCandidates": {
+    "heading": 0,
+    "links": 0,
+    "queue": 0
+  },
+  "releasePolicy": "full-data"
 }
