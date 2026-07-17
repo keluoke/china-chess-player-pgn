@@ -24,6 +24,7 @@ from stable_json import write_json as write_stable_json
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 SIGHTINGS_CSV = REPO_ROOT / "data" / "manual" / "domestic-player-sightings.csv"
+OBSERVATIONS_CSV = REPO_ROOT / "data" / "generated" / "person-observations.csv"
 LINKS_CSV = REPO_ROOT / "data" / "manual" / "player-identity-links.csv"
 OUTPUT_ROOT = REPO_ROOT / "docs" / "data" / "registry" / "domestic"
 FIDE_REGISTRY = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
@@ -50,12 +51,14 @@ class Sighting:
     source_player_no: str
     source_url: str
     notes: str
+    rounds: str = ""
 
     def payload(self) -> dict[str, Any]:
         return without_empty(
             {
                 "sightingID": self.sighting_id,
-                "source": self.source,
+                # De-sourcing contract: provider identity and links stay in
+                # data/manual/; the public sighting only carries event facts.
                 "eventID": self.event_id,
                 "eventName": self.event_name,
                 "eventDate": self.event_date,
@@ -72,9 +75,8 @@ class Sighting:
                 "publicLocation": location_from_text(" ".join(filter(None, (self.province, self.club)))),
                 "rank": self.rank,
                 "score": self.score,
-                "sourcePlayerNo": self.source_player_no,
-                "sourceURL": self.source_url,
-                "notes": self.notes,
+                "rounds": self.rounds,
+                "playerNo": self.source_player_no,
             }
         )
 
@@ -100,8 +102,6 @@ class IdentityLink:
                 "toType": self.to_type,
                 "toID": self.to_id,
                 "confidence": self.confidence,
-                "evidence": self.evidence,
-                "sourceURL": self.source_url,
                 "reviewedBy": self.reviewed_by,
                 "reviewedAt": self.reviewed_at,
                 "notes": self.notes,
@@ -154,6 +154,7 @@ class DomesticPlayer:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build domestic provisional player registry.")
     parser.add_argument("--sightings", type=pathlib.Path, default=SIGHTINGS_CSV)
+    parser.add_argument("--observations", type=pathlib.Path, default=OBSERVATIONS_CSV)
     parser.add_argument("--links", type=pathlib.Path, default=LINKS_CSV)
     parser.add_argument("--output-root", type=pathlib.Path, default=OUTPUT_ROOT)
     parser.add_argument("--fide-registry", type=pathlib.Path, default=FIDE_REGISTRY)
@@ -161,16 +162,19 @@ def main() -> int:
     args = parser.parse_args()
 
     sightings = read_sightings(args.sightings)
+    observation_stats = merge_observations(sightings, read_sightings(args.observations))
     links = read_links(args.links)
     players = build_players(sightings, links)
     assess_identity_confidence(players)
     name_groups = build_identity_name_groups(players)
-    identity_candidates = build_identity_candidates(players)
+    identity_candidates, conflict_edges = build_identity_candidates(players)
     fide_candidates = build_fide_candidates(players, args.fide_registry)
-    write_output(players, sightings, links, name_groups, identity_candidates, fide_candidates, args.output_root, args.dry_run)
+    write_output(players, sightings, links, name_groups, identity_candidates, fide_candidates, args.output_root, args.dry_run, conflict_edges)
 
     stats = {
         "sightings": len(sightings),
+        "observationEnriched": observation_stats["enriched"],
+        "observationAppended": observation_stats["appended"],
         "identityLinks": len(links),
         "domesticPlayers": len(players),
         "linkedToFIDE": sum(1 for player in players if player.fide_id),
@@ -181,11 +185,58 @@ def main() -> int:
         "sameNameGroups": len(name_groups),
         "fideLinkCandidates": len(fide_candidates),
         "identityCandidates": len(identity_candidates),
-        "highPriorityIdentityCandidates": sum(candidate.get("queueTier") == "high" for candidate in identity_candidates),
+        "highPriorityIdentityCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in identity_candidates),
         "parentOnlyNameGroups": sum(group.get("adjudicationMode") == "parent-only" for group in name_groups),
     }
     print(json.dumps(stats, ensure_ascii=False, indent=2))
     return 0
+
+
+def normalized_person_key(sighting: Sighting) -> str:
+    return re.sub(r"\s+", "", (sighting.chinese_name or sighting.player_name or "")).casefold()
+
+
+def merge_observations(sightings: list[Sighting], observations: list[Sighting]) -> dict[str, int]:
+    """Fold machine PersonObservations into the sighting stream (plan P1-1).
+
+    - A manual/legacy sighting for the same (event, playerNo, person) keeps
+      its sighting_id — domestic deep links derive from it and must never
+      break — but gains the participation facts (rank/score/club/date) the
+      legacy startlist capture lacked.
+    - Observations for rows the manual layer has never seen are appended as
+      ordinary sightings. No identities are merged here.
+    """
+    index: dict[tuple[str, str], Sighting] = {}
+    for sighting in sightings:
+        key = (sighting.event_id, sighting.source_player_no)
+        if all(key):
+            index.setdefault(key, sighting)
+    enriched = appended = 0
+    for observation in observations:
+        key = (observation.event_id, observation.source_player_no)
+        existing = index.get(key) if all(key) else None
+        if existing is not None:
+            existing_person = normalized_person_key(existing)
+            observed_person = normalized_person_key(observation)
+            if existing_person and observed_person and existing_person != observed_person:
+                # Roster row now names a different person: keep both rows as
+                # separate evidence; adjudication belongs to the manual layer.
+                sightings.append(observation)
+                appended += 1
+                continue
+            existing.rank = existing.rank or observation.rank
+            existing.score = existing.score or observation.score
+            existing.rounds = existing.rounds or observation.rounds
+            existing.club = existing.club or observation.club
+            existing.event_name = existing.event_name or observation.event_name
+            existing.event_date = existing.event_date or observation.event_date
+            existing.age_stage = existing.age_stage or observation.age_stage
+            existing.sex = existing.sex or observation.sex
+            enriched += 1
+        else:
+            sightings.append(observation)
+            appended += 1
+    return {"enriched": enriched, "appended": appended}
 
 
 def read_sightings(path: pathlib.Path) -> list[Sighting]:
@@ -216,6 +267,7 @@ def read_sightings(path: pathlib.Path) -> list[Sighting]:
                 source_player_no=clean(row.get("source_player_no")),
                 source_url=clean(row.get("source_url")),
                 notes=clean(row.get("notes")),
+                rounds=clean(row.get("rounds")),
             )
             sightings.append(sighting)
     return sightings
@@ -431,60 +483,213 @@ def build_identity_name_groups(players: list[DomesticPlayer]) -> list[dict[str, 
     return result
 
 
+# Explicit domestic ladder (plan §5.1): promotion evidence only travels along
+# adjacent levels of this graph, never across arbitrary group names.
+GROUP_LEVELS = (
+    ("四级棋士", 1), ("三级棋士", 2), ("二级棋士", 3), ("一级棋士", 4),
+    ("候补", 5), ("棋协大师", 6), ("公开", 6),
+)
+PROMOTION_SCORE_RATE = 0.65
+PROMOTION_WINDOW_DAYS = 730
+CANDIDATE_ALGORITHM_VERSION = "identity-candidates-v2"
+
+
+def group_level(sighting: Sighting) -> int:
+    title = f"{sighting.group} {sighting.event_name}"
+    for keyword, level in GROUP_LEVELS:
+        if keyword in title:
+            return level
+    return 0
+
+
+def score_rate(sighting: Sighting) -> float | None:
+    try:
+        score = float(str(sighting.score).replace(",", "."))
+        rounds = float(sighting.rounds)
+    except (TypeError, ValueError):
+        return None
+    if rounds <= 0:
+        return None
+    return score / rounds
+
+
+def parse_date(value: str) -> dt.date | None:
+    text = str(value or "").strip()
+    if re.fullmatch(r"\d{4}", text):
+        # Season-level date: mid-year anchor keeps the 24-month promotion
+        # window meaningful without fabricating an exact day.
+        return dt.date(int(text), 7, 1)
+    try:
+        return dt.date.fromisoformat(text[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def promotion_evidence(left: DomesticPlayer, right: DomesticPlayer) -> dict[str, Any] | None:
+    """≥65% score in a lower group followed (≤24 months) by an appearance in
+    the adjacent higher group — the plan's strongest weak-evidence signal."""
+    for lower, higher in ((left, right), (right, left)):
+        for low_sighting in lower.sightings:
+            low_level = group_level(low_sighting)
+            rate = score_rate(low_sighting)
+            low_date = parse_date(low_sighting.event_date)
+            if not low_level or rate is None or rate < PROMOTION_SCORE_RATE or low_date is None:
+                continue
+            for high_sighting in higher.sightings:
+                high_level = group_level(high_sighting)
+                high_date = parse_date(high_sighting.event_date)
+                if high_level != low_level + 1 or high_date is None:
+                    continue
+                gap = (high_date - low_date).days
+                if 0 <= gap <= PROMOTION_WINDOW_DAYS:
+                    return {
+                        "lowerGroup": low_sighting.group,
+                        "scoreRate": round(rate, 3),
+                        "higherGroup": high_sighting.group,
+                        "monthsBetween": round(gap / 30),
+                    }
+    return None
+
+
+def hard_conflicts(left: DomesticPlayer, right: DomesticPlayer) -> list[str]:
+    conflicts: list[str] = []
+    left_events = {s.event_id for s in left.sightings if s.event_id}
+    right_events = {s.event_id for s in right.sightings if s.event_id}
+    shared = left_events & right_events
+    if shared:
+        # Same person cannot hold two roster slots in one section capture.
+        conflicts.append(f"concurrent-event:{sorted(shared)[0]}")
+    left_sex = {s.sex for s in left.sightings if s.sex}
+    right_sex = {s.sex for s in right.sightings if s.sex}
+    if left_sex and right_sex and left_sex.isdisjoint(right_sex):
+        conflicts.append("sex-conflict")
+    left_birth = {s.birth_year for s in left.sightings if s.birth_year}
+    right_birth = {s.birth_year for s in right.sightings if s.birth_year}
+    if left_birth and right_birth and left_birth.isdisjoint(right_birth):
+        conflicts.append("birth-year-conflict")
+    return conflicts
+
+
+def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
+                   cluster_size: int) -> dict[str, Any] | None:
+    """Evidence card for one same-name pair; None when a hard conflict bans
+    the edge. Weights follow plan §5.1 and are reviewed product parameters,
+    not identity facts."""
+    conflicts = hard_conflicts(left, right)
+    if conflicts:
+        return {"_conflict": True, "domesticIDs": [left.domestic_id, right.domestic_id],
+                "normalizedName": key, "reasons": conflicts}
+
+    weights: dict[str, int] = {}
+    evidence_kinds = 0
+    summary: list[str] = []
+
+    left_clubs = {normalize_club(s.club) for s in left.sightings if normalize_club(s.club)}
+    right_clubs = {normalize_club(s.club) for s in right.sightings if normalize_club(s.club)}
+    if left_clubs & right_clubs:
+        weights["clubConsistency"] = 25
+        evidence_kinds += 1
+        summary.append("俱乐部一致")
+
+    promotion = promotion_evidence(left, right)
+    if promotion:
+        weights["promotionPattern"] = 35
+        evidence_kinds += 1
+        summary.append(
+            f"{promotion['lowerGroup']} 得分率 {promotion['scoreRate']:.0%} → "
+            f"{promotion['monthsBetween']} 个月后出现在 {promotion['higherGroup']}"
+        )
+
+    combined_continuity = age_stage_continuity([*left.sightings, *right.sightings])
+    if combined_continuity == "consistent":
+        weights["ageContinuity"] = 15
+        evidence_kinds += 1
+        summary.append("年龄组连续")
+    elif combined_continuity == "conflict":
+        weights["ageConflict"] = -30
+
+    left_birth = {s.birth_year for s in left.sightings if s.birth_year}
+    right_birth = {s.birth_year for s in right.sightings if s.birth_year}
+    if left_birth and right_birth and left_birth == right_birth:
+        weights["birthYearMatch"] = 20
+        evidence_kinds += 1
+        summary.append("出生年一致")
+
+    left_regions = {location_from_text(f"{s.province} {s.club}") for s in left.sightings}
+    right_regions = {location_from_text(f"{s.province} {s.club}") for s in right.sightings}
+    if (left_regions & right_regions) - {""}:
+        weights["publicRegionMatch"] = 10
+        evidence_kinds += 1
+        summary.append("公开地区一致")
+
+    score = max(0, min(100, sum(weights.values())))
+    # Common-name prerequisite: the name alone contributes nothing; a high
+    # tier additionally requires at least two independent evidence kinds.
+    if score >= 70 and evidence_kinds >= 2:
+        tier = "suggested-high"
+    elif score >= 45:
+        tier = "suggested-medium"
+    else:
+        tier = "low"
+    return {
+        "candidateID": "identity-candidate-" + hashlib.sha256(f"{left.domestic_id}|{right.domestic_id}".encode("utf-8")).hexdigest()[:16],
+        "algorithmVersion": CANDIDATE_ALGORITHM_VERSION,
+        "normalizedName": key,
+        "displayName": left.display_name,
+        "domesticIDs": [left.domestic_id, right.domestic_id],
+        "clusterSize": cluster_size,
+        "score": score,
+        "queueTier": tier,
+        "weights": weights,
+        "evidenceKinds": evidence_kinds,
+        "evidenceSummary": "；".join(summary) or "仅同名，无独立证据",
+        "eventIDs": sorted({s.event_id for p in (left, right) for s in p.sightings if s.event_id}),
+        "clubs": sorted({s.club for p in (left, right) for s in p.sightings if s.club}),
+        "ageStageContinuity": combined_continuity,
+        "machineNominationAllowed": True,
+        "reviewRequired": True,
+        "warning": "机器仅提名候选，禁止自动写入 player-identity-links.csv",
+    }
+
+
 def build_identity_candidates(players: list[DomesticPlayer]) -> list[dict[str, Any]]:
+    """Pairwise same-name candidate edges with hard-conflict pruning.
+
+    Clusters of 3+ used to be silently skipped ("parent-only"); the plan
+    replaces that with an explicit pairwise graph so maintainers see ranked,
+    mutually exclusive merge options — still never an automatic merge."""
     grouped: dict[str, list[DomesticPlayer]] = {}
     for player in players:
         key = identity_name(player)
         if key:
             grouped.setdefault(key, []).append(player)
     candidates: list[dict[str, Any]] = []
+    conflict_edges: list[dict[str, Any]] = []
     for key, members in grouped.items():
-        # Three or more provisional entities are deliberately never nominated.
-        if len(members) != 2:
+        if len(members) < 2:
             continue
-        left, right = members
-        weights: dict[str, int] = {"onlyTwoSameNameObservations": 25}
-        score = 25
-        left_events = {s.event_id for s in left.sightings if s.event_id}
-        right_events = {s.event_id for s in right.sightings if s.event_id}
-        if left_events and right_events and left_events.isdisjoint(right_events):
-            weights["crossEvent"] = 30
-            score += 30
-        left_clubs = {normalize_club(s.club) for s in left.sightings if normalize_club(s.club)}
-        right_clubs = {normalize_club(s.club) for s in right.sightings if normalize_club(s.club)}
-        if left_clubs and right_clubs and left_clubs.intersection(right_clubs):
-            weights["clubConsistency"] = 20
-            score += 20
-        left_birth = {s.birth_year for s in left.sightings if s.birth_year}
-        right_birth = {s.birth_year for s in right.sightings if s.birth_year}
-        if left_birth and right_birth and left_birth != right_birth:
-            weights["birthYearConflict"] = -40
-            score -= 40
-        combined_continuity = age_stage_continuity([*left.sightings, *right.sightings])
-        if combined_continuity == "consistent":
-            weights["ageContinuity"] = 15
-            score += 15
-        elif combined_continuity == "conflict":
-            weights["ageConflict"] = -30
-            score -= 30
-        score = max(0, min(100, score))
-        candidates.append({
-            "candidateID": "identity-candidate-" + hashlib.sha256(f"{left.domestic_id}|{right.domestic_id}".encode("utf-8")).hexdigest()[:16],
-            "normalizedName": key,
-            "displayName": left.display_name,
-            "domesticIDs": [left.domestic_id, right.domestic_id],
-            "score": score,
-            "queueTier": "high" if score >= 70 else "medium" if score >= 45 else "low",
-            "weights": weights,
-            "eventIDs": sorted(left_events | right_events),
-            "clubs": sorted({s.club for player in members for s in player.sightings if s.club}),
-            "ageStageContinuity": combined_continuity,
-            "machineNominationAllowed": True,
-            "reviewRequired": True,
-            "warning": "机器仅提名候选，禁止自动写入 player-identity-links.csv",
-        })
+        members = sorted(members, key=lambda p: p.domestic_id)
+        if len(members) > 8:
+            # Very common names: only nominate pairs sharing a club to keep
+            # the queue reviewable; everything else stays folded.
+            pairs = [
+                (a, b) for i, a in enumerate(members) for b in members[i + 1:]
+                if {normalize_club(s.club) for s in a.sightings if normalize_club(s.club)}
+                & {normalize_club(s.club) for s in b.sightings if normalize_club(s.club)}
+            ]
+        else:
+            pairs = [(a, b) for i, a in enumerate(members) for b in members[i + 1:]]
+        for left, right in pairs:
+            card = pair_candidate(key, left, right, len(members))
+            if card is None:
+                continue
+            if card.get("_conflict"):
+                card.pop("_conflict")
+                conflict_edges.append(card)
+            elif card["score"] > 0:
+                candidates.append(card)
     candidates.sort(key=lambda row: (-row["score"], row["displayName"], row["candidateID"]))
-    return candidates
+    return candidates, conflict_edges
 
 
 def build_fide_candidates(players: list[DomesticPlayer], registry_path: pathlib.Path) -> list[dict[str, Any]]:
@@ -575,6 +780,7 @@ def write_output(
     fide_candidates: list[dict[str, Any]],
     output_root: pathlib.Path,
     dry_run: bool,
+    conflict_edges: list[dict[str, Any]] | None = None,
 ) -> None:
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     manifest = {
@@ -586,10 +792,6 @@ def write_output(
             "detailShards": "data/registry/domestic/shards/{prefix}.json",
             "sightings": "data/registry/domestic/sightings.json",
             "identityLinks": "data/registry/domestic/identity-links.json",
-            "identityReview": "data/registry/domestic/identity-review.json",
-            "identityNameGroups": "data/registry/domestic/identity-name-groups.json",
-            "identityCandidates": "data/registry/domestic/identity-candidates.json",
-            "fideLinkCandidates": "data/registry/domestic/fide-link-candidates.json",
             "progressions": "data/registry/domestic/progressions.json",
             "promotionReview": "data/registry/domestic/promotion-review.json",
         },
@@ -605,7 +807,7 @@ def write_output(
             "sameNameGroups": len(name_groups),
             "fideLinkCandidates": len(fide_candidates),
             "identityCandidates": len(identity_candidates),
-            "highPriorityIdentityCandidates": sum(candidate.get("queueTier") == "high" for candidate in identity_candidates),
+            "highPriorityIdentityCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in identity_candidates),
             "parentOnlyNameGroups": sum(group.get("adjudicationMode") == "parent-only" for group in name_groups),
         },
     }
@@ -617,12 +819,24 @@ def write_output(
     write_domestic_search_and_shards(output_root, players)
     write_json(output_root / "sightings.json", [sighting.payload() for sighting in sightings])
     write_json(output_root / "identity-links.json", [link.payload() for link in links])
-    write_json(output_root / "identity-name-groups.json", name_groups)
-    write_json(output_root / "identity-candidates.json", identity_candidates)
-    write_json(output_root / "fide-link-candidates.json", fide_candidates)
+    # Maintainer adjudication queues carry raw clubs/evidence and belong to
+    # the maintainer workbench, never the deployed tree (plan §4.5).
+    audit_root = REPO_ROOT / "data" / "generated" / "audit"
+    audit_root.mkdir(parents=True, exist_ok=True)
+    write_json(audit_root / "identity-name-groups.json", name_groups)
+    write_json(audit_root / "identity-candidates.json", identity_candidates)
+    # Negative knowledge: hard-conflict pairs are banned edges; a rejected or
+    # impossible merge suggestion must never resurface (tombstones).
+    write_json(audit_root / "identity-conflict-edges.json", conflict_edges or [])
+    write_json(audit_root / "fide-link-candidates.json", fide_candidates)
     review_rows = [player.payload() for player in players if player.confidence.get("reviewRequired")]
     review_rows.sort(key=lambda player: (player["confidence"]["score"], -player["confidence"]["sameNameConflictCount"], player.get("displayName", "")))
-    write_json(output_root / "identity-review.json", review_rows)
+    write_json(audit_root / "identity-review.json", review_rows)
+    for stale in ("identity-name-groups.json", "identity-candidates.json",
+                  "fide-link-candidates.json", "identity-review.json"):
+        stale_path = output_root / stale
+        if stale_path.exists():
+            stale_path.unlink()
 
 
 def write_domestic_search_and_shards(output_root: pathlib.Path, players: list[DomesticPlayer]) -> None:

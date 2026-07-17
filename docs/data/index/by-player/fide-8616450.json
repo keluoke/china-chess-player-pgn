@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-12T17:00:53+00:00",
+  "generatedAt": "2026-07-17T17:36:41+00:00",
   "player": {
     "fideID": "8616450",
     "id": "fide-8616450",
@@ -19,12 +19,13 @@
     ]
   },
   "totals": {
-    "games": 5,
-    "events": 2,
-    "packages": 3,
-    "bytes": 36164,
+    "games": 9,
+    "events": 3,
+    "packages": 4,
+    "bytes": 45690,
     "stages": {
-      "U12": 2
+      "U12": 2,
+      "U16": 4
     }
   },
   "packages": [
@@ -32,15 +33,16 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8616450/all.pgn",
-      "gameCount": 5,
-      "pgnBytes": 18016,
-      "sha256": "1fec53a2a0bd590566a269edf6d6a91a78f1b7ead5bb3a5a83ca8e275a8b6aa0",
+      "gameCount": 9,
+      "pgnBytes": 22714,
+      "sha256": "176fa5d552ef026c8b0c811fcdd2cd8ec25faad7d130ba627e24b2cb4da693bd",
       "stages": {
-        "U12": 2
+        "U12": 2,
+        "U16": 4
       },
       "sources": [
-        "Chess-Results",
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     },
     {
@@ -54,7 +56,21 @@
         "U12": 2
       },
       "sources": [
-        "Chess-Results"
+        "Static PGN"
+      ]
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8616450/U16.pgn",
+      "gameCount": 4,
+      "pgnBytes": 4828,
+      "sha256": "5904296e3cacea1304736ef8db693206e38e196f2136df49313d47158bde7dbd",
+      "stages": {
+        "U16": 4
+      },
+      "sources": [
+        "Static PGN"
       ]
     },
     {
@@ -72,10 +88,26 @@
   ],
   "events": [
     {
-      "source": "Chess-Results",
+      "source": "Static PGN",
+      "name": "World Youth Chess Championship 2019 - Open U16",
+      "date": "2019-10-02",
+      "tournamentID": "470708",
+      "canonicalEventID": null,
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "U16",
+      "gameCount": 4,
+      "results": {
+        "1/2-1/2": 1,
+        "1-0": 3
+      }
+    },
+    {
+      "source": "Static PGN",
       "name": "FIDE World Schools Championships 2015 - OU11",
       "date": "2015-05-07",
       "tournamentID": "169478",
+      "canonicalEventID": null,
       "stage": "U12",
       "naturalStage": "U12",
       "eventStage": "",
@@ -90,6 +122,7 @@
       "name": "Chinese National Youth Chess Championship 2024",
       "date": "",
       "tournamentID": "",
+      "canonicalEventID": null,
       "stage": "adult",
       "naturalStage": "adult",
       "eventStage": "",
@@ -102,13 +135,81 @@
   ],
   "games": [
     {
+      "id": "facb4b6cc5a9b747be79418ef6422510f4b88b22c180a5121faacd8e6714da07",
+      "event": "World Youth Chess Championship 2019 - Open U16",
+      "date": "2019-10-02",
+      "white": "Wu, Hao",
+      "black": "Manafov, Vugar",
+      "result": "1/2-1/2",
+      "source": "Static PGN",
+      "round": "4",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "U16",
+      "role": "white",
+      "tournamentID": "470708",
+      "sourcePgnPath": "data/pgn/chess-results/tnr470708/fide-8616450-470708.pgn",
+      "sha256": "facb4b6cc5a9b747be79418ef6422510f4b88b22c180a5121faacd8e6714da07"
+    },
+    {
+      "id": "1ffb6922412285af2082bc95eb6278fefa2d166f1962a4d17b6b55a4203c1399",
+      "event": "World Youth Chess Championship 2019 - Open U16",
+      "date": "2019-10-02",
+      "white": "Wu, Hao",
+      "black": "Cardoso Cardoso, Jose Gabriel",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "2",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "U16",
+      "role": "white",
+      "tournamentID": "470708",
+      "sourcePgnPath": "data/pgn/chess-results/tnr470708/fide-8616450-470708.pgn",
+      "sha256": "1ffb6922412285af2082bc95eb6278fefa2d166f1962a4d17b6b55a4203c1399"
+    },
+    {
+      "id": "8e997f52b0299afada65127c52dfd724fa8b09aa6a99712f134dd798fbfc577d",
+      "event": "World Youth Chess Championship 2019 - Open U16",
+      "date": "2019-10-02",
+      "white": "Talukdar, Rohan",
+      "black": "Wu, Hao",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "5",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "U16",
+      "role": "black",
+      "tournamentID": "470708",
+      "sourcePgnPath": "data/pgn/chess-results/tnr470708/fide-8616450-470708.pgn",
+      "sha256": "8e997f52b0299afada65127c52dfd724fa8b09aa6a99712f134dd798fbfc577d"
+    },
+    {
+      "id": "96a585c181ce5fd33b07afb58bddd14031d4e0f9057d58e832f613d2e6a6541a",
+      "event": "World Youth Chess Championship 2019 - Open U16",
+      "date": "2019-10-02",
+      "white": "Avila Pavas, Santiago",
+      "black": "Wu, Hao",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "3",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "U16",
+      "role": "black",
+      "tournamentID": "470708",
+      "sourcePgnPath": "data/pgn/chess-results/tnr470708/fide-8616450-470708.pgn",
+      "sha256": "96a585c181ce5fd33b07afb58bddd14031d4e0f9057d58e832f613d2e6a6541a"
+    },
+    {
       "id": "ce6b51e98635514ea55e43f4bb0467ea8825b097978344cc881733f29364ea37",
       "event": "FIDE World Schools Championships 2015 - OU11",
       "date": "2015-05-07",
       "white": "Wu, Hao",
       "black": "Assaubayeva, Bibissara",
       "result": "0-1",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "7",
       "stage": "U12",
       "naturalStage": "U12",
@@ -124,7 +225,7 @@
       "white": "Amartuvshin, Ganzorig",
       "black": "Wu, Hao",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "6",
       "stage": "U12",
       "naturalStage": "U12",

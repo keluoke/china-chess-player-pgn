@@ -1,35 +1,49 @@
-# 棋手名称映射查看与维护
+# 姓名与身份解决机制（现行口径）
 
-## CSV 样式
+> 2026-07 重写。旧版本允许"无 FIDE 行写入 player-aliases"的口径已废除：
+> `player-aliases.csv` 只服务 FIDE 棋手；无 FIDE 身份一律走 domestic 实体
+> 与 `player-identity-links.csv`，两者不可混用。
 
-手工维护文件在 `data/manual/player-aliases.csv`：
+## 五层结构
 
-```csv
-fide_id,chinese_name,pinyin_name,english_name,aliases,federation,birth_year,standard_rating,rapid_rating,blitz_rating
-```
+1. **来源观察层**（私有）：抓取产物中的原始文本，允许是脏的；只存在于
+   维护者本机私有区和 `data/generated/` 机器层，绝不直接进入公共别名。
+2. **清洗候选层**：`sanitize_person_name`（2–6 汉字、防标点/赛事标题/尾逗号）
+   过滤后的候选；未通过者进入隔离区，不得进入公开数据。
+3. **审核别名层**：`data/manual/player-aliases.csv`——已确认的 FIDE 棋手
+   中文名/拼音/别名。**必须有 `fide_id`**。
+4. **强制勘误层**：`data/community/name-corrections.csv` 在构建最后应用，
+   可覆盖已有值并清除错误别名（tombstone 防复活）。已确认勘误一律写这里。
+5. **身份链接层**：`data/manual/player-identity-links.csv`——解决
+   "这条赛事观察属于谁"。与"这个人叫什么"分开维护；只接受人工审核，
+   可撤销、可追溯。
 
-有 FIDE ID 时填 `fide_id`，无 FIDE ID 的低龄组选手可只填中文名/拼音/出生年。
+## 无 FIDE 棋手
 
-## source 含义
+- 每条赛事观察投影为 `PersonObservation`（`Scripts/build_person_observations.py`，
+  机器层 `data/generated/person-observations.csv`），带组别、名次、得分、轮数。
+- `sync_domestic_players.py` 将观察与人工 sightings 合并成 domestic 实体；
+  同名从不自动合并。
+- 机器候选卡（弱证据：同俱乐部 +25、低组得分率 ≥65% 且 24 个月内升组 +35、
+  年龄连续 +15、出生年一致 +20、公开地区一致 +10；硬冲突 -100 禁边）输出到
+  `data/generated/audit/identity-candidates.json`，仅用于排序人工审核队列。
+- 人工确认后写 `player-identity-links.csv`；拒绝或不可能的合并记入
+  `identity-conflict-edges.json`（负链接），防止同一错误建议反复出现。
 
-- `seed`：代码内置种子棋手和重点棋手资料。
-- `FIDE` / `Chess-Results + FIDE`：联网补齐得到的 FIDE/Chess-Results 信息。
-- `Chess-Results` / `pgn`：赛事搜索或 PGN 入库时从 PGN/赛事记录提取的名字。
-- `chess-results-starting-rank`：从 Chess-Results Starting rank 表读取的中文名证据。
-- `user-mapping`：用户手工确认的映射。
+## 权威规则（不变）
+
+- registry 是姓名、FIDE ID、联邦、等级分唯一权威；派生层禁止反向覆盖。
+- 8602980=侯逸凡、8603006=居文君、8608288=许翔宇 等历史勘误由
+  `validate_community_data.py` 钉死断言，回归即红灯。
 
 ## 常用操作
 
 ```bash
-# 从 Chess-Results Starting rank 表补中文名
-python3 Scripts/sync_chess_results_starting_rank_aliases.py
-python3 Scripts/sync_chinese_players.py
+# 从已抓赛事重建观察层并更新 domestic 实体
+python3 Scripts/build_person_observations.py
 python3 Scripts/sync_domestic_players.py
 
-# 查看当前别名统计
-python3 -c "
-import json, pathlib
-r = json.loads(pathlib.Path('docs/data/registry/players.json').read_text())
-print(f'{len(r)} 名棋手')
-"
+# FIDE 棋手中文名证据（Starting rank 表）
+python3 Scripts/sync_chess_results_starting_rank_aliases.py
+python3 Scripts/sync_chinese_players.py
 ```

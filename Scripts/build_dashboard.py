@@ -120,8 +120,6 @@ def recent_events(limit: int = 8) -> list[dict]:
             "seriesLabel": e.get("seriesLabel"),
             "groupLabel": e.get("groupLabel"),
             "date": e.get("date"),
-            "source": "Chess-Results",
-            "url": e.get("url"),
             "playerCount": e.get("playerCount"),
             "gameCount": e.get("gameCount"),
             "detailStatus": e.get("detailStatus"),
@@ -136,7 +134,7 @@ def main() -> int:
     domestic = (read_json(DOCS_DATA / "registry" / "domestic" / "manifest.json", {}) or {}).get("totals", {})
     by_player = (read_json(DOCS_DATA / "index" / "by-player" / "manifest.json", {}) or {}).get("totals", {})
     index_manifest = (read_json(DOCS_DATA / "index" / "manifest.json", {}) or {}).get("totals", {})
-    events = read_json(DOCS_DATA / "index" / "events.json", []) or []
+    events = read_json(REPO_ROOT / "data" / "generated" / "events-catalog.json", []) or []
     canonical_events = read_json(DOCS_DATA / "index" / "canonical-events.json", []) or []
     changelog = (read_json(DOCS_DATA / "changelog.json", {}) or {}).get("entries", [])
 

@@ -33,7 +33,7 @@ from source_policy import local_state_root  # noqa: E402
 from sync_chess_results_event import PARSER_VERSION, should_skip_target  # noqa: E402
 
 REFRESH = SCRIPT_DIR / "refresh.sh"
-QUEUE_PATH = REPO_ROOT / "docs" / "data" / "audit" / "domestic-event-queue.json"
+QUEUE_PATH = REPO_ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json"
 REGISTRY_MANIFEST = REPO_ROOT / "docs" / "data" / "registry" / "manifest.json"
 BULK_MANIFEST = REPO_ROOT / "docs" / "data" / "bulk" / "manifest.json"
 STATE_ROOT = local_state_root()
@@ -49,7 +49,7 @@ ALLOWED_COMMANDS = {
     "bulk", "bulk-full", "deliver", "push", "receipts", "reindex",
 }
 EXTRA_TOKEN = re.compile(r"^[A-Za-z0-9_.:/=-]{1,200}$")
-TNR_TOKEN = re.compile(r"^\d{5,9}$")
+TNR_TOKEN = re.compile(r"^\d{4,9}$")
 children: set[subprocess.Popen[bytes]] = set()
 children_lock = threading.Lock()
 
@@ -312,7 +312,7 @@ def preview_payload(tnr: str) -> dict:
     standings = payload.get("standings") or []
     return {
         "ok": True,
-        "notice": "私有采集结果，仅本机预览，未公开发布",
+        "notice": "本地清洗结果预览；变化部分将随发布管线上传",
         "tournamentID": tnr,
         "title": payload.get("sourceName"),
         "format": payload.get("format"),
@@ -445,7 +445,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json({"ok": False, "message": "请先粘贴至少一个 TNR 或链接"}, 400)
                 return
             if len(tnrs) > 10 or any(not TNR_TOKEN.fullmatch(t) for t in tnrs):
-                self.send_json({"ok": False, "message": "一次最多 10 场，且 TNR 必须是 5-9 位数字"}, 400)
+                self.send_json({"ok": False, "message": "一次最多 10 场，且 TNR 必须是 4-9 位数字"}, 400)
                 return
             ok, message = start_job("event-queue", tnrs)
             self.send_json({"ok": ok, "message": message, "count": len(tnrs)}, 200 if ok else 409)
@@ -484,7 +484,7 @@ input[type=search]{border:1px solid var(--line);border-radius:8px;background:var
 <div class="card">
 <textarea id="tnrInput" placeholder="粘贴 Chess-Results 链接或 TNR，一行一个，例如：&#10;1110333&#10;tnr1213323&#10;https://chess-results.com/tnr1156008.aspx?lan=1"></textarea>
 <div class="chips" id="tnrChips"></div>
-<div class="actions"><button class="primary" id="captureBtn" onclick="startCapture()">开始私有采集</button><span id="captureMsg" class="small"></span></div>
+<div class="actions"><button class="primary" id="captureBtn" onclick="startCapture()">开始采集</button><span id="captureMsg" class="small"></span></div>
 </div>
 <div id="batchResult"></div>
 <div id="previewBox"></div>
@@ -544,7 +544,7 @@ function parseTnrs(){
  const seen=new Set(), good=[], bad=[];
  for(const line of lines){
   if(/^https?:\/\//i.test(line)&&!/chess-results\.com/i.test(line)){bad.push(line);continue}
-  const m=line.match(/(?:tnr)?(\d{5,9})/i);
+  const m=line.match(/(?:tnr)?(\d{4,9})/i);
   if(m){if(!seen.has(m[1])){seen.add(m[1]);good.push(m[1])}}else bad.push(line);
  }
  return {good,bad};
@@ -552,7 +552,7 @@ function parseTnrs(){
 function refreshChips(){
  const {good,bad}=parseTnrs();
  chips.innerHTML=good.map(t=>`<span class=chip>tnr${esc(t)}</span>`).join('')+bad.map(t=>`<span class="chip bad" title="无法识别">${esc(t.slice(0,40))}</span>`).join('');
- $('#captureBtn').textContent=good.length?`开始私有采集（${good.length} 场）`:'开始私有采集';
+ $('#captureBtn').textContent=good.length?`开始采集（${good.length} 场）`:'开始采集';
  return {good,bad};
 }
 $('#tnrInput').addEventListener('input',refreshChips);
@@ -618,7 +618,7 @@ function renderQueue(){
   const st=`<span style="color:${stColor}">${esc(t.statusLabel)}</span>${t.errorCode?`<br><span class=meta>${esc(t.errorCode)}${t.failedPage?' · '+esc(t.failedPage):''}${t.nextRetryAt?' · 隔离/重试至 '+esc(String(t.nextRetryAt).slice(0,16)):''}</span>`:t.lastCapturedAt?`<br><span class=meta>${esc(String(t.lastCapturedAt).slice(0,16))} · ${esc(t.captureStats?.players??'-')} 人 / ${esc(t.captureStats?.rounds??'-')} 轮</span>`:''}`;
   const act=t.status==='partial'?`<button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">续跑补缺页</button>`
     :t.status==='privately-captured'?`<button onclick="showPreview('${t.tournamentID}')">本地预览</button> <button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">重新抓取</button>`
-    :`<button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">私有采集</button>`;
+    :`<button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">采集</button>`;
   return `<tr><td>${esc(t.eventName)}</td><td>${esc(t.tournamentID)}</td><td>${esc(t.priorityScore)}</td><td>${st}</td><td>${act}</td></tr>`
  }).join('')||'<tr><td colspan=5>该筛选下没有目标</td></tr>';
 }
@@ -671,7 +671,7 @@ async function loadProgress(){
   }).join('');
  }catch(e){progressList.innerHTML=''}
 }
-const REMEDY={DIRTY_RELEASE_PATH:"先处理相应机器发布路径的未提交修改；工具不会代你覆盖。",FIDE_DOWNLOAD_OR_VALIDATION_FAILED:"检查 last-good 与 FIDE 直连；坏下载不会替换有效缓存。",SOURCE_CIRCUIT_OPEN:"来源已熔断，等待提示时间后重试。",VISIT_BUDGET_EXHAUSTED:"今日访问预算用完，明日再运行。",PARSER_LAYOUT_CHANGED:"来源页面结构变化；私有 raw 证据已保留，更新解析器后离线重放即可。",COMPLIANCE_POLICY_BLOCKED:"此操作违反当前 link-only/人工数据边界。",GIT_PUSH_FAILED:"发布包已留在 outbox；恢复网络或代理后点“投递发布包”。",GIT_AUTH_FAILED:"GitHub 认证失败；请重新登录 gh 或更新凭据后再投递。",GIT_INDEX_LOCK_STALE:"存在无活跃 git 进程的 .git/index.lock；确认后删除该文件。",PARTIAL_FAILURE:"混合批次：逐场结果见上方“本批结果”卡片；成功赛事已保留。",VALIDATION_REGRESSION:"数据量或身份断言异常，检查本次日志和 staging，禁止发布。",EVENT_EMPTY:"来源记录不存在（Record not found），已保存证据并隔离 7 天；请核对该 TNR 在人工登记表中的链接是否正确。",PAIRINGS_NOT_PUBLISHED:"该赛事未公开逐轮对阵；名单与最终排名已保留为 standings-only。",TEAM_FORMAT_UNSUPPORTED:"团队赛轮次页暂不支持逐台解析；名单与排名已保留，等待解析器适配。",ROUND_COUNT_UNKNOWN:"无法确定轮数；已保留名单与排名，可人工补充队列轮数元数据后续跑。",PAIRING_REFS_OUTSIDE_ROSTER:"对阵中出现名单外棋手，疑似名单分页截断；请重新抓取该赛事。",RECEIPT_CHECK_FAILED:"云端回执查询失败；检查 gh 登录与 GitHub 路线后重试。"};
+const REMEDY={DIRTY_RELEASE_PATH:"先处理相应机器发布路径的未提交修改；工具不会代你覆盖。",FIDE_DOWNLOAD_OR_VALIDATION_FAILED:"检查 last-good 与 FIDE 直连；坏下载不会替换有效缓存。",SOURCE_CIRCUIT_OPEN:"来源已熔断，等待提示时间后重试。",VISIT_BUDGET_EXHAUSTED:"旧运行记录的兼容状态；当前采集不设本机日访问额度，可直接续抓。",PARSER_LAYOUT_CHANGED:"来源页面结构变化；私有 raw 证据已保留，更新解析器后离线重放即可。",COMPLIANCE_POLICY_BLOCKED:"此操作违反数据边界（原始 HTML 不入库 / 人工数据只进 manual、community）。",GIT_PUSH_FAILED:"发布包已留在 outbox；恢复网络或代理后点“投递发布包”。",GIT_AUTH_FAILED:"GitHub 认证失败；请重新登录 gh 或更新凭据后再投递。",GIT_INDEX_LOCK_STALE:"存在无活跃 git 进程的 .git/index.lock；确认后删除该文件。",PARTIAL_FAILURE:"混合批次：逐场结果见上方“本批结果”卡片；成功赛事已保留。",VALIDATION_REGRESSION:"数据量或身份断言异常，检查本次日志和 staging，禁止发布。",EVENT_EMPTY:"来源记录不存在（Record not found），已保存证据并隔离 7 天；请核对该 TNR 在人工登记表中的链接是否正确。",PAIRINGS_NOT_PUBLISHED:"该赛事未公开逐轮对阵；名单与最终排名已保留为 standings-only。",TEAM_FORMAT_UNSUPPORTED:"团队赛轮次页暂不支持逐台解析；名单与排名已保留，等待解析器适配。",ROUND_COUNT_UNKNOWN:"无法确定轮数；已保留名单与排名，可人工补充队列轮数元数据后续跑。",PAIRING_REFS_OUTSIDE_ROSTER:"对阵中出现名单外棋手，疑似名单分页截断；请重新抓取该赛事。",RECEIPT_CHECK_FAILED:"云端回执查询失败；检查 gh 登录与 GitHub 路线后重试。"};
 const WARN_CODES=new Set(["EVENT_EMPTY","PARTIAL_FAILURE","PAIRINGS_NOT_PUBLISHED","TEAM_FORMAT_UNSUPPORTED","ROUND_COUNT_UNKNOWN"]);
 let wasRunning=false;
 async function poll(){try{const s=await(await fetch('/api/state')).json();document.querySelectorAll('button').forEach(b=>{if(b.id!=='stop')b.disabled=!!s.running});stop.disabled=!s.running;dot.className='dot '+(s.running?'running':s.result==='ok'?'ok':s.result?(WARN_CODES.has(s.errorCode)?'warn':'bad'):'');if(s.running){statusText.textContent=`${s.command} · ${s.stage||'running'}`;statusMeta.textContent=`run ${s.runId||''} · ${s.message||''}`;loadProgress();if(s.command==='event-queue')renderBatchResult()}else if(s.command){statusText.textContent=`${s.command} · ${s.result||'finished'}${s.errorCode?' · '+s.errorCode:''}`;statusMeta.textContent=(s.message||'')+(s.errorCode&&REMEDY[s.errorCode]?' 处理建议：'+REMEDY[s.errorCode]:'');progressList.innerHTML='';if(wasRunning){loadQueue();if(s.command==='event-queue'){renderBatchResult();$('#captureMsg').textContent=''}}}else{statusText.textContent='空闲';statusMeta.textContent=''}wasRunning=!!s.running;const atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<45;if(s.log){log.textContent=s.log;if(atBottom)log.scrollTop=log.scrollHeight}}catch(e){statusText.textContent='面板连接中断'}}

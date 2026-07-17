@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-12T17:00:53+00:00",
+  "generatedAt": "2026-07-17T17:36:41+00:00",
   "player": {
     "fideID": "8623414",
     "id": "fide-8623414",
@@ -20,10 +20,10 @@
     ]
   },
   "totals": {
-    "games": 6,
-    "events": 4,
+    "games": 4,
+    "events": 2,
     "packages": 2,
-    "bytes": 45500,
+    "bytes": 21326,
     "stages": {}
   },
   "packages": [
@@ -31,48 +31,36 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8623414/all.pgn",
-      "gameCount": 6,
-      "pgnBytes": 22749,
-      "sha256": "0ee8d7b674b982bb8a46971ba944b2af14613f08f2e3330fa08671c62dd0499c",
+      "gameCount": 4,
+      "pgnBytes": 10662,
+      "sha256": "b8f7b73dbff89b79110bb5d250df24808bf7a3d71b5d6e9e7fa1d483996dce5e",
       "stages": {},
       "sources": [
-        "Chess-Results",
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     },
     {
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8623414/adult.pgn",
-      "gameCount": 6,
-      "pgnBytes": 22751,
-      "sha256": "66976db788172efb0934b99dae59602686942a37f6b7d74fedbf3fe389118789",
+      "gameCount": 4,
+      "pgnBytes": 10664,
+      "sha256": "572607237db9d7da461373d621a94cd4ee887cfd7035b3c650723a8053312597",
       "stages": {},
       "sources": [
-        "Chess-Results",
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     }
   ],
   "events": [
     {
       "source": "Lichess Broadcasts",
-      "name": "Round 7: Chen, Zhihan - Su, Yijia",
-      "date": "2026-05-30",
-      "tournamentID": "",
-      "stage": "adult",
-      "naturalStage": "adult",
-      "eventStage": "",
-      "gameCount": 1,
-      "results": {
-        "1-0": 1
-      }
-    },
-    {
-      "source": "Lichess Broadcasts",
       "name": "Round 6: Su, Yijia - Haoxuan Wang",
       "date": "2026-05-30",
       "tournamentID": "",
+      "canonicalEventID": null,
       "stage": "adult",
       "naturalStage": "adult",
       "eventStage": "",
@@ -82,10 +70,11 @@
       }
     },
     {
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "name": "2026 National Amateur Chess Master Tournament - Open ( Qingdao Station)",
       "date": "2026-05-29",
       "tournamentID": "1420677",
+      "canonicalEventID": null,
       "stage": "adult",
       "naturalStage": "adult",
       "eventStage": "",
@@ -94,39 +83,9 @@
         "1-0": 2,
         "1/2-1/2": 1
       }
-    },
-    {
-      "source": "Lichess Broadcasts",
-      "name": "Round 1: Liu, Yinuo - Su, Yijia",
-      "date": "2026-05-28",
-      "tournamentID": "",
-      "stage": "adult",
-      "naturalStage": "adult",
-      "eventStage": "",
-      "gameCount": 1,
-      "results": {
-        "1/2-1/2": 1
-      }
     }
   ],
   "games": [
-    {
-      "id": "3da03569a080a304a38e45abf0927781f40ad5807eb29fcb8e277e6a80dcfcf0",
-      "event": "Round 7: Chen, Zhihan - Su, Yijia",
-      "date": "2026-05-30",
-      "white": "Chen, Zhihan",
-      "black": "Su, Yijia",
-      "result": "1-0",
-      "source": "Lichess Broadcasts",
-      "round": "7.10",
-      "stage": "adult",
-      "naturalStage": "adult",
-      "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-05.pgn.zst",
-      "sha256": "3da03569a080a304a38e45abf0927781f40ad5807eb29fcb8e277e6a80dcfcf0"
-    },
     {
       "id": "e61d0d2deedcf819c0d8d74904699d62f0c5fef3391424d904c182bf570276bf",
       "event": "Round 6: Su, Yijia - Haoxuan Wang",
@@ -151,7 +110,7 @@
       "white": "Su, Yijia",
       "black": "Wang, Haoxuan",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "6",
       "stage": "adult",
       "naturalStage": "adult",
@@ -167,7 +126,7 @@
       "white": "Liu, Yinuo",
       "black": "Su, Yijia",
       "result": "1/2-1/2",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "1",
       "stage": "adult",
       "naturalStage": "adult",
@@ -183,7 +142,7 @@
       "white": "Chen, Zhihan",
       "black": "Su, Yijia",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "7",
       "stage": "adult",
       "naturalStage": "adult",
@@ -191,23 +150,6 @@
       "tournamentID": "1420677",
       "sourcePgnPath": "data/pgn/chess-results/tnr1420677/fide-8623414-1420677.pgn",
       "sha256": "219dafb15eab2b899b3bcf21774c3fb526f906d5ccaadda8a3062731e944c19c"
-    },
-    {
-      "id": "69e06c9b47d41428cc2227131cca9948a77413b5050915516a7f78b815a9a9c8",
-      "event": "Round 1: Liu, Yinuo - Su, Yijia",
-      "date": "2026-05-28",
-      "white": "Liu, Yinuo",
-      "black": "Su, Yijia",
-      "result": "1/2-1/2",
-      "source": "Lichess Broadcasts",
-      "round": "1.10",
-      "stage": "adult",
-      "naturalStage": "adult",
-      "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-05.pgn.zst",
-      "sha256": "69e06c9b47d41428cc2227131cca9948a77413b5050915516a7f78b815a9a9c8"
     }
   ]
 }

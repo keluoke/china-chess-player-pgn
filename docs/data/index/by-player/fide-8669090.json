@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-12T17:00:53+00:00",
+  "generatedAt": "2026-07-17T17:36:41+00:00",
   "player": {
     "fideID": "8669090",
     "id": "fide-8669090",
@@ -20,12 +20,12 @@
     ]
   },
   "totals": {
-    "games": 10,
-    "events": 5,
+    "games": 8,
+    "events": 3,
     "packages": 2,
-    "bytes": 34316,
+    "bytes": 15336,
     "stages": {
-      "U10": 10
+      "U10": 8
     }
   },
   "packages": [
@@ -33,52 +33,38 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8669090/all.pgn",
-      "gameCount": 10,
-      "pgnBytes": 17158,
-      "sha256": "36c63d868b044cfa03d3e3fd54420715a4fbd81fe68eda7222c5ac2c14d7add3",
+      "gameCount": 8,
+      "pgnBytes": 7668,
+      "sha256": "4dcd0aeedd794cdd8a8e6067aa23ad61416d51816c056be8f63d00532136d46b",
       "stages": {
-        "U10": 10
+        "U10": 8
       },
       "sources": [
-        "Chess-Results",
-        "Lichess Broadcasts"
+        "Static PGN"
       ]
     },
     {
       "id": "U10",
       "label": "U10 PGN",
       "pgnPath": "data/pgn/by-player/fide-8669090/U10.pgn",
-      "gameCount": 10,
-      "pgnBytes": 17158,
-      "sha256": "085fe852b4a07f913652f2ee6c9ba3b1b958a74067d56b951aba67bc4768848b",
+      "gameCount": 8,
+      "pgnBytes": 7668,
+      "sha256": "c597322d78d2a9fa339ca7f9b3ff03ced351fb765114b22fd47a96ea3c033dc7",
       "stages": {
-        "U10": 10
+        "U10": 8
       },
       "sources": [
-        "Chess-Results",
-        "Lichess Broadcasts"
+        "Static PGN"
       ]
     }
   ],
   "events": [
     {
-      "source": "Lichess Broadcasts",
-      "name": "Round 5: Bi, Mingyuan - Cao, Ban",
-      "date": "2025-12-26",
-      "tournamentID": "",
-      "stage": "U10",
-      "naturalStage": "U10",
-      "eventStage": "",
-      "gameCount": 1,
-      "results": {
-        "0-1": 1
-      }
-    },
-    {
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "name": "2025 National Amateur Chess Master Tournament Beijing Station",
       "date": "2025-12-26",
       "tournamentID": "1323488",
+      "canonicalEventID": null,
       "stage": "U10",
       "naturalStage": "U10",
       "eventStage": "",
@@ -88,23 +74,11 @@
       }
     },
     {
-      "source": "Lichess Broadcasts",
-      "name": "Round 1: Bi, Mingyuan - Fan, Boren",
-      "date": "2025-12-25",
-      "tournamentID": "",
-      "stage": "U10",
-      "naturalStage": "U10",
-      "eventStage": "",
-      "gameCount": 1,
-      "results": {
-        "0-1": 1
-      }
-    },
-    {
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "name": "Chinese National Youth Chess Team Championship 2025(B10)",
       "date": "2025-08-25",
       "tournamentID": "1241002",
+      "canonicalEventID": null,
       "stage": "U10",
       "naturalStage": "U10",
       "eventStage": "",
@@ -116,10 +90,11 @@
       }
     },
     {
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "name": "Chinese National Youth Chess Championship 2025(B10)",
       "date": "2025-02-04",
       "tournamentID": "1110353",
+      "canonicalEventID": null,
       "stage": "U10",
       "naturalStage": "U10",
       "eventStage": "",
@@ -131,30 +106,13 @@
   ],
   "games": [
     {
-      "id": "d1a65a3a163f800007afbba94e1c975ddf4a639aa9f7bf6f37c1bf374cf7a97c",
-      "event": "Round 5: Bi, Mingyuan - Cao, Ban",
-      "date": "2025-12-26",
-      "white": "Bi, Mingyuan",
-      "black": "Cao, Ban",
-      "result": "0-1",
-      "source": "Lichess Broadcasts",
-      "round": "5.16",
-      "stage": "U10",
-      "naturalStage": "U10",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
-      "sha256": "d1a65a3a163f800007afbba94e1c975ddf4a639aa9f7bf6f37c1bf374cf7a97c"
-    },
-    {
       "id": "ee2baaeb51ad8d42981adf22c10ac43169b7400a38b4b7595c072ed3f11f4518",
       "event": "2025 National Amateur Chess Master Tournament Beijing Station",
       "date": "2025-12-26",
       "white": "Bi, Mingyuan",
       "black": "Fan, Boren",
       "result": "0-1",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "1",
       "stage": "U10",
       "naturalStage": "U10",
@@ -170,7 +128,7 @@
       "white": "Bi, Mingyuan",
       "black": "Cao, Ban",
       "result": "0-1",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "5",
       "stage": "U10",
       "naturalStage": "U10",
@@ -180,30 +138,13 @@
       "sha256": "fb5cfdf5031ac35203710119fcb293939260a9f7b942d651471fd16dd9727284"
     },
     {
-      "id": "cde7fe4217e1b7dc668cbd64def7a5f285c6e61f6b675078c78466248a4af87c",
-      "event": "Round 1: Bi, Mingyuan - Fan, Boren",
-      "date": "2025-12-25",
-      "white": "Bi, Mingyuan",
-      "black": "Fan, Boren",
-      "result": "0-1",
-      "source": "Lichess Broadcasts",
-      "round": "1.15",
-      "stage": "U10",
-      "naturalStage": "U10",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-12.pgn.zst",
-      "sha256": "cde7fe4217e1b7dc668cbd64def7a5f285c6e61f6b675078c78466248a4af87c"
-    },
-    {
       "id": "7968f4e1076e3b5e83aeeb5ed0f388023175f1160594ef6d8ec7a48e08601333",
       "event": "Chinese National Youth Chess Team Championship 2025(B10)",
       "date": "2025-08-25",
       "white": "He, Chaoyi",
       "black": "Bi, Mingyuan",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "2",
       "stage": "U10",
       "naturalStage": "U10",
@@ -219,7 +160,7 @@
       "white": "Chen, Tianwen",
       "black": "Bi, Mingyuan",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "9",
       "stage": "U10",
       "naturalStage": "U10",
@@ -235,7 +176,7 @@
       "white": "Bi, Mingyuan",
       "black": "Zhou, Siyuan",
       "result": "1/2-1/2",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "3",
       "stage": "U10",
       "naturalStage": "U10",
@@ -251,7 +192,7 @@
       "white": "Bi, Mingyuan",
       "black": "Wang, Shude",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "1",
       "stage": "U10",
       "naturalStage": "U10",
@@ -267,7 +208,7 @@
       "white": "Bi, Mingyuan",
       "black": "Lu, Xiuyuan",
       "result": "0-1",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "8",
       "stage": "U10",
       "naturalStage": "U10",
@@ -283,7 +224,7 @@
       "white": "Bi, Mingyuan",
       "black": "Yuan, Maoxun",
       "result": "0-1",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "7",
       "stage": "U10",
       "naturalStage": "U10",

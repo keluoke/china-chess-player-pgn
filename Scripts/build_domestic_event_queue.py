@@ -23,8 +23,9 @@ MASTER_GROUPS = ROOT / "data" / "community" / "master-tournament-groups.csv"
 SOURCE_CATALOG = ROOT / "data" / "manual" / "domestic-source-catalog.csv"
 DEMAND_GAPS = ROOT / "data" / "manual" / "data-demand-gaps.csv"
 EVENT_DETAILS = ROOT / "data" / "generated" / "chess-results-event-details"
-OUTPUT = ROOT / "docs" / "data" / "audit" / "domestic-event-queue.json"
+OUTPUT = ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json"
 DEMAND_OUTPUT = ROOT / "docs" / "data" / "audit" / "demand-queue.json"
+SUMMARY_OUTPUT = ROOT / "docs" / "data" / "audit" / "event-queue-summary.json"
 
 
 def clean(value: Any) -> str:
@@ -185,6 +186,13 @@ def main() -> int:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     write_json(OUTPUT, event_queue, ensure_ascii=False, indent=2)
     write_json(DEMAND_OUTPUT, demand_queue, ensure_ascii=False, indent=2)
+    # Public surface only ever sees aggregate counts; target names, source IDs
+    # and priorities stay in the maintainer queue (de-sourcing contract).
+    write_json(SUMMARY_OUTPUT, {
+        "schemaVersion": 1,
+        "generatedAt": event_queue.get("generatedAt"),
+        "totals": event_queue.get("totals") or {},
+    }, ensure_ascii=False, indent=2)
     print(json.dumps({"eventTargets": event_queue["totals"], "demand": demand_queue["totals"]}, ensure_ascii=False))
     return 0
 

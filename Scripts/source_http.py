@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Strict, quota-aware HTTP client shared by source collectors.
+"""Strict, source-responsive HTTP client shared by source collectors.
 
-The quota ledger and circuit breaker live outside the repository so separate
-scripts and panel restarts still share a single residential-IP request budget.
+The request ledger and circuit breaker live outside the repository so separate
+scripts and panel restarts share pacing and real source-failure state.  The
+ledger is telemetry, not a locally invented daily access ceiling.
 """
 
 from __future__ import annotations
@@ -30,17 +31,20 @@ from source_policy import local_state_root, require_local_collector
 @dataclass(frozen=True)
 class ProviderPolicy:
     name: str
-    daily_budget: int
+    daily_budget: int | None
     min_interval: float
     circuit_failures: int = 3
     circuit_seconds: int = 300
 
 
 POLICIES = {
-    "chess-results": ProviderPolicy("chess-results", 1800, 1.0),
-    "fide": ProviderPolicy("fide", 50, 2.0),
-    "lichess": ProviderPolicy("lichess", 5000, 0.2),
-    "other": ProviderPolicy("other", 1000, 0.5),
+    # Source access is paced, and real failures open a short circuit.  Do not
+    # impose a made-up request total: an operator may continue whenever the
+    # source is responding normally.
+    "chess-results": ProviderPolicy("chess-results", None, 1.0),
+    "fide": ProviderPolicy("fide", None, 2.0),
+    "lichess": ProviderPolicy("lichess", None, 0.2),
+    "other": ProviderPolicy("other", None, 0.5),
 }
 
 
@@ -116,7 +120,7 @@ def _reserve_request(provider: str) -> None:
                 f"{provider} 连续失败后已熔断，请在约 {remaining} 秒后重试。",
             )
         requests = int(state.get("requests") or 0)
-        if requests >= policy.daily_budget:
+        if policy.daily_budget is not None and requests >= policy.daily_budget:
             raise SourceHTTPError(
                 "VISIT_BUDGET_EXHAUSTED",
                 f"{provider} 今日访问预算 {policy.daily_budget} 已用完。",
@@ -129,7 +133,7 @@ def _reserve_request(provider: str) -> None:
         state["lastRequestAt"] = now
 
 
-def _record_result(provider: str, success: bool) -> None:
+def _record_result(provider: str, success: bool, *, force_circuit: bool = False) -> None:
     policy = POLICIES[provider]
     with _locked_ledger() as (_path, ledger):
         state = ledger.setdefault("providers", {}).setdefault(provider, {})
@@ -138,10 +142,25 @@ def _record_result(provider: str, success: bool) -> None:
             state["lastSuccessAt"] = time.time()
         else:
             failures = int(state.get("consecutiveFailures") or 0) + 1
+            if force_circuit:
+                failures = max(failures, policy.circuit_failures)
             state["consecutiveFailures"] = failures
             state["lastFailureAt"] = time.time()
             if failures >= policy.circuit_failures:
                 state["circuitOpenUntil"] = time.time() + policy.circuit_seconds
+
+
+def _should_force_circuit(error: Exception | None) -> bool:
+    """Open immediately only for an explicit block/rate-limit response.
+
+    A logical page request has its own retry loop.  Counting every internal
+    retry as an independent outage meant one transient failure exhausted all
+    three circuit slots and stopped the entire batch.  Timeouts and temporary
+    transport errors now consume one slot only after that request is exhausted.
+    """
+    if isinstance(error, SourceHTTPError):
+        return error.code == "SOURCE_BLOCKED_OR_RATE_LIMITED"
+    return isinstance(error, urllib.error.HTTPError) and error.code in {403, 429}
 
 
 def reserve_provider_request(provider: str) -> None:
@@ -260,12 +279,11 @@ def fetch_bytes(
             last_error = error
             if error.code in {"VISIT_BUDGET_EXHAUSTED", "SOURCE_CIRCUIT_OPEN"}:
                 raise
-            _record_result(provider, False)
         except (urllib.error.URLError, TimeoutError, OSError, ssl.SSLError) as error:
             last_error = error
-            _record_result(provider, False)
         if attempt < retries:
             time.sleep(min(12.0, (2**attempt) + random.uniform(0.2, 0.9)))
+    _record_result(provider, False, force_circuit=_should_force_circuit(last_error))
     if isinstance(last_error, SourceHTTPError):
         raise last_error
     raise SourceHTTPError("SOURCE_NETWORK_FAILURE", f"{provider} 请求失败：{last_error}") from last_error
@@ -296,12 +314,13 @@ def open_response(
             last_error = error
             if error.code in {"VISIT_BUDGET_EXHAUSTED", "SOURCE_CIRCUIT_OPEN"}:
                 raise
-            _record_result(provider, False)
         except (urllib.error.URLError, TimeoutError, OSError, ssl.SSLError) as error:
             last_error = error
-            _record_result(provider, False)
         if attempt < retries:
             time.sleep(min(12.0, (2**attempt) + random.uniform(0.2, 0.9)))
+    _record_result(provider, False, force_circuit=_should_force_circuit(last_error))
+    if isinstance(last_error, SourceHTTPError):
+        raise last_error
     raise SourceHTTPError("SOURCE_NETWORK_FAILURE", f"{provider} 流式请求失败：{last_error}") from last_error
 
 
@@ -356,14 +375,13 @@ def download_to_path(
             if error.code in {"VISIT_BUDGET_EXHAUSTED", "SOURCE_CIRCUIT_OPEN"}:
                 tmp.unlink(missing_ok=True)
                 raise
-            _record_result(provider, False)
         except (urllib.error.URLError, TimeoutError, OSError, ssl.SSLError) as error:
             last_error = error
-            _record_result(provider, False)
         finally:
             tmp.unlink(missing_ok=True)
         if attempt < retries:
             time.sleep(min(12.0, (2**attempt) + random.uniform(0.2, 0.9)))
+    _record_result(provider, False, force_circuit=_should_force_circuit(last_error))
     if isinstance(last_error, SourceHTTPError):
         raise last_error
     raise SourceHTTPError("SOURCE_NETWORK_FAILURE", f"{provider} 大文件下载失败：{last_error}") from last_error

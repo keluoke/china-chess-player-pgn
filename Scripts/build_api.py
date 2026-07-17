@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from age_groups import LEADERBOARD_GROUPS  # noqa: E402
 from public_metrics import canonical_public_metrics  # noqa: E402
+from snapshot_context import snapshot_id  # noqa: E402
 from stable_json import write_json as write_stable_json  # noqa: E402
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -37,7 +38,7 @@ LICENSE_BLOCK = {
     "community": "Original reviewed community contributions: CC BY 4.0",
     "lichess": "Lichess Broadcast derivatives: CC BY-SA 4.0 with attribution",
     "fide": "Factual registry projection; source attribution retained",
-    "chessResults": "Legacy material is not automatically CC BY; new collection is link-only and private",
+    "chessResults": "Cleaned structured event data collected and published by the maintainer; raw pages stay private",
     "note": "See LICENSE-DATA.md for the source-level policy.",
 }
 
@@ -169,9 +170,51 @@ def main() -> int:
     if detailed != expected_detailed:
         raise RuntimeError(f"API player endpoints ({detailed}) != canonical playersWithGames ({expected_detailed})")
 
+    # --- API v2 (resource-sharded; plan §8.4) -------------------------------
+    # File-count budget: Cloudflare Pages caps a deployment at 20k files and
+    # the tree already sits near it, so v2 currently ships the manifest and
+    # official-ranking shards only. Per-player/event v2 shards and search
+    # shards follow once bulk/PGN assets move to object storage (P2-2).
+    v2_root = DOCS / "api" / "v2"
+    sid = snapshot_id()
+    if LEADERBOARDS.exists():
+        boards = read_json(LEADERBOARDS)
+        basis_year = boards.get("basisYear")
+        for group in boards.get("groups", []):
+            cohort = str(group.get("id") or "").strip() or "unknown"
+            emit(v2_root / "rankings" / "official" / "current" / "standard" / f"{cohort}.json", {
+                "schemaVersion": 2,
+                "snapshotId": sid,
+                "generatedAt": generated_at,
+                "track": "official",
+                "control": "standard",
+                "cohort": cohort,
+                "label": group.get("label"),
+                "basisYear": basis_year,
+                "cohortRule": {"minAge": group.get("minAge"), "maxAge": group.get("maxAge")},
+                "totalEligible": group.get("totalEligible"),
+                "players": group.get("players"),
+                "license": LICENSE_BLOCK,
+            })
+    emit(v2_root / "manifest.json", {
+        "apiVersion": "2",
+        "schemaVersion": 2,
+        "snapshotId": sid,
+        "generatedAt": generated_at,
+        "status": "preview",
+        "endpoints": {
+            "rankings": "/api/v2/rankings/official/current/standard/{cohort}.json",
+            "playersCompat": "/api/v1/players/fide-{fideID}.json（v2 分片端点将随对象存储迁移上线）",
+            "eventsCompat": "/data/index/event-details/tnr{tournamentID}.json",
+        },
+        "notes": "官方榜与未来参考榜永久分轨；所有响应引用同一 snapshotId。",
+        "license": LICENSE_BLOCK,
+    })
+
     # --- manifest ------------------------------------------------------------
     emit(API_ROOT / "manifest.json", {
         "apiVersion": API_VERSION,
+        "snapshotId": sid,
         "generatedAt": generated_at,
         "totals": {
             "players": len(players),
@@ -197,6 +240,7 @@ def main() -> int:
     })
 
     prune_stale_api_files(API_ROOT, expected_files)
+    prune_stale_api_files(v2_root, expected_files)
 
     print(json.dumps({"players": len(players), "playerEndpoints": detailed, "apiRoot": str(API_ROOT.relative_to(REPO_ROOT))}, ensure_ascii=False))
     return 0

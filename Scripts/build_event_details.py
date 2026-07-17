@@ -12,11 +12,13 @@ from collections import defaultdict
 from typing import Any
 
 from apply_aliases_to_registry import sanitize_person_name
+from snapshot_context import stamp
 from stable_json import write_json
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 GENERATED = ROOT / "data" / "generated" / "chess-results-event-details"
+COMPLETENESS = ROOT / "data" / "generated" / "event-completeness-report.json"
 OUTPUT = ROOT / "docs" / "data" / "index" / "event-details"
 BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
 REGISTRY = ROOT / "docs" / "data" / "registry" / "players.json"
@@ -112,16 +114,11 @@ def apply_registry_identity(person: dict[str, Any], registry: dict[str, dict[str
         if person.get("chineseName"):
             person["chineseName"] = sanitize_person_name(person.get("chineseName"))
         return
-    mappings = (
-        ("name", "name", "sourceName"),
-        ("chineseName", "chineseName", "sourceChineseName"),
-        ("federation", "federation", "sourceFederation"),
-    )
-    for target_key, registry_key, source_key in mappings:
-        old = clean(person.get(target_key))
+    # Raw source text never survives into the public projection: the registry
+    # value replaces it outright, and the raw observation stays in the private
+    # capture layer for maintainer audit (de-sourcing contract, AGENTS.md).
+    for target_key, registry_key in (("name", "name"), ("chineseName", "chineseName"), ("federation", "federation")):
         new = clean(authority.get(registry_key))
-        if old and old != new:
-            person[source_key] = old
         if new:
             person[target_key] = new
         else:
@@ -204,22 +201,86 @@ def attach_fide_id(side: dict[str, Any], names: dict[str, str]) -> None:
             return
 
 
+# De-sourcing contract: public event details never carry source identity,
+# external links or capture evidence. The private capture layer keeps them.
+_PRIVATE_TOP_KEYS = (
+    "source", "sourceName", "sourceRefs", "evidence", "sourceSnapshots",
+    "releasePolicy", "captureStatus", "captureErrorCode", "failedPage",
+    "roundCandidates", "parserVersion", "coverageScope",
+)
+_PRIVATE_PERSON_KEYS = ("sourceName", "sourceChineseName", "sourceFederation", "club", "school")
+
+
+def strip_private_fields(payload: dict[str, Any]) -> None:
+    for key in _PRIVATE_TOP_KEYS:
+        payload.pop(key, None)
+    for round_row in payload.get("rounds", []) or []:
+        round_row.pop("sourceURL", None)
+        for pairing in round_row.get("pairings", []) or []:
+            pairing.pop("pgnURL", None)
+            for side_key in ("white", "black"):
+                side = pairing.get(side_key)
+                if isinstance(side, dict):
+                    for key in _PRIVATE_PERSON_KEYS:
+                        side.pop(key, None)
+    for collection in ("players", "standings"):
+        for person in payload.get(collection, []) or []:
+            for key in _PRIVATE_PERSON_KEYS:
+                person.pop(key, None)
+
+
+def completeness_index() -> dict[str, dict[str, Any]]:
+    report = read_json(COMPLETENESS, {})
+    return {
+        clean(item.get("tournamentID")): item
+        for item in report.get("events", []) or []
+        if clean(item.get("tournamentID"))
+    }
+
+
+def public_completeness(report: dict[str, Any]) -> dict[str, Any]:
+    """User-facing completeness: understandable statuses, no internal codes."""
+    counts = report.get("counts") or {}
+    return {
+        "resultsStatus": report.get("resultsStatus"),
+        "pgnAvailability": report.get("pgnAvailability"),
+        "pgnCoverageScope": report.get("pgnCoverageScope"),
+        "archiveStatus": report.get("archiveStatus"),
+        "nonByePairings": counts.get("nonByePairings"),
+        "advertisedPGN": counts.get("advertisedPGN"),
+        "matchedPairings": counts.get("matchedPairings"),
+        "advertisedCoverage": report.get("advertisedCoverage"),
+        "allBoardCoverage": report.get("allBoardCoverage"),
+        "eventComplete": bool(report.get("eventComplete")),
+    }
+
+
 def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
     mappings = mapping_index()
     names = name_index()
     registry = registry_index()
     games = event_game_lookup()
+    completeness = completeness_index()
     manifest_events: list[dict[str, Any]] = []
-    totals = {"events": 0, "standings": 0, "rounds": 0, "pairings": 0, "pairingsWithLocalPGN": 0}
+    totals = {
+        "events": 0, "standings": 0, "rounds": 0, "pairings": 0,
+        "pairingsWithLocalPGN": 0, "resultsComplete": 0, "eventComplete": 0,
+    }
     OUTPUT.mkdir(parents=True, exist_ok=True)
     for source_path in sorted(GENERATED.glob("tnr*.json")):
         payload = read_json(source_path, {})
         tid = clean(payload.get("tournamentID"))
         if not tid:
             continue
+        report = completeness.get(tid, {})
+        if not report.get("publishable"):
+            # Only results-complete events enter the public projection; partial
+            # captures stay quarantined in the private layer (plan §5.2).
+            continue
         mapping = mappings.get(tid, {})
         payload["canonicalEventID"] = mapping.get("canonical_event_id") or None
         payload["chineseName"] = mapping.get("chinese_name") or None
+        payload["title"] = clean(payload.get("sourceName")) or None
         payload["displayName"] = mapping.get("chinese_name") or payload.get("sourceName") or f"tnr{tid}"
         for player in payload.get("players", []):
             prepare_public_person(player, names, registry)
@@ -249,6 +310,13 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
                     pairing["localGame"] = local_game
                     totals["pairingsWithLocalPGN"] += 1
                 totals["pairings"] += 1
+        if report:
+            payload["completeness"] = public_completeness(report)
+            if report.get("resultsStatus") == "results-complete":
+                totals["resultsComplete"] += 1
+            if report.get("eventComplete"):
+                totals["eventComplete"] += 1
+        strip_private_fields(payload)
         output_path = OUTPUT / f"tnr{tid}.json"
         write_json(output_path, payload, ensure_ascii=False, indent=2)
         manifest_events.append({
@@ -258,6 +326,8 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
             "roundCount": payload.get("roundCount") or len(payload.get("rounds", [])),
             "standingCount": len(payload.get("standings", [])),
             **({"roundsPendingVerification": True} if payload.get("roundsPendingVerification") else {}),
+            **({"pgnAvailability": report.get("pgnAvailability")} if report else {}),
+            **({"eventComplete": True} if report.get("eventComplete") else {}),
         })
         totals["events"] += 1
         totals["standings"] += len(payload.get("standings", []))
@@ -266,13 +336,34 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
 
 
 def main() -> int:
+    if not COMPLETENESS.exists():
+        raise SystemExit(
+            "event-completeness-report.json missing — run "
+            "Scripts/build_completeness_report.py first (publication gate)."
+        )
+    # Shrink guard (mirror of build_completeness_report): environments without
+    # the full private capture layer must not prune committed projections.
+    report_events = len((read_json(COMPLETENESS, {}) or {}).get("events") or [])
+    visible = len(list(GENERATED.glob("tnr*.json")))
+    if report_events and visible < report_events:
+        print(json.dumps({
+            "skipped": "private capture layer incomplete; keeping committed event details",
+            "visibleDetails": visible,
+            "reportEvents": report_events,
+        }, ensure_ascii=False))
+        return 0
     events, totals = build()
-    manifest = {
-        "schemaVersion": 1,
-        "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
+    # Prune projections for events that fell out of the publishable set so a
+    # stale file can never keep serving a withdrawn event.
+    published = {f"tnr{item['tournamentID']}.json" for item in events}
+    for path in OUTPUT.glob("tnr*.json"):
+        if path.name not in published:
+            path.unlink()
+    manifest = stamp({
+        "schemaVersion": 2,
         "totals": totals,
         "events": events,
-    }
+    })
     write_json(OUTPUT / "manifest.json", manifest, ensure_ascii=False, indent=2)
     print(json.dumps(totals, ensure_ascii=False))
     return 0

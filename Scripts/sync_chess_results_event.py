@@ -31,6 +31,7 @@ from html.parser import HTMLParser
 from typing import Any, Callable
 
 from apply_aliases_to_registry import sanitize_person_name
+from fetch_event_pgn import EVENT_PGN_ARCHIVE, source_explicitly_omits_pgn
 from source_http import SourceHTTPError, fetch_bytes
 from source_policy import (
     chess_results_release_policy,
@@ -41,15 +42,16 @@ from source_policy import (
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PUBLIC_OUTPUT = ROOT / "data" / "generated" / "chess-results-event-details"
-EVENT_QUEUE = ROOT / "docs" / "data" / "audit" / "domestic-event-queue.json"
+EVENT_QUEUE = ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json"
 CAPTURE_STATE = local_state_root() / "chess-results" / "capture-state.json"
 USER_AGENT = "ChinaChessPlayerPGN/EventDetailSync"
 
-# v3: zeilen=99999 on every page request (large events paginate at ~150 rows
-# otherwise) + pairing-roster containment validation. Bumping the version
-# releases quarantined/unsupported targets for one retry under the new
-# collector and invalidates truncated page caches.
-PARSER_VERSION = "chess-results-v3"
+# v4: v3's pagination and roster-containment protections, plus the common
+# domestic ``No. / Name / Club`` starting-rank layout (no FIDE/rating columns).
+# Bumping the version releases affected targets for one evidence-backed retry;
+# cached starting-rank pages are replayed locally before any missing page is
+# requested.
+PARSER_VERSION = "chess-results-v4"
 QUARANTINE_DAYS = 7
 STRUCTURE_QUARANTINE_THRESHOLD = 2
 
@@ -177,9 +179,16 @@ class PageStore:
     re-requested.
     """
 
-    def __init__(self, root: pathlib.Path | None, extra_roots: list[pathlib.Path], *, offline: bool = False):
+    def __init__(
+        self,
+        root: pathlib.Path | None,
+        extra_roots: list[pathlib.Path],
+        *,
+        offline: bool = False,
+        reuse_cache: bool = True,
+    ):
         self.root = root
-        self.extra_roots = [path for path in extra_roots if path and path.is_dir()]
+        self.extra_roots = [path for path in extra_roots if path and path.is_dir()] if reuse_cache else []
         self.offline = offline
 
     def _meta_path(self, root: pathlib.Path, tournament_id: str) -> pathlib.Path:
@@ -307,7 +316,11 @@ def player_number(cell: Cell | None) -> str:
 
 
 def find_player_table(parser: TableParser) -> list[list[Cell]]:
-    for required in ({"name", "fideid"}, {"name", "rtg"}, {"name", "fed"}):
+    # Domestic youth and master events often publish only ``No. / Name /
+    # Club``.  The serial number is still a stable join key for standings and
+    # pairings, so the absence of a FIDE ID/rating must not turn a perfectly
+    # usable individual event into a false layout failure.
+    for required in ({"name", "fideid"}, {"name", "rtg"}, {"name", "fed"}, {"no", "name"}, {"sno", "name"}):
         table = find_table(parser, required)
         if table:
             return table
@@ -356,6 +369,44 @@ def parse_standings(parser: TableParser, players: dict[str, dict[str, str]]) -> 
             "rating": clean((values.get("rtg") or Cell("")).text) or known.get("rating", ""),
             "club": clean((values.get("clubcity") or Cell("")).text) or known.get("club", ""),
             "score": clean((values.get("pts") or Cell("")).text),
+            "tieBreaks": tie_breaks,
+        })
+    return result
+
+
+def parse_team_standings(parser: TableParser) -> list[dict[str, Any]]:
+    """Parse the team ranking table exposed at ``art=0``.
+
+    Team events use the same endpoint as an individual starting list, but the
+    table is a final team ranking (``Rk. / SNo / Team / …``).  The individual
+    roster lives at art=15/16 and must not be used as the denominator for the
+    team ranking validation.
+    """
+    table = find_table(parser, {"rk", "team"})
+    result: list[dict[str, Any]] = []
+    for row in table[1:]:
+        values = cell_map(table, row)
+        # Some team crosstables omit a serial-number column entirely.  Their
+        # displayed rank is the only stable row key available from the source.
+        number = clean((values.get("sno") or values.get("no") or values.get("rk") or Cell("")).text)
+        name = clean((values.get("team") or Cell("")).text)
+        if not number or not name:
+            continue
+        tie_breaks = [cell.text for key, cell in values.items() if key.startswith("tb") and cell.text]
+        result.append({
+            "rank": clean((values.get("rk") or Cell("")).text),
+            # ``playerNo`` remains the schema's stable standing-row key.  In
+            # team events it is the source's team serial number, not a player
+            # FIDE number.
+            "playerNo": number,
+            "name": name,
+            "chineseName": "",
+            "fideID": "",
+            "federation": clean((values.get("fed") or Cell("")).text),
+            "rating": clean((values.get("rtg") or Cell("")).text),
+            "club": name,
+            # Team pages commonly expose match points as TB1 instead of Pts.
+            "score": clean((values.get("pts") or values.get("tb1") or Cell("")).text),
             "tieBreaks": tie_breaks,
         })
     return result
@@ -470,13 +521,136 @@ def parse_pairings(parser: TableParser, players: dict[str, dict[str, str]]) -> l
     return _parse_pairings_fixed(table, players)
 
 
+def parse_team_pairings(
+    parser: TableParser, team_numbers: dict[str, str] | None = None
+) -> list[dict[str, Any]]:
+    """Parse a team-match pairing table without treating teams as players."""
+    team_numbers = team_numbers or {}
+    for table in parser.tables:
+        if len(table) < 2:
+            continue
+        # Team pages can begin with a round caption, followed by the actual
+        # header.  Recent pages also render a score as ``Res. : Res.`` rather
+        # than a single Result cell.
+        for header_index, header_row in enumerate(table[:-1]):
+            headers = [normalized_header(cell.text) for cell in header_row]
+            team_indices = [index for index, value in enumerate(headers) if value in {"team", "team1", "team2"}]
+            if len(team_indices) < 2:
+                continue
+            result_index = headers.index("result") if "result" in headers else -1
+            score_indices = [index for index, value in enumerate(headers) if value in {"result", "res"}]
+            if result_index < 0 and len(score_indices) < 2:
+                continue
+            if result_index >= 0:
+                left = max((index for index in team_indices if index < result_index), default=-1)
+                right = min((index for index in team_indices if index > result_index), default=-1)
+            else:
+                # ``No. Team Team Res. : Res.`` names both teams before the
+                # two component scores.
+                left, right = team_indices[0], team_indices[1]
+            if left < 0 or right < 0:
+                continue
+            board_index = next((index for index, value in enumerate(headers) if value in {"bo", "board", "no"}), -1)
+            number_indices = [index for index, value in enumerate(headers) if value in {"no", "sno"}]
+            pgn_index = next((index for index, value in enumerate(headers) if value == "pgn"), -1)
+
+            def cell(row: list[Cell], index: int) -> Cell:
+                return row[index] if 0 <= index < len(row) else Cell("")
+
+            def side(row: list[Cell], team_index: int, before: bool) -> dict[str, str]:
+                team_cell = cell(row, team_index)
+                name = clean(team_cell.text)
+                candidates = [index for index in number_indices if (index < team_index if before else index > team_index)]
+                number_index = max(candidates) if before and candidates else min(candidates) if candidates else -1
+                # A leading ``No.`` on team-match pages is normally the
+                # match board, not a team serial.  Prefer the validated team
+                # ranking mapping whenever it is available.
+                number = team_numbers.get(name.casefold(), "") or clean(cell(row, number_index).text) or player_number(team_cell)
+                value = {"name": name}
+                if number:
+                    value["playerNo"] = number
+                return {key: val for key, val in value.items() if val}
+
+            rows: list[dict[str, Any]] = []
+            for row in table[header_index + 1:]:
+                white, black = side(row, left, True), side(row, right, False)
+                if not white.get("name") or not black.get("name"):
+                    continue
+                if result_index >= 0:
+                    result = clean(cell(row, result_index).text)
+                else:
+                    scores = [clean(cell(row, index).text) for index in score_indices]
+                    result = f"{scores[0]} - {scores[-1]}" if len(scores) >= 2 else ""
+                pgn_cell = cell(row, pgn_index)
+                pgn_url = pgn_cell.links[0] if pgn_cell.links else ""
+                rows.append({
+                    "board": clean(cell(row, board_index).text) if board_index >= 0 else str(len(rows) + 1),
+                    "white": white,
+                    "black": black,
+                    "result": result,
+                    "hasPGN": bool(pgn_url),
+                    "pgnURL": pgn_url,
+                })
+            if rows:
+                return rows
+    return []
+
+
+def embedded_round_tables(parser: TableParser) -> dict[int, list[list[Cell]]]:
+    """Split legacy pages which put every round into a single HTML table.
+
+    Older Chess-Results pages (notably some 2022 domestic events) ignore the
+    ``rd`` query parameter and render repeated ``Round N on ...`` labels plus
+    a header/data block inside one table.  ``find_table`` intentionally expects
+    the first row to be a header, so it cannot consume this layout directly.
+    """
+    result: dict[int, list[list[Cell]]] = {}
+    round_no: int | None = None
+    header: list[Cell] | None = None
+    rows: list[list[Cell]] = []
+    marker = re.compile(r"\bround\s+(\d+)\b", re.IGNORECASE)
+    for table in parser.tables:
+        for row in table:
+            label = clean(" ".join(cell.text for cell in row))
+            matched = marker.search(label)
+            if matched:
+                if round_no is not None and header is not None and rows:
+                    result.setdefault(round_no, [header, *rows])
+                round_no, header, rows = int(matched.group(1)), None, []
+                continue
+            headers = {normalized_header(cell.text) for cell in row}
+            if round_no is not None and {"bo", "white", "black", "result"}.issubset(headers):
+                if header is not None and rows:
+                    result.setdefault(round_no, [header, *rows])
+                header, rows = row, []
+                continue
+            if round_no is not None and header is not None:
+                rows.append(row)
+        if round_no is not None and header is not None and rows:
+            result.setdefault(round_no, [header, *rows])
+        round_no, header, rows = None, None, []
+    return result
+
+
+def parse_pairings_for_round(
+    parser: TableParser, players: dict[str, dict[str, str]], round_no: int
+) -> list[dict[str, Any]]:
+    """Parse the requested round, including legacy all-rounds-in-one pages."""
+    table = embedded_round_tables(parser).get(round_no)
+    if table:
+        return _parse_pairings_semantic(table, players) or _parse_pairings_fixed(table, players)
+    return parse_pairings(parser, players)
+
+
 def looks_like_team_page(parser: TableParser) -> bool:
     for table in parser.tables:
         if not table:
             continue
-        headers = {normalized_header(cell.text) for cell in table[0]}
-        if {"team", "result"}.issubset(headers) or {"team1", "team2"}.issubset(headers):
-            return True
+        for row in table:
+            headers = {normalized_header(cell.text) for cell in row}
+            if ({"team", "result"}.issubset(headers) or {"team1", "team2"}.issubset(headers)
+                    or ("team" in headers and "res" in headers)):
+                return True
     return False
 
 
@@ -484,6 +658,7 @@ def looks_like_team_page(parser: TableParser) -> bool:
 
 ROUND_HEADING_PATTERNS = (
     re.compile(r"(?:after|nach)\s+(\d+)\s+round", re.IGNORECASE),
+    re.compile(r"(?:rank|standing).*?after\s+round\s+(\d+)", re.IGNORECASE),
     re.compile(r"(?:round|runde|rd\.?)\s*(\d+)\s*(?:/|of|von)\s*(\d+)", re.IGNORECASE),
     re.compile(r"第\s*(\d+)\s*轮"),
 )
@@ -529,6 +704,24 @@ def discover_rounds(pages: list[TableParser], queue_rounds: int, max_rounds: int
     if max_rounds:
         rounds = min(rounds, max_rounds) if rounds else max_rounds
     return rounds, candidates
+
+
+def team_crosstable_rounds(parser: TableParser) -> int:
+    """Infer a round-robin team schedule from a source crosstable.
+
+    These pages omit both round links and an "after N rounds" heading.  The
+    numbered opponent columns are nevertheless complete source evidence: an
+    N-team round robin has N such columns and N-1 rounds.
+    """
+    table = find_table(parser, {"rk", "team"})
+    if not table:
+        return 0
+    opponent_columns = [
+        cell.text for cell in table[0]
+        if clean(cell.text).isdigit() and 1 <= int(clean(cell.text)) <= 100
+    ]
+    rounds = len(opponent_columns) - 1
+    return rounds if 1 <= rounds <= 30 else 0
 
 
 # --- per-target collection ---------------------------------------------------
@@ -620,6 +813,7 @@ class EventCollector:
         # 1. players / format probe: art=0 individual, art=15/16 team lists.
         event_format = "individual-swiss"
         players_page, players_url, _ = self.page("starting-rank", 0)
+        team_rankings_page, team_rankings_url = players_page, players_url
         players = parse_players(players_page)
         if not players:
             for art in (15, 16):
@@ -646,7 +840,16 @@ class EventCollector:
 
         # 2. standings.
         standings_page, standings_url, _ = self.page("standings", 1)
-        standings = parse_standings(standings_page, players)
+        if event_format == "team":
+            standings_page, standings_url = team_rankings_page, team_rankings_url
+            standings = parse_team_standings(standings_page)
+            team_numbers = {
+                clean(item.get("name") or "").casefold(): str(item.get("playerNo") or "")
+                for item in standings
+            }
+        else:
+            standings = parse_standings(standings_page, players)
+            team_numbers = {}
         if not standings:
             if data_row_count(standings_page) < 2:
                 raise EventCaptureError(
@@ -655,7 +858,7 @@ class EventCollector:
             raise EventCaptureError(
                 "PARSER_LAYOUT_CHANGED", f"tnr{self.tid} 排名页无法解析。", failed_page="standings"
             )
-        if len(standings) < max(1, int(len(players) * 0.5)):
+        if event_format != "team" and len(standings) < max(1, int(len(players) * 0.5)):
             raise EventCaptureError(
                 "VALIDATION_REGRESSION",
                 f"tnr{self.tid} 排名行异常：players={len(players)} standings={len(standings)}",
@@ -672,6 +875,10 @@ class EventCollector:
         rounds, round_candidates = discover_rounds(
             [standings_page, players_page], self.queue_rounds, self.options.max_rounds
         )
+        if event_format == "team" and not rounds:
+            crosstable_rounds = team_crosstable_rounds(standings_page)
+            round_candidates["teamCrosstable"] = crosstable_rounds
+            rounds = crosstable_rounds
         status = "complete"
         error_code = ""
         failed_page = ""
@@ -681,10 +888,29 @@ class EventCollector:
         else:
             self.pages_expected = 2 + rounds
             self.report("rounds", rounds=rounds)
+            all_rounds_page: TableParser | None = None
+            all_rounds_url = ""
             for round_no in range(1, rounds + 1):
                 kind = f"round-{round_no}"
-                round_page, round_url, _ = self.page(kind, 2, round_no)
-                pairings = parse_pairings(round_page, players)
+                if all_rounds_page is None:
+                    round_page, round_url, _ = self.page(kind, 2, round_no)
+                    # Some legacy pages render every round in the first result
+                    # table even when ``rd`` is supplied. Reuse that verified
+                    # local page for the remaining rounds instead of issuing
+                    # eight identical source requests (or failing offline
+                    # replay because round-2..N cache files do not exist).
+                    embedded = embedded_round_tables(round_page)
+                    if all(number in embedded for number in range(1, rounds + 1)):
+                        all_rounds_page, all_rounds_url = round_page, round_url
+                        self.pages_expected = 3
+                        self.report("rounds", rounds=rounds, legacyCombinedRounds=True)
+                else:
+                    round_page, round_url = all_rounds_page, all_rounds_url
+                pairings = (
+                    parse_team_pairings(round_page, team_numbers)
+                    if event_format == "team"
+                    else parse_pairings_for_round(round_page, players, round_no)
+                )
                 if not pairings:
                     failed_page = kind
                     if looks_like_team_page(round_page):
@@ -701,7 +927,7 @@ class EventCollector:
                     for side in (pairing.get("white") or {}, pairing.get("black") or {})
                     if side.get("playerNo")
                 } - set(players))
-                if unknown_refs:
+                if unknown_refs and event_format != "team":
                     # Every pairing reference must exist in the starting list;
                     # extra numbers mean the roster was truncated (pagination)
                     # or the pages belong to different groups — either way the
@@ -740,6 +966,42 @@ class EventCollector:
         }
         self.report("done", status=status, errorCode=error_code or None)
         return payload
+
+
+# --- cloud merge --------------------------------------------------------------
+
+# Keys that describe this capture run rather than the event itself; they never
+# justify re-publishing an otherwise identical payload.
+_MERGE_VOLATILE_KEYS = {"fetchedAt", "evidence", "sourceSnapshots", "releasePolicy"}
+# Event-content collections: a fresh capture that came back empty (e.g. a
+# standings-only partial) must never erase fuller data already published.
+_MERGE_LIST_KEYS = ("players", "standings", "rounds")
+
+
+def _merge_comparable(payload: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in payload.items() if k not in _MERGE_VOLATILE_KEYS}
+
+
+def merge_event_payload(existing: dict[str, Any] | None, fresh: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Merge a freshly cleaned capture with the already-published copy.
+
+    The local worktree mirrors cloud main for machine paths (single-writer
+    local-data branch, collector never pulls), so the existing file *is* the
+    cloud state.  Completeness rules: locally cleaned data wins on conflict;
+    non-empty collections already on the cloud are kept when the fresh capture
+    lacks them.  Returns ``(payload, changed)`` — ``changed`` is False when the
+    merged event content is identical to what is already published, so the
+    caller can skip the write and keep it out of the release manifest.
+    """
+    if not isinstance(existing, dict) or not existing:
+        return fresh, True
+    merged = dict(existing)
+    for key, value in fresh.items():
+        if key in _MERGE_LIST_KEYS and not value and existing.get(key):
+            continue  # keep the fuller published collection
+        merged[key] = value
+    changed = _merge_comparable(merged) != _merge_comparable(existing)
+    return merged, changed
 
 
 # --- private state -----------------------------------------------------------
@@ -906,12 +1168,18 @@ def tournament_id(value: str) -> str:
         host = (urllib.parse.urlparse(value).hostname or "").lower()
         if not (host == "chess-results.com" or host.endswith(".chess-results.com")):
             return ""
-    match = re.search(r"(?:tnr)?(\d{5,9})", value, flags=re.IGNORECASE)
+    # Chess-Results has legacy four-digit TNRs (for example World Youth 2003
+    # and 2004).  They are valid source identifiers, not malformed modern IDs.
+    match = re.search(r"(?:tnr)?(\d{4,9})", value, flags=re.IGNORECASE)
     return match.group(1) if match else ""
 
 
-def run_command(args: list[str]) -> None:
-    subprocess.run(args, cwd=ROOT, check=True)
+def run_command(args: list[str], *, allowed_returncodes: tuple[int, ...] = (0,)) -> int:
+    """Run a local pipeline step, preserving documented partial outcomes."""
+    completed = subprocess.run(args, cwd=ROOT, check=False)
+    if completed.returncode not in allowed_returncodes:
+        raise subprocess.CalledProcessError(completed.returncode, args)
+    return completed.returncode
 
 
 def main() -> int:
@@ -925,6 +1193,10 @@ def main() -> int:
     parser.add_argument("--delay", type=float, default=1.0)
     parser.add_argument("--max-rounds", type=int, default=0)
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument(
+        "--force-source", action="store_true",
+        help="force fresh event-page requests instead of reusing previous-run raw cache",
+    )
     parser.add_argument("--no-players", action="store_true")
     parser.add_argument("--no-pgn", action="store_true")
     parser.add_argument("--no-rebuild", action="store_true")
@@ -940,14 +1212,22 @@ def main() -> int:
         help="repo 外的私有运行目录；默认写入本机应用数据目录",
     )
     parser.add_argument(
+        "--publish",
+        action="store_true",
+        help="将清洗后的结构化赛事数据写入公开生成层，与已发布副本比对合并（完备性优先）",
+    )
+    parser.add_argument(
         "--authorized-publication",
         action="store_true",
-        help="仅在取得书面授权并设置环境确认后，将结构化赛事数据写入公开生成层",
+        help="--publish 的旧别名",
     )
     args = parser.parse_args()
+    if args.force_source and args.replay:
+        raise SystemExit("--force-source 与 --replay 不能同时使用")
+    publish = args.publish or args.authorized_publication
     if args.from_queue > 10:
         raise SystemExit("单次赛事队列最多 10 个目标；请拆分运行以保护访问预算。")
-    if args.authorized_publication:
+    if publish:
         require_chess_results_publication()
     private_root = (
         args.private_root
@@ -963,7 +1243,7 @@ def main() -> int:
         private_root.mkdir(parents=True, exist_ok=True)
         private_root.chmod(0o700)
     snapshot_output = private_root / "raw" / "chess-results"
-    output_root = PUBLIC_OUTPUT if args.authorized_publication else private_root / "extracted" / "chess-results-event-details"
+    output_root = PUBLIC_OUTPUT if publish else private_root / "extracted" / "chess-results-event-details"
     queued_ids = queue_targets(args.from_queue, args.refresh_days) if args.from_queue > 0 else []
     ids = [tournament_id(value) for value in [*args.targets, *args.tournament_id, *queued_ids]]
     ids = list(dict.fromkeys(value for value in ids if value))
@@ -973,7 +1253,7 @@ def main() -> int:
                 "events": [],
                 "skippedFresh": True,
                 "refreshDays": args.refresh_days,
-                "releasePolicy": "authorized" if args.authorized_publication else chess_results_release_policy(),
+                "releasePolicy": chess_results_release_policy(),
                 "publicMutation": False,
             }, ensure_ascii=False, indent=2))
             return 0
@@ -1037,23 +1317,40 @@ def main() -> int:
         # persistence.
         extra_roots: list[pathlib.Path] = []
         previous_root = entry.get("runPrivateRoot") if entry else None
-        if previous_root:
+        if previous_root and not args.force_source:
             extra_roots.append(pathlib.Path(previous_root) / "raw" / "chess-results")
-        store = PageStore(None if args.dry_run else snapshot_output, extra_roots, offline=args.replay)
+        store = PageStore(
+            None if args.dry_run else snapshot_output,
+            extra_roots,
+            offline=args.replay,
+            reuse_cache=not args.force_source,
+        )
         collector = EventCollector(
             tid, options, store, queue_rounds=rounds_metadata.get(tid, 0), progress=progress_writer,
         )
         output = output_root / f"tnr{tid}.json"
         try:
-            if output.exists() and not args.overwrite and tid not in queued_ids and not args.replay:
+            if output.exists() and not args.overwrite and not args.force_source and tid not in queued_ids and not args.replay:
                 payload = json.loads(output.read_text(encoding="utf-8"))
             else:
                 payload = collector.collect()
-                payload["releasePolicy"] = "authorized" if args.authorized_publication else chess_results_release_policy()
+                payload["releasePolicy"] = chess_results_release_policy()
                 if not args.dry_run:
                     output.parent.mkdir(parents=True, exist_ok=True)
-                    if args.authorized_publication:
-                        output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                    if publish:
+                        # Compare-and-merge against the already-published copy
+                        # (the worktree mirrors cloud main for machine paths).
+                        # Unchanged events are skipped and never re-enter the
+                        # release manifest.
+                        try:
+                            existing = json.loads(output.read_text(encoding="utf-8"))
+                        except (OSError, json.JSONDecodeError):
+                            existing = None
+                        payload, changed = merge_event_payload(existing, payload)
+                        if changed:
+                            tmp = output.with_name(f".{output.name}.{os.getpid()}.tmp")
+                            tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                            os.replace(tmp, output)
                     else:
                         write_private_json(output, payload)
         except EventCaptureError as error:
@@ -1131,11 +1428,11 @@ def main() -> int:
             # earlier completed captures.
             checkpoint()
 
-    # Link-only collection never mutates manual/community/public player data or
-    # fetches public PGN.  Downstream publication is reachable only through the
-    # explicit, environment-confirmed authorized mode.
+    # Publication (--publish) fetches game PGN and optionally rebuilds derived
+    # layers; without it, collection stays entirely in the private run area.
+    # Manual/community data is never mutated in either mode.
     complete_ids = [item["tournamentID"] for item in stats if item.get("status") == "complete"]
-    if args.authorized_publication and not args.dry_run and not args.no_players and complete_ids:
+    if publish and not args.dry_run and not args.no_players and complete_ids:
         command = [
             sys.executable,
             "Scripts/sync_chess_results_starting_rank_aliases.py",
@@ -1145,15 +1442,40 @@ def main() -> int:
             command.extend(["--tournament-id", tid])
         run_command(command)
         run_command([sys.executable, "Scripts/sync_domestic_players.py"])
-    if args.authorized_publication and not args.dry_run and not args.no_pgn and complete_ids:
-        command = [sys.executable, "Scripts/fetch_event_pgn.py", "--workers", "1"]
+    if publish and not args.dry_run and not args.no_pgn and complete_ids:
+        command = [sys.executable, "-u", "Scripts/fetch_event_pgn.py", "--workers", "1", "--full-archive"]
         if args.overwrite:
             command.append("--overwrite")
         for tid in complete_ids:
             command.extend(["--tournament-id", tid])
-        run_command(command)
-    if args.authorized_publication and not args.dry_run and not args.no_rebuild and complete_ids:
+        # Exit 4 is fetch_event_pgn's documented partial outcome: event pages
+        # may be complete while one PGN endpoint is temporarily unavailable.
+        # Do not turn that into a false all-target collection failure.  Instead
+        # mark only the event that still lacks an archive for normal retry.
+        pgn_returncode = run_command(command, allowed_returncodes=(0, 4))
+        if pgn_returncode == 4:
+            for tid in complete_ids:
+                archive = EVENT_PGN_ARCHIVE / f"tnr{tid}.pgn"
+                if archive.is_file() or source_explicitly_omits_pgn(tid):
+                    continue
+                record_target_result(
+                    captured_events,
+                    tid,
+                    status="failed",
+                    error_code="PGN_COLLECTION_INCOMPLETE",
+                    private_root=private_root,
+                )
+                failures.append({"tournamentID": tid, "errorCode": "PGN_COLLECTION_INCOMPLETE"})
+            checkpoint()
+    if publish and not args.dry_run and not args.no_rebuild and complete_ids:
+        # Publication gate order (plan §5.2): by-player packs first, then the
+        # CompletenessReport (which decides the publishable set from results,
+        # PGN availability and archive matching), and only then the public
+        # projections. ``complete_ids`` is a capture checkpoint, never the
+        # publication gate — build_event_details refuses to run without a
+        # fresh report.
         run_command([sys.executable, "Scripts/build_static_player_pgn.py"])
+        run_command([sys.executable, "Scripts/build_completeness_report.py"])
         run_command([sys.executable, "Scripts/build_event_details.py"])
         run_command([sys.executable, "Scripts/build_event_catalog.py"])
         run_command([sys.executable, "Scripts/build_dashboard.py"])
@@ -1165,9 +1487,9 @@ def main() -> int:
         "dryRun": args.dry_run,
         "replay": args.replay,
         "parserVersion": PARSER_VERSION,
-        "releasePolicy": "authorized" if args.authorized_publication else chess_results_release_policy(),
+        "releasePolicy": chess_results_release_policy(),
         "privateRoot": str(private_root),
-        "publicMutation": bool(args.authorized_publication and not args.dry_run),
+        "publicMutation": bool(publish and not args.dry_run),
     }, ensure_ascii=False, indent=2))
     partial_batch = bool(failures) or any(item.get("status") != "complete" for item in stats)
     if failures and not stats:

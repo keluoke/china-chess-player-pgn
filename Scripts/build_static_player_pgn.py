@@ -15,11 +15,13 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 import pathlib
 import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from snapshot_context import stamp
 from stable_json import write_json as write_stable_json
 
 
@@ -97,7 +99,9 @@ class PlayerGame:
                 "white": self.white,
                 "black": self.black,
                 "result": self.result,
-                "source": self.source,
+                # De-sourcing contract: the Chess-Results identity never enters
+                # public projections. Lichess stays for CC BY-SA attribution.
+                "source": "" if self.source.lower().startswith("chess-results") else self.source,
                 "round": self.round,
                 "stage": self.stage,
                 "naturalStage": self.natural_stage,
@@ -120,9 +124,14 @@ class PlayerBucket:
     seen_hashes: set[str] = field(default_factory=set)
 
     def add(self, game: PlayerGame) -> bool:
-        if game.sha256 in self.seen_hashes:
+        # Canonical PGN fingerprint (players + result + normalized movetext):
+        # the same game delivered by two providers with different headers is
+        # still one Game (plan §5, "同指纹棋局只保留一个").
+        fingerprint = game_fingerprint(game.pgn)
+        if game.sha256 in self.seen_hashes or fingerprint in self.seen_hashes:
             return False
         self.seen_hashes.add(game.sha256)
+        self.seen_hashes.add(fingerprint)
         self.games.append(game)
         return True
 
@@ -130,9 +139,31 @@ class PlayerBucket:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build static by-player PGN packs.")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--shard",
+        default="",
+        help="i/N: only ingest/write players with hash(fideID) %% N == i; "
+             "manifest/players.json are NOT written (run --finalize after).",
+    )
+    parser.add_argument(
+        "--finalize",
+        action="store_true",
+        help="Skip ingest; rebuild players.json + manifest from written per-player details.",
+    )
     args = parser.parse_args()
 
+    if args.finalize:
+        manifest = finalize_from_details()
+        print(json.dumps(manifest["totals"], ensure_ascii=False, indent=2))
+        return 0
+
+    shard_index, shard_count = parse_shard(args.shard)
     profiles = load_profiles()
+    if shard_count > 1:
+        profiles = {
+            fide_id: profile for fide_id, profile in profiles.items()
+            if shard_of(fide_id, shard_count) == shard_index
+        }
     buckets: dict[str, PlayerBucket] = {}
     stats = {
         "eventGames": 0,
@@ -147,12 +178,87 @@ def main() -> int:
     existing_packages = load_existing_package_metadata() if not args.dry_run else {}
     if not args.dry_run:
         ensure_output_roots()
-    manifest = write_outputs(buckets, dry_run=args.dry_run, existing_packages=existing_packages)
-    if not args.dry_run:
+    manifest = write_outputs(
+        buckets,
+        dry_run=args.dry_run,
+        existing_packages=existing_packages,
+        write_aggregates=shard_count <= 1,
+    )
+    if not args.dry_run and shard_count <= 1:
         prune_stale_outputs(buckets)
     summary = {**stats, **manifest["totals"]}
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
+
+
+def parse_shard(text: str) -> tuple[int, int]:
+    if not text:
+        return 0, 1
+    index_text, _, count_text = text.partition("/")
+    index, count = int(index_text), int(count_text or "1")
+    if not (0 <= index < count):
+        raise SystemExit(f"invalid --shard {text}")
+    return index, count
+
+
+def shard_of(fide_id: str, shard_count: int) -> int:
+    return int(hashlib.sha256(fide_id.encode("utf-8")).hexdigest(), 16) % shard_count
+
+
+def finalize_from_details() -> dict[str, Any]:
+    """Aggregate manifest/players.json from per-player detail files (used
+    after sharded ingest runs so aggregates always describe every player)."""
+    player_summaries: list[dict[str, Any]] = []
+    all_packages = all_bytes = all_games = 0
+    sources: set[str] = set()
+    profiles = load_profiles()
+    for detail_path in sorted(OUTPUT_INDEX_ROOT.glob("fide-*.json")):
+        detail = read_json(detail_path)
+        player = detail.get("player") or {}
+        fide_id = clean(player.get("fideID"))
+        if not fide_id or fide_id not in profiles:
+            continue
+        packages = detail.get("packages") or []
+        totals = detail.get("totals") or {}
+        games = detail.get("games") or []
+        all_package = next((p for p in packages if p.get("id") == "all"), packages[0] if packages else {})
+        summary = {
+            **player,
+            "gameCount": totals.get("games", len(games)),
+            "eventCount": totals.get("events", 0),
+            "packageCount": totals.get("packages", len(packages)),
+            "playerPgnPath": all_package.get("pgnPath"),
+            "playerPgnGameCount": all_package.get("gameCount"),
+            "playerIndexPath": public_data_path(detail_path),
+            "stages": totals.get("stages") or {},
+            "sources": sorted({s for g in games for s in [g.get("source")] if s}),
+        }
+        player_summaries.append(summary)
+        all_packages += summary["packageCount"]
+        all_bytes += totals.get("bytes", 0)
+        all_games += summary["gameCount"]
+        sources.update(summary["sources"])
+    player_summaries.sort(key=lambda item: item.get("fideID") or "")
+    manifest = stamp({
+        "schemaVersion": SCHEMA_VERSION,
+        "generatedAt": now(),
+        "storage": {
+            "playerPgnRoot": "data/pgn/by-player",
+            "playerIndexRoot": "data/index/by-player",
+            "playerPgnPattern": "data/pgn/by-player/fide-<fideID>/<package>.pgn",
+            "playerIndexPattern": "data/index/by-player/fide-<fideID>.json",
+        },
+        "totals": {
+            "players": len(player_summaries),
+            "games": all_games,
+            "packages": all_packages,
+            "bytes": all_bytes,
+        },
+        "sources": public_sources(sources),
+    })
+    write_json(OUTPUT_INDEX_ROOT / "manifest.json", manifest)
+    write_json(OUTPUT_INDEX_ROOT / "players.json", player_summaries)
+    return manifest
 
 
 def ingest_static_event_pgns(
@@ -209,6 +315,57 @@ def ingest_static_event_pgns(
     return total
 
 
+def load_bulk_stage(stage: dict[str, Any]) -> tuple | None:
+    """Load one bulk stage's entries plus repaired games (+ key index).
+
+    Parsing/repairing tens of thousands of bulk games is by far the most
+    expensive build step, so the repaired result is cached (pickle) keyed by
+    the PGN file's size+mtime. Sharded runs then share one parse."""
+    import pickle
+
+    stage_id = clean(stage.get("id"))
+    index_path = clean(stage.get("indexPath"))
+    pgn_path = clean(stage.get("pgnPath"))
+    if not stage_id or not index_path or not pgn_path:
+        return None
+    index_file = docs_path(index_path)
+    pgn_file = docs_path(pgn_path)
+    if not index_file.exists() or not pgn_file.exists():
+        return None
+
+    entries = read_json(index_file)
+    cache_dir = pathlib.Path(os.environ.get("BSP_BULK_CACHE", "")) if os.environ.get("BSP_BULK_CACHE") else None
+    stat = pgn_file.stat()
+    cache_file = cache_dir / f"bulk-{stage_id}-{stat.st_size}-{int(stat.st_mtime)}.pickle" if cache_dir else None
+    if cache_file and cache_file.exists():
+        with cache_file.open("rb") as handle:
+            cached = pickle.load(handle)
+        if isinstance(cached, tuple) and len(cached) == 4:
+            return entries, *cached
+
+    games = [repair_pgn_text(game) for game in split_pgn_games(pgn_file.read_text(encoding="utf-8", errors="replace"))]
+    games_by_key: dict[str, list[str]] = {}
+    # Loose-match acceleration: headers are parsed once per game and games are
+    # bucketed by (event, date) so a fallback match never rescans the stage.
+    loose_index: dict[str, list[int]] = {}
+    headers_list: list[dict[str, str]] = []
+    for position, game in enumerate(games):
+        headers = pgn_headers(game)
+        headers_list.append(headers)
+        games_by_key.setdefault(game_key_from_headers(headers), []).append(game)
+        loose_key = "|".join([
+            normalize_key(headers.get("Event")),
+            date_key(headers.get("EventDate") or headers.get("Date")),
+        ])
+        loose_index.setdefault(loose_key, []).append(position)
+    payload = (games, games_by_key, headers_list, loose_index)
+    if cache_file:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        with cache_file.open("wb") as handle:
+            pickle.dump(payload, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    return entries, *payload
+
+
 def ingest_bulk_youth_pgns(
     buckets: dict[str, PlayerBucket],
     profiles: dict[str, PlayerProfile],
@@ -222,19 +379,10 @@ def ingest_bulk_youth_pgns(
         stage_id = clean(stage.get("id"))
         index_path = clean(stage.get("indexPath"))
         pgn_path = clean(stage.get("pgnPath"))
-        if not stage_id or not index_path or not pgn_path:
+        loaded = load_bulk_stage(stage)
+        if loaded is None:
             continue
-        index_file = docs_path(index_path)
-        pgn_file = docs_path(pgn_path)
-        if not index_file.exists() or not pgn_file.exists():
-            continue
-
-        entries = read_json(index_file)
-        games = [repair_pgn_text(game) for game in split_pgn_games(pgn_file.read_text(encoding="utf-8", errors="replace"))]
-        games_by_key: dict[str, list[str]] = {}
-        for game in games:
-            key = game_key_from_headers(pgn_headers(game))
-            games_by_key.setdefault(key, []).append(game)
+        entries, games, games_by_key, headers_list, loose_index = loaded
 
         for entry in entries:
             fide_id = clean(entry.get("fideID"))
@@ -243,7 +391,7 @@ def ingest_bulk_youth_pgns(
             profile = profiles.get(fide_id)
             if profile is None:
                 continue
-            game = first_matching_game(games_by_key, games, entry)
+            game = first_matching_game(games_by_key, games, entry, headers_list, loose_index)
             if not game:
                 continue
             headers = pgn_headers(game)
@@ -275,6 +423,7 @@ def write_outputs(
     buckets: dict[str, PlayerBucket],
     dry_run: bool,
     existing_packages: dict[str, tuple[str, str]],
+    write_aggregates: bool = True,
 ) -> dict[str, Any]:
     generated_at = now()
     player_summaries: list[dict[str, Any]] = []
@@ -353,11 +502,11 @@ def write_outputs(
             "playerPgnGameCount": all_package["gameCount"],
             "playerIndexPath": public_data_path(detail_path),
             "stages": stage_counts,
-            "sources": sorted({game.source for game in bucket.games if game.source}),
+            "sources": public_sources({game.source for game in bucket.games}),
         }
         player_summaries.append(summary)
 
-    manifest = {
+    manifest = stamp({
         "schemaVersion": SCHEMA_VERSION,
         "generatedAt": generated_at,
         "storage": {
@@ -372,10 +521,10 @@ def write_outputs(
             "packages": all_packages,
             "bytes": all_bytes,
         },
-        "sources": sorted(sources),
-    }
+        "sources": public_sources(sources),
+    })
 
-    if not dry_run:
+    if not dry_run and write_aggregates:
         write_json(OUTPUT_INDEX_ROOT / "manifest.json", manifest)
         write_json(OUTPUT_INDEX_ROOT / "players.json", player_summaries)
     return manifest
@@ -391,6 +540,9 @@ def build_package(
     existing_packages: dict[str, tuple[str, str]],
 ) -> dict[str, Any]:
     body = "\n\n".join(game.pgn.strip() for game in games if game.pgn.strip()).strip()
+    # Upstream PGN wraps movetext with trailing spaces; normalize so packs
+    # stay `git diff --check` clean without altering game semantics.
+    body = "\n".join(line.rstrip() for line in body.split("\n"))
     created_at = now()
     semantic_text = "\n".join(
         [
@@ -422,8 +574,13 @@ def build_package(
         "pgnBytes": byte_count,
         "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "stages": stage_game_counts(games),
-        "sources": sorted({game.source for game in games if game.source}),
+        "sources": public_sources({game.source for game in games}),
     }
+
+
+def public_sources(values: set[str]) -> list[str]:
+    """Public source labels: Lichess attribution stays, Chess-Results never."""
+    return sorted({v for v in values if v and not v.lower().startswith("chess-results")})
 
 
 def semantic_package_hash(text: str) -> str:
@@ -436,8 +593,14 @@ def load_existing_package_metadata() -> dict[str, tuple[str, str]]:
     if not OUTPUT_PGN_ROOT.exists():
         return result
     for path in OUTPUT_PGN_ROOT.rglob("*.pgn"):
-        text = path.read_text(encoding="utf-8", errors="replace")
-        match = re.search(r"^% Created:\s*(.+?)\s*$", text, flags=re.MULTILINE)
+        # The "% Created:" preamble sits in the first few lines; reading the
+        # whole multi-MB pack (× thousands of packs) made rebuilds minutes
+        # slower for no benefit. The semantic hash below still requires the
+        # full text, so it is only computed for packs whose header matched.
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            head = handle.read(512)
+        match = re.search(r"^% Created:\s*(.+?)\s*$", head, flags=re.MULTILINE)
+        text = path.read_text(encoding="utf-8", errors="replace") if match else ""
         if match:
             result[str(path.relative_to(OUTPUT_PGN_ROOT))] = (
                 match.group(1),
@@ -446,17 +609,51 @@ def load_existing_package_metadata() -> dict[str, tuple[str, str]]:
     return result
 
 
+_event_mappings: dict[str, dict[str, str]] | None = None
+
+
+def event_mappings() -> dict[str, dict[str, str]]:
+    """tournamentID -> reviewed canonical/chinese-name mapping (read-only)."""
+    global _event_mappings
+    if _event_mappings is None:
+        _event_mappings = {}
+        mapping_csv = REPO_ROOT / "data" / "community" / "tournament-name-mappings.csv"
+        if mapping_csv.exists():
+            import csv as _csv
+            with mapping_csv.open("r", encoding="utf-8-sig", newline="") as handle:
+                for row in _csv.DictReader(handle):
+                    tid = clean(row.get("tournament_id"))
+                    if tid:
+                        _event_mappings[tid] = {
+                            "canonicalEventID": clean(row.get("canonical_event_id")),
+                            "chineseName": clean(row.get("chinese_name")),
+                        }
+    return _event_mappings
+
+
 def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
-    events: dict[tuple[str, str, str], dict[str, Any]] = {}
+    """One row per canonical event: a tournament that reached us both through
+    a TNR capture and a broadcast slug must not appear twice (plan §9.1)."""
+    mappings = event_mappings()
+    events: dict[str, dict[str, Any]] = {}
     for game in games:
-        key = (game.source, game.event, game.date)
+        mapping = mappings.get(game.tournament_id, {})
+        canonical = mapping.get("canonicalEventID") or ""
+        if canonical:
+            key = f"canonical:{canonical}:{game.event_stage or game.stage}"
+        elif game.tournament_id:
+            key = f"tnr:{game.tournament_id}"
+        else:
+            key = f"name:{normalize_key(game.event)}|{game.date}"
+        public_source = "" if game.source.lower().startswith("chess-results") else game.source
         event = events.setdefault(
             key,
             {
-                "source": game.source,
-                "name": game.event,
+                "source": public_source,
+                "name": mapping.get("chineseName") or game.event,
                 "date": game.date,
                 "tournamentID": game.tournament_id,
+                "canonicalEventID": canonical or None,
                 "stage": game.stage,
                 "naturalStage": game.natural_stage,
                 "eventStage": game.event_stage,
@@ -464,6 +661,8 @@ def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
                 "results": {},
             },
         )
+        if not event.get("date") and game.date:
+            event["date"] = game.date
         event["gameCount"] += 1
         event["results"][game.result] = event["results"].get(game.result, 0) + 1
     return sorted(events.values(), key=lambda item: (item.get("date") or "", item.get("name") or ""), reverse=True)
@@ -517,11 +716,23 @@ def bucket_for(buckets: dict[str, PlayerBucket], profile: PlayerProfile) -> Play
     return bucket
 
 
-def first_matching_game(games_by_key: dict[str, list[str]], games: list[str], entry: dict[str, Any]) -> str:
+def first_matching_game(
+    games_by_key: dict[str, list[str]],
+    games: list[str],
+    entry: dict[str, Any],
+    headers_list: list[dict[str, str]] | None = None,
+    loose_index: dict[str, list[int]] | None = None,
+) -> str:
     key = game_key_from_entry(entry)
     exact = games_by_key.get(key)
     if exact:
         return exact[0]
+    if headers_list is not None and loose_index is not None:
+        loose_key = "|".join([normalize_key(entry.get("event")), date_key(entry.get("date"))])
+        for position in loose_index.get(loose_key, []):
+            if loose_match(headers_list[position], entry):
+                return games[position]
+        return ""
     for game in games:
         if loose_match(pgn_headers(game), entry):
             return game
@@ -592,6 +803,27 @@ def repair_pgn_text(text: str) -> str:
 
 def stable_game_hash(game: str) -> str:
     return hashlib.sha256(re.sub(r"\s+", " ", game).strip().encode("utf-8")).hexdigest()
+
+
+_MOVETEXT_NOISE_RE = re.compile(r"\{[^}]*\}|\$\d+|\d+\.(\.\.)?|[?!]+")
+
+
+def game_fingerprint(game: str) -> str:
+    """Provider-independent fingerprint: players, result and bare movetext.
+
+    Header cosmetics (site, round labels, broadcast titles) differ between
+    providers for the same physical game; the moves do not."""
+    headers = pgn_headers(game)
+    movetext = re.sub(r"^\[[^\]]*\]\s*$", "", game, flags=re.MULTILINE)
+    movetext = _MOVETEXT_NOISE_RE.sub(" ", movetext)
+    movetext = re.sub(r"\s+", " ", movetext).strip()
+    seed = "|".join([
+        normalize_key(headers.get("White")),
+        normalize_key(headers.get("Black")),
+        normalize_key(headers.get("Result")),
+        movetext,
+    ])
+    return "fp:" + hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 
 def natural_stage_for_player(profile: PlayerProfile, date: str) -> str:

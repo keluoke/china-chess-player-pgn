@@ -77,10 +77,10 @@ python3 Scripts/reconcile_pgn_sources.py --write-audit
 
 它做四件事：
 
-1. 读取 `docs/data/index/events.json`、`docs/data/index/by-player/` 和 `docs/data/pgn/`。
+1. 读取 `data/generated/events-catalog.json`、`docs/data/index/by-player/` 和 `docs/data/pgn/`。
 2. 读取本地侦察兵 SQLite、Chess-Results 目标表、国内来源目录。
 3. 对比每个赛事是否已有 PGN、是否只有成绩无棋谱、是否有候选 PGN。
-4. 输出 `docs/data/audit/*.json` 和 `reports/pgn-reconciliation-YYYY-MM-DD.md`。
+4. 输出 `data/generated/audit/*.json`（维护者层）、`docs/data/audit/` 公共净化摘要和 `reports/pgn-reconciliation-YYYY-MM-DD.md`。
 
 ### 3. 审核
 

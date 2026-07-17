@@ -8,10 +8,16 @@ manifest，并离线重建派生索引。
 
 - `data/community/`、`data/manual/`：人工维护，抓取脚本禁止写入或自动提交。
 - `data/generated/`：允许发布的机器投影；禁止存放 Chess-Results 原始 HTML。
-- 本地私有运行区：原始响应、解析结果、日志、配额和诊断文件，默认位于
+- 本地私有运行区：原始响应、日志、配额和诊断文件，默认位于
   `~/Library/Application Support/ChinaChessPlayerPGN/`。
-- Chess-Results 默认 `link-only`：页面、排名、配对、别名候选和 PGN 不进入公开
-  仓库。即使棋步属于事实，也不等于获得了数据库提取或再发布授权。
+- Chess-Results 为 `full-data`（顶层契约 AGENTS.md，目标是赛事/对局数据完备性）：
+  维护者本机全量抓取（名单、逐轮对阵、结果、最终排名、对局 PGN），本地清洗
+  校验后与已发布副本比对合并，变化部分随 manifest 管线发布，不标注来源。
+  原始 HTML 永不入库。旧 link-only 政策已退役（可用环境变量
+  `CHESS_RESULTS_RELEASE_POLICY=link-only` 临时禁发）。发布路径：
+  `data/generated/chess-results-event-details/`（结构化赛事数据）、
+  `data/generated/chess-results-event-pgn/`（全赛事 PGN 归档）、
+  `docs/data/pgn/chess-results/`（按棋手拆分的 PGN）。
 - Lichess Broadcast 数据保留 CC BY-SA 4.0 名称、许可证 URL 和来源署名。
 - registry 是姓名和等级分的唯一权威；`name-corrections.csv` 在每次 FIDE 重建中
   最后强制应用，并在发布前再次断言。
@@ -29,8 +35,8 @@ python3 Scripts/local/panel.py
 
 面板顶部提供「抓取指定赛事」粘贴框：粘贴纯 TNR、`tnr123456` 或完整
 chess-results.com 链接（一行一个，最多 10 场），前端立即标准化、去重并显示
-chips；采集中逐场显示页面进度与缓存命中；成功后可打开只读本地预览（明确标注
-"私有采集、未公开发布"）；partial 目标可一键"续跑补缺页"。队列汇总栏区分：
+chips；采集中逐场显示页面进度与缓存命中；成功后可打开只读本地清洗结果预览；
+partial 目标可一键"续跑补缺页"。队列汇总栏区分：
 历史公开完成、新私有完成、待抓、部分（可续跑）、等待重试、已隔离、需解析器。
 
 ## 安全命令
@@ -40,18 +46,22 @@ chips；采集中逐场显示页面进度与缓存命中；成功后可打开只
 bash Scripts/local/refresh.sh health
 bash Scripts/local/refresh.sh health -- --offline
 
-# 安全常规刷新：FIDE 满 25 天才更新，并私有采集队列前 3 个赛事。
+# 安全常规刷新：FIDE 满 25 天才更新，并采集发布队列前 3 个赛事。
 # GitHub 投递失败只标记 delivery-pending（发布包留在 outbox），继续事件采集。
 bash Scripts/local/refresh.sh all
 
 # FIDE：唯一临时下载 -> ZIP/语义/人数/分片/勘误校验 -> 原子晋升
 bash Scripts/local/refresh.sh registry
 
-# Chess-Results：只写仓库外私有运行区；逐页原子落盘，坏目标隔离绕行
+# Chess-Results：全量抓取（raw 只写仓库外私有区）→ 本地清洗 → 与已发布副本
+# 比对合并（一致跳过，冲突以本地清洗数据为准）→ manifest 发布；逐页原子落盘，
+# 坏目标隔离绕行
 bash Scripts/local/refresh.sh event-queue
 bash Scripts/local/refresh.sh event-queue -- --from-queue 10
 bash Scripts/local/refresh.sh event-queue -- 1110333
 bash Scripts/local/refresh.sh event-queue -- https://chess-results.com/tnr1110333.aspx
+# 已确认结构缺口时，重新直连抓取赛事页（不复用旧 raw）；--no-pgn 只修复名单/排名/对阵
+bash Scripts/local/refresh.sh event-queue -- 1110333 --overwrite --force-source --no-pgn
 # 解析器更新后离线重放已保存的私有 raw，零来源访问
 bash Scripts/local/refresh.sh event-queue -- 1110333 --replay --overwrite
 bash Scripts/local/refresh.sh candidates -- --tournament-id 1110333
@@ -112,7 +122,7 @@ runs/<run-id>/
   release-manifest.json   # 仅存在于可发布运行
 ```
 
-FIDE/Lichess 发布前必须满足：
+FIDE/Lichess/Chess-Results 发布前必须满足：
 
 1. 发布归属路径和 Git 暂存区在运行前是干净的；
 2. 下载写入唯一临时文件，长度、文件签名和内容校验通过；
@@ -152,12 +162,13 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 - `DIRTY_RELEASE_PATH`：机器发布路径已有未提交修改，工具不会覆盖。
 - `FIDE_DOWNLOAD_OR_VALIDATION_FAILED`：新文件无效；有效 last-good 不会被替换。
 - `SOURCE_CIRCUIT_OPEN`：连续失败后熔断，等待后再试。
-- `VISIT_BUDGET_EXHAUSTED`：当日来源预算已耗尽。
+- `VISIT_BUDGET_EXHAUSTED`：兼容旧运行记录的状态码；当前采集不设置本机日访问额度。
 - `PARTIAL_FAILURE`：批次部分目标失败并已隔离；成功赛事已保留。
 - `PARSER_LAYOUT_CHANGED`：来源页面不再符合解析器预期；raw 证据已保留，更新
   解析器后 `--replay` 离线重放。
 - `VALIDATION_REGRESSION`：人数、分片、勘误或解析行数出现异常。
-- `COMPLIANCE_POLICY_BLOCKED`：操作违反 link-only 或人工数据边界。
+- `COMPLIANCE_POLICY_BLOCKED`：操作违反数据边界（原始 HTML 入库、人工数据
+  路径、或环境显式设为已退役的 link-only 模式）。
 - `GIT_DNS_FAILURE` / `GIT_TLS_FAILURE` / `GIT_PROXY_FAILURE` /
   `GIT_CONNECT_FAILURE`：网络类投递失败，deliver 会自动轮换下一路线。
 - `GIT_AUTH_FAILED` / `GIT_REMOTE_REJECTED`：换路线无用；重新登录 gh 或检查

@@ -2,11 +2,14 @@
 #
 # Maintainer-local data collection entrypoint.
 #
-# Collection happens only on this workstation.  Chess-Results is link-only by
-# default and writes raw/parsed data into a private per-run directory outside
-# the repository.  FIDE and Lichess releases are staged, validated, promoted,
-# listed in an exact manifest, committed locally and force-pushed to the
-# single-writer local-data branch.  GitHub never scrapes a source.
+# Collection happens only on this workstation.  Chess-Results is full-data:
+# events are captured completely (players, pairings, results, standings, PGN),
+# cleaned locally, compare-merged with the already-published copy and released
+# through the manifest pipeline; raw HTML stays in the private per-run
+# directory outside the repository.  FIDE, Lichess and Chess-Results releases
+# are staged, validated, promoted, listed in an exact manifest, committed
+# locally and force-pushed to the single-writer local-data branch.  GitHub
+# never scrapes a source.
 #
 # Usage: Scripts/local/refresh.sh <command> [--no-push] [-- <extra args>]
 #
@@ -14,7 +17,7 @@
 #   health       Workstation, cache, worktree and provider connectivity checks.
 #   all          Safe routine: monthly-due FIDE registry + top 3 private events.
 #   registry     Download/validate FIDE and release the registry projection.
-#   event-queue  Collect top 3 targets privately (or pass explicit queue args).
+#   event-queue  Collect top 3 targets fully, clean, merge and release.
 #   candidates   Collect starting-rank name candidates privately for review.
 #   bulk         Mirror Lichess Broadcasts under CC BY-SA 4.0 and release.
 #   bulk-full    Same as bulk, force-refresh every selected shard.
@@ -73,10 +76,11 @@ reject_extra_flags() {
 }
 RUN_MANAGER="$REPO_ROOT/Scripts/local/run_manager.py"
 export CHINA_CHESS_MAINTAINER_LOCAL=1
-# This safe entrypoint is permanently link-only. Exceptional publication
-# authorization must use a separate audited workflow; inherited environment
-# variables cannot silently widen the panel's behavior.
-export CHESS_RESULTS_RELEASE_POLICY=link-only
+# Full-data is the contract standard (AGENTS.md): cleaned, structured event
+# data is published for completeness; raw HTML never leaves the private run
+# area.  Pin the policy explicitly so an inherited link-only environment
+# cannot silently withhold publication.
+export CHESS_RESULTS_RELEASE_POLICY=full-data
 unset CHESS_RESULTS_PUBLICATION_AUTHORIZED || true
 
 BOLD=$'\033[1m'; GREEN=$'\033[32m'; RED=$'\033[31m'; CYAN=$'\033[36m'; RESET=$'\033[0m'
@@ -142,6 +146,11 @@ on_exit() {
       ERROR_CODE="${ERROR_CODE:-UNEXPECTED_FAILURE}"
       message="${ERROR_MESSAGE:-任务失败，请查看本次运行日志。}"
     fi
+  else
+    # State labels set a provisional code (for example
+    # RELEASE_VALIDATION_FAILED) before an operation runs. A successful run
+    # must not leave that stale failure code in the monitoring API.
+    ERROR_CODE=""
   fi
   py "$RUN_MANAGER" finish --run-dir "$RUN_DIR" --code "$status" \
     --result "$result" --error-code "$ERROR_CODE" --message "$message" >/dev/null 2>&1
@@ -181,6 +190,7 @@ ensure_pymod() {
 # so Chess-Results/FIDE/Lichess requests always stay on the residential IP.
 GITHUB_PROBE_URL=""
 LAST_PUSH_ERROR=""
+GIT_PUSH_TIMEOUT="${GIT_PUSH_TIMEOUT:-50}"
 
 github_probe_url() {
   if [ -z "$GITHUB_PROBE_URL" ]; then
@@ -245,11 +255,40 @@ github_routes() {
 
 xgit() {
   local proxy="$1"; shift
-  if [ -n "$proxy" ]; then
-    git -c http.proxy="$proxy" -c https.proxy="$proxy" "$@"
-  else
-    git "$@"
-  fi
+  # A successful six-second smart-HTTP probe does not guarantee that a later
+  # `git push` will finish.  Bound every route so an ISP/proxy half-open
+  # connection cannot hold the event collector forever.  Start a new process
+  # group and terminate the whole Git helper tree on expiry.
+  python3 - "$proxy" "$GIT_PUSH_TIMEOUT" "$@" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+
+proxy, raw_timeout, *args = sys.argv[1:]
+try:
+    timeout = max(1, int(raw_timeout))
+except ValueError:
+    timeout = 50
+command = ["git"]
+if proxy:
+    command += ["-c", f"http.proxy={proxy}", "-c", f"https.proxy={proxy}"]
+command += args
+process = subprocess.Popen(command, start_new_session=True)
+try:
+    raise SystemExit(process.wait(timeout=timeout))
+except subprocess.TimeoutExpired:
+    sys.stderr.write(f"GIT_PUSH_TIMEOUT: Git 路线超过 {timeout} 秒未完成，已终止。\n")
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+        process.wait(timeout=5)
+    except (ProcessLookupError, subprocess.TimeoutExpired):
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    raise SystemExit(124)
+PY
 }
 
 classify_git_error() {
@@ -397,6 +436,11 @@ REGISTRY_PATHS=(
   "data/generated/transfer-candidates.json"
 )
 BULK_PATHS=("docs/data/bulk")
+EVENT_PATHS=(
+  "data/generated/chess-results-event-details"
+  "data/generated/chess-results-event-pgn"
+  "docs/data/pgn/chess-results"
+)
 
 run_registry() {
   reject_extra_flags \
@@ -429,21 +473,30 @@ run_registry() {
 }
 
 run_private_events() {
+  # Full-data collection: capture completely, clean locally, compare-merge
+  # with the published copy and write only changed events into the release
+  # paths. Raw HTML stays in $RUN_DIR. Derived indexes are rebuilt in the
+  # cloud after ingest (--no-players --no-rebuild).
   # Exit code 4 = partial batch: some targets failed but were isolated and
-  # recorded; completed targets are checkpointed and never re-scraped.
-  reject_extra_flags --private-root --authorized-publication
-  state "collecting-private" "按社区线索队列采集 Chess-Results；原始与解析数据仅写本地私有区"
-  ERROR_CODE="CHESS_RESULTS_PRIVATE_COLLECTION_FAILED"
+  # recorded; completed targets are checkpointed, published and never
+  # re-scraped.
+  reject_extra_flags --private-root --publish --authorized-publication \
+    --no-players --no-rebuild
+  preflight_release "${EVENT_PATHS[@]}" || return $?
+  state "collecting" "按队列采集 Chess-Results 全量赛事数据；本地清洗后与已发布副本比对合并"
+  ERROR_CODE="CHESS_RESULTS_COLLECTION_FAILED"
   local rc=0
   if [ "${#EXTRA[@]}" -eq 0 ]; then
-    py Scripts/sync_chess_results_event.py --from-queue 3 --private-root "$RUN_DIR" || rc=$?
+    py Scripts/sync_chess_results_event.py --from-queue 3 --private-root "$RUN_DIR" \
+      --publish --no-players --no-rebuild || rc=$?
   else
-    py_extra Scripts/sync_chess_results_event.py --private-root "$RUN_DIR" || rc=$?
+    py_extra Scripts/sync_chess_results_event.py --private-root "$RUN_DIR" \
+      --publish --no-players --no-rebuild || rc=$?
   fi
   if [ "$rc" -eq 0 ]; then
-    PUSH_SUMMARY="私有采集完成；未向仓库发布 Chess-Results 内容"
+    PUSH_SUMMARY="赛事采集完成；变化的清洗数据已进入发布路径"
   elif [ "$rc" -eq 4 ]; then
-    PUSH_SUMMARY="私有采集部分完成；失败目标已隔离记录，成功赛事已检查点保存"
+    PUSH_SUMMARY="赛事采集部分完成；失败目标已隔离记录，成功赛事已清洗并进入发布路径"
   else
     # All targets failed. The collector already printed the structured code
     # (e.g. EVENT_EMPTY) which on_exit extracts from the log; give the user a
@@ -451,6 +504,14 @@ run_private_events() {
     ERROR_MESSAGE="全部目标失败；结构化原因、失败页面与原始证据已写入 capture-state 和本次 raw/ 目录，来源记录不存在的目标已自动隔离。"
   fi
   return "$rc"
+}
+
+release_event_data() {
+  # Manifest + commit + delivery for cleaned Chess-Results event data.
+  # Unchanged events never re-enter the manifest, so an all-fresh queue run
+  # commits nothing ("compare says cloud already has it").
+  prepare_release event-queue "${EVENT_PATHS[@]}" || return $?
+  commit_prepared_release "Release cleaned Chess-Results event data (local manifest)"
 }
 
 run_private_candidates() {
@@ -512,10 +573,12 @@ case "$command" in
   event-queue)
     event_rc=0
     run_private_events || event_rc=$?
-    if [ "$event_rc" -eq 4 ]; then
-      fail "PARTIAL_FAILURE" "部分赛事目标失败已隔离；成功赛事保留，失败原因见 capture-state 与本次日志。" 4
-    elif [ "$event_rc" -ne 0 ]; then
+    if [ "$event_rc" -ne 0 ] && [ "$event_rc" -ne 4 ]; then
       exit "$event_rc"
+    fi
+    release_event_data || fail "GIT_PUSH_FAILED" "赛事数据已按 manifest 提交本地，推送失败；使用 deliver 重投即可。"
+    if [ "$event_rc" -eq 4 ]; then
+      fail "PARTIAL_FAILURE" "部分赛事目标失败已隔离；成功赛事已发布，失败原因见 capture-state 与本次日志。" 4
     fi
     ;;
 
@@ -561,10 +624,17 @@ case "$command" in
     run_private_events || event_rc=$?
     if [ "$event_rc" -eq 4 ]; then
       partial=true
-      echo "WARNING: Chess-Results 私有队列部分失败；失败目标已隔离，成功赛事已保留。" >&2
+      echo "WARNING: Chess-Results 队列部分失败；失败目标已隔离，成功赛事已清洗待发布。" >&2
     elif [ "$event_rc" -ne 0 ]; then
       partial=true
-      echo "WARNING: Chess-Results 私有队列失败，不影响已经完成的 FIDE 发布。" >&2
+      echo "WARNING: Chess-Results 队列失败，不影响已经完成的 FIDE 发布。" >&2
+    fi
+    if [ "$event_rc" -eq 0 ] || [ "$event_rc" -eq 4 ]; then
+      if ! release_event_data; then
+        delivery_pending=true
+        DATA_COMMITTED=false
+        echo "WARNING: 赛事数据 GitHub 投递失败（${LAST_PUSH_ERROR:-GIT_PUSH_FAILED}）；发布包保留在 outbox，稍后运行 deliver。" >&2
+      fi
     fi
     if [ "$partial" = "true" ]; then
       fail "PARTIAL_FAILURE" "部分独立来源失败；成功阶段已保留，失败阶段可单独重试。" 4
@@ -616,7 +686,7 @@ case "$command" in
 
   crawl|crawl-full|pgn|pgn-full|events|events-full|aliases|promote|reconcile|verify|contrib)
     fail "COMPLIANCE_POLICY_BLOCKED" \
-      "命令 $command 已退役：Chess-Results 只允许 event-queue/candidates 私有采集，社区载荷不得包含抓取结果。" 3
+      "命令 $command 已退役：Chess-Results 采集与发布只走 event-queue/candidates，社区载荷不得包含抓取结果。" 3
     ;;
 
   *)

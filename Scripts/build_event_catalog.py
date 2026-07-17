@@ -27,18 +27,20 @@ import re
 from collections import defaultdict
 from typing import Any
 
+from snapshot_context import stamp
+
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_DATA = REPO_ROOT / "docs" / "data"
-CATALOG = DOCS_DATA / "index" / "chess-results-tournaments.json"
+CATALOG = REPO_ROOT / "data" / "generated" / "chess-results-tournaments.json"
 BY_PLAYER = DOCS_DATA / "index" / "by-player"
-OUTPUT = DOCS_DATA / "index" / "events.json"
+OUTPUT = REPO_ROOT / "data" / "generated" / "events-catalog.json"
 PUBLIC_OUTPUT = DOCS_DATA / "index" / "public-events.json"
 CANONICAL_OUTPUT = DOCS_DATA / "index" / "canonical-events.json"
-MAPPING_CANDIDATES = DOCS_DATA / "index" / "event-name-mapping-candidates.json"
+MAPPING_CANDIDATES = REPO_ROOT / "data" / "generated" / "event-name-mapping-candidates.json"
 DETAIL_GAPS = DOCS_DATA / "audit" / "event-detail-gaps.json"
 EVENT_DETAILS = DOCS_DATA / "index" / "event-details" / "manifest.json"
-EVENT_QUEUE = DOCS_DATA / "audit" / "domestic-event-queue.json"
+EVENT_QUEUE = REPO_ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json"
 MAPPINGS = REPO_ROOT / "data" / "community" / "tournament-name-mappings.csv"
 MASTER_GROUPS = REPO_ROOT / "data" / "community" / "master-tournament-groups.csv"
 
@@ -231,6 +233,10 @@ def build_upstream_event(
         event["standingCount"] = detail.get("standingCount")
         if detail.get("roundsPendingVerification"):
             event["roundsPendingVerification"] = True
+        if detail.get("pgnAvailability"):
+            event["pgnAvailability"] = detail.get("pgnAvailability")
+        if detail.get("eventComplete"):
+            event["eventComplete"] = True
     if canonical_event_id:
         event["canonicalEventID"] = canonical_event_id
         event["sourceRefs"] = [{"source": source, "tournamentID": tournament_id, "url": event["url"]}]
@@ -472,7 +478,6 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         "name": event.get("name") or None,
         "chineseName": event.get("chineseName"),
         "aliases": event.get("aliases"),
-        "url": event.get("url"),
         "rounds": event.get("rounds"),
         "participants": event.get("participants"),
         "playerCount": event.get("playerCount"),
@@ -480,6 +485,8 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         "detailStatus": "published" if event.get("detailPath") else "missing-detail",
         "detailPath": event.get("detailPath"),
         "roundsPendingVerification": event.get("roundsPendingVerification") or None,
+        "pgnAvailability": event.get("pgnAvailability") or None,
+        "eventComplete": event.get("eventComplete") or None,
         "canonicalEventID": event.get("canonicalEventID"),
     }
 
@@ -580,7 +587,6 @@ def canonical_catalog(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "playerCount": section.get("playerCount"),
                 "gameCount": section.get("gameCount"),
             } for section in sections],
-            "sourceRefs": refs,
             "players": players,
             "playerCount": len(players),
             "gameCount": sum(int(section.get("gameCount") or 0) for section in sections),
@@ -615,8 +621,8 @@ def main() -> int:
     canonical = canonical_catalog(events)
     CANONICAL_OUTPUT.write_text(json.dumps(canonical, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     public_rows, excluded = public_catalog(events, load_master_groups())
-    PUBLIC_OUTPUT.write_text(json.dumps({
-        "schemaVersion": 1,
+    PUBLIC_OUTPUT.write_text(json.dumps(stamp({
+        "schemaVersion": 2,
         "series": SERIES_LABELS,
         "totals": {
             "events": len(public_rows),
@@ -625,7 +631,7 @@ def main() -> int:
         },
         "excluded": excluded,
         "events": public_rows,
-    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    }), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     gaps = detail_gap_audit(events)
     DETAIL_GAPS.parent.mkdir(parents=True, exist_ok=True)
     DETAIL_GAPS.write_text(json.dumps({

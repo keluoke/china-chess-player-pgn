@@ -42,7 +42,7 @@ def compact_aliases(player: dict) -> list[str]:
 
 
 def main() -> int:
-    youth = read(DATA / "youth-leaderboards.json", {})
+    youth = read(ROOT / "data" / "generated" / "youth-leaderboards.json", {})
     registry = read(DATA / "registry" / "players.json", [])
     aggregate = {str(row.get("fideID")): row for row in read(DATA / "index" / "by-player" / "players.json", [])}
     domestic = read(DATA / "registry" / "domestic" / "search-index.json", [])
@@ -65,23 +65,34 @@ def main() -> int:
 
     domestic_rows = []
     for row in domestic:
+        # Aggressive byte budget (plan §8.2): the domestic pool tripled once
+        # event observations landed, so every redundant byte matters. The
+        # client reconstructs id/detailPath/entityType from domesticID+shard.
         payload = {key: row.get(key) for key in (
-            "id", "domesticID", "displayName", "chineseName", "pinyin", "publicIdentityStatus",
-            "sightingCount", "publicLocation"
+            "domesticID", "displayName", "sightingCount", "publicLocation"
         ) if row.get(key) not in (None, "", False)}
+        if row.get("id") and row.get("id") != row.get("domesticID"):
+            payload["id"] = row["id"]
+        if row.get("chineseName") and row.get("chineseName") != row.get("displayName"):
+            payload["chineseName"] = row["chineseName"]
+        if row.get("pinyin"):
+            payload["pinyin"] = row["pinyin"]
+        if row.get("publicIdentityStatus") not in (None, "", "pending"):
+            payload["publicIdentityStatus"] = row["publicIdentityStatus"]
         # `data/registry/domestic/shards/<xx>.json` → keep only the 2-hex prefix.
         detail = str(row.get("detailPath") or "")
         if detail:
             payload["shard"] = detail.rsplit("/", 1)[-1].removesuffix(".json")
-        aliases = compact_aliases(row)
+        aliases = [
+            alias for alias in compact_aliases(row)
+            # Space-stripped pinyin duplicates are reconstructed client-side.
+            if alias.replace(" ", "").casefold() != str(row.get("pinyin") or "").replace(" ", "").casefold()
+        ]
         if aliases:
             payload["aliases"] = aliases
-        names = [str(value) for value in (row.get("eventNames") or []) if value][:1]
-        if names:
-            payload["eventNames"] = names
-        years = [str(value) for value in (row.get("eventYears") or []) if value]
+        years = sorted({str(value) for value in (row.get("eventYears") or []) if value})
         if years:
-            payload["eventYears"] = years
+            payload["eventYears"] = [years[0]] if len(years) == 1 else [years[0], years[-1]]
         domestic_rows.append(payload)
 
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()

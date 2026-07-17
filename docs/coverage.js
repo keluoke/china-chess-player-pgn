@@ -1,7 +1,7 @@
 const [coverage, sourceCoverage, eventQueue, quality, dashboard, changelog] = await Promise.all([
   fetchJSON("./data/audit/player-coverage.json"),
   fetchJSON("./data/audit/source-coverage.json"),
-  fetchJSON("./data/audit/domestic-event-queue.json"),
+  fetchJSON("./data/audit/event-queue-summary.json"),
   fetchJSON("./data/audit/data-quality-review.json"),
   fetchJSON("./data/dashboard.json"),
   fetchJSON("./data/changelog.json")
@@ -36,10 +36,9 @@ document.querySelector("#stageCoverage").innerHTML = Object.entries(coverage?.st
   <div class="coverage-row"><strong>${escapeHTML(stage)}</strong><div class="coverage-track"><span style="width:${Math.max(1, Number(row.coveragePercent || 0))}%"></span></div><span>${escapeHTML(String(row.playersWithPgn ?? 0))} / ${escapeHTML(String(row.players ?? 0))} · ${escapeHTML(String(row.coveragePercent ?? 0))}%</span></div>`).join("") || empty("暂无年龄段覆盖数据");
 
 const queueTotals = eventQueue?.totals ?? {};
-const nextTargets = (eventQueue?.targets ?? []).slice(0, 5);
 document.querySelector("#eventQueue").innerHTML = `
-  <div class="mini-stat-row"><span><strong>${format(queueTotals.registered || 0)}</strong>待整取</span><span><strong>${format(queueTotals.captured || 0)}</strong>已抓取</span><span><strong>${format(queueTotals.snapshotAudited || 0)}</strong>有快照哈希</span></div>
-  <ol class="queue-list">${nextTargets.map(item => `<li><div><strong>${escapeHTML(item.eventName || `tnr${item.tournamentID}`)}</strong><span>${escapeHTML(item.category || "国内赛事")} · tnr${escapeHTML(item.tournamentID)}</span></div><b>${escapeHTML(String(item.priorityScore))}</b></li>`).join("")}</ol>`;
+  <div class="mini-stat-row"><span><strong>${format(queueTotals.registered || 0)}</strong>待整取</span><span><strong>${format(queueTotals.captured || 0)}</strong>已抓取</span><span><strong>${format(queueTotals.snapshotAudited || 0)}</strong>已核验快照</span></div>
+  <p class="coverage-note">具体目标与优先级在维护者工作台处理，公共页面只显示进度总量。</p>`;
 
 const qualityTotals = quality?.totals ?? {};
 const issues = quality?.issues ?? [];

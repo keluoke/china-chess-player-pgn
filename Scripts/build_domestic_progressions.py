@@ -80,13 +80,14 @@ def build() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
             rounds = group.get("rounds")
             rate = (score / rounds) if score is not None and rounds else None
             qualified = rate >= group["promotionRate"] if rate is not None else None
+            # De-sourcing contract: no provider identity/links in the public
+            # progression timeline; TNR stays as the stable event key.
             row = {
-                **group,
+                **{key: value for key, value in group.items() if key != "sourceURL"},
                 "eventName": sighting.get("eventName"),
                 "score": score,
                 "scoreRate": round(rate, 4) if rate is not None else None,
                 "promotionQualified": qualified,
-                "sourceRef": {"source": "Chess-Results", "tournamentID": tnr, "url": sighting.get("sourceURL") or group.get("sourceURL")},
             }
             timeline.append({key: value for key, value in row.items() if value is not None and value != ""})
         if not timeline:

@@ -1,8 +1,11 @@
 name: Rebuild derived indexes
 description: >-
   Rebuild every derived / index artifact from data already committed to the
-  repository. This step performs NO source access, so it is safe to run on
-  GitHub-hosted runners. It is the derived half of the local-release pipeline.
+  repository under ONE atomic snapshot id (Scripts/build_release_snapshot.py).
+  This step performs NO source access, so it is safe to run on GitHub-hosted
+  runners. It is the derived half of the local-release pipeline. If any build
+  or validation step fails the snapshot aborts and nothing is committed, so
+  the previous snapshot keeps serving.
 
 inputs:
   apply-registry-aliases:
@@ -17,85 +20,15 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Rebuild derived indexes (offline, no network)
+    - name: Rebuild derived indexes (offline, no network, one snapshot id)
       shell: bash
       run: |
         set -euo pipefail
-
-        # Offline registry enrichment: patches Chinese names/aliases onto the
-        # committed registry without downloading the FIDE rating list.
-        if [ "${{ inputs.apply-registry-aliases }}" = "true" ] \
-           && [ -f docs/data/registry/players.json ]; then
-          python3 Scripts/apply_aliases_to_registry.py
+        flags=()
+        if [ "${{ inputs.apply-registry-aliases }}" != "true" ]; then
+          flags+=("--skip-registry-aliases")
         fi
-        python3 Scripts/validate_registry_release.py \
-          --registry docs/data/registry \
-          --corrections data/community/name-corrections.csv
-
-        # Domestic (non-FIDE) identity layer built from reviewed CSVs.
-        if [ "${{ inputs.rebuild-domestic }}" = "true" ] \
-           && [ -f Scripts/sync_domestic_players.py ]; then
-          python3 Scripts/sync_domestic_players.py
+        if [ "${{ inputs.rebuild-domestic }}" != "true" ]; then
+          flags+=("--skip-domestic")
         fi
-
-        # Static PGN index (no --fetch-missing => pure local rebuild).
-        python3 Scripts/sync_static_pgn.py
-
-        # By-player aggregate packs consumed directly by the web frontend.
-        python3 Scripts/build_static_player_pgn.py
-
-        # Homepage search becomes interactive from one compact payload.
-        python3 Scripts/build_search_bootstrap.py
-
-        # One public metric contract: all manifests consume this aggregate.
-        python3 Scripts/build_public_metrics.py
-
-        # Full domestic event details: final standings, every-round pairings,
-        # and links from pairings back to locally archived PGNs.
-        if [ -f Scripts/build_event_details.py ]; then
-          python3 Scripts/build_event_details.py
-        fi
-
-        # First-class event catalog: joins crawler catalog, archived PGN
-        # coverage, and reviewed Chinese display-name mappings.
-        if [ -f Scripts/build_event_catalog.py ]; then
-          python3 Scripts/build_event_catalog.py
-        fi
-
-        # Demand-ranked event queue and offline metadata/result anomalies.
-        if [ -f Scripts/build_domestic_event_queue.py ]; then
-          python3 Scripts/build_domestic_event_queue.py
-        fi
-        if [ -f Scripts/build_data_quality_audit.py ]; then
-          python3 Scripts/build_data_quality_audit.py
-        fi
-
-        # Coverage reports must describe the same data snapshot being deployed.
-        if [ -f Scripts/reconcile_pgn_sources.py ]; then
-          python3 Scripts/reconcile_pgn_sources.py --write-audit
-        fi
-
-        # All-age leaderboards (youth U8-U18 + U20/OPEN/S50/S65).
-        python3 Scripts/build_leaderboards.py
-
-        # Static API v1 for external consumers (style engines etc.).
-        if [ -f Scripts/build_api.py ]; then
-          python3 Scripts/build_api.py
-        fi
-
-        # Data changelog (appends an entry when totals move).
-        if [ -f Scripts/build_changelog.py ]; then
-          python3 Scripts/build_changelog.py
-        fi
-
-        # Homepage dashboard payload.
-        if [ -f Scripts/build_dashboard.py ]; then
-          python3 Scripts/build_dashboard.py
-        fi
-
-        # Identity/current-rating fields in every consumer layer must be exact
-        # registry projections; old derived outputs may never fill gaps.
-        python3 Scripts/validate_registry_authority.py
-
-        # Public totals are an API contract; never deploy contradictory counts.
-        python3 Scripts/validate_public_metrics.py
+        python3 Scripts/build_release_snapshot.py "${flags[@]+"${flags[@]}"}"

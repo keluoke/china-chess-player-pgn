@@ -3,7 +3,8 @@
 Operational docs (AGENTS/README/docs/Scripts-local) must only present
 commands that exist in the current refresh.sh safe whitelist, must never
 describe retired commands as runnable, and must keep the local-data /
-link-only governance language intact. Historical review/plan documents under
+full-data completeness governance language intact (link-only may only be
+mentioned as retired). Historical review/plan documents under
 ``docs/reviews/`` are exempt.
 """
 
@@ -97,7 +98,9 @@ class GovernanceLanguageTests(unittest.TestCase):
     def test_data_and_code_publication_are_distinguished(self) -> None:
         agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("publish_code_via_api", agents)
-        self.assertIn("link-only", agents)
+        # Full-data completeness is the standard; link-only appears only as retired.
+        self.assertIn("数据完备性", agents)
+        self.assertIn("link-only 政策已退役", agents)
         # Default workflow is main-only; branches only on explicit request.
         self.assertIn("默认只在 `main` 上工作", agents)
         self.assertIn("不要为普通任务创建新分支", agents)

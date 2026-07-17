@@ -7,8 +7,9 @@
 - 数据 API:见 [docs/API.md](docs/API.md)(风格引擎等外部项目请走 API,本仓库不再内置风格模拟)
 - 许可:代码 MIT；人工数据见 [LICENSE-DATA.md](LICENSE-DATA.md)，第三方来源按文件 manifest 分别标注（Lichess Broadcast 为 CC BY-SA 4.0）
 
-数据源包括 FIDE、Lichess 和人工审核资料。Chess-Results 默认只用于维护者本地
-link-only 核验，不新增公开 HTML、排名镜像或 PGN 发布。
+数据源包括 FIDE、Lichess、Chess-Results 和人工审核资料。Chess-Results 赛事
+数据由维护者本机全量抓取（名单、对阵、结果、排名、对局 PGN），本地清洗后
+与已发布副本比对合并发布；原始 HTML 不入库（旧 link-only 政策已退役）。
 
 **架构：私有采集、审批发布、离线构建。** 所有网络采集只在维护者本机运行，
 见 [`Scripts/local/refresh.sh`](Scripts/local/README.md)。原始响应留在仓库外；本地只
@@ -64,7 +65,7 @@ docs/data/pgn/by-player/fide-<fideID>/U8.pgn
 ...
 docs/data/index/manifest.json
 docs/data/index/players.json
-docs/data/index/events.json
+docs/data/index/public-events.json
 docs/data/index/players/fide-<fideID>.json
 docs/data/index/by-player/manifest.json
 docs/data/index/by-player/players.json
@@ -120,7 +121,7 @@ python3 Scripts/sync_domestic_players.py
 
 - 棋手身份与等级分权威：FIDE rating list
 - 大批量授权棋谱：Lichess Broadcast（CC BY-SA 4.0）
-- 赛事目标/本地核验：Chess-Results（默认 link-only，不新增公开镜像）
+- 赛事全量数据：Chess-Results（维护者本机抓取，本地清洗后比对合并发布；原始 HTML 不入库）
 - 中文别名和勘误：人工审核的 `data/manual/`、`data/community/`
 
 ## 架构说明

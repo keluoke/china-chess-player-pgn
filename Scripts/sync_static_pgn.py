@@ -42,7 +42,7 @@ DOCS_DATA = REPO_ROOT / "docs" / "data"
 STATIC_PGN_ROOT = DOCS_DATA / "pgn"
 INDEX_ROOT = DOCS_DATA / "index"
 PLAYER_INDEX_ROOT = INDEX_ROOT / "players"
-LEADERBOARD_JSON = DOCS_DATA / "youth-leaderboards.json"
+LEADERBOARD_JSON = REPO_ROOT / "data" / "generated" / "youth-leaderboards.json"
 REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
 USER_AGENT = "ChinaChessPlayerPGNStaticSync/1.0"
 _REGISTRY_PROFILES: dict[str, dict[str, Any]] | None = None
@@ -596,7 +596,6 @@ def registry_profiles() -> dict[str, dict[str, Any]]:
 def event_payload(record: EventRecord) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "id": f"{slug(record.source)}:{record.tournament_id}",
-        "source": record.source,
         "tournamentID": record.tournament_id,
         "name": record.event_name,
         "date": record.end_date,
@@ -604,8 +603,10 @@ def event_payload(record: EventRecord) -> dict[str, Any]:
         "rounds": int(record.rounds) if str(record.rounds).isdigit() else record.rounds,
         "participants": int(record.participants) if str(record.participants).isdigit() else record.participants,
     }
-    if record.source_url:
-        payload["sourceURL"] = record.source_url
+    # De-sourcing contract: no Chess-Results identity or external link in the
+    # public player details; Lichess keeps its attribution label.
+    if not record.source.lower().startswith("chess-results"):
+        payload["source"] = record.source
     if has_static_pgn(record):
         payload.update(
             {

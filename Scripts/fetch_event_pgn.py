@@ -43,6 +43,10 @@ from source_policy import require_chess_results_publication  # noqa: E402
 SOURCES_CSV = REPO_ROOT / "data" / "manual" / "chess-results-starting-rank-sources.csv"
 ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
 REGISTRY_PLAYERS = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
+# Complete-tournament PGN archive (every game, not only Chinese players):
+# the canonical machine layer for event completeness.
+EVENT_PGN_ARCHIVE = REPO_ROOT / "data" / "generated" / "chess-results-event-pgn"
+EVENT_DETAILS = REPO_ROOT / "data" / "generated" / "chess-results-event-details"
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +176,69 @@ def tournament_ids_from_sources(path: pathlib.Path, category: str) -> list[str]:
     return list(dict.fromkeys(ids))
 
 
+def selected_tournament_ids(
+    sources: pathlib.Path,
+    category: str,
+    explicit_ids: list[str],
+    neighbor_window: int,
+    max_events: int,
+) -> list[str]:
+    """Choose either an explicit batch or the source-table default queue.
+
+    ``--tournament-id`` is used by the event collector after it has completed
+    a bounded batch.  It must not silently append every historical row from
+    the source table, otherwise a ten-event collection turns into a large,
+    unrelated source crawl during the PGN stage.
+    """
+    explicit = [re.sub(r"\D", "", value) for value in explicit_ids]
+    ids = [value for value in dict.fromkeys(explicit) if value]
+    if not ids:
+        ids = tournament_ids_from_sources(sources, category)
+
+    if neighbor_window > 0:
+        seeds = list(ids)
+        for seed in seeds:
+            base = int(seed)
+            for tid in range(base - neighbor_window, base + neighbor_window + 1):
+                sid = str(tid)
+                if sid not in ids:
+                    ids.append(sid)
+
+    return ids[:max_events] if max_events else ids
+
+
+def source_explicitly_omits_pgn(tournament_id: str) -> bool:
+    """Return whether the captured event pages explicitly expose no PGN links.
+
+    This is deliberately stricter than merely seeing no local archive: every
+    non-bye pairing must have been captured and none may advertise a PGN URL.
+    It is therefore a source-gap verdict, not a synthetic empty archive.
+    """
+    payload = _read_json(EVENT_DETAILS / f"tnr{tournament_id}.json")
+    pairings: list[dict[str, Any]] = []
+    for round_payload in payload.get("rounds") or []:
+        for pairing in round_payload.get("pairings") or []:
+            white = pairing.get("white") or {}
+            black = pairing.get("black") or {}
+            names = {clean(white.get("name") or "").casefold(), clean(black.get("name") or "").casefold()}
+            if names & {"bye", "not paired"}:
+                continue
+            if white.get("playerNo") and black.get("playerNo"):
+                pairings.append(pairing)
+    return bool(pairings) and not any(
+        bool(pairing.get("hasPGN")) or bool(clean(pairing.get("pgnURL") or ""))
+        for pairing in pairings
+    )
+
+
+def _read_json(path: pathlib.Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
 # ---------------------------------------------------------------------------
 # Per-event worker
 # ---------------------------------------------------------------------------
@@ -184,12 +251,17 @@ def process_event(
     overwrite: bool,
     dry_run: bool,
     pgn_text: str | None = None,
+    full_archive: bool = False,
 ) -> dict[str, Any]:
     """Split a tournament PGN per Chinese player.
 
     ``pgn_text`` lets callers reuse an already-downloaded PGN (the community
     contribution tool archives the raw PGN as evidence, then splits the same
     bytes) instead of hitting Chess-Results a second time.
+
+    ``full_archive`` additionally writes the complete tournament PGN (every
+    game) to ``data/generated/chess-results-event-pgn/tnr<id>.pgn`` so event
+    data stays complete regardless of player nationality.
     """
     require_chess_results_publication()
     result: dict[str, Any] = {
@@ -203,24 +275,55 @@ def process_event(
     }
 
     out_dir = out_root / f"tnr{tournament_id}"
-    if not overwrite and out_dir.exists() and any(out_dir.glob("*.pgn")):
-        result["status"] = "skipped_existing"
-        return result
-
+    archive_path = EVENT_PGN_ARCHIVE / f"tnr{tournament_id}.pgn"
     if pgn_text is not None:
         pgn = pgn_text
+    elif full_archive and not overwrite and archive_path.is_file():
+        # Repair/rebuild player splits from a validated local full-event
+        # archive without another source request.  This also fixes old partial
+        # per-player files which previously looked "existing" and were skipped.
+        print(f"tnr{tournament_id}: 复用本地完整 PGN 归档。", file=sys.stderr, flush=True)
+        pgn = archive_path.read_text(encoding="utf-8", errors="replace")
+    elif full_archive and source_explicitly_omits_pgn(tournament_id):
+        # A pairing page that was fully captured but exposes no per-game PGN
+        # links is primary evidence that this source does not publish PGN for
+        # the event.  Do not create an empty archive or hammer the generic
+        # search form; the caller records it as a source gap and moves on.
+        result["status"] = "source_unavailable"
+        result["error"] = "SOURCE_PGN_NOT_PUBLISHED"
+        print(f"tnr{tournament_id}: 来源页面未公开任何棋谱链接，记录为 PGN 来源缺口。", file=sys.stderr, flush=True)
+        return result
+    elif (
+        not full_archive
+        and not overwrite
+        and out_dir.exists()
+        and any(out_dir.glob("*.pgn"))
+    ):
+        # Player-specific splits are not evidence of a complete event archive.
+        # When a caller requests --full-archive, continue to the source fetch
+        # unless the canonical archive above is already present.
+        result["status"] = "skipped_existing"
+        return result
     else:
         try:
+            print(f"tnr{tournament_id}: 正在抓取完整 PGN 棋谱…", file=sys.stderr, flush=True)
             pgn = download_chess_results_pgn("", tournament_id)
         except Exception as exc:
             result["status"] = "error"
             result["error"] = str(exc)
+            print(f"tnr{tournament_id}: PGN 抓取失败：{exc}", file=sys.stderr, flush=True)
             return result
 
     games = split_games(pgn)
     if not games or count_pgn_games(pgn) == 0:
         result["status"] = "empty"
         return result
+
+    if full_archive and not dry_run:
+        archive_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = archive_path.with_name(f".{archive_path.name}.tmp")
+        tmp.write_text(pgn.rstrip("\n") + "\n", encoding="utf-8")
+        tmp.replace(archive_path)
 
     result["games"] = len(games)
     per_player: dict[str, list[str]] = defaultdict(list)
@@ -267,27 +370,24 @@ def main() -> int:
     parser.add_argument("--overwrite", action="store_true", help="refetch even if files already exist")
     parser.add_argument("--workers", type=int, default=3, help="parallel download workers")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--full-archive",
+        action="store_true",
+        help="also archive the complete tournament PGN under data/generated/chess-results-event-pgn/",
+    )
     args = parser.parse_args()
 
-    ids = tournament_ids_from_sources(args.sources, args.category)
-    ids.extend(re.sub(r"\D", "", t) for t in args.tournament_id)
-    ids = [t for t in dict.fromkeys(ids) if t]
-
-    if args.neighbor_window > 0:
-        seeds = list(ids)
-        for seed in seeds:
-            base = int(seed)
-            for tid in range(base - args.neighbor_window, base + args.neighbor_window + 1):
-                sid = str(tid)
-                if sid not in ids:
-                    ids.append(sid)
-
-    if args.max_events:
-        ids = ids[: args.max_events]
+    ids = selected_tournament_ids(
+        args.sources, args.category, args.tournament_id,
+        args.neighbor_window, args.max_events,
+    )
 
     if not ids:
         print(json.dumps({"error": "no tournament IDs to fetch"}, ensure_ascii=False, indent=2))
         return 1
+
+    mode = "显式批次" if args.tournament_id else "来源表队列"
+    print(f"PGN 队列：{len(ids)} 场（{mode}）。", file=sys.stderr, flush=True)
 
     print(f"Loading registry + aliases …", file=sys.stderr)
     china_ids = load_china_fide_ids()
@@ -304,6 +404,7 @@ def main() -> int:
         "eventsSkippedExisting": 0,
         "eventsEmpty": 0,
         "eventsError": 0,
+        "eventsSourceUnavailable": 0,
         "games": 0,
         "gamesAssigned": 0,
         "gamesUnassigned": 0,
@@ -321,6 +422,8 @@ def main() -> int:
                 STATIC_PGN_ROOT / "chess-results",
                 args.overwrite,
                 args.dry_run,
+                None,
+                args.full_archive,
             ): tid
             for tid in ids
         }
@@ -341,6 +444,8 @@ def main() -> int:
             elif status == "error":
                 stats["eventsError"] += 1
                 stats["errors"].append(f"tnr{tid}: {res['error']}")
+            elif status == "source_unavailable":
+                stats["eventsSourceUnavailable"] += 1
             else:
                 stats["eventsWithGames"] += 1
                 stats["games"] += res["games"]
@@ -354,7 +459,9 @@ def main() -> int:
                 )
 
     print(json.dumps(stats, ensure_ascii=False, indent=2))
-    return 0
+    # A structured event is not eligible for a complete batch until its full
+    # tournament archive exists.  Missing/unavailable PGN stays resumable.
+    return 4 if stats["eventsEmpty"] or stats["eventsError"] else 0
 
 
 if __name__ == "__main__":

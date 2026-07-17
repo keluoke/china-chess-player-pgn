@@ -41,6 +41,14 @@ PUBLIC_RELEASE_PREFIXES = (
     "docs/data/bulk",
     "data/generated/federation-snapshots",
     "data/generated/transfer-candidates.json",
+    "data/generated/chess-results-event-details",
+    "data/generated/chess-results-event-pgn",
+    "docs/data/pgn/chess-results",
+)
+CHESS_RESULTS_RELEASE_PREFIXES = (
+    "data/generated/chess-results-event-details",
+    "data/generated/chess-results-event-pgn",
+    "docs/data/pgn/chess-results",
 )
 
 
@@ -230,19 +238,40 @@ def validate_release_path(path: str) -> None:
         raise RunManagerError("RAW_SOURCE_PUBLICATION_BLOCKED", f"原始网页禁止进入发布包：{path}")
 
 
-def preflight(repo: pathlib.Path, run_dir: pathlib.Path, allow: list[str]) -> None:
+def preflight(repo: pathlib.Path, run_dir: pathlib.Path, allow: list[str], *, adopt: list[str] | None = None) -> None:
+    """Record a release baseline, optionally adopting exact orphaned machine outputs.
+
+    ``adopt`` is deliberately narrow: it is only for a verified generated
+    output written by an interrupted local run before its manifest was made.
+    The caller must list every path exactly; all other dirty release files
+    still fail preflight as usual.
+    """
     allowed = [*allow, MANIFEST_PATH]
+    adopt = sorted(set(adopt or []))
+    for path in adopt:
+        validate_release_path(path)
+        if not within(path, allowed):
+            raise RunManagerError("RECOVERY_PATH_FORBIDDEN", f"恢复路径不在本次发布白名单：{path}")
     staged = git(repo, "diff", "--cached", "--name-only", "-z").stdout
     if staged:
         paths = [p.decode("utf-8", "replace") for p in staged.split(b"\0") if p]
         raise RunManagerError("GIT_INDEX_NOT_CLEAN", f"Git 暂存区已有内容：{', '.join(paths[:5])}")
     baseline = worktree_status(repo)
     dirty_owned = [path for path in baseline if within(path, allowed)]
-    if dirty_owned:
+    unknown_adopted = [path for path in adopt if path not in dirty_owned]
+    if unknown_adopted:
+        raise RunManagerError("RECOVERY_PATH_NOT_DIRTY", f"恢复路径不是待接管的机器输出：{', '.join(unknown_adopted[:8])}")
+    dirty_not_adopted = [path for path in dirty_owned if path not in adopt]
+    if dirty_not_adopted:
         raise RunManagerError(
             "DIRTY_RELEASE_PATH",
-            "发布归属路径已有未提交修改，请先处理后再抓取：" + ", ".join(dirty_owned[:8]),
+            "发布归属路径已有未提交修改，请先处理后再抓取：" + ", ".join(dirty_not_adopted[:8]),
         )
+    # Leave verified adopted outputs out of the baseline so prepare_release
+    # creates a normal manifest for them; all unrelated user/code changes stay
+    # in the baseline and therefore cannot leak into the release.
+    for path in adopt:
+        baseline.pop(path, None)
     atomic_json(run_dir / "worktree-baseline.json", baseline)
 
 
@@ -296,7 +325,12 @@ def prepare_release(repo: pathlib.Path, run_dir: pathlib.Path, command: str, all
     manifest_path = repo / MANIFEST_PATH
     atomic_json(manifest_path, manifest)
     for item in files:
-        git(repo, "add", "-A", "--", item["path"])
+        # Event detail archives live beneath an ignored generated-data tree.
+        # A path that is already tracked but happens to be clean in the index
+        # can still make `git add -A -- <path>` exit non-zero as ignored.
+        # Release manifests have already validated the exact path, so force-add
+        # only this explicit manifest entry rather than broadening the stage.
+        git(repo, "add", "-f", "-A", "--", item["path"])
     git(repo, "add", "--", MANIFEST_PATH)
     staged = [
         value.decode("utf-8", "surrogateescape")
@@ -392,9 +426,12 @@ def validate_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
         raise RunManagerError("RELEASE_MANIFEST_INVALID", "发布 manifest 文件数必须为 1-50000。")
     source = payload.get("source") or {}
     source_name = str(source.get("source") or "")
-    if source_name == "Chess-Results":
-        raise RunManagerError("COMPLIANCE_POLICY_BLOCKED", "Chess-Results 在当前架构中永不进入机器发布包。")
-    if source_name not in {"FIDE Rating List", "Lichess Broadcasts"}:
+    if source_name == "Chess-Results" and source.get("releasePolicy") not in {"full-data", "authorized"}:
+        raise RunManagerError(
+            "COMPLIANCE_POLICY_BLOCKED",
+            "Chess-Results link-only 发布包不合法：清洗后的结构化数据才允许进入 manifest。",
+        )
+    if source_name not in {"FIDE Rating List", "Lichess Broadcasts", "Chess-Results"}:
         raise RunManagerError("RELEASE_SOURCE_UNSUPPORTED", f"机器发布不支持来源：{source_name or '?'}")
     if source_name == "FIDE Rating List" and source.get("releasePolicy") != "factual-registry-projection":
         raise RunManagerError("RELEASE_SOURCE_METADATA_INVALID", "FIDE 发布缺少事实注册表投影声明。")
@@ -421,6 +458,8 @@ def validate_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
             raise RunManagerError("RELEASE_SOURCE_PATH_MISMATCH", f"FIDE manifest 不能发布：{path}")
         if source_name == "Lichess Broadcasts" and not within(path, ["docs/data/bulk"]):
             raise RunManagerError("RELEASE_SOURCE_PATH_MISMATCH", f"Lichess manifest 不能发布：{path}")
+        if source_name == "Chess-Results" and not within(path, list(CHESS_RESULTS_RELEASE_PREFIXES)):
+            raise RunManagerError("RELEASE_SOURCE_PATH_MISMATCH", f"Chess-Results manifest 不能发布：{path}")
         if item.get("operation") not in {"upsert", "delete"}:
             raise RunManagerError("RELEASE_MANIFEST_INVALID", f"非法文件操作：{path}")
         if item.get("operation") == "upsert":
@@ -605,6 +644,7 @@ def parser() -> argparse.ArgumentParser:
     preflight_p.add_argument("--repo", required=True, type=pathlib.Path)
     preflight_p.add_argument("--run-dir", required=True, type=pathlib.Path)
     preflight_p.add_argument("--allow", action="append", default=[])
+    preflight_p.add_argument("--adopt", action="append", default=[])
     prepare_p = sub.add_parser("prepare")
     prepare_p.add_argument("--repo", required=True, type=pathlib.Path)
     prepare_p.add_argument("--run-dir", required=True, type=pathlib.Path)
@@ -664,7 +704,7 @@ def main() -> int:
         elif args.action == "current":
             print(json.dumps(current_payload(args.tail), ensure_ascii=False))
         elif args.action == "preflight":
-            preflight(args.repo, args.run_dir, args.allow)
+            preflight(args.repo, args.run_dir, args.allow, adopt=args.adopt)
         elif args.action == "prepare":
             print(json.dumps(prepare_release(args.repo, args.run_dir, args.command, args.allow), ensure_ascii=False))
         elif args.action == "promote":

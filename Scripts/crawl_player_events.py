@@ -73,8 +73,8 @@ INDEX_DIR = REPO_ROOT / "docs" / "data" / "index"
 PLAYER_EVENTS_CSV = GENERATED_DIR / "chess-results-player-events.csv"
 NAME_MAP_CSV = GENERATED_DIR / "chess-results-player-name-map.csv"
 STATE_JSON = GENERATED_DIR / "chess-results-spielersuche-state.json"
-TOURNAMENTS_JSON = INDEX_DIR / "chess-results-tournaments.json"
-MANIFEST_JSON = INDEX_DIR / "chess-results-spielersuche-manifest.json"
+TOURNAMENTS_JSON = REPO_ROOT / "data" / "generated" / "chess-results-tournaments.json"
+MANIFEST_JSON = REPO_ROOT / "data" / "generated" / "chess-results-spielersuche-manifest.json"
 
 CJK_RE = re.compile(r"[㐀-鿿豈-﫿]")
 
@@ -488,7 +488,7 @@ def write_outputs(
                 "storage": {
                     "playerEvents": "data/generated/chess-results-player-events.csv",
                     "nameMap": "data/generated/chess-results-player-name-map.csv",
-                    "tournamentCatalog": "docs/data/index/chess-results-tournaments.json",
+                    "tournamentCatalog": "data/generated/chess-results-tournaments.json",
                     "crawlState": "data/generated/chess-results-spielersuche-state.json",
                 },
                 "totals": totals,

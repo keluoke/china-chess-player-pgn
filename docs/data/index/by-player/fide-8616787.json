@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-13T07:31:55+00:00",
+  "generatedAt": "2026-07-17T17:36:41+00:00",
   "player": {
     "fideID": "8616787",
     "id": "fide-8616787",
@@ -19,12 +19,13 @@
     ]
   },
   "totals": {
-    "games": 13,
-    "events": 3,
-    "packages": 3,
-    "bytes": 60096,
+    "games": 19,
+    "events": 4,
+    "packages": 4,
+    "bytes": 73912,
     "stages": {
       "U8": 6,
+      "U10": 6,
       "U16": 7
     }
   },
@@ -33,16 +34,17 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8616787/all.pgn",
-      "gameCount": 13,
-      "pgnBytes": 29984,
-      "sha256": "3356edde4b74f222a5b4d3940a1456e7f4659eaf57cfb5e3febc39e65aab32e2",
+      "gameCount": 19,
+      "pgnBytes": 36827,
+      "sha256": "287065ec4f2f7d10d2909c2b0c45409945943fb0e26ecccb2ca6add4a17175ec",
       "stages": {
         "U8": 6,
+        "U10": 6,
         "U16": 7
       },
       "sources": [
-        "Chess-Results",
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     },
     {
@@ -56,7 +58,21 @@
         "U8": 6
       },
       "sources": [
-        "Chess-Results"
+        "Static PGN"
+      ]
+    },
+    {
+      "id": "U10",
+      "label": "U10 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8616787/U10.pgn",
+      "gameCount": 6,
+      "pgnBytes": 6973,
+      "sha256": "fc26a5e598e87ed5dae21326e46711f8b0208e153d498e95caa3e319490b57a1",
+      "stages": {
+        "U10": 6
+      },
+      "sources": [
+        "Static PGN"
       ]
     },
     {
@@ -80,6 +96,7 @@
       "name": "WSTC",
       "date": "2023-08-07",
       "tournamentID": "",
+      "canonicalEventID": null,
       "stage": "U16",
       "naturalStage": "U16",
       "eventStage": "",
@@ -89,10 +106,27 @@
       }
     },
     {
-      "source": "Chess-Results",
+      "source": "Static PGN",
+      "name": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "tournamentID": "295099",
+      "canonicalEventID": null,
+      "stage": "U10",
+      "naturalStage": "U10",
+      "eventStage": "",
+      "gameCount": 6,
+      "results": {
+        "1/2-1/2": 2,
+        "1-0": 1,
+        "0-1": 3
+      }
+    },
+    {
+      "source": "Static PGN",
       "name": "WYCC Girls 08",
       "date": "2015-10-25",
       "tournamentID": "187424",
+      "canonicalEventID": null,
       "stage": "U8",
       "naturalStage": "U8",
       "eventStage": "",
@@ -108,6 +142,7 @@
       "name": "WSTC",
       "date": "",
       "tournamentID": "",
+      "canonicalEventID": null,
       "stage": "U16",
       "naturalStage": "U16",
       "eventStage": "",
@@ -138,13 +173,109 @@
       "sha256": "19efa3b1c14a4186744a92e0fb3a42f432f1e9c4c59f6d44fa7b8a13e4533309"
     },
     {
+      "id": "a77f79bf88678651d33796fb89b97a8f6cb1b50306464c058ac03ef395e3fe06",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Zhou, Lepu Coco",
+      "black": "Wei, Yaqing",
+      "result": "1/2-1/2",
+      "source": "Static PGN",
+      "round": "2",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "tournamentID": "295099",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295099/fide-8616787-295099.pgn",
+      "sha256": "a77f79bf88678651d33796fb89b97a8f6cb1b50306464c058ac03ef395e3fe06"
+    },
+    {
+      "id": "d0be1a4d4b4ce2a05de5d18515aa848a12d052121d61cb4d6c2709e28ee57002",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Wei, Yaqing",
+      "black": "Mikheeva, Galina",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "7",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "white",
+      "tournamentID": "295099",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295099/fide-8616787-295099.pgn",
+      "sha256": "d0be1a4d4b4ce2a05de5d18515aa848a12d052121d61cb4d6c2709e28ee57002"
+    },
+    {
+      "id": "2cb2d41bd682e8c08bfbb6ca168e8b00fbe6df42ea57ee2bbe8b63a446fde3fe",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Wang, Ellen",
+      "black": "Wei, Yaqing",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "8",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "tournamentID": "295099",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295099/fide-8616787-295099.pgn",
+      "sha256": "2cb2d41bd682e8c08bfbb6ca168e8b00fbe6df42ea57ee2bbe8b63a446fde3fe"
+    },
+    {
+      "id": "d5dfcb888996c8a0cf038ef7febf8f49e225951e6e8c40bf61158757bae3861a",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Valeine, Ieva",
+      "black": "Wei, Yaqing",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "4",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "tournamentID": "295099",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295099/fide-8616787-295099.pgn",
+      "sha256": "d5dfcb888996c8a0cf038ef7febf8f49e225951e6e8c40bf61158757bae3861a"
+    },
+    {
+      "id": "92fb169b40f35738f7ca6db39904234a5e49f42338bea802774d38578b5228d6",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Sahithi, Varshini",
+      "black": "Wei, Yaqing",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "6",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "tournamentID": "295099",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295099/fide-8616787-295099.pgn",
+      "sha256": "92fb169b40f35738f7ca6db39904234a5e49f42338bea802774d38578b5228d6"
+    },
+    {
+      "id": "7cc6c58fef4420164ffa6bca007d03cd32d3e46e4fa1789343e1c05981faee8f",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Gaal, Zsoka",
+      "black": "Wei, Yaqing",
+      "result": "1/2-1/2",
+      "source": "Static PGN",
+      "round": "10",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "tournamentID": "295099",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295099/fide-8616787-295099.pgn",
+      "sha256": "7cc6c58fef4420164ffa6bca007d03cd32d3e46e4fa1789343e1c05981faee8f"
+    },
+    {
       "id": "f8b9ee8fe2fdf6554700587c7b854eb1f72f976c43b476909b4a92749b83a410",
       "event": "WYCC Girls 08",
       "date": "2015-10-25",
       "white": "Wei, Yaqing",
       "black": "Savitha, Shri B",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "9",
       "stage": "U8",
       "naturalStage": "U8",
@@ -160,7 +291,7 @@
       "white": "Wei, Yaqing",
       "black": "Nguyen, Hoang Thai Ngoc",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "11",
       "stage": "U8",
       "naturalStage": "U8",
@@ -176,7 +307,7 @@
       "white": "Wei, Yaqing",
       "black": "Contreras, Fiorella",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "8",
       "stage": "U8",
       "naturalStage": "U8",
@@ -192,7 +323,7 @@
       "white": "Nguyen, Linh Dan",
       "black": "Wei, Yaqing",
       "result": "0-1",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "7",
       "stage": "U8",
       "naturalStage": "U8",
@@ -208,7 +339,7 @@
       "white": "Ivanova, Dilyana",
       "black": "Wei, Yaqing",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "10",
       "stage": "U8",
       "naturalStage": "U8",
@@ -224,7 +355,7 @@
       "white": "Davaajargal, Sharavdorj",
       "black": "Wei, Yaqing",
       "result": "1/2-1/2",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "1",
       "stage": "U8",
       "naturalStage": "U8",

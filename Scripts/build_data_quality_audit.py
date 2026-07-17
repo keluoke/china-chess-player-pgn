@@ -13,7 +13,7 @@ from stable_json import write_json
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-EVENTS = ROOT / "docs" / "data" / "index" / "events.json"
+EVENTS = ROOT / "data" / "generated" / "events-catalog.json"
 EVENT_DETAILS = ROOT / "docs" / "data" / "index" / "event-details"
 OUTPUT = ROOT / "docs" / "data" / "audit" / "data-quality-review.json"
 REGISTRY = ROOT / "docs" / "data" / "registry" / "players.json"

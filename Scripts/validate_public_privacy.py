@@ -16,15 +16,40 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PUBLIC_ROOTS = (REPO_ROOT / "docs" / "data", REPO_ROOT / "docs" / "api")
 FORBIDDEN_KEYS = {"club", "school", "contact", "phone", "email", "wechat"}
 
+# De-sourcing contract (AGENTS.md): the public surface never exposes the
+# Chess-Results identity, external links or capture evidence. Lichess keeps
+# its CC BY-SA attribution, so "source": "Lichess …" values are allowed.
+DESOURCE_KEYS = {
+    "sourceRefs", "sourceSnapshots", "sourceChineseName",
+    "sourceFederation", "evidence", "pgnURL",
+}
+# sourceURL / sourceName / source may describe the Lichess Broadcast
+# attribution (CC BY-SA obligation) — only the Chess-Results identity and
+# links are banned from the public surface.
+ATTRIBUTION_KEYS = {"sourceURL", "sourceName", "source"}
+SOURCE_VALUE_BLOCKLIST = ("chess-results",)
+
+
+def _blocked_source_value(value) -> bool:
+    return isinstance(value, str) and value.strip().lower().startswith(SOURCE_VALUE_BLOCKLIST)
+
 
 def offending_keys(node, path="$"):
     if isinstance(node, dict):
         for key, value in node.items():
             if key in FORBIDDEN_KEYS and value not in (None, "", [], {}):
                 yield f"{path}.{key}"
+            if key in DESOURCE_KEYS and value not in (None, "", [], {}):
+                yield f"{path}.{key} (de-sourcing)"
+            if key in ATTRIBUTION_KEYS and _blocked_source_value(value):
+                yield f"{path}.{key}={value!r} (de-sourcing)"
+            if isinstance(value, str) and "chess-results.com" in value.lower():
+                yield f"{path}.{key} contains chess-results.com URL"
             yield from offending_keys(value, f"{path}.{key}")
     elif isinstance(node, list):
         for index, item in enumerate(node):
+            if isinstance(item, str) and "chess-results.com" in item.lower():
+                yield f"{path}[{index}] contains chess-results.com URL"
             yield from offending_keys(item, f"{path}[{index}]")
 
 

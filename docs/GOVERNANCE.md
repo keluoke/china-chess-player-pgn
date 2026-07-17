@@ -47,7 +47,7 @@
 2. CI 只校验 schema、URL、标识符和“无抓取产物”边界；
 3. 审核者把有效线索加入人工目标队列；
 4. 采集维护者运行 `Scripts/local/refresh.sh event-queue`；
-5. Chess-Results 原始与解析数据保存在仓库外，默认 link-only；
+5. Chess-Results 原始页面保存在仓库外；清洗后的结构化赛事数据与已发布副本比对合并后经 manifest 发布（full-data，旧 link-only 已退役）；
 6. 只有符合来源许可、隐私和质量策略的数据才可能形成 release manifest；
 7. 社区贡献者可进入鸣谢名录，但鸣谢不意味着其执行过数据抓取。
 
@@ -56,7 +56,7 @@
 - 使用持久化跨进程锁，同一时间只有一个采集任务；
 - 三个来源共享本地配额账本、全局间隔和熔断状态；
 - FIDE 使用唯一临时下载、完整 ZIP/名单校验和多个 last-good 版本；
-- Chess-Results 默认 `link-only`，不得公开原始 HTML、赛事镜像或 PGN；
+- Chess-Results 为 `full-data`：清洗后的结构化赛事数据与 PGN 经 manifest 发布；原始 HTML 永不公开；
 - Lichess Broadcast 明确标注 CC BY-SA 4.0；
 - 失败运行不形成发布 manifest；
 - Git 与 CI 只处理 manifest 精确列出的路径和 SHA-256；

@@ -26,12 +26,12 @@ from stable_json import write_json as write_stable_json
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_DATA = REPO_ROOT / "docs" / "data"
-AUDIT_ROOT = DOCS_DATA / "audit"
+AUDIT_ROOT = REPO_ROOT / "data" / "generated" / "audit"
 INDEX_ROOT = DOCS_DATA / "index"
 STATIC_PLAYER_ROOT = INDEX_ROOT / "players"
 BY_PLAYER_ROOT = INDEX_ROOT / "by-player"
 REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
-YOUTH_JSON = DOCS_DATA / "youth-leaderboards.json"
+YOUTH_JSON = REPO_ROOT / "data" / "generated" / "youth-leaderboards.json"
 STATIC_PGN_ROOT = DOCS_DATA / "pgn"
 CHESS_RESULTS_FORM_URL = "https://chess-results.com/PartieSuche.aspx?lan=1"
 CHESS_RESULTS_TOURNAMENT_URL = "https://chess-results.com/tnr{tournament_id}.aspx?lan=1"
@@ -187,9 +187,9 @@ def write_audit_reports(
         "generatedAt": now(),
         "reports": {
             "sourceCoverage": "data/audit/source-coverage.json",
-            "missingPgnEvents": "data/audit/missing-pgn-events.json",
+            "missingPgnEvents": "data/generated/audit/missing-pgn-events.json",
             "playerCoverage": "data/audit/player-coverage.json",
-            "chessResultsTargets": "data/audit/chess-results-targets.json",
+            "chessResultsTargets": "data/generated/audit/chess-results-targets.json",
         },
         "headline": {
             "byPlayerGames": source_coverage["totals"]["games"],
@@ -207,6 +207,16 @@ def write_audit_reports(
         write_json(AUDIT_ROOT / "missing-pgn-events.json", missing_events)
         write_json(AUDIT_ROOT / "player-coverage.json", player_coverage)
         write_json(AUDIT_ROOT / "chess-results-targets.json", known_targets)
+        # Public health page reads sanitized copies only (de-sourcing):
+        # player coverage is already source-free; source coverage is reduced
+        # to neutral totals without provider identity for Chess-Results.
+        public_audit = DOCS_DATA / "audit"
+        write_json(public_audit / "player-coverage.json", player_coverage)
+        write_json(public_audit / "source-coverage.json", {
+            "schemaVersion": source_coverage.get("schemaVersion"),
+            "generatedAt": source_coverage.get("generatedAt"),
+            "totals": source_coverage.get("totals"),
+        })
         manifest_path = AUDIT_ROOT / "manifest.json"
         write_json(manifest_path, summary)
         # The stable JSON writer may retain the previous generatedAt for a

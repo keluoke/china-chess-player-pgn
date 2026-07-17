@@ -15,9 +15,36 @@
 1. 所有 Chess-Results/FIDE/Lichess 来源访问只允许维护者本机住宅网络执行；
    GitHub Actions、云主机、社区贡献工具不得回抓。唯一入口是
    `bash Scripts/local/refresh.sh <safe-command>`。
-2. Chess-Results 当前是 link-only：原始页面、解析排名/配对、PGN、姓名候选只写
-   仓库外私有运行区，禁止进入 git、local-data、API 或公开对象存储。
-3. FIDE/Lichess 机器发布必须经过 staging、验证和 release manifest；只能把 manifest
+2. Chess-Results 采集以**赛事/对局数据完备性**为最高目标：维护者本机抓取赛事
+   全量数据，本地完成清洗与校验后随发布管线上传，与云端比对合并后推送。
+   旧的 link-only 政策已退役，文档提及时只能作"已退役"说明；本条与其他文档
+   冲突时以本条为准。具体契约：
+   - **可发布对象仅为清洗后的结构化数据**：赛事元数据、名单、最终排名、
+     逐轮对阵/结果、完整对局 PGN。原始 HTML 永远只在维护者本机私有区。
+   - **完整赛事门禁（多维）**：`Scripts/build_completeness_report.py` 是唯一
+     发布门禁：`resultsStatus`（名单/排名/轮次/配对/结果）、`pgnAvailability`
+     （not-published / advertised-partial / advertised-full，分母排除轮空）、
+     `archiveStatus`（missing / incomplete / locally-recoverable /
+     archived-advertised-complete / archived-full-board）分别计量。
+     results-complete 即可进入公共投影并明确标注"来源未公开棋谱"等状态；
+     只有 archived-full-board 才可称"全台棋谱完整"。旧 `complete_ids` 只是
+     抓取检查点，不再充当发布门禁；`partial` 一律隔离。PGN 补件队列见
+     `data/generated/pgn-supplement-queue.json`（P0=已承诺未归档，P1=可本地
+     恢复/外部线索，P2=来源未发布不回抓）。
+   - **合并发生在云端 ingest，不在本机**：采集机永不 pull，本机旧工作区不得
+     假设等于云端 main。发布包携带赛事 ID、每类对象的自然键、基线版本/哈希；
+     云端以当前 main 为基线做字段级三方合并（一致跳过 / 本地优先覆盖 / 保留
+     更完整字段 / 身份冲突隔离）并产出合并回执（新增/更新/跳过/覆盖/隔离及
+     旧新哈希）。自然键：排名=`playerNo`；配对=`round + board + 白黑 playerNo`；
+     棋局=规范化 PGN 指纹。
+   - **公共对象与前台去来源化**：Chess-Results 公共数据和界面不出现
+     `source`、`sourceRefs`、外链或信源原名；Lichess 数据保留 CC BY-SA 4.0
+     许可与署名义务不受此条影响。
+   - **registry 压制**：赛事记录中的姓名、FIDE ID、等级分永不反向写入棋手
+     主档；registry 始终压住这些字段（见铁律一）。
+   - 设计基线详见 `docs/EVENT_DATA_COMPLETENESS_BASELINE.md`；现行代码与
+     该基线的缺口按 P0 处理。
+3. FIDE/Lichess/Chess-Results 机器发布必须经过 staging、验证和 release manifest；只能把 manifest
    精确列出的文件投递到单写者 `local-data`，由云端 ingest 到 main 后离线 rebuild。
 4. 采集机永不 pull/rebase。GitHub 网络失败时只重投已生成的 release/outbox，禁止
    为了 push 失败重新抓取。GitHub 代理只用于 Git/GitHub API，来源请求必须直连
@@ -34,6 +61,11 @@
    发布重投使用 `refresh.sh deliver`（`push` 是其兼容别名）。
 8. push 成功不等于发布成功；必须确认云端 ingest、rebuild、deploy 的 receipt。任一
    云端阶段失败只重试该阶段，不回抓来源。
+8a. 云端/本地派生重建唯一入口是 `Scripts/build_release_snapshot.py`：所有
+   派生产物在同一 `SNAPSHOT_ID` 下重建并写入 `docs/data/snapshot.json`；任一
+   构建或校验步骤失败即中止且不提交，旧快照继续服务。公共产物的去来源化由
+   `validate_public_privacy.py` 扫描（禁 `source*`/`evidence`/`pgnURL` 字段与
+   chess-results 链接；Lichess CC BY-SA 署名字段除外）。
 9. 修改管线后至少运行：`python3 -m unittest Scripts.tests.test_local_pipeline`、
    `python3 -m unittest Scripts.tests.test_chess_results_parser`、
    `python3 -m unittest Scripts.tests.test_docs_consistency`、
@@ -48,5 +80,6 @@
   不阻塞后续采集；恢复后运行 `refresh.sh deliver` 重投。
 - chess-results / FIDE 抓取必须直连住宅 IP(封数据中心 IP);git 推送自动探测本地
   代理(Veee/Clash 等,读 scutil 系统代理)并逐路线实测 Git smart HTTP。
-- CI 里绝不能回抓 chess-results(GitHub IP 被封);Chess-Results 私有采集结果只在
-  维护者本机核对,入口是 `refresh.sh event-queue`。
+- CI 里绝不能回抓 chess-results(GitHub IP 被封);Chess-Results 只在维护者本机
+  抓取、清洗、核对,入口是 `refresh.sh event-queue`;通过完整性门禁的赛事数据
+  随 local-data 发布,由云端 ingest 以 main 为基线做字段级三方合并并出回执。

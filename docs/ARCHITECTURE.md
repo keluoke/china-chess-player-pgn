@@ -43,8 +43,10 @@ docs/data/
 静态投影。`Scripts/local/refresh.sh event-queue` 读取目标队列，把 Chess-Results
 HTML 和结构化解析结果写到仓库外 `runs/<run-id>/raw|extracted`。
 
-默认发布策略是 `link-only`：新采集的排名、配对、PGN、HTML 和机器姓名候选不
-进入公开索引。`build_event_catalog.py` 只离线组合已经获准保留的仓库输入，且
+Chess-Results 发布策略是 `full-data`（旧 link-only 已退役）：赛事名单、逐轮
+对阵、结果、排名与对局 PGN 在本地清洗校验后，与已发布副本比对合并（一致
+跳过，冲突以本地清洗数据为准），经 release manifest 进入公开层；原始 HTML
+和机器姓名候选仍不进入公开索引。`build_event_catalog.py` 只离线组合已经获准保留的仓库输入，且
 registry 姓名字段不得被赛事索引覆盖。
 
 ## PGN 静态归档
@@ -67,10 +69,10 @@ docs/data/pgn/by-player/fide-8657238/U12.pgn
 网页版是纯静态前端，位于 `docs/`：
 
 - `index.html` + `app.js` + CSS
-- 首屏加载 `youth-leaderboards.json` + `registry/players.json`
+- 首屏加载 `search-bootstrap.json`（国内实体分片后台补载）
 - 搜索加载 `index/players.json`
 - 棋手看板加载 `index/players/fide-*.json`
-- 赛事看板按需加载 `index/events.json`，通过 URL 参数 `?event=chess-results:<tnrID>` 直达
+- 赛事看板按需加载 `index/public-events.json`（策展公共目录；完整审计目录已移出公共树），通过 URL 参数 `?event=chess-results:<tnrID>` 直达
 - PGN 优先读取 `pgn/by-player/` 聚合包
 
 ## 同步脚本

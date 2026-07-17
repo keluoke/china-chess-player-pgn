@@ -5,7 +5,7 @@
 1. 身份层：FIDE ID 为唯一主键，registry 是姓名和等级分唯一权威。
 2. 国内临时身份层：人工审核的 sighting 和 identity link。
 3. 中文检索层：人工别名、拼音和强制姓名勘误。
-4. 赛事/棋局层：只组合符合来源发布策略的资料；Chess-Results 新采集默认不发布。
+4. 赛事/棋局层：只组合符合来源发布策略的资料；Chess-Results 清洗后的结构化赛事数据经完整性门禁与云端比对合并后发布（设计基线见 `EVENT_DATA_COMPLETENESS_BASELINE.md`），原始页面不发布。
 
 ## 数据源与发布策略
 
@@ -14,7 +14,7 @@
 | 棋手身份和等级分 | FIDE legacy XML | 每月 | staging 校验后发布至 `docs/data/registry/` |
 | 人工别名/勘误/转会 | 社区审核证据 | 随 PR | `data/manual/`、`data/community/` |
 | 目标队列 | 社区 URL/tnr/FIDE ID | 随 PR | 人工队列；不含抓取内容 |
-| Chess-Results 核验 | 维护者本机 | 按需求 | 仓库外私有区，默认 link-only |
+| Chess-Results 赛事全量数据 | 维护者本机 | 按队列 | 本地清洗后比对合并，发布至 `data/generated/chess-results-event-*`、`docs/data/pgn/chess-results/`；raw 留仓库外 |
 | Lichess Broadcast | Lichess 开放数据库 | 每月 | `docs/data/bulk/`，CC BY-SA 4.0 |
 | 派生索引/API | 已审核仓库输入 | 每次 ingest | Actions 离线重建 |
 
@@ -58,7 +58,7 @@ staging → 校验 → 原子晋升 → 精确 release manifest → 本地 commi
 本地发布器和 CI 都拒绝：
 
 - `data/manual/`、`data/community/`、`data/incoming/` 自动发布；
-- Chess-Results link-only 文件；
+- Chess-Results 原始页面或未清洗产物（link-only 已退役，只发布清洗后的结构化数据）；
 - HTML/WARC 原始网页；
 - manifest 之外的文件；
 - SHA-256 不一致的内容。

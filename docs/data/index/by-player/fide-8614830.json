@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-13T07:31:55+00:00",
+  "generatedAt": "2026-07-17T17:36:41+00:00",
   "player": {
     "fideID": "8614830",
     "id": "fide-8614830",
@@ -17,12 +17,13 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 1923,
+    "games": 6,
+    "events": 2,
+    "packages": 3,
+    "bytes": 9665,
     "stages": {
-      "U8": 1
+      "U8": 1,
+      "U12": 5
     }
   },
   "packages": [
@@ -30,14 +31,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8614830/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 962,
-      "sha256": "79fb18d8ddbe5ff5c1ee0354c29a2260cc8721e78091a56c760a5ae6a204bc2b",
+      "gameCount": 6,
+      "pgnBytes": 4768,
+      "sha256": "a4cd64495fcbe03c369a2b874085434774add292772f11f7c39ca2d690571f0b",
       "stages": {
-        "U8": 1
+        "U8": 1,
+        "U12": 5
       },
       "sources": [
-        "Chess-Results"
+        "Static PGN"
       ]
     },
     {
@@ -51,16 +53,47 @@
         "U8": 1
       },
       "sources": [
-        "Chess-Results"
+        "Static PGN"
+      ]
+    },
+    {
+      "id": "U12",
+      "label": "U12 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8614830/U12.pgn",
+      "gameCount": 5,
+      "pgnBytes": 3936,
+      "sha256": "415f2641100b43d5ee1c423d1c0fa7394598500a9a29d1ea2a952bc7023ccf50",
+      "stages": {
+        "U12": 5
+      },
+      "sources": [
+        "Static PGN"
       ]
     }
   ],
   "events": [
     {
-      "source": "Chess-Results",
+      "source": "Static PGN",
+      "name": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "tournamentID": "295100",
+      "canonicalEventID": null,
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 5,
+      "results": {
+        "1-0": 2,
+        "0-1": 1,
+        "1/2-1/2": 2
+      }
+    },
+    {
+      "source": "Static PGN",
       "name": "10th Asian Schools Chess Championship 2014 U9 Open",
       "date": "2014-08-24",
       "tournamentID": "142781",
+      "canonicalEventID": null,
       "stage": "U8",
       "naturalStage": "U8",
       "eventStage": "",
@@ -72,13 +105,93 @@
   ],
   "games": [
     {
+      "id": "8244e67bd01780b88201d45e953470f3f7b8bc09421985709b112cc80ec02594",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Qiu, Hanwen",
+      "black": "Farhat, Francisco",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "4",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "tournamentID": "295100",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295100/fide-8614830-295100.pgn",
+      "sha256": "8244e67bd01780b88201d45e953470f3f7b8bc09421985709b112cc80ec02594"
+    },
+    {
+      "id": "418442300b3663eceb86d80cd440454cbb85b8e657980973d2c203112a19386f",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Qiu, Hanwen",
+      "black": "Ballesteros Cardenas, Leonardo",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "7",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "tournamentID": "295100",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295100/fide-8614830-295100.pgn",
+      "sha256": "418442300b3663eceb86d80cd440454cbb85b8e657980973d2c203112a19386f"
+    },
+    {
+      "id": "3b36203e8ebfaaa1f9665c34852ce55063ca5134905351fcbd65f21abc75ac82",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Gutierrez Villca, Samuel Ignac",
+      "black": "Qiu, Hanwen",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "9",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "tournamentID": "295100",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295100/fide-8614830-295100.pgn",
+      "sha256": "3b36203e8ebfaaa1f9665c34852ce55063ca5134905351fcbd65f21abc75ac82"
+    },
+    {
+      "id": "c92946ef6720c4a21cb77d71bccdfcc70001b673b9dd282ae34d793a1512386d",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Badrinarayan, Siddhant",
+      "black": "Qiu, Hanwen",
+      "result": "1/2-1/2",
+      "source": "Static PGN",
+      "round": "8",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "tournamentID": "295100",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295100/fide-8614830-295100.pgn",
+      "sha256": "c92946ef6720c4a21cb77d71bccdfcc70001b673b9dd282ae34d793a1512386d"
+    },
+    {
+      "id": "09a0265b7973d2e089aebd79cecb1c54a45335d1762658058c61b9eaa2e607e1",
+      "event": "World Cadets Chess Championship 2017",
+      "date": "2017-08-22",
+      "white": "Aguiar, Arthur Vinicius De Sou",
+      "black": "Qiu, Hanwen",
+      "result": "1/2-1/2",
+      "source": "Static PGN",
+      "round": "3",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "tournamentID": "295100",
+      "sourcePgnPath": "data/pgn/chess-results/tnr295100/fide-8614830-295100.pgn",
+      "sha256": "09a0265b7973d2e089aebd79cecb1c54a45335d1762658058c61b9eaa2e607e1"
+    },
+    {
       "id": "1c34349f41bfff91b89a4e75ceb290a5fb8789b7424c7b675e7a1e4208d6eb1b",
       "event": "10th Asian Schools Chess Championship 2014 U9 Open",
       "date": "2014-08-24",
       "white": "Wong, Zi Yue",
       "black": "Qiu, Hanwen",
       "result": "1-0",
-      "source": "Chess-Results",
+      "source": "Static PGN",
       "round": "2",
       "stage": "U8",
       "naturalStage": "U8",

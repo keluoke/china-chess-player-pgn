@@ -39,6 +39,7 @@ class TnrNormalizationTests(unittest.TestCase):
             ("1110333", "1110333"),
             ("tnr1213323", "1213323"),
             ("TNR1213323", "1213323"),
+            ("tnr1383", "1383"),  # legacy World Youth TNR
             ("https://chess-results.com/tnr1156008.aspx?lan=1", "1156008"),
             ("https://s1.chess-results.com/tnr1110333.aspx?lan=1&zeilen=99999", "1110333"),
         ]:
@@ -47,7 +48,7 @@ class TnrNormalizationTests(unittest.TestCase):
     def test_rejected_forms(self) -> None:
         for value in [
             "https://example.com/tnr1156008.aspx",  # wrong host
-            "1234",  # too short
+            "123",  # too short
             "",
             "not a target",
         ]:
@@ -71,6 +72,13 @@ class ParserMatrixTests(unittest.TestCase):
         self.assertEqual(players["1"]["name"], "Epsilon, Test")
         self.assertEqual(players["1"]["fideID"], "")
 
+    def test_domestic_starting_rank_without_rating_or_fideid(self) -> None:
+        players = sce.parse_players(parse("starting_rank_domestic_minimal.html"))
+        self.assertEqual(list(players), ["1", "2"])
+        self.assertEqual(players["1"]["name"], "测试甲")
+        self.assertEqual(players["1"]["club"], "示例棋院")
+        self.assertEqual(players["1"]["fideID"], "")
+
     def test_standings(self) -> None:
         players = sce.parse_players(parse("starting_rank_individual.html"))
         standings = sce.parse_standings(parse("standings_individual.html"), players)
@@ -78,6 +86,57 @@ class ParserMatrixTests(unittest.TestCase):
         self.assertEqual(standings[0]["name"], "Alpha, Tester")
         self.assertEqual(standings[0]["score"], "2")
         self.assertEqual(standings[0]["tieBreaks"], ["3", "2.5"])
+
+    def test_team_standings_use_team_serial_numbers(self) -> None:
+        page = sce.parse_html("""
+        <table><tr><th>Rk.</th><th>SNo</th><th>Team</th><th>Games</th><th>TB1</th><th>TB2</th></tr>
+        <tr><td>1</td><td>7</td><td>Example Team</td><td>9</td><td>16</td><td>12.5</td></tr></table>
+        """, "https://chess-results.com/tnr999001.aspx?art=0")
+        standings = sce.parse_team_standings(page)
+        self.assertEqual(standings, [{
+            "rank": "1", "playerNo": "7", "name": "Example Team", "chineseName": "",
+            "fideID": "", "federation": "", "rating": "", "club": "Example Team",
+            "score": "16", "tieBreaks": ["16", "12.5"],
+        }])
+
+    def test_team_crosstable_uses_rank_when_no_team_serial_is_published(self) -> None:
+        page = sce.parse_html("""
+        <table><tr><th>Rk.</th><th>Team</th><th>1</th><th>TB1</th></tr>
+        <tr><td>2</td><td>Example Team</td><td>*</td><td>14</td></tr></table>
+        """, "https://chess-results.com/tnr999001.aspx?art=0")
+        standings = sce.parse_team_standings(page)
+        self.assertEqual(standings[0]["playerNo"], "2")
+        self.assertEqual(standings[0]["score"], "14")
+
+    def test_team_crosstable_discovers_round_robin_rounds(self) -> None:
+        page = sce.parse_html("""
+        <table><tr><th>Rk.</th><th>Team</th><th>1</th><th>2</th><th>3</th><th>TB1</th></tr>
+        <tr><td>1</td><td>Alpha</td><td>*</td><td>2</td><td>2</td><td>4</td></tr></table>
+        """, "https://chess-results.com/tnr999001.aspx?art=0")
+        self.assertEqual(sce.team_crosstable_rounds(page), 2)
+
+    def test_team_pairings(self) -> None:
+        page = sce.parse_html("""
+        <table><tr><th>Bo.</th><th>No.</th><th>Team</th><th>Result</th><th>Team</th><th>No.</th></tr>
+        <tr><td>1</td><td>7</td><td>Example Team</td><td>2.5 - 1.5</td><td>Sample Team</td><td>3</td></tr></table>
+        """, "https://chess-results.com/tnr999001.aspx?art=2&rd=1")
+        pairings = sce.parse_team_pairings(page)
+        self.assertEqual(len(pairings), 1)
+        self.assertEqual(pairings[0]["white"], {"name": "Example Team", "playerNo": "7"})
+        self.assertEqual(pairings[0]["black"], {"name": "Sample Team", "playerNo": "3"})
+        self.assertEqual(pairings[0]["result"], "2.5 - 1.5")
+
+    def test_team_pairings_with_caption_and_split_score(self) -> None:
+        page = sce.parse_html("""
+        <table><tr><td>Round 1 on 2025/01/01</td></tr>
+        <tr><th>No.</th><th>Team</th><th>Team</th><th>Res.</th><th>:</th><th>Res.</th></tr>
+        <tr><td>1</td><td>Example Team</td><td>Sample Team</td><td>2.5</td><td>:</td><td>1.5</td></tr></table>
+        """, "https://chess-results.com/tnr999001.aspx?art=2&rd=1")
+        pairings = sce.parse_team_pairings(page, {"example team": "7", "sample team": "3"})
+        self.assertEqual(pairings[0]["white"]["playerNo"], "7")
+        self.assertEqual(pairings[0]["black"]["playerNo"], "3")
+        self.assertEqual(pairings[0]["result"], "2.5 - 1.5")
+        self.assertFalse(pairings[0]["hasPGN"])
 
     def test_pairings_duplicate_headers_semantic_mapping(self) -> None:
         players = sce.parse_players(parse("starting_rank_individual.html"))
@@ -99,6 +158,25 @@ class ParserMatrixTests(unittest.TestCase):
         self.assertEqual(pairings[0]["black"]["name"], "Beta, Sample")
         self.assertEqual(pairings[0]["black"]["playerNo"], "2")
         self.assertEqual(pairings[0]["result"], "0 - 1")
+
+    def test_legacy_page_with_all_rounds_in_one_table_selects_requested_round(self) -> None:
+        body = """
+        <table>
+          <tr><td colspan="8">Round 1 on 2022/01/01</td></tr>
+          <tr><th>Bo.</th><th>No.</th><th>Club/City</th><th>White</th><th>Result</th><th>Black</th><th>Club/City</th><th>No.</th></tr>
+          <tr><td>1</td><td>1</td><td></td><td>A</td><td>1 - 0</td><td>B</td><td></td><td>2</td></tr>
+          <tr><td colspan="8">Round 2 on 2022/01/02</td></tr>
+          <tr><th>Bo.</th><th>No.</th><th>Club/City</th><th>White</th><th>Result</th><th>Black</th><th>Club/City</th><th>No.</th></tr>
+          <tr><td>1</td><td>2</td><td></td><td>B</td><td>0 - 1</td><td>A</td><td></td><td>1</td></tr>
+        </table>
+        """
+        page = sce.parse_html(body, "https://chess-results.com/tnr1.aspx")
+        players = {"1": {"playerNo": "1", "name": "A"}, "2": {"playerNo": "2", "name": "B"}}
+        self.assertEqual(sce.parse_pairings(page, players), [])
+        second = sce.parse_pairings_for_round(page, players, 2)
+        self.assertEqual(len(second), 1)
+        self.assertEqual(second[0]["white"]["playerNo"], "2")
+        self.assertEqual(second[0]["black"]["playerNo"], "1")
 
     def test_fixed_fallback_validates_board_numbers(self) -> None:
         table = sce.find_table(parse("pairings_round.html"), {"bo", "white", "black", "result"})
@@ -125,6 +203,12 @@ class ParserMatrixTests(unittest.TestCase):
 
 
 class RoundDiscoveryTests(unittest.TestCase):
+    def test_rank_after_round_heading(self) -> None:
+        page = sce.parse_html("<h2>Rank after Round 9</h2>", "https://chess-results.com/tnr1.aspx")
+        rounds, candidates = sce.discover_rounds([page], queue_rounds=0, max_rounds=0)
+        self.assertEqual(rounds, 9)
+        self.assertEqual(candidates["heading"], 9)
+
     def test_heading_and_links_agree(self) -> None:
         page = parse("standings_individual.html")
         rounds, candidates = sce.discover_rounds([page], queue_rounds=0, max_rounds=0)
@@ -400,6 +484,14 @@ class PageStoreTests(unittest.TestCase):
             store = sce.PageStore(new_root, [old_root])
             self.assertIsNotNone(store.load("1", "standings"))
             self.assertTrue((new_root / "tnr1" / "standings.html.gz").is_file())
+
+    def test_force_source_mode_does_not_reuse_previous_run_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            old_root = pathlib.Path(name) / "old"
+            new_root = pathlib.Path(name) / "new"
+            sce.PageStore(old_root, []).save("1", "standings", "https://chess-results.com/tnr1.aspx", "<html>old</html>")
+            forced = sce.PageStore(new_root, [old_root], reuse_cache=False)
+            self.assertIsNone(forced.load("1", "standings"))
 
 
 if __name__ == "__main__":

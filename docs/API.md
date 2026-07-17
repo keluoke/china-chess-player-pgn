@@ -50,6 +50,20 @@ https://china-chess-player-pgn.pages.dev
 
 每个包附 `sha256`,增量同步时对比即可跳过未变化的包。
 
+## API v2（预览）
+
+v2 按资源分片，所有响应带 `schemaVersion` / `snapshotId`（同一次发布的全部
+产物引用同一 snapshotId，见 `/data/snapshot.json`）：
+
+```text
+GET /api/v2/manifest.json
+GET /api/v2/rankings/official/current/standard/{cohort}.json   # U8…U18/U20/OPEN/S50/S65
+```
+
+受 Cloudflare Pages 单次部署 2 万文件上限约束，v2 的棋手/赛事/搜索分片端点
+将随大文件迁对象存储（见 `docs/OBJECT_STORAGE_MIGRATION.md`）一起上线；
+在此之前请继续使用 v1 兼容端点。官方榜与未来的参考估分榜永久分轨。
+
 ## 消费示例(风格引擎)
 
 ```bash
@@ -65,5 +79,6 @@ curl -sO $BASE/data/pgn/by-player/fide-8622388/all.pgn
 
 API 不对所有字段作统一许可：社区原创审核数据为 CC BY 4.0，
 Lichess Broadcast 派生数据为 CC BY-SA 4.0 并须保留署名，FIDE 为事实
-注册表投影。Chess-Results 新采集默认 link-only，不进入 API；历史静态资料
+注册表投影。Chess-Results 赛事数据为维护者本机采集并清洗后的事实性结构化
+投影（full-data，旧 link-only 已退役）；历史静态资料
 不因本项目声明而自动获得 CC BY 许可。详见 `LICENSE-DATA.md` 和各数据 manifest。

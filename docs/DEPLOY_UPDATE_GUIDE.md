@@ -9,8 +9,10 @@ bash Scripts/local/refresh.sh health
 bash Scripts/local/refresh.sh all
 ```
 
-FIDE/Lichess 通过校验后生成精确 release manifest 并 force-push `local-data`。
-Chess-Results 默认只写本地私有运行区，不触发数据发布。
+FIDE/Lichess/Chess-Results 通过校验后生成精确 release manifest 并 force-push
+`local-data`。Chess-Results 原始页面只写本地私有运行区；通过完整性门禁的
+清洗后结构化赛事数据随 manifest 发布，由云端 ingest 比对合并（设计基线见
+`docs/EVENT_DATA_COMPLETENESS_BASELINE.md`）。
 
 ## 云端流程
 

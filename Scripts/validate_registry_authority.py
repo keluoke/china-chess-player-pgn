@@ -21,7 +21,7 @@ TARGETS = (
     ROOT / "docs" / "data" / "index" / "by-player",
     ROOT / "docs" / "data" / "search-bootstrap.json",
     ROOT / "docs" / "data" / "leaderboards.json",
-    ROOT / "docs" / "data" / "youth-leaderboards.json",
+    ROOT / "data" / "generated" / "youth-leaderboards.json",
     ROOT / "docs" / "api" / "v1",
 )
 AUTHORITY_FIELDS = (

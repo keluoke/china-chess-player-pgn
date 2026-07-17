@@ -23,6 +23,7 @@ import build_api  # noqa: E402
 import build_event_details  # noqa: E402
 import build_public_metrics  # noqa: E402
 import build_static_player_pgn  # noqa: E402
+import fetch_event_pgn  # noqa: E402
 import source_http  # noqa: E402
 import source_policy  # noqa: E402
 import stable_json  # noqa: E402
@@ -31,6 +32,9 @@ import validate_registry_authority  # noqa: E402
 import sync_chess_results_event  # noqa: E402
 import sync_static_pgn  # noqa: E402
 import sync_lichess_broadcast_bulk  # noqa: E402
+import targeted_series_capture as targeted_capture  # noqa: E402
+import targeted_capture_panel as targeted_panel  # noqa: E402
+import import_event_list  # noqa: E402
 from sync_chinese_players import (  # noqa: E402
     RegistryPlayer,
     validate_fide_archive,
@@ -42,9 +46,349 @@ def git(repo: pathlib.Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
+class TargetedCaptureCheckpointTests(unittest.TestCase):
+    def test_csv_import_preserves_event_and_group_titles(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            source = root / "events.csv"
+            overrides = root / "task-overrides.json"
+            run_state = root / "run-state.json"
+            source.write_text(
+                "2026年全国国际象棋棋协大师赛（测试站）,\n"
+                "公开组,https://chess-results.com/tnr1455665.aspx?lan=33&art=0\n"
+                "女子组,https://s2.chess-results.com/tnr1455661.aspx?lan=33&art=0\n",
+                encoding="utf-8",
+            )
+            result = import_event_list.import_targets(source, overrides_path=overrides, run_state_path=run_state)
+            payload = json.loads(overrides.read_text(encoding="utf-8"))
+            self.assertEqual(result["targets"], 2)
+            self.assertEqual(
+                payload["additions"]["1455665"]["displayName"],
+                "2026年全国国际象棋棋协大师赛（测试站） · 公开组",
+            )
+            self.assertEqual(json.loads(run_state.read_text(encoding="utf-8"))["status"], "pending")
+
+    def test_manual_only_selection_excludes_catalogue_targets(self) -> None:
+        plan = {"targets": [
+            {"tournamentID": "100001", "series": "chess-association-master", "future": False, "existingRecord": False},
+            {"tournamentID": "100002", "series": "manual-review", "future": False, "existingRecord": False},
+            {"tournamentID": "100003", "series": "manual-review", "future": False, "existingRecord": True},
+        ]}
+        selected = targeted_capture.selected_targets(
+            plan, refresh_existing=False, include_future=False, manual_only=True,
+        )
+        self.assertEqual([row["tournamentID"] for row in selected], ["100002"])
+
+    def test_manual_task_input_accepts_tnr_and_source_link_only(self) -> None:
+        self.assertEqual(targeted_panel.normalize_tnr("tnr1383"), "1383")
+        self.assertEqual(
+            targeted_panel.normalize_tnr("https://chess-results.com/tnr1429695.aspx?lan=1"), "1429695",
+        )
+        self.assertEqual(targeted_panel.normalize_tnr("https://example.com/tnr1429695.aspx"), "")
+
+    def test_completed_capture_is_not_retried_when_release_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            capture_state = pathlib.Path(temp) / "capture-state.json"
+            pgn_archive = pathlib.Path(temp) / "event-pgn"
+            pgn_archive.mkdir()
+            (pgn_archive / "tnr999001.pgn").write_text('[Event "test"]\n\n1. e4 *\n', encoding="utf-8")
+            (pgn_archive / "tnr999002.pgn").write_text('[Event "test"]\n\n1. d4 *\n', encoding="utf-8")
+            capture_state.write_text(json.dumps({"events": {
+                "999001": {"status": "complete", "runPrivateRoot": "/private/runs/test-run"},
+                "999002": {"status": "complete", "runPrivateRoot": "/private/runs/test-run"},
+            }}), encoding="utf-8")
+            state = {
+                "status": "stopped", "nextBatchIndex": 0, "completedBatches": 0,
+                "currentTargets": ["999001", "999002"],
+                "lastOutcome": {"runId": "test-run", "errorCode": "WORKTREE_CHANGED_DURING_RUN"},
+            }
+            batches = [[{"tournamentID": "999001"}, {"tournamentID": "999002"}]]
+            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state), \
+                 mock.patch.object(targeted_capture, "EVENT_PGN_ARCHIVE", pgn_archive):
+                self.assertTrue(targeted_capture.recover_completed_batch(state, batches))
+            self.assertEqual(state["nextBatchIndex"], 1)
+            self.assertEqual(state["completedBatches"], 1)
+            self.assertEqual(state["lastOutcome"]["result"], "capture-complete-release-blocked")
+
+    def test_old_capture_cannot_advance_new_failed_run(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            capture_state = pathlib.Path(temp) / "capture-state.json"
+            capture_state.write_text(json.dumps({"events": {
+                "999001": {"status": "complete", "runPrivateRoot": "/private/runs/older-run"},
+            }}), encoding="utf-8")
+            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state):
+                self.assertFalse(targeted_capture.batch_capture_completed(["999001"], "new-run"))
+
+    def test_missing_pgn_archive_cannot_advance_completed_event_pages(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            capture_state = pathlib.Path(temp) / "capture-state.json"
+            capture_state.write_text(json.dumps({"events": {
+                "999001": {"status": "complete", "runPrivateRoot": "/private/runs/test-run"},
+            }}), encoding="utf-8")
+            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state), \
+                 mock.patch.object(targeted_capture, "EVENT_PGN_ARCHIVE", pathlib.Path(temp) / "missing-pgn"):
+                self.assertFalse(targeted_capture.batch_capture_completed(["999001"], "test-run"))
+
+    def test_explicit_source_pgn_gap_can_advance_without_an_empty_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            capture_state = root / "capture-state.json"
+            details = root / "details"
+            details.mkdir()
+            capture_state.write_text(json.dumps({"events": {
+                "999001": {"status": "complete", "runPrivateRoot": "/private/runs/test-run"},
+            }}), encoding="utf-8")
+            (details / "tnr999001.json").write_text(json.dumps({"rounds": [{"pairings": [{
+                "white": {"playerNo": "1", "name": "White"},
+                "black": {"playerNo": "2", "name": "Black"},
+                "hasPGN": False, "pgnURL": "",
+            }]}]}), encoding="utf-8")
+            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state), \
+                 mock.patch.object(targeted_capture, "EVENT_PGN_ARCHIVE", root / "missing-pgn"), \
+                 mock.patch.object(targeted_capture, "DETAILS", details):
+                self.assertTrue(targeted_capture.batch_capture_completed(["999001"], "test-run"))
+
+    def test_active_source_backoff_blocks_a_batch_without_network(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            capture_state = pathlib.Path(temp) / "capture-state.json"
+            capture_state.write_text(json.dumps({"events": {
+                "999001": {"status": "retry-wait", "nextRetryAt": "2999-01-01T00:00:00+00:00"},
+            }}), encoding="utf-8")
+            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state):
+                self.assertEqual(targeted_capture.retry_after_for(["999001"]), "2999-01-01T00:00:00+00:00")
+
+    def test_quarantine_review_date_is_not_a_source_backoff(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            capture_state = pathlib.Path(temp) / "capture-state.json"
+            capture_state.write_text(json.dumps({"events": {
+                "999001": {"status": "quarantined", "nextRetryAt": "2999-01-01T00:00:00+00:00"},
+            }}), encoding="utf-8")
+            with (
+                mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state),
+                mock.patch.object(targeted_panel, "CAPTURE_STATE_PATH", capture_state),
+            ):
+                self.assertIsNone(targeted_capture.retry_after_for(["999001"]))
+                self.assertIsNone(targeted_panel.active_retry_after({"currentTargets": ["999001"]}))
+
+    def test_elapsed_retry_target_is_prioritized_but_future_backoff_is_not(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            capture_state = pathlib.Path(temp) / "capture-state.json"
+            capture_state.write_text(json.dumps({"events": {
+                "999001": {"status": "retry-wait", "nextRetryAt": "2000-01-01T00:00:00+00:00"},
+                "999002": {"status": "retry-wait", "nextRetryAt": "2999-01-01T00:00:00+00:00"},
+                "999003": {"status": "complete"},
+            }}), encoding="utf-8")
+            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state):
+                self.assertEqual(targeted_capture.retry_ready_targets({"999001", "999002", "999003"}), ["999001"])
+
+    def test_completed_plan_runs_due_retry_without_reopening_finished_batches(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            state = {"status": "completed", "nextBatchIndex": 1, "completedBatches": 1}
+            plan = {"targets": [{"tournamentID": "999001", "future": False, "existingRecord": False}]}
+            completed = subprocess.CompletedProcess([], 0)
+            with (
+                mock.patch.object(targeted_capture, "LOG_PATH", root / "capture.log"),
+                mock.patch.object(targeted_capture, "RUN_STATE_PATH", root / "run-state.json"),
+                mock.patch.object(targeted_capture, "run_state", return_value=(state, 1)),
+                mock.patch.object(targeted_capture, "retry_ready_targets", return_value=["999001"]),
+                mock.patch.object(targeted_capture.subprocess, "run", side_effect=[completed, completed]) as run,
+            ):
+                self.assertEqual(targeted_capture.run(plan, refresh_existing=False, include_future=False, manual_only=False, limit=0), 0)
+            self.assertEqual(run.call_args_list[0].args[0], [
+                "bash", "Scripts/local/refresh.sh", "event-queue", "--no-push", "--", "999001",
+            ])
+            self.assertEqual(state["status"], "completed")
+            self.assertEqual(state["completedBatches"], 1)
+
+    def test_completed_checkpoint_does_not_fall_back_to_legacy_log(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            targets = [{"tournamentID": "999001"}]
+            signature = __import__("hashlib").sha256(b"999001").hexdigest()
+            state_path = root / "run-state.json"
+            state_path.write_text(json.dumps({
+                "status": "completed", "targetSignature": signature,
+                "nextBatchIndex": 1, "completedBatches": 1,
+            }), encoding="utf-8")
+            with (
+                mock.patch.object(targeted_capture, "RUN_STATE_PATH", state_path),
+                mock.patch.object(targeted_capture, "LOG_PATH", root / "capture.log"),
+            ):
+                state, start = targeted_capture.run_state(targets, [targets])
+            self.assertEqual(start, 1)
+            self.assertEqual(state["status"], "completed")
+
+    def test_new_task_signature_does_not_inherit_old_log_batch_index(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            state_path = root / "run-state.json"
+            log_path = root / "capture.log"
+            state_path.write_text(json.dumps({
+                "status": "completed", "targetSignature": "old-signature",
+                "nextBatchIndex": 77, "completedBatches": 77,
+            }), encoding="utf-8")
+            log_path.write_text("STOP batch 16: historical failure\n", encoding="utf-8")
+            targets = [{"tournamentID": "999001"}]
+            with (
+                mock.patch.object(targeted_capture, "RUN_STATE_PATH", state_path),
+                mock.patch.object(targeted_capture, "LOG_PATH", log_path),
+            ):
+                state, start = targeted_capture.run_state(targets, [targets])
+            self.assertEqual(start, 0)
+            self.assertEqual(state["status"], "pending")
+
+    def test_source_request_ledger_is_not_a_daily_capture_gate(self) -> None:
+        self.assertIsNone(source_http.POLICIES["chess-results"].daily_budget)
+        self.assertIsNone(source_http.POLICIES["fide"].daily_budget)
+
+    def test_control_panel_reads_the_same_retry_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            capture_state = pathlib.Path(temp) / "capture-state.json"
+            capture_state.write_text(json.dumps({"events": {
+                "999001": {"status": "retry-wait", "nextRetryAt": "2999-01-01T00:00:00+00:00"},
+            }}), encoding="utf-8")
+            with mock.patch.object(targeted_panel, "CAPTURE_STATE_PATH", capture_state):
+                self.assertEqual(
+                    targeted_panel.active_retry_after({"currentTargets": ["999001"]}),
+                    "2999-01-01T00:00:00+00:00",
+                )
+
+    def test_imported_task_scope_resumes_manual_campaign_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            collection = root / "collection"
+            collection.mkdir()
+            state_path = collection / "run-state.json"
+            state_path.write_text(json.dumps({"taskScope": "manual-only"}), encoding="utf-8")
+            panel = targeted_panel.Panel()
+            with (
+                mock.patch.object(targeted_panel, "STATE_PATH", state_path),
+                mock.patch.object(targeted_panel, "COLLECTION", collection),
+                mock.patch.object(targeted_panel, "LOCK_PATH", root / "index.lock"),
+                mock.patch.object(targeted_panel, "active_retry_after", return_value=None),
+                mock.patch.object(targeted_panel, "pid_alive", return_value=False),
+                mock.patch.object(targeted_panel.subprocess, "Popen") as popen,
+            ):
+                popen.return_value.poll.return_value = None
+                ok, _ = panel.start_resume()
+            self.assertTrue(ok)
+            self.assertEqual(popen.call_args.args[0][-1], "--only-manual")
+
+    def test_panel_inferrs_manual_scope_from_saved_batch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            collection = root / "collection"
+            collection.mkdir()
+            state_path = collection / "run-state.json"
+            plan_path = collection / "target-plan.json"
+            state_path.write_text(json.dumps({"currentTargets": ["100002"]}), encoding="utf-8")
+            plan_path.write_text(json.dumps({"targets": [
+                {"tournamentID": "100002", "series": "manual-review"},
+            ]}), encoding="utf-8")
+            panel = targeted_panel.Panel()
+            with (
+                mock.patch.object(targeted_panel, "STATE_PATH", state_path),
+                mock.patch.object(targeted_panel, "PLAN_PATH", plan_path),
+                mock.patch.object(targeted_panel, "COLLECTION", collection),
+                mock.patch.object(targeted_panel, "LOCK_PATH", root / "index.lock"),
+                mock.patch.object(targeted_panel, "active_retry_after", return_value=None),
+                mock.patch.object(targeted_panel, "pid_alive", return_value=False),
+                mock.patch.object(targeted_panel.subprocess, "Popen") as popen,
+            ):
+                popen.return_value.poll.return_value = None
+                ok, _ = panel.start_resume()
+            self.assertTrue(ok)
+            self.assertEqual(popen.call_args.args[0][-1], "--only-manual")
+
+
+class EventPgnSelectionTests(unittest.TestCase):
+    def test_explicit_tournament_ids_do_not_expand_to_source_table(self) -> None:
+        with mock.patch.object(fetch_event_pgn, "tournament_ids_from_sources", return_value=["1110353", "1111367"]):
+            selected = fetch_event_pgn.selected_tournament_ids(
+                pathlib.Path("ignored.csv"), "", ["tnr87435", "87436", "87435"], 0, 0,
+            )
+        self.assertEqual(selected, ["87435", "87436"])
+
+    def test_event_with_explicitly_missing_pgn_links_is_not_downloaded(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            details = pathlib.Path(temp) / "details"
+            details.mkdir()
+            (details / "tnr999001.json").write_text(json.dumps({"rounds": [{"pairings": [{
+                "white": {"playerNo": "1", "name": "White"},
+                "black": {"playerNo": "2", "name": "Black"},
+                "hasPGN": False, "pgnURL": "",
+            }]}]}), encoding="utf-8")
+            with mock.patch.object(fetch_event_pgn, "EVENT_DETAILS", details), \
+                 mock.patch.object(fetch_event_pgn, "require_chess_results_publication"), \
+                 mock.patch.object(fetch_event_pgn, "download_chess_results_pgn") as download:
+                result = fetch_event_pgn.process_event("999001", set(), {}, pathlib.Path(temp) / "out", False, False, full_archive=True)
+            self.assertEqual(result["status"], "source_unavailable")
+            download.assert_not_called()
+
+    def test_full_archive_repairs_event_with_only_player_splits(self) -> None:
+        pgn = '\n'.join([
+            '[Event "Repair test"]',
+            '[White "Player One"]',
+            '[Black "Player Two"]',
+            '',
+            '1. e4 *',
+        ])
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            out = root / "out"
+            split_dir = out / "tnr999002"
+            split_dir.mkdir(parents=True)
+            (split_dir / "fide-1-999002.pgn").write_text(pgn, encoding="utf-8")
+            archive = root / "archive"
+            with (
+                mock.patch.object(fetch_event_pgn, "EVENT_PGN_ARCHIVE", archive),
+                mock.patch.object(fetch_event_pgn, "require_chess_results_publication"),
+                mock.patch.object(fetch_event_pgn, "download_chess_results_pgn", return_value=pgn) as download,
+            ):
+                result = fetch_event_pgn.process_event(
+                    "999002", set(), {}, out, False, False, full_archive=True,
+                )
+            self.assertEqual(result["status"], "ok")
+            download.assert_called_once_with("", "999002")
+            self.assertTrue((archive / "tnr999002.pgn").is_file())
+
+
+class SourceRetryAccountingTests(unittest.TestCase):
+    def test_local_step_can_preserve_documented_partial_exit_code(self) -> None:
+        completed = subprocess.CompletedProcess(["fetch"], 4)
+        with mock.patch.object(sync_chess_results_event.subprocess, "run", return_value=completed):
+            self.assertEqual(
+                sync_chess_results_event.run_command(["fetch"], allowed_returncodes=(0, 4)),
+                4,
+            )
+
+    def test_internal_retries_count_as_one_circuit_failure(self) -> None:
+        error = source_http.urllib.error.URLError("synthetic network outage")
+        with mock.patch.object(source_http, "require_local_collector"), \
+             mock.patch.object(source_http, "_reserve_request"), \
+             mock.patch.object(source_http.urllib.request, "urlopen", side_effect=error), \
+             mock.patch.object(source_http, "_record_result") as record, \
+             mock.patch.object(source_http.time, "sleep"):
+            with self.assertRaises(source_http.SourceHTTPError) as caught:
+                source_http.fetch_bytes("https://chess-results.com/tnr999001.aspx", retries=2)
+        self.assertEqual(caught.exception.code, "SOURCE_NETWORK_FAILURE")
+        record.assert_called_once_with("chess-results", False, force_circuit=False)
+
+
 class PolicyTests(unittest.TestCase):
-    def test_chess_results_is_link_only_by_default(self) -> None:
+    def test_chess_results_is_full_data_by_default(self) -> None:
+        # AGENTS.md contract: event/game completeness is the standard; cleaned
+        # structured data publishes by default, raw HTML stays private.
         with mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(source_policy.chess_results_release_policy(), "full-data")
+            source_policy.require_chess_results_publication()  # must not raise
+        # Legacy alias maps onto the new default.
+        with mock.patch.dict(os.environ, {"CHESS_RESULTS_RELEASE_POLICY": "authorized"}, clear=True):
+            self.assertEqual(source_policy.chess_results_release_policy(), "full-data")
+
+    def test_explicit_link_only_env_blocks_publication(self) -> None:
+        with mock.patch.dict(os.environ, {"CHESS_RESULTS_RELEASE_POLICY": "link-only"}, clear=True):
             self.assertEqual(source_policy.chess_results_release_policy(), "link-only")
             with self.assertRaises(source_policy.SourcePolicyError) as caught:
                 source_policy.require_chess_results_publication()
@@ -65,15 +409,60 @@ class PolicyTests(unittest.TestCase):
             run_manager.validate_manifest(payload)
         self.assertEqual(caught.exception.code, "COMPLIANCE_POLICY_BLOCKED")
 
-    def test_even_authorized_chess_results_never_enters_release_manifest(self) -> None:
+    def test_full_data_chess_results_manifest_is_accepted(self) -> None:
         payload = {
             "schemaVersion": 1,
-            "source": {"source": "Chess-Results", "releasePolicy": "authorized"},
-            "files": [{"path": "docs/data/bulk/x", "operation": "delete", "sha256": None}],
+            "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+            "files": [
+                {
+                    "path": "data/generated/chess-results-event-details/tnr1.json",
+                    "operation": "upsert", "sha256": "a" * 64, "bytes": 10,
+                },
+                {
+                    "path": "data/generated/chess-results-event-pgn/tnr1.pgn",
+                    "operation": "upsert", "sha256": "b" * 64, "bytes": 10,
+                },
+                {
+                    "path": "docs/data/pgn/chess-results/tnr1/fide-1-1.pgn",
+                    "operation": "upsert", "sha256": "c" * 64, "bytes": 10,
+                },
+            ],
+        }
+        self.assertEqual(len(run_manager.validate_manifest(payload)), 3)
+
+    def test_chess_results_manifest_cannot_publish_outside_event_paths(self) -> None:
+        payload = {
+            "schemaVersion": 1,
+            "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+            "files": [{"path": "docs/data/registry/players.json", "operation": "upsert", "sha256": "a" * 64, "bytes": 1}],
         }
         with self.assertRaises(run_manager.RunManagerError) as caught:
             run_manager.validate_manifest(payload)
-        self.assertEqual(caught.exception.code, "COMPLIANCE_POLICY_BLOCKED")
+        self.assertEqual(caught.exception.code, "RELEASE_SOURCE_PATH_MISMATCH")
+
+    def test_event_payload_merge_prefers_completeness_and_skips_unchanged(self) -> None:
+        existing = {
+            "tournamentID": "1", "fetchedAt": "2026-01-01T00:00:00+00:00",
+            "players": [{"no": 1}], "standings": [{"rank": 1}],
+            "rounds": [{"round": 1, "pairings": [{"board": 1}]}],
+        }
+        # Standings-only re-capture must not erase published rounds.
+        fresh = {
+            "tournamentID": "1", "fetchedAt": "2026-07-15T00:00:00+00:00",
+            "players": [{"no": 1}], "standings": [{"rank": 1}], "rounds": [],
+        }
+        merged, changed = sync_chess_results_event.merge_event_payload(existing, fresh)
+        self.assertEqual(merged["rounds"], existing["rounds"])
+        self.assertFalse(changed)  # only volatile keys differ → skip publish
+        # A real conflict is won by the freshly cleaned local data.
+        fresh_conflict = {**fresh, "standings": [{"rank": 1, "score": "7"}]}
+        merged, changed = sync_chess_results_event.merge_event_payload(existing, fresh_conflict)
+        self.assertTrue(changed)
+        self.assertEqual(merged["standings"], [{"rank": 1, "score": "7"}])
+        # No published copy → always new.
+        merged, changed = sync_chess_results_event.merge_event_payload(None, fresh)
+        self.assertTrue(changed)
+        self.assertEqual(merged, fresh)
 
     def test_target_submission_detects_scraped_content(self) -> None:
         self.assertTrue(validate_incoming.forbidden_content({"rows": [{"tnr": 1}]}))
@@ -189,11 +578,44 @@ class RunManagerTests(unittest.TestCase):
         self.assertEqual(manifest["source"]["source"], "FIDE Rating List")
         self.assertEqual(manifest["files"][0]["path"], "docs/data/registry/players.json")
 
+    def test_prepare_release_force_adds_an_ignored_tracked_output(self) -> None:
+        target = self.repo / "data/generated/chess-results-event-details/tnr1.json"
+        target.parent.mkdir(parents=True)
+        target.write_text('{"old":true}\n')
+        (self.repo / ".gitignore").write_text("data/generated/chess-results-event-details/\n")
+        git(self.repo, "add", "-f", "--", str(target.relative_to(self.repo)), ".gitignore")
+        git(self.repo, "commit", "-qm", "tracked ignored output")
+        allow = ["data/generated/chess-results-event-details"]
+        run_manager.preflight(self.repo, self.run_dir, allow)
+        target.write_text('{"fresh":true}\n')
+        result = run_manager.prepare_release(self.repo, self.run_dir, "event-queue", allow)
+        self.assertEqual(result["changed"], 1)
+        staged = subprocess.check_output(
+            ["git", "diff", "--cached", "--name-only"], cwd=self.repo, text=True
+        ).splitlines()
+        self.assertEqual(staged, [
+            "data/generated/chess-results-event-details/tnr1.json",
+            run_manager.MANIFEST_PATH,
+        ])
+
     def test_preflight_rejects_dirty_owned_path(self) -> None:
         (self.repo / "docs/data/registry/players.json").write_text("dirty\n")
         with self.assertRaises(run_manager.RunManagerError) as caught:
             run_manager.preflight(self.repo, self.run_dir, ["docs/data/registry"])
         self.assertEqual(caught.exception.code, "DIRTY_RELEASE_PATH")
+
+    def test_preflight_can_adopt_only_an_exact_verified_machine_output(self) -> None:
+        target = self.repo / "docs/data/registry/players.json"
+        target.write_text("adopted\n")
+        manifest = self.repo / run_manager.MANIFEST_PATH
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        manifest.write_text('{"stale":true}\n')
+        run_manager.preflight(
+            self.repo, self.run_dir, ["docs/data/registry"],
+            adopt=["docs/data/registry/players.json", run_manager.MANIFEST_PATH],
+        )
+        result = run_manager.prepare_release(self.repo, self.run_dir, "registry", ["docs/data/registry"])
+        self.assertEqual([item["path"] for item in result["files"]], ["docs/data/registry/players.json"])
 
     def test_outside_change_during_run_blocks_release(self) -> None:
         run_manager.preflight(self.repo, self.run_dir, ["docs/data/registry"])

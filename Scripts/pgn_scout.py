@@ -846,7 +846,7 @@ def load_china_aliases() -> dict[str, set[str]]:
         for alias in player.get("aliases", []) or []:
             name_aliases.add(normalize_name(str(alias)))
 
-    for path in [STATIC_INDEX_ROOT / "players.json", REGISTRY_ROOT / "players.json", DOCS_DATA / "youth-leaderboards.json"]:
+    for path in [STATIC_INDEX_ROOT / "players.json", REGISTRY_ROOT / "players.json", REPO_ROOT / "data" / "generated" / "youth-leaderboards.json"]:
         if not path.exists():
             continue
         data = read_json(path)
