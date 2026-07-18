@@ -1,60 +1,60 @@
 {
   "schemaVersion": 2,
-  "snapshotId": "20260718T123337Z-f29e83b8",
-  "generatedAt": "2026-07-18T12:34:45+00:00",
+  "snapshotId": "20260718T163417Z-8b6d0e24",
+  "generatedAt": "2026-07-18T16:44:44+00:00",
   "steps": [
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/apply_aliases_to_registry.py",
       "status": "built",
-      "seconds": 0.4
+      "seconds": 0.5
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_release.py --registry docs/data/registry --corrections data/community/name-corrections.csv",
       "status": "built",
-      "seconds": 0.1
+      "seconds": 0.2
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_static_pgn.py",
       "status": "built",
-      "seconds": 1.7
+      "seconds": 2.5
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_static_player_pgn.py",
       "status": "built",
-      "seconds": 41.8
+      "seconds": 57.0
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_completeness_report.py",
       "status": "skipped",
       "detail": "private capture layer incomplete",
-      "seconds": 0.0
+      "seconds": 0.1
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_person_observations.py",
       "status": "skipped",
       "detail": "private capture layer incomplete; keeping committed observations",
-      "seconds": 0.0
+      "seconds": 0.1
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_domestic_players.py",
       "status": "built",
-      "seconds": 8.7
+      "seconds": 544.9
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_domestic_progressions.py",
       "status": "built",
-      "seconds": 1.2
+      "seconds": 1.3
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_event_details.py",
       "status": "reprojected",
       "detail": "manifest re-derived (875 events)",
-      "seconds": 0.9
+      "seconds": 1.2
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_event_catalog.py",
       "status": "built",
-      "seconds": 0.8
+      "seconds": 1.1
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/archive_rating_observations.py",
@@ -69,17 +69,17 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_data_quality_audit.py",
       "status": "built",
-      "seconds": 1.2
+      "seconds": 1.6
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/reconcile_pgn_sources.py --write-audit",
       "status": "built",
-      "seconds": 1.0
+      "seconds": 1.3
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_search_bootstrap.py",
       "status": "built",
-      "seconds": 1.0
+      "seconds": 1.3
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_public_metrics.py",
@@ -94,7 +94,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_api.py",
       "status": "built",
-      "seconds": 0.8
+      "seconds": 1.1
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_changelog.py",
@@ -109,7 +109,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_authority.py",
       "status": "built",
-      "seconds": 1.5
+      "seconds": 2.2
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_metrics.py",
@@ -119,12 +119,12 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_privacy.py",
       "status": "built",
-      "seconds": 6.2
+      "seconds": 8.8
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_snapshot_consistency.py",
       "status": "built",
-      "seconds": 0.0
+      "seconds": 0.3
     }
   ]
 }
