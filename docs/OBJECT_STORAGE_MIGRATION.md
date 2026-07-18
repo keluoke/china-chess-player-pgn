@@ -1,7 +1,12 @@
 # ADR:大体积数据迁移至对象存储(R2)
 
-- 状态:提议(待维护者开通 Cloudflare R2 后实施)
-- 日期:2026-07-13
+- 状态:第一阶段已实施(2026-07-18)——78 个 Lichess Broadcast 分片
+  (~640 MB)已上传 R2 桶 `chess-data`,经自定义域
+  `https://data.chessdb.aigclabs.cc` 公开分发;bulk manifest v2 携带
+  `objectStorageBase` 与逐分片 `publicURL`。上传工具:
+  `Scripts/local/upload_bulk_to_r2.py`(凭据在维护者本机 `.secrets.local`,
+  不入库)。下一阶段:全赛事 PGN 归档、by-player 大包、api/v1/players 分片。
+- 日期:2026-07-13(提议)/ 2026-07-18(第一阶段实施)
 - 背景问题:静态 Git/Pages 架构即将触顶
 
 ## 背景

@@ -34,6 +34,7 @@ BULK_ROOT = DOCS_DATA / "bulk"
 LICHESS_ROOT = BULK_ROOT / "lichess-broadcast"
 SHARD_ROOT = LICHESS_ROOT / "shards"
 YOUTH_ROOT = BULK_ROOT / "youth"
+OBJECT_STORAGE_BASE = "https://data.chessdb.aigclabs.cc"
 EXISTING_SHARD_ROOT = PUBLIC_DOCS_DATA / "bulk" / "lichess-broadcast" / "shards"
 REGISTRY_PLAYERS_JSON = PUBLIC_DOCS_DATA / "registry" / "players.json"
 MANUAL_ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
@@ -314,12 +315,17 @@ def write_bulk_manifest(shards: list[BroadcastShard], source_meta: dict[str, Any
     generated_at = now()
     mirrored = [shard for shard in shards if shard.mirrored]
     manifest = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "generatedAt": generated_at,
         "storage": {
             "root": "data/bulk",
             "lichessBroadcastRoot": "data/bulk/lichess-broadcast/shards",
             "youthRoot": "data/bulk/youth",
+            # Large immutable shards are distributed from object storage
+            # (R2, docs/OBJECT_STORAGE_MIGRATION.md); repository copies stay
+            # gitignored on the maintainer machine for offline rebuilds.
+            "objectStorageBase": OBJECT_STORAGE_BASE,
+            "objectStorageShardPattern": f"{OBJECT_STORAGE_BASE}/bulk/lichess-broadcast/shards/{{fileName}}",
         },
         "sources": [
             {

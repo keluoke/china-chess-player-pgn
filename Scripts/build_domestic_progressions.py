@@ -16,7 +16,7 @@ from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 GROUPS = ROOT / "data" / "community" / "master-tournament-groups.csv"
-PLAYERS = ROOT / "docs" / "data" / "registry" / "domestic" / "players.json"
+PLAYERS = ROOT / "data" / "generated" / "domestic-players-full.json"
 OUTPUT = ROOT / "docs" / "data" / "registry" / "domestic" / "progressions.json"
 PROMOTION_REVIEW = ROOT / "docs" / "data" / "registry" / "domestic" / "promotion-review.json"
 

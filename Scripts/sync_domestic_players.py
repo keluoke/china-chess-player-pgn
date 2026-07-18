@@ -815,7 +815,19 @@ def write_output(
         return
     output_root.mkdir(parents=True, exist_ok=True)
     write_json(output_root / "manifest.json", manifest)
-    write_json(output_root / "players.json", [player.payload() for player in players])
+    # The full per-entity payload (with sightings) exceeds the 25 MiB
+    # per-file hosting cap since event observations landed. The public
+    # monolith carries summaries only; detail views read the hash shards,
+    # and derived builders read the machine-layer full projection.
+    full_payloads = [player.payload() for player in players]
+    generated_root = REPO_ROOT / "data" / "generated"
+    generated_root.mkdir(parents=True, exist_ok=True)
+    write_json(generated_root / "domestic-players-full.json", full_payloads)
+    summary_payloads = [
+        {key: value for key, value in payload.items() if key not in ("sightings", "confidence")}
+        for payload in full_payloads
+    ]
+    write_json(output_root / "players.json", summary_payloads)
     write_domestic_search_and_shards(output_root, players)
     write_json(output_root / "sightings.json", [sighting.payload() for sighting in sightings])
     write_json(output_root / "identity-links.json", [link.payload() for link in links])
