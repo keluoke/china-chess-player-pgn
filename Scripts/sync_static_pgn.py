@@ -32,6 +32,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
+from snapshot_context import stamp
 from source_http import SourceHTTPError, fetch_bytes
 from source_policy import require_chess_results_publication
 from stable_json import write_json as write_stable_json
@@ -395,7 +396,7 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
             write_json(PLAYER_INDEX_ROOT / f"fide-{fide_id}.json", detail)
 
     pgn_records = [record for record in records if has_static_pgn(record)]
-    manifest = {
+    manifest = stamp({
         "schemaVersion": 1,
         "generatedAt": generated_at,
         "storage": {
@@ -410,8 +411,13 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
             "games": sum(record.game_count for record in pgn_records),
             "bytes": sum(record.bytes for record in pgn_records),
         },
-        "sources": sorted({record.source for record in records}),
-    }
+        # De-sourcing: provider labels other than the Lichess attribution
+        # stay out of the public manifest.
+        "sources": sorted({
+            record.source for record in records
+            if record.source and not record.source.lower().startswith("chess-results")
+        }),
+    })
     manifest = preserve_source_manifest_generated_at(
         read_json(INDEX_ROOT / "manifest.json") if (INDEX_ROOT / "manifest.json").exists() else {},
         manifest,
@@ -438,13 +444,15 @@ def preserve_source_manifest_generated_at(previous: Any, current: dict[str, Any]
     """
     if not isinstance(previous, dict) or not previous.get("generatedAt"):
         return current
+    # snapshotId changes every release by design; it must not defeat the
+    # stable-generatedAt comparison.
     previous_source = {
         key: value
         for key, value in previous.items()
-        if key not in {"generatedAt", "sourceTotals", "metricContract"}
+        if key not in {"generatedAt", "sourceTotals", "metricContract", "snapshotId"}
     }
     previous_source["totals"] = previous.get("sourceTotals", previous.get("totals", {}))
-    current_source = {key: value for key, value in current.items() if key != "generatedAt"}
+    current_source = {key: value for key, value in current.items() if key not in {"generatedAt", "snapshotId"}}
     if previous_source != current_source:
         return current
     stable = dict(current)

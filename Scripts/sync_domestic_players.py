@@ -168,8 +168,9 @@ def main() -> int:
     assess_identity_confidence(players)
     name_groups = build_identity_name_groups(players)
     identity_candidates, conflict_edges = build_identity_candidates(players)
+    presentation_groups = build_presentation_groups(players, identity_candidates, conflict_edges)
     fide_candidates = build_fide_candidates(players, args.fide_registry)
-    write_output(players, sightings, links, name_groups, identity_candidates, fide_candidates, args.output_root, args.dry_run, conflict_edges)
+    write_output(players, sightings, links, name_groups, identity_candidates, fide_candidates, args.output_root, args.dry_run, conflict_edges, presentation_groups)
 
     stats = {
         "sightings": len(sightings),
@@ -186,6 +187,8 @@ def main() -> int:
         "fideLinkCandidates": len(fide_candidates),
         "identityCandidates": len(identity_candidates),
         "highPriorityIdentityCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in identity_candidates),
+        "presentationGroups": len(presentation_groups),
+        "presentationGroupedEntities": sum(len(g["members"]) for g in presentation_groups),
         "parentOnlyNameGroups": sum(group.get("adjudicationMode") == "parent-only" for group in name_groups),
     }
     print(json.dumps(stats, ensure_ascii=False, indent=2))
@@ -525,9 +528,18 @@ def parse_date(value: str) -> dt.date | None:
         return None
 
 
+def exact_date(value: str) -> bool:
+    return bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(value or "").strip()[:10]))
+
+
 def promotion_evidence(left: DomesticPlayer, right: DomesticPlayer) -> dict[str, Any] | None:
     """≥65% score in a lower group followed (≤24 months) by an appearance in
-    the adjacent higher group — the plan's strongest weak-evidence signal."""
+    the adjacent higher group — the strongest weak-evidence signal.
+
+    ``exactDates`` records whether the ordering rests on real event dates;
+    year-only anchors keep the evidence for queue ordering but never trigger
+    automatic display aggregation (review §4.2)."""
+    best: dict[str, Any] | None = None
     for lower, higher in ((left, right), (right, left)):
         for low_sighting in lower.sightings:
             low_level = group_level(low_sighting)
@@ -542,13 +554,25 @@ def promotion_evidence(left: DomesticPlayer, right: DomesticPlayer) -> dict[str,
                     continue
                 gap = (high_date - low_date).days
                 if 0 <= gap <= PROMOTION_WINDOW_DAYS:
-                    return {
+                    candidate = {
                         "lowerGroup": low_sighting.group,
                         "scoreRate": round(rate, 3),
                         "higherGroup": high_sighting.group,
                         "monthsBetween": round(gap / 30),
+                        "exactDates": exact_date(low_sighting.event_date) and exact_date(high_sighting.event_date),
                     }
-    return None
+                    if best is None or (candidate["exactDates"] and not best["exactDates"]):
+                        best = candidate
+                    if best["exactDates"]:
+                        return best
+    return best
+
+
+def sexes_consistent(left: DomesticPlayer, right: DomesticPlayer) -> bool:
+    """Known and equal on both sides (presentation-grouping requirement)."""
+    left_sex = {s.sex for s in left.sightings if s.sex} or ({left.sex} if left.sex else set())
+    right_sex = {s.sex for s in right.sightings if s.sex} or ({right.sex} if right.sex else set())
+    return bool(left_sex) and bool(right_sex) and left_sex == right_sex and len(left_sex) == 1
 
 
 def hard_conflicts(left: DomesticPlayer, right: DomesticPlayer) -> list[str]:
@@ -623,15 +647,20 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
         summary.append("公开地区一致")
 
     score = max(0, min(100, sum(weights.values())))
-    # Common-name prerequisite: the name alone contributes nothing; a high
-    # tier additionally requires at least two independent evidence kinds.
-    if score >= 70 and evidence_kinds >= 2:
+    # Review §4.2: "同俱乐部 + 真实晋级轨迹" (same club + genuine promotion
+    # pattern, sexes consistent, no hard conflicts) is high-confidence BY
+    # ITSELF. Display aggregation additionally requires the promotion order
+    # to rest on exact event dates.
+    club_plus_promotion = bool(weights.get("clubConsistency")) and bool(promotion) and sexes_consistent(left, right)
+    if club_plus_promotion or (score >= 70 and evidence_kinds >= 2):
         tier = "suggested-high"
     elif score >= 45:
         tier = "suggested-medium"
     else:
         tier = "low"
+    presentation_eligible = bool(club_plus_promotion and promotion and promotion.get("exactDates"))
     return {
+        "presentationEligible": presentation_eligible,
         "candidateID": "identity-candidate-" + hashlib.sha256(f"{left.domestic_id}|{right.domestic_id}".encode("utf-8")).hexdigest()[:16],
         "algorithmVersion": CANDIDATE_ALGORITHM_VERSION,
         "normalizedName": key,
@@ -690,6 +719,118 @@ def build_identity_candidates(players: list[DomesticPlayer]) -> list[dict[str, A
                 candidates.append(card)
     candidates.sort(key=lambda row: (-row["score"], row["displayName"], row["candidateID"]))
     return candidates, conflict_edges
+
+
+# --- presentation identity groups (review §4) --------------------------------
+
+DISPUTES_CSV = REPO_ROOT / "data" / "manual" / "presentation-disputes.csv"
+
+
+def pair_hash(a: str, b: str) -> str:
+    left, right = sorted([a, b])
+    return hashlib.sha256(f"{left}|{right}".encode("utf-8")).hexdigest()[:16]
+
+
+def load_presentation_disputes() -> dict[str, str]:
+    """pair_hash -> status. Statuses that block regrouping: disputed,
+    confirmed-separate, tombstone. ``confirmed-merged`` is a maintainer
+    decision that belongs in player-identity-links.csv, not here."""
+    blocked: dict[str, str] = {}
+    if not DISPUTES_CSV.exists():
+        return blocked
+    with DISPUTES_CSV.open("r", encoding="utf-8-sig", newline="") as handle:
+        for row in csv.DictReader(handle):
+            status = clean(row.get("status")).lower()
+            hash_value = clean(row.get("pair_hash"))
+            if not hash_value:
+                a, b = clean(row.get("member_a")), clean(row.get("member_b"))
+                if a and b:
+                    hash_value = pair_hash(a, b)
+            if hash_value and status in ("disputed", "confirmed-separate", "tombstone"):
+                blocked[hash_value] = status
+    return blocked
+
+
+def build_presentation_groups(
+    players: list[DomesticPlayer],
+    identity_candidates: list[dict[str, Any]],
+    conflict_edges: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """High-confidence display-only aggregation (review §4.1–4.5).
+
+    - Edges: presentationEligible candidate pairs (same club + exact-date
+      promotion pattern + consistent sex + no hard conflicts) minus disputed/
+      tombstoned pairs.
+    - Components form via union-find, but a component containing ANY internal
+      hard-conflict or blocked pair is discarded entirely: transitive closure
+      never bypasses a conflict edge (review §4.5).
+    - Groups are pure projections: no Person/registry/observation mutation.
+    """
+    disputes = load_presentation_disputes()
+    conflict_pairs = {
+        pair_hash(*edge["domesticIDs"]) for edge in conflict_edges
+        if len(edge.get("domesticIDs") or []) == 2
+    }
+    by_id = {player.domestic_id: player for player in players}
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        while parent.setdefault(x, x) != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: str, b: str) -> None:
+        parent[find(a)] = find(b)
+
+    eligible_edges: list[tuple[str, str]] = []
+    for candidate in identity_candidates:
+        if not candidate.get("presentationEligible"):
+            continue
+        ids = candidate.get("domesticIDs") or []
+        if len(ids) != 2:
+            continue
+        hash_value = pair_hash(ids[0], ids[1])
+        if hash_value in disputes or hash_value in conflict_pairs:
+            continue
+        eligible_edges.append((ids[0], ids[1]))
+        union(ids[0], ids[1])
+
+    components: dict[str, set[str]] = {}
+    for a, b in eligible_edges:
+        components.setdefault(find(a), set()).update([a, b])
+
+    groups: list[dict[str, Any]] = []
+    for members in components.values():
+        member_list = sorted(members)
+        # Mutual-exclusion check: any internal blocked/conflict pair kills
+        # the whole component — those members stay as separate cards.
+        internal_block = any(
+            pair_hash(member_list[i], member_list[j]) in conflict_pairs
+            or pair_hash(member_list[i], member_list[j]) in disputes
+            for i in range(len(member_list)) for j in range(i + 1, len(member_list))
+        )
+        if internal_block or len(member_list) < 2:
+            continue
+        primary = by_id.get(member_list[0])
+        groups.append({
+            "groupID": "pg-" + hashlib.sha256("|".join(member_list).encode("utf-8")).hexdigest()[:12],
+            "members": member_list,
+            # Shard prefixes let the frontend fetch every member's facts
+            # without recomputing the hash layout client-side.
+            "memberRefs": [
+                {"id": member, "shard": hashlib.sha256(member.encode("utf-8")).hexdigest()[:2]}
+                for member in member_list
+            ],
+            "displayName": primary.display_name if primary else "",
+            "sex": primary.sex if primary else "",
+            "sightingCount": sum(len(by_id[m].sightings) for m in member_list if m in by_id),
+            "identityBasis": "presentation-high",
+            "disputeEntry": True,
+        })
+    groups.sort(key=lambda group: group["groupID"])
+    return groups
 
 
 def build_fide_candidates(players: list[DomesticPlayer], registry_path: pathlib.Path) -> list[dict[str, Any]]:
@@ -781,19 +922,19 @@ def write_output(
     output_root: pathlib.Path,
     dry_run: bool,
     conflict_edges: list[dict[str, Any]] | None = None,
+    presentation_groups: list[dict[str, Any]] | None = None,
 ) -> None:
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     manifest = {
         "schemaVersion": 1,
         "generatedAt": generated_at,
+        # Public manifest lists publicly served resources ONLY (review §3.3);
+        # builder inputs and maintainer paths live in the private build
+        # summary (data/generated/audit/identity-workbench-summary.json).
         "storage": {
             "players": "data/registry/domestic/players.json",
-            "searchIndex": "data/generated/domestic-search-index.json",
             "detailShards": "data/registry/domestic/shards/{prefix}.json",
-            "sightings": "data/generated/domestic-sightings.json",
             "identityLinks": "data/registry/domestic/identity-links.json",
-            "progressions": "data/generated/domestic-progressions.json",
-            "promotionReview": "data/registry/domestic/promotion-review.json",
         },
         "totals": {
             "sightings": len(sightings),
@@ -828,29 +969,68 @@ def write_output(
         for payload in full_payloads
     ]
     write_json(output_root / "players.json", summary_payloads)
+    # Display-only high-confidence aggregation (review §4): a small public
+    # projection the frontend uses to merge cards; disputes split it on the
+    # next projection without touching any Person/observation fact.
+    write_json(output_root / "presentation-groups.json", {
+        "schemaVersion": 1,
+        "generatedAt": generated_at,
+        "identityBasis": "presentation-high",
+        "note": "机器高置信展示聚合；确认合并请走 player-identity-links.csv，质疑请提交 presentation-disputes",
+        "totals": {
+            "groups": len(presentation_groups or []),
+            "entities": sum(len(g["members"]) for g in (presentation_groups or [])),
+        },
+        "groups": presentation_groups or [],
+    })
     write_domestic_search_and_shards(output_root, players)
     # Flat sightings + search-index are build intermediates, not product
     # surfaces; they left the deployed tree to stay under the hosting size cap.
     write_json(generated_root / "domestic-sightings.json", [sighting.payload() for sighting in sightings])
     write_json(output_root / "identity-links.json", [link.payload() for link in links])
-    # Maintainer adjudication queues carry raw clubs/evidence and belong to
-    # the maintainer workbench, never the deployed tree (plan §4.5).
-    audit_root = REPO_ROOT / "data" / "generated" / "audit"
-    audit_root.mkdir(parents=True, exist_ok=True)
-    write_json(audit_root / "identity-name-groups.json", name_groups)
-    write_json(audit_root / "identity-candidates.json", identity_candidates)
+    # Raw adjudication material (clubs, candidate edges, minors' event
+    # trails) belongs to the repo-external maintainer workbench, not the
+    # public repository (review §4.6). The repo keeps aggregate counts only.
+    try:
+        from source_policy import local_state_root
+        workbench = local_state_root() / "identity-workbench"
+    except Exception:  # pragma: no cover
+        workbench = REPO_ROOT / ".identity-workbench"
+    workbench.mkdir(parents=True, exist_ok=True)
+    write_json(workbench / "identity-name-groups.json", name_groups)
+    write_json(workbench / "identity-candidates.json", identity_candidates)
     # Negative knowledge: hard-conflict pairs are banned edges; a rejected or
     # impossible merge suggestion must never resurface (tombstones).
-    write_json(audit_root / "identity-conflict-edges.json", conflict_edges or [])
-    write_json(audit_root / "fide-link-candidates.json", fide_candidates)
+    write_json(workbench / "identity-conflict-edges.json", conflict_edges or [])
+    write_json(workbench / "fide-link-candidates.json", fide_candidates)
     review_rows = [player.payload() for player in players if player.confidence.get("reviewRequired")]
     review_rows.sort(key=lambda player: (player["confidence"]["score"], -player["confidence"]["sameNameConflictCount"], player.get("displayName", "")))
-    write_json(audit_root / "identity-review.json", review_rows)
-    for stale in ("identity-name-groups.json", "identity-candidates.json",
-                  "fide-link-candidates.json", "identity-review.json"):
-        stale_path = output_root / stale
-        if stale_path.exists():
-            stale_path.unlink()
+    write_json(workbench / "identity-review.json", review_rows)
+    audit_root = REPO_ROOT / "data" / "generated" / "audit"
+    audit_root.mkdir(parents=True, exist_ok=True)
+    write_json(audit_root / "identity-workbench-summary.json", {
+        "schemaVersion": 1,
+        "generatedAt": generated_at,
+        "workbench": "local_state_root()/identity-workbench (repo-external)",
+        "totals": {
+            "identityCandidates": len(identity_candidates),
+            "suggestedHigh": sum(c.get("queueTier") == "suggested-high" for c in identity_candidates),
+            "conflictEdges": len(conflict_edges or []),
+            "fideLinkCandidates": len(fide_candidates),
+            "reviewRows": len(review_rows),
+        },
+    })
+    for stale_root, names in (
+        (output_root, ("identity-name-groups.json", "identity-candidates.json",
+                       "fide-link-candidates.json", "identity-review.json")),
+        (audit_root, ("identity-name-groups.json", "identity-candidates.json",
+                      "identity-conflict-edges.json", "fide-link-candidates.json",
+                      "identity-review.json")),
+    ):
+        for stale in names:
+            stale_path = stale_root / stale
+            if stale_path.exists():
+                stale_path.unlink()
 
 
 def write_domestic_search_and_shards(output_root: pathlib.Path, players: list[DomesticPlayer]) -> None:

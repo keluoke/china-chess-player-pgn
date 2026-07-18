@@ -1,32 +1,30 @@
 #!/usr/bin/env python3
 """Build the per-event CompletenessReport (multi-dimensional gates).
 
-This is the single place that decides what an event's capture actually
-covers.  It replaces the old single-valued ``captureStatus == complete``
-semantics as the publication gate:
+Second-review (2026-07-18) contract:
 
-- ``resultsStatus``   roster / standings / rounds / pairings / results gates
-- ``pgnAvailability`` what the source actually advertised (bye-excluded)
-- ``archiveStatus``   what we archived + matched against pairings
-- ``publishable``     results-complete events may enter public projections,
-                      clearly labelled; only ``archived-full-board`` events
-                      may ever be called "棋谱完整" on any surface.
-
-Inputs are maintainer-local machine artifacts (private capture details and
-event PGN archives) plus the published by-player index.  The report itself
-contains counts, statuses and reasons only — never source URLs — so it is
-committed under ``data/generated/`` and consumed by derived builders and CI.
-
-PGN denominator contract (plan §5.3): ``pgnExpected`` counts the non-bye
-games the source actually advertised; ``allBoardCoverage`` is measured
-against every non-bye pairing separately.  The two are never mixed into a
-single percentage.
+- Event PGN archives (``data/generated/chess-results-event-pgn``) are a
+  first-class input: an event whose archive already contains every played
+  game must be recognized offline and never re-queued for source access.
+- Matching uses the pairing natural key ``round + board`` (playerNo-anchored
+  through the roster); names are fallback evidence only and fallback matches
+  carry an explicit confidence marker.
+- PGN denominators exclude byes AND forfeits/cancellations
+  (``playedGameExpected``); results completeness still accepts legitimate
+  forfeit results.
+- Gates carry independent expected values; when an expected value cannot be
+  established the dimension is ``unknown`` — never silently ``complete``.
+- The supplement queue holds actionable tasks only; bare ``not-published``
+  events stay in coverage statistics. Maintainer leads live in a private
+  ``pgn-leads.csv`` outside the repository.
 """
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
 import json
+import os
 import pathlib
 import re
 from collections import defaultdict
@@ -34,18 +32,30 @@ from typing import Any
 
 from stable_json import write_json
 
+try:
+    from source_policy import local_state_root
+except Exception:  # pragma: no cover - CI without local policy module extras
+    def local_state_root() -> pathlib.Path:
+        return pathlib.Path.home() / ".china-chess-player-pgn"
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DETAILS = ROOT / "data" / "generated" / "chess-results-event-details"
 EVENT_PGN = ROOT / "data" / "generated" / "chess-results-event-pgn"
 BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
 OUTPUT = ROOT / "data" / "generated" / "event-completeness-report.json"
 QUEUE_OUTPUT = ROOT / "data" / "generated" / "pgn-supplement-queue.json"
+# Two lead registries: the repo copy holds sanitized, reviewable leads
+# (event id + coverage claim only); URLs/private hints stay in the
+# maintainer-local file outside the repository.
+PGN_LEADS_PRIVATE = local_state_root() / "pgn-leads.csv"
+PGN_LEADS_PUBLIC = ROOT / "data" / "manual" / "pgn-leads.csv"
 
-# Team-format sections report match points ("2", "2½"), so any digit counts
-# as a result core; letters (e.g. a federation code shifted into the result
-# column) still mark the row invalid.
+# Team-format sections report match points ("2", "2½"); letters (e.g. a
+# federation code shifted into the result column) still mark a row invalid.
 RESULT_CORE_RE = re.compile(r"[0-9½+\-]")
 RESULT_LETTER_RE = re.compile(r"[A-JL-Za-jl-z]")
+# Chess-Results forfeit renderings: "+ - -", "- - +", "- - -" (double default).
+FORFEIT_RE = re.compile(r"^[+\-]\s*-\s*[+\-]$")
 
 
 def clean(value: Any) -> str:
@@ -74,28 +84,125 @@ def is_bye(pairing: dict[str, Any]) -> bool:
     return not clean(white.get("playerNo")) or not clean(black.get("playerNo"))
 
 
+def is_forfeit(result: Any) -> bool:
+    return bool(FORFEIT_RE.match(clean(result)))
+
+
+def played_game_expected(pairing: dict[str, Any]) -> bool | None:
+    """Did this pairing produce an over-the-board game?
+
+    False for byes and forfeits/cancellations; None (unknown) when the result
+    is empty — unknown rows never enter the PGN-expected denominator."""
+    if is_bye(pairing):
+        return False
+    result = clean(pairing.get("result"))
+    if not result:
+        return None
+    if is_forfeit(result):
+        return False
+    return True
+
+
 def advertised_pgn(pairing: dict[str, Any]) -> bool:
     return bool(pairing.get("hasPGN")) or bool(clean(pairing.get("pgnURL")))
 
 
 def valid_result(pairing: dict[str, Any]) -> bool:
+    """Results gate: legitimate forfeits count as valid results (review §2.3)."""
     result = clean(pairing.get("result"))
-    return bool(result) and bool(RESULT_CORE_RE.search(result)) and not RESULT_LETTER_RE.search(result)
+    if not result:
+        return False
+    if is_forfeit(result):
+        return True
+    return bool(RESULT_CORE_RE.search(result)) and not RESULT_LETTER_RE.search(result)
 
 
-def archived_game_count(tid: str) -> int:
+# --- event archive parsing ---------------------------------------------------
+
+_HEADER_RE = re.compile(r'^\[(\w+)\s+"([^"]*)"\]', re.MULTILINE)
+
+
+def parse_event_archive(tid: str) -> list[dict[str, str]]:
     path = EVENT_PGN / f"tnr{tid}.pgn"
     if not path.is_file():
-        return 0
+        return []
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
-        return 0
-    return text.count("[Event ")
+        return []
+    games: list[dict[str, str]] = []
+    starts = [m.start() for m in re.finditer(r'^\[Event\s+"', text, flags=re.MULTILINE)]
+    for index, start in enumerate(starts):
+        end = starts[index + 1] if index + 1 < len(starts) else len(text)
+        chunk = text[start:end]
+        headers = dict(_HEADER_RE.findall(chunk))
+        games.append({
+            "round": round_number(headers.get("Round")),
+            "board": clean(headers.get("Board")),
+            "white": clean(headers.get("White")),
+            "black": clean(headers.get("Black")),
+            "result": clean(headers.get("Result")),
+        })
+    return games
+
+
+def match_archive_games(
+    payload: dict[str, Any],
+    archive_games: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Match archived games to pairings by natural key round+board.
+
+    Name equality (either orientation) verifies the key; name-only matching is
+    the explicit fallback and is reported separately (review §2.2)."""
+    by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    by_names: dict[tuple[str, tuple[str, str]], dict[str, Any]] = {}
+    for round_row in payload.get("rounds") or []:
+        rid = round_number(round_row.get("round"))
+        for pairing in round_row.get("pairings") or []:
+            if is_bye(pairing):
+                continue
+            board = clean(pairing.get("board"))
+            if board:
+                by_key[(rid, board)] = pairing
+            names = tuple(sorted([
+                normalize_name((pairing.get("white") or {}).get("name")),
+                normalize_name((pairing.get("black") or {}).get("name")),
+            ]))
+            by_names.setdefault((rid, names), pairing)
+
+    matched: set[int] = set()
+    fallback: set[int] = set()
+    mismatched_names = 0
+    unmatched_games = 0
+    for game in archive_games:
+        game_names = tuple(sorted([normalize_name(game["white"]), normalize_name(game["black"])]))
+        pairing = by_key.get((game["round"], game["board"])) if game["board"] else None
+        if pairing is not None:
+            pairing_names = tuple(sorted([
+                normalize_name((pairing.get("white") or {}).get("name")),
+                normalize_name((pairing.get("black") or {}).get("name")),
+            ]))
+            if not any(game_names) or not any(pairing_names) or game_names == pairing_names:
+                matched.add(id(pairing))
+                continue
+            # Natural key hit but names disagree: never silently count it.
+            mismatched_names += 1
+        pairing = by_names.get((game["round"], game_names))
+        if pairing is not None:
+            fallback.add(id(pairing))
+        else:
+            unmatched_games += 1
+    fallback -= matched
+    return {
+        "matchedExact": len(matched),
+        "matchedNameFallback": len(fallback),
+        "matched": len(matched | fallback),
+        "keyNameMismatches": mismatched_names,
+        "unmatchedArchiveGames": unmatched_games,
+    }
 
 
 def by_player_game_index() -> dict[str, dict[tuple[str, tuple[str, str]], set[str]]]:
-    """tid -> {(round, sorted-normalized-names): {game fingerprints}} plus totals."""
     index: dict[str, dict[tuple[str, tuple[str, str]], set[str]]] = defaultdict(dict)
     for path in sorted(BY_PLAYER.glob("fide-*.json")):
         detail = read_json(path, {})
@@ -112,96 +219,184 @@ def by_player_game_index() -> dict[str, dict[tuple[str, tuple[str, str]], set[st
     return index
 
 
-def event_report(payload: dict[str, Any], games: dict[tuple[str, tuple[str, str]], set[str]]) -> dict[str, Any]:
+def load_pgn_leads() -> dict[str, dict[str, str]]:
+    """Merged lead registry: tid -> {leadType, knownCoverage, status}."""
+    leads: dict[str, dict[str, str]] = {}
+    for source in (PGN_LEADS_PUBLIC, PGN_LEADS_PRIVATE):
+        if not source.exists():
+            continue
+        with source.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                tid = re.sub(r"^tnr", "", clean(row.get("tournament_id")), flags=re.IGNORECASE)
+                if tid and clean(row.get("status")) not in ("resolved", "rejected"):
+                    leads[tid] = {
+                        "leadType": clean(row.get("lead_type")) or "external-lead",
+                        "knownCoverage": clean(row.get("known_coverage")),
+                        "status": clean(row.get("status")) or "open",
+                    }
+    return leads
+
+
+def event_report(
+    payload: dict[str, Any],
+    by_player_games: dict[tuple[str, tuple[str, str]], set[str]],
+) -> dict[str, Any]:
     tid = clean(payload.get("tournamentID"))
     players = payload.get("players") or []
     standings = payload.get("standings") or []
     rounds = payload.get("rounds") or []
     round_count = int(payload.get("roundCount") or 0)
     capture_status = clean(payload.get("captureStatus")) or "complete"
+    is_team = payload.get("format") == "team"
 
+    roster_nos = {clean(p.get("playerNo")) for p in players if clean(p.get("playerNo"))}
     pairings = [p for r in rounds for p in (r.get("pairings") or [])]
     non_bye = [p for p in pairings if not is_bye(p)]
-    advertised = [p for p in non_bye if advertised_pgn(p)]
+    played = [p for p in non_bye if played_game_expected(p) is True]
+    played_unknown = sum(1 for p in non_bye if played_game_expected(p) is None)
+    forfeits = sum(1 for p in non_bye if is_forfeit(p.get("result")))
+    advertised = [p for p in played if advertised_pgn(p)]
     valid_results = sum(1 for p in non_bye if valid_result(p))
 
-    matched_keys: set[tuple[str, tuple[str, str]]] = set()
-    fingerprints: set[str] = set()
+    # --- referential integrity (independent expected values, review §2.4) ---
+    standing_ref_violations = sum(
+        1 for s in standings
+        if clean(s.get("playerNo")) and roster_nos and clean(s.get("playerNo")) not in roster_nos
+    )
+    pairing_ref_violations = 0
+    per_round_coverage: list[float] = []
     for round_row in rounds:
-        rid = round_number(round_row.get("round"))
+        covered: set[str] = set()
         for pairing in round_row.get("pairings") or []:
-            if is_bye(pairing):
-                continue
-            key = (rid, tuple(sorted([
-                normalize_name((pairing.get("white") or {}).get("name")),
-                normalize_name((pairing.get("black") or {}).get("name")),
-            ])))
-            if key in games:
-                matched_keys.add(key)
-    for prints in games.values():
-        fingerprints.update(prints)
+            for side_key in ("white", "black"):
+                no = clean((pairing.get(side_key) or {}).get("playerNo"))
+                if no:
+                    covered.add(no)
+                    if roster_nos and no not in roster_nos and not is_team:
+                        pairing_ref_violations += 1
+        if roster_nos:
+            per_round_coverage.append(len(covered & roster_nos) / len(roster_nos))
+    min_round_coverage = round(min(per_round_coverage), 4) if per_round_coverage else None
 
-    matched = len(matched_keys)
-    archived = archived_game_count(tid)
-    local_games = len(fingerprints)
+    # --- archive matching (archives are first-class input, review §2.1) -----
+    archive_games = parse_event_archive(tid)
+    if archive_games:
+        match = match_archive_games(payload, archive_games)
+    else:
+        matched_keys: set[tuple[str, tuple[str, str]]] = set()
+        for round_row in rounds:
+            rid = round_number(round_row.get("round"))
+            for pairing in round_row.get("pairings") or []:
+                if is_bye(pairing):
+                    continue
+                key = (rid, tuple(sorted([
+                    normalize_name((pairing.get("white") or {}).get("name")),
+                    normalize_name((pairing.get("black") or {}).get("name")),
+                ])))
+                if key in by_player_games:
+                    matched_keys.add(key)
+        match = {
+            "matchedExact": 0,
+            "matchedNameFallback": len(matched_keys),
+            "matched": len(matched_keys),
+            "keyNameMismatches": 0,
+            "unmatchedArchiveGames": 0,
+        }
+    matched = match["matched"]
+    local_fingerprints: set[str] = set()
+    for prints in by_player_games.values():
+        local_fingerprints.update(prints)
 
     gates = {
-        "roster": {"expected": len(players), "actual": len(players)},
-        "standings": {"expected": len(players) if payload.get("format") != "team" else len(standings),
-                      "actual": len(standings)},
-        "rounds": {"expected": round_count or len(rounds), "actual": len(rounds)},
-        "pairings": {"expected": len(pairings), "actual": len(pairings)},
-        "results": {"expected": len(non_bye), "valid": valid_results},
-        "pgnExpected": {"expected": len(advertised), "archived": min(archived, len(advertised)) if advertised else 0},
-        "pgnMatched": {"expected": len(advertised), "matched": matched},
+        "roster": {"expected": len(players) or None, "actual": len(players),
+                   "status": "complete" if players else "unknown"},
+        "standings": {
+            "expected": (len(players) if not is_team else None) or None,
+            "actual": len(standings),
+            "refViolations": standing_ref_violations,
+            "status": (
+                "unknown" if is_team or not players else
+                "complete" if standings and standing_ref_violations == 0 and len(standings) >= max(1, int(len(players) * 0.5))
+                else "partial"
+            ),
+        },
+        "rounds": {
+            "expected": round_count or None,
+            "actual": len(rounds),
+            "status": (
+                "unknown" if not round_count else
+                "complete" if len(rounds) >= round_count else "partial"
+            ),
+        },
+        "pairings": {
+            "expected": None,  # no independent per-board expectation yet
+            "actual": len(pairings),
+            "refViolations": pairing_ref_violations,
+            "minRoundRosterCoverage": min_round_coverage,
+            "status": (
+                "unknown" if not pairings else
+                "complete" if pairing_ref_violations == 0 else "partial"
+            ),
+        },
+        "results": {"expected": len(non_bye), "valid": valid_results,
+                    "status": "complete" if non_bye and valid_results == len(non_bye) else ("unknown" if not non_bye else "partial")},
+        "pgnExpected": {"expected": len(advertised), "playedGames": len(played),
+                        "playedUnknown": played_unknown, "forfeits": forfeits},
+        "pgnMatched": {"expected": len(advertised), "matched": matched,
+                       "matchedExact": match["matchedExact"],
+                       "matchedNameFallback": match["matchedNameFallback"],
+                       "keyNameMismatches": match["keyNameMismatches"],
+                       "unmatchedArchiveGames": match["unmatchedArchiveGames"]},
     }
 
-    results_complete = (
-        capture_status == "complete"
-        and len(standings) > 0
-        and len(rounds) > 0
-        and len(rounds) >= (round_count or len(rounds))
-        and len(non_bye) > 0
-        and valid_results == len(non_bye)
-    )
-    results_status = "results-complete" if results_complete else "partial"
+    hard_gates = [gates["standings"]["status"], gates["rounds"]["status"],
+                  gates["pairings"]["status"], gates["results"]["status"]]
+    if capture_status != "complete" or "partial" in hard_gates:
+        results_status = "partial"
+    elif "unknown" in hard_gates:
+        results_status = "unknown"
+    else:
+        results_status = "results-complete"
 
-    # --- source-advertised availability (bye-excluded denominator) ----------
-    if not non_bye:
-        availability = "no-pairings"
+    # --- source-advertised availability (played-game denominator) -----------
+    if not played:
+        availability = "no-played-games" if non_bye else "no-pairings"
         scope = "none-published"
     elif not advertised:
         availability = "not-published"
         scope = "none-published"
-    elif len(advertised) < len(non_bye):
+    elif len(advertised) < len(played):
         availability = "advertised-partial"
         scope = "selected-live-boards"
     else:
         availability = "advertised-full"
-        scope = "all-non-bye-boards"
+        scope = "all-played-boards"
 
-    # --- archive/matching state against what was advertised -----------------
-    if availability in ("not-published", "no-pairings"):
-        if local_games:
+    # --- archive/matching state (review §2.1 status vocabulary) -------------
+    if availability in ("not-published", "no-pairings", "no-played-games"):
+        if archive_games or local_fingerprints:
             archive_status = "external-or-legacy-supplement"
         else:
             archive_status = "none-expected"
-    elif matched >= len(non_bye) and len(non_bye) > 0:
-        archive_status = "archived-full-board"
-    elif advertised and matched >= len(advertised):
-        archive_status = "archived-advertised-complete"
-    elif archived == 0 and local_games:
+    elif archive_games:
+        if matched == 0:
+            archive_status = "archived-unmatched"
+        elif matched >= len(played):
+            archive_status = "matched-full"
+        elif matched >= len(advertised) and len(advertised) < len(played):
+            archive_status = "matched-advertised-complete"
+        else:
+            archive_status = "matched-partial"
+    elif local_fingerprints:
         archive_status = "locally-recoverable"
-    elif archived == 0:
-        archive_status = "missing"
     else:
-        archive_status = "incomplete"
+        archive_status = "missing"
 
     advertised_coverage = round(matched / len(advertised), 4) if advertised else None
-    all_board_coverage = round(matched / len(non_bye), 4) if non_bye else None
+    played_coverage = round(matched / len(played), 4) if played else None
 
-    publishable = results_complete
-    event_complete = results_complete and archive_status == "archived-full-board"
+    publishable = results_status == "results-complete"
+    event_complete = publishable and archive_status == "matched-full"
 
     return {
         "tournamentID": tid,
@@ -216,54 +411,78 @@ def event_report(payload: dict[str, Any], games: dict[tuple[str, tuple[str, str]
         "counts": {
             "players": len(players),
             "standings": len(standings),
-            "roundsExpected": round_count,
+            "roundsExpected": round_count or None,
             "roundsCaptured": len(rounds),
             "pairings": len(pairings),
             "nonByePairings": len(non_bye),
+            "playedGames": len(played),
+            "forfeits": forfeits,
             "advertisedPGN": len(advertised),
-            "archivedGames": archived,
+            "archivedGames": len(archive_games),
             "matchedPairings": matched,
-            "localGameFingerprints": local_games,
+            "localGameFingerprints": len(local_fingerprints),
         },
         "advertisedCoverage": advertised_coverage,
-        "allBoardCoverage": all_board_coverage,
+        "allBoardCoverage": played_coverage,
         "publishable": publishable,
         "eventComplete": event_complete,
     }
 
 
-def supplement_queue(reports: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Maintainer PGN backlog with explicit priorities (plan §5.3)."""
+def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
+    """Actionable maintainer tasks only (review §2.5).
+
+    Bare not-published events without any lead stay out of the queue; they
+    are coverage statistics, not work items."""
     queue: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for report in reports:
+        tid = report["tournamentID"]
         availability = report["pgnAvailability"]
         archive = report["archiveStatus"]
         counts = report["counts"]
-        action = priority = None
-        if availability in ("advertised-full", "advertised-partial") and archive in ("missing", "incomplete"):
-            priority, action = "P0", "re-fetch-or-rematch-advertised-boards"
+        lead = leads.get(tid)
+        priority = action = None
+        if archive in ("archived-unmatched", "matched-partial"):
+            priority, action = "P0", "offline-rematch-existing-archive"
+        elif availability in ("advertised-full", "advertised-partial") and archive == "missing":
+            priority, action = "P0", "re-fetch-or-import-advertised-boards"
+        elif availability == "advertised-partial" and archive == "matched-advertised-complete":
+            continue  # promised boards done
         elif archive == "locally-recoverable":
             priority, action = "P1", "offline-restore-from-by-player-packs"
-        elif availability == "advertised-partial" and archive == "archived-advertised-complete":
-            continue  # promised boards done; nothing to supplement
-        elif availability == "not-published" and archive == "external-or-legacy-supplement":
-            priority, action = "P1", "verify-external-supplement-coverage"
-        elif availability == "not-published":
-            priority, action = "P2", "await-external-lead-no-refetch"
+        elif lead:
+            priority, action = "P1", f"follow-lead:{lead['leadType']}"
         else:
             continue
+        seen.add(tid)
         queue.append({
-            "tournamentID": report["tournamentID"],
+            "tournamentID": tid,
             "priority": priority,
             "nextAction": action,
             "resultsStatus": report["resultsStatus"],
             "pgnAvailability": availability,
             "archiveStatus": archive,
-            "nonByePairings": counts["nonByePairings"],
+            "playedGames": counts["playedGames"],
             "advertisedPGN": counts["advertisedPGN"],
             "archivedGames": counts["archivedGames"],
             "matchedPairings": counts["matchedPairings"],
             "localGameFingerprints": counts["localGameFingerprints"],
+            **({"lead": lead} if lead else {}),
+        })
+    # Leads for events without a structured detail yet (e.g. 盐城快棋赛
+    # tnr1210265–1210272) must still surface as tasks.
+    for tid, lead in leads.items():
+        if tid in seen:
+            continue
+        queue.append({
+            "tournamentID": tid,
+            "priority": "P1",
+            "nextAction": f"follow-lead:{lead['leadType']}",
+            "resultsStatus": "no-structured-detail",
+            "pgnAvailability": "unknown",
+            "archiveStatus": "missing",
+            "lead": lead,
         })
     order = {"P0": 0, "P1": 1, "P2": 2}
     queue.sort(key=lambda row: (order.get(row["priority"], 9), row["tournamentID"]))
@@ -282,6 +501,7 @@ def build() -> dict[str, Any]:
     summary = {
         "events": len(reports),
         "resultsComplete": sum(1 for r in reports if r["resultsStatus"] == "results-complete"),
+        "resultsUnknown": sum(1 for r in reports if r["resultsStatus"] == "unknown"),
         "publishable": sum(1 for r in reports if r["publishable"]),
         "eventComplete": sum(1 for r in reports if r["eventComplete"]),
         "pgnAvailability": {},
@@ -291,7 +511,7 @@ def build() -> dict[str, Any]:
         summary["pgnAvailability"][report["pgnAvailability"]] = summary["pgnAvailability"].get(report["pgnAvailability"], 0) + 1
         summary["archiveStatus"][report["archiveStatus"]] = summary["archiveStatus"].get(report["archiveStatus"], 0) + 1
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "summary": summary,
         "events": reports,
@@ -299,13 +519,8 @@ def build() -> dict[str, Any]:
 
 
 def main() -> int:
-    import os
-
-    # Shrink guard: the private capture layer lives on the maintainer machine
-    # and is only partially tracked in Git. A rebuild environment that sees
-    # fewer capture files than the committed report (e.g. GitHub Actions)
-    # must keep the committed report instead of silently shrinking the
-    # publishable set. Maintainers can force a shrink deliberately.
+    # Shrink guard: environments without the full private capture layer keep
+    # the committed report instead of silently shrinking the publishable set.
     previous = read_json(OUTPUT, {})
     visible = len(list(DETAILS.glob("tnr*.json")))
     committed = len(previous.get("events") or [])
@@ -320,9 +535,9 @@ def main() -> int:
 
     report = build()
     write_json(OUTPUT, report, ensure_ascii=False, indent=2)
-    queue = supplement_queue(report["events"])
+    queue = supplement_queue(report["events"], load_pgn_leads())
     write_json(QUEUE_OUTPUT, {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "generatedAt": report["generatedAt"],
         "totals": {"tasks": len(queue)},
         "tasks": queue,

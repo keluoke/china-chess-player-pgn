@@ -25,6 +25,30 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DATA = ROOT / "docs" / "data"
 OUTPUT_CORE = DATA / "search-bootstrap.json"
 OUTPUT_DOMESTIC = DATA / "search-bootstrap-domestic.json"
+SHARD_ROOT = DATA / "search" / "domestic"
+HANZI_BUCKETS = 64
+
+
+def shard_keys(row: dict) -> list[str]:
+    """On-demand search shards (review §5.3): a row lands in the bucket of
+    its first hanzi character and in its pinyin-initial bucket, so the
+    client only downloads what the current query prefix can match."""
+    keys: set[str] = set()
+    name = str(row.get("displayName") or row.get("chineseName") or "")
+    if name and "一" <= name[0] <= "鿿":
+        keys.add(f"h{ord(name[0]) % HANZI_BUCKETS:02x}")
+    pinyin = str(row.get("pinyin") or "").strip().lower()
+    if pinyin and pinyin[0].isascii() and pinyin[0].isalpha():
+        keys.add(f"p{pinyin[0]}")
+    for alias in row.get("aliases") or []:
+        alias = str(alias).strip()
+        if alias and "一" <= alias[0] <= "鿿":
+            keys.add(f"h{ord(alias[0]) % HANZI_BUCKETS:02x}")
+        elif alias and alias[0].isascii() and alias[0].isalpha():
+            keys.add(f"p{alias[0].lower()}")
+    if not keys:
+        keys.add("p0")
+    return sorted(keys)
 
 
 def read(path: pathlib.Path, default):
@@ -111,9 +135,30 @@ def main() -> int:
         "generatedAt": generated_at,
         "players": domestic_rows,
     }, ensure_ascii=False, separators=(",", ":"))
+
+    # Prefix shards for on-demand loading; the monolith above remains the
+    # deep-link / legacy fallback.
+    shards: dict[str, list[dict]] = {}
+    for row in domestic_rows:
+        for key in shard_keys(row):
+            shards.setdefault(key, []).append(row)
+    SHARD_ROOT.mkdir(parents=True, exist_ok=True)
+    written = set()
+    for key, rows in shards.items():
+        write_json(SHARD_ROOT / f"{key}.json", {
+            "schemaVersion": 1,
+            "generatedAt": generated_at,
+            "players": rows,
+        }, ensure_ascii=False, separators=(",", ":"))
+        written.add(f"{key}.json")
+    for stale in SHARD_ROOT.glob("*.json"):
+        if stale.name not in written:
+            stale.unlink()
+    shard_bytes = sum((SHARD_ROOT / name).stat().st_size for name in written)
     print(json.dumps({
         "corePlayers": len(players), "coreBytes": OUTPUT_CORE.stat().st_size,
         "domesticPlayers": len(domestic_rows), "domesticBytes": OUTPUT_DOMESTIC.stat().st_size,
+        "domesticShards": len(written), "domesticShardBytes": shard_bytes,
     }, ensure_ascii=False))
     return 0
 

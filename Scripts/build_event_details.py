@@ -341,16 +341,43 @@ def main() -> int:
             "event-completeness-report.json missing — run "
             "Scripts/build_completeness_report.py first (publication gate)."
         )
-    # Shrink guard (mirror of build_completeness_report): environments without
-    # the full private capture layer must not prune committed projections.
+    # Environments without the full private capture layer (e.g. CI) cannot
+    # regenerate event projections — but they CAN legitimately re-derive the
+    # manifest from the committed public event files, which are the input of
+    # record there. This "reproject" keeps every manifest inside one snapshot
+    # without ever mixing unknown-state artifacts (review §3.1).
     report_events = len((read_json(COMPLETENESS, {}) or {}).get("events") or [])
     visible = len(list(GENERATED.glob("tnr*.json")))
     if report_events and visible < report_events:
-        print(json.dumps({
-            "skipped": "private capture layer incomplete; keeping committed event details",
-            "visibleDetails": visible,
-            "reportEvents": report_events,
-        }, ensure_ascii=False))
+        manifest_events = []
+        totals = {"events": 0, "standings": 0, "rounds": 0, "reprojected": True}
+        for path in sorted(OUTPUT.glob("tnr*.json")):
+            payload = read_json(path, {})
+            tid = clean(payload.get("tournamentID"))
+            if not tid:
+                continue
+            completeness_block = payload.get("completeness") or {}
+            manifest_events.append({
+                "tournamentID": tid,
+                "path": f"data/index/event-details/tnr{tid}.json",
+                "displayName": payload.get("displayName"),
+                "roundCount": payload.get("roundCount") or len(payload.get("rounds", [])),
+                "standingCount": len(payload.get("standings", [])),
+                **({"roundsPendingVerification": True} if payload.get("roundsPendingVerification") else {}),
+                **({"pgnAvailability": completeness_block.get("pgnAvailability")} if completeness_block.get("pgnAvailability") else {}),
+                **({"eventComplete": True} if completeness_block.get("eventComplete") else {}),
+            })
+            totals["events"] += 1
+            totals["standings"] += len(payload.get("standings", []))
+            totals["rounds"] += len(payload.get("rounds", []))
+        write_json(OUTPUT / "manifest.json", stamp({
+            "schemaVersion": 2,
+            "buildMode": "reprojected-from-committed",
+            "totals": totals,
+            "events": manifest_events,
+        }), ensure_ascii=False, indent=2)
+        print(json.dumps({"reprojected": totals["events"], "visibleDetails": visible,
+                          "reportEvents": report_events}, ensure_ascii=False))
         return 0
     events, totals = build()
     # Prune projections for events that fell out of the publishable set so a

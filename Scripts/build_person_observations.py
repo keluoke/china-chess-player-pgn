@@ -77,6 +77,22 @@ def load_event_dates() -> dict[str, str]:
         date = clean(event.get("date"))
         if tid and date:
             dates[tid] = date
+    # Event PGN archives carry authoritative EventDate headers — the best
+    # exact-date source for events the player crawler never listed.
+    archive_root = ROOT / "data" / "generated" / "chess-results-event-pgn"
+    date_re = re.compile(r'\[(?:Event)?Date\s+"(\d{4})\.(\d{2})\.(\d{2})"\]')
+    for path in archive_root.glob("tnr*.pgn"):
+        tid = path.stem.removeprefix("tnr")
+        if len(dates.get(tid, "")) >= 10:
+            continue
+        try:
+            with path.open("r", encoding="utf-8", errors="replace") as handle:
+                head = handle.read(2048)
+        except OSError:
+            continue
+        match = date_re.search(head)
+        if match and match.group(1) != "????":
+            dates[tid] = "-".join(match.groups())
     return dates
 
 

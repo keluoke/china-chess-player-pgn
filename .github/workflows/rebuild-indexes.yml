@@ -49,7 +49,7 @@ jobs:
 
       - name: Commit rebuilt indexes
         id: commit
-        run: bash Scripts/ci_commit_push.sh "Rebuild derived indexes" docs/data docs/api
+        run: bash Scripts/ci_commit_push.sh "Rebuild derived indexes" docs/data docs/api data/generated
 
       # Always dispatch the deploy: even if the rebuild itself produced no new
       # commit, the push that triggered this run already changed docs/data,

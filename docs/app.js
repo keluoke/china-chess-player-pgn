@@ -70,8 +70,8 @@ const pgnViewerCache = new Map();
 const pgnViewerRequests = new Map();
 let eventCatalog = null;
 let eventCatalogRequest = null;
-let fullEventCatalog = null;
-let fullEventCatalogRequest = null;
+let presentationGroups = null;      // groupID -> group (display-only aggregation)
+let presentationMemberIndex = null; // domesticID -> group
 const eventDetailCache = new Map();
 const eventDetailRequests = new Map();
 const domesticDetailCache = new Map();
@@ -85,7 +85,10 @@ let composingSearch = false;
 let domesticSearchReady = false;
 
 initialize();
-loadDomesticSearchIndex();
+// Domestic entities load on demand (review §5.3): prefix shards arrive with
+// the first matching keystroke; the full monolith only backs deep links.
+if (initialSelectedPlayerID().startsWith("domestic-")) loadDomesticSearchIndex();
+loadPresentationGroups();
 renderSearchTrustLine();
 
 async function loadData() {
@@ -123,32 +126,78 @@ async function loadData() {
   }
 }
 
-// Deferred second stage: no-FIDE domestic entities are ~2/3 of the search pool
-// but not needed for first paint. Fetch them in the background, merge, and
-// re-run any live query so results silently upgrade.
+const domesticSeenIDs = new Set();
+const domesticShardLoaded = new Set();
+let domesticFullLoaded = false;
+
+function mergeDomesticRows(rows) {
+  (rows ?? []).forEach(row => {
+    const domesticID = row.domesticID || row.id;
+    if (!domesticID || domesticSeenIDs.has(domesticID)) return;
+    domesticSeenIDs.add(domesticID);
+    const player = preparePlayer({
+      ...row,
+      domesticID,
+      playerID: row.id || domesticID,
+      entityType: "domestic-player",
+      federation: row.federation || "CHN",
+      name: row.displayName || row.chineseName || row.pinyin,
+      title: row.title || "",
+      detailPath: row.detailPath || (row.shard ? `data/registry/domestic/shards/${row.shard}.json` : "")
+    });
+    annotatePresentationGroup(player);
+    players.push(player);
+  });
+}
+
+// Prefix shards (review §5.3): only the bucket the current query prefix can
+// match is downloaded. The monolith stays as deep-link/legacy fallback.
+const HANZI_SHARD_BUCKETS = 64;
+
+function domesticShardKeyFor(query) {
+  const first = String(query || "").trim()[0];
+  if (!first) return "";
+  if (first >= "一" && first <= "鿿") {
+    return `h${(first.codePointAt(0) % HANZI_SHARD_BUCKETS).toString(16).padStart(2, "0")}`;
+  }
+  const lower = first.toLowerCase();
+  if (lower >= "a" && lower <= "z") return `p${lower}`;
+  return "";
+}
+
+async function ensureDomesticShard(query) {
+  if (domesticFullLoaded) return;
+  const key = domesticShardKeyFor(query);
+  if (!key || domesticShardLoaded.has(key)) return;
+  domesticShardLoaded.add(key);
+  try {
+    const payload = await fetchJSON(`./data/search/domestic/${key}.json`, false);
+    if (payload === null) {
+      // Older deploy without shards: fall back to the monolith once.
+      domesticShardLoaded.delete(key);
+      await loadDomesticSearchIndex();
+      return;
+    }
+    mergeDomesticRows(payload.players);
+    domesticSearchReady = true;
+    if (state.query) renderSearch();
+  } catch (_error) {
+    domesticShardLoaded.delete(key);
+  }
+}
+
+// Full monolith: deep links (?player=domestic-…) and shard-less deploys.
 async function loadDomesticSearchIndex() {
-  const path = data.deferred?.domestic;
-  if (!path) { domesticSearchReady = true; return; }
+  const path = data?.deferred?.domestic || "data/search-bootstrap-domestic.json";
+  if (domesticFullLoaded) return;
+  domesticFullLoaded = true;
   try {
     const payload = await fetchJSON(`./${path}`, false);
-    (payload?.players ?? []).forEach(row => {
-      players.push(preparePlayer({
-        ...row,
-        domesticID: row.domesticID || row.id,
-        playerID: row.id || row.domesticID,
-        entityType: "domestic-player",
-        federation: row.federation || "CHN",
-        name: row.displayName || row.chineseName || row.pinyin,
-        title: row.title || "",
-        detailPath: row.detailPath || (row.shard ? `data/registry/domestic/shards/${row.shard}.json` : "")
-      }));
-    });
+    mergeDomesticRows(payload?.players);
   } catch (_error) {
-    // Search stays usable with FIDE players only.
+    domesticFullLoaded = false;
   } finally {
     domesticSearchReady = true;
-    // Deep links to a no-FIDE profile (?player=domestic-…) can only resolve
-    // once this second stage has arrived.
     const routedID = initialSelectedPlayerID();
     if (!state.selectedFideID && routedID && players.some(player => playerKey(player) === routedID)) {
       state.selectedFideID = routedID;
@@ -156,6 +205,38 @@ async function loadDomesticSearchIndex() {
     }
     if (state.query) renderSearch();
   }
+}
+
+// --- presentation identity groups (display-only aggregation, review §4) ----
+async function loadPresentationGroups() {
+  try {
+    const payload = await fetchJSON("./data/registry/domestic/presentation-groups.json", false);
+    presentationGroups = new Map();
+    presentationMemberIndex = new Map();
+    (payload?.groups ?? []).forEach(group => {
+      presentationGroups.set(group.groupID, group);
+      (group.members ?? []).forEach((member, index) => {
+        presentationMemberIndex.set(member, { group, primary: index === 0 });
+      });
+    });
+    players.forEach(annotatePresentationGroup);
+    if (state.query) renderSearch();
+  } catch (_error) {
+    presentationGroups = presentationGroups ?? new Map();
+    presentationMemberIndex = presentationMemberIndex ?? new Map();
+  }
+}
+
+function annotatePresentationGroup(player) {
+  if (!presentationMemberIndex || player?.entityType !== "domestic-player") return;
+  const membership = presentationMemberIndex.get(player.domesticID);
+  if (!membership) return;
+  player.presentationGroupID = membership.group.groupID;
+  player.presentationGroupSize = (membership.group.members ?? []).length;
+  player.presentationGroupSightings = membership.group.sightingCount;
+  // Default presentation: one card per group; non-primary members stay
+  // resolvable via deep link but leave the search list (review §4.3).
+  player.hiddenByPresentationGroup = !membership.primary;
 }
 
 async function fetchJSON(path, required) {
@@ -424,6 +505,7 @@ function handleSearchInputKeydown(event) {
 function renderSearch() {
   const normalizedQuery = normalize(state.query);
   const queryReady = normalizedQuery.length >= 2 || /^\d{2,}$/.test(normalizedQuery);
+  if (state.query) ensureDomesticShard(state.query);
   const playerSearch = queryReady ? searchPlayers(state.query) : { items: [], total: 0, truncated: false };
   const matches = playerSearch.items;
   const playerGroups = groupPlayerMatches(matches);
@@ -580,9 +662,7 @@ function renderDetail() {
 }
 
 function renderDomesticPlayerDetail(player) {
-  // Per-sighting PGN checks need the full internal catalog, not just the
-  // curated public one.
-  if (!fullEventCatalog) requestFullEventCatalog();
+  if (!eventCatalog) requestEventCatalog();
   const cachedDetail = domesticDetailCache.get(player.domesticID);
   if (!player.sightings && cachedDetail) Object.assign(player, cachedDetail);
   if (!player.sightings && player.detailPath) {
@@ -590,13 +670,40 @@ function renderDomesticPlayerDetail(player) {
     els.detailPane.innerHTML = `<div class="event-loading">正在载入该棋手的赛事证据…</div>`;
     return;
   }
-  const sightings = player.sightings ?? [];
+  // Display-only aggregation (review §4.3): members of a high-confidence
+  // presentation group open one merged profile. Facts keep their original
+  // member IDs; the group never rewrites Person or observation data.
+  const group = player.presentationGroupID && presentationGroups
+    ? presentationGroups.get(player.presentationGroupID) : null;
+  let groupSightings = null;
+  if (group) {
+    const refs = group.memberRefs ?? [];
+    const missing = refs.filter(ref => !domesticDetailCache.has(ref.id) && ref.id !== player.domesticID);
+    if (missing.length) {
+      missing.forEach(ref => requestDomesticShardPath(`data/registry/domestic/shards/${ref.shard}.json`));
+      els.detailPane.innerHTML = `<div class="event-loading">正在聚合该棋手的全部赛事证据…</div>`;
+      return;
+    }
+    const seen = new Set();
+    groupSightings = [];
+    refs.forEach(ref => {
+      const memberDetail = ref.id === player.domesticID ? player : domesticDetailCache.get(ref.id);
+      (memberDetail?.sightings ?? []).forEach(sighting => {
+        const key = sighting.sightingID ?? JSON.stringify([sighting.eventID, sighting.playerNo, sighting.eventName]);
+        if (seen.has(key)) return;
+        seen.add(key);
+        groupSightings.push(sighting);
+      });
+    });
+    groupSightings.sort((a, b) => String(b.eventDate ?? "").localeCompare(String(a.eventDate ?? "")));
+  }
+  const sightings = groupSightings ?? player.sightings ?? [];
   const publicLocation = player.publicLocation || publicLocationFromSightings(sightings);
   const stages = uniqueStrings(sightings.map(publicStageFromSighting).filter(Boolean));
   els.detailPane.innerHTML = `
     <div class="detail-title">
       <div>
-        <span class="eyebrow">${publicStatusBadge(player)} · 国内赛事参赛档案</span>
+        <span class="eyebrow">${publicStatusBadge(player)} · 国内赛事参赛档案${group ? ` · <span class="identity-status pending">身份暂定 · 已聚合 ${group.members.length} 条记录</span>` : ""}</span>
         <h2>${escapeHTML(displayName(player))}</h2>
         <p>[无FIDE] · ${escapeHTML(stages[0] || "年龄组待补")} · 公开赛事记录</p>
       </div>
@@ -606,6 +713,7 @@ function renderDomesticPlayerDetail(player) {
         <button class="action-link" type="button" data-action="share-player">分享档案</button>
         <a class="action-link" href="./contribute.html?type=player-correction&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">补充或勘误</a>
         <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
+        ${group ? `<a class="action-link" href="./contribute.html?type=identity-dispute&group=${encodeURIComponent(group.groupID)}&members=${encodeURIComponent(group.members.join(","))}&name=${encodeURIComponent(displayName(player))}">这不是同一位棋手</a>` : ""}
       </div>
     </div>
     <div class="appearance-summary">
@@ -625,6 +733,18 @@ function renderDomesticPlayerDetail(player) {
     </section>
     ${sameNameRelatedBlock(player)}
   `;
+}
+
+function requestDomesticShardPath(path) {
+  if (!path || domesticShardRequests.has(path)) return;
+  const request = fetchJSON(`./${path}`, true)
+    .then(rows => {
+      (rows ?? []).forEach(row => domesticDetailCache.set(row.domesticID, row));
+      if (isDomesticPlayer(selectedPlayer())) renderDetail();
+    })
+    .catch(() => {})
+    .finally(() => { domesticShardRequests.delete(path); });
+  domesticShardRequests.set(path, request);
 }
 
 function requestDomesticPlayerDetail(player) {
@@ -660,18 +780,6 @@ function renderEvent() {
   }
   const event = findCatalogEvent(eventID);
   if (!event) {
-    // Deep links may reference events outside the curated public catalog
-    // (e.g. historical Lichess broadcast IDs); fall back to the full
-    // internal catalog once before declaring the link dead.
-    if (!fullEventCatalog && !fullEventCatalogRequest) {
-      els.eventPane.innerHTML = `<div class="event-loading">正在载入完整赛事目录…</div>`;
-      requestFullEventCatalog();
-      return;
-    }
-    if (fullEventCatalogRequest) {
-      els.eventPane.innerHTML = `<div class="event-loading">正在载入完整赛事目录…</div>`;
-      return;
-    }
     els.eventPane.innerHTML = `
       <div class="event-empty">
         <h2>未找到赛事</h2>
@@ -688,9 +796,7 @@ function renderEvent() {
   const eventDetail = eventDetailCache.get(String(event.tournamentID ?? ""));
   if (event.detailPath && !eventDetail) requestEventDetail(event);
   const participantTotal = Number(event.participants);
-  const coverageLabel = eventDetail || event.coverageScope === "domestic-full"
-    ? "完整赛事覆盖"
-    : "仅展示已收录中国棋手";
+  const coverageLabel = completenessLabel(event, eventDetail);
   const facts = [
     ["日期", event.date],
     ["系列", event.seriesLabel],
@@ -820,24 +926,8 @@ function requestEventCatalog() {
   return eventCatalogRequest;
 }
 
-function requestFullEventCatalog() {
-  if (fullEventCatalogRequest) return fullEventCatalogRequest;
-  // The audit-grade full catalog left the public tree (de-sourcing); the
-  // curated public catalog is the only event list product pages may read.
-  fullEventCatalogRequest = fetchJSON("./data/index/public-events.json", true)
-    .then(catalog => {
-      fullEventCatalog = Array.isArray(catalog?.events) ? catalog.events : [];
-      renderEvent();
-      if (isDomesticPlayer(selectedPlayer())) renderDetail();
-    })
-    .catch(() => { fullEventCatalog = []; })
-    .finally(() => { fullEventCatalogRequest = null; });
-  return fullEventCatalogRequest;
-}
-
 function findCatalogEvent(eventID) {
-  return (eventCatalog ?? []).find(item => item.id === eventID)
-    ?? (fullEventCatalog ?? []).find(item => item.id === eventID);
+  return (eventCatalog ?? []).find(item => item.id === eventID);
 }
 
 function selectedPlayer() {
@@ -1801,6 +1891,7 @@ function searchPlayers(query) {
   const reversed = tokens.length > 1 ? tokens.slice().reverse().join("") : "";
   if (!normalized) return { items: [], total: 0, truncated: false };
   const ranked = players
+    .filter(player => !player.hiddenByPresentationGroup)
     .map(player => ({ player, score: searchScore(player, normalized, tokens, reversed) }))
     .filter(entry => entry.score > 0)
     .sort((a, b) => {
@@ -1884,8 +1975,9 @@ function sightingEventID(sighting) {
 
 function sightingHasPGN(sighting) {
   const eventID = sightingEventID(sighting);
-  const event = (fullEventCatalog ?? eventCatalog)?.find(item => item.id === eventID);
-  return Boolean(event && (Number(event.gameCount) > 0 || Number(event.pgnCount) > 0 || event.detailPath));
+  const event = (eventCatalog ?? []).find(item => item.id === eventID);
+  // Factual only: archived games exist. A detail page alone is results-only.
+  return Boolean(event && (Number(event.gameCount) > 0 || Number(event.pgnCount) > 0));
 }
 
 function publicStatus(player) {
@@ -1908,14 +2000,39 @@ function publicStatusBadge(player) {
 }
 
 function eventDataStatus(event) {
+  // Copy derives from explicit completeness states only (review §5.1).
+  if (event?.eventComplete) return "complete";
+  const availability = event?.pgnAvailability;
+  if (availability === "not-published") return "results-only";
+  if (availability === "advertised-partial") return "partial-live";
+  if (availability === "advertised-full") return "pgn-pending";
   if (Number(event?.gameCount) > 0 || Number(event?.pgnCount) > 0) return "cached";
-  if (event?.tournamentID || event?.url || event?.detailPath) return "compare";
-  return "missing";
+  if (event?.detailPath) return "results-only";
+  return "unverified";
 }
 
 function dataStatusBadge(status) {
-  const labels = { cached: "PGN 已缓存", compare: "待数据源比对", missing: "待补源" };
-  return `<span class="data-status ${escapeAttribute(status)}">${escapeHTML(labels[status] || labels.missing)}</span>`;
+  const labels = {
+    complete: "全台棋谱",
+    "partial-live": "部分直播台棋谱",
+    "results-only": "赛果完整 · 无公开棋谱",
+    "pgn-pending": "棋谱待匹配",
+    cached: "已归档棋谱",
+    unverified: "覆盖待核验",
+  };
+  return `<span class="data-status ${escapeAttribute(status)}">${escapeHTML(labels[status] || labels.unverified)}</span>`;
+}
+
+function completenessLabel(event, eventDetail) {
+  const completeness = eventDetail?.completeness ?? {};
+  const availability = completeness.pgnAvailability ?? event?.pgnAvailability;
+  const resultsOK = completeness.resultsStatus === "results-complete" || Boolean(event?.detailPath);
+  if (completeness.eventComplete || event?.eventComplete) return "赛果完整 · 全台棋谱";
+  if (resultsOK && availability === "not-published") return "赛果完整 · 来源未公开棋谱";
+  if (resultsOK && availability === "advertised-partial") return "赛果完整 · 部分直播台棋谱";
+  if (resultsOK && availability === "advertised-full") return "赛果完整 · 棋谱待匹配";
+  if (resultsOK) return "赛果完整";
+  return "仅展示已收录中国棋手";
 }
 
 function playerCoverageStatus(player, staticInfo, bulkInfo) {
