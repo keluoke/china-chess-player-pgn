@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-17T17:36:41+00:00",
+  "generatedAt": "2026-07-18T02:50:38+00:00",
   "player": {
     "fideID": "8666857",
     "id": "fide-8666857",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 12,
-    "events": 5,
-    "packages": 2,
-    "bytes": 66122,
+    "games": 15,
+    "events": 6,
+    "packages": 3,
+    "bytes": 41214,
     "stages": {
-      "U12": 12
+      "U12": 14,
+      "U14": 1
     }
   },
   "packages": [
@@ -33,11 +34,12 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8666857/all.pgn",
-      "gameCount": 12,
-      "pgnBytes": 33061,
-      "sha256": "4911db679bf24670b69d5ededb151bc66c377d50fe080c77c71a8e8ffe9caf33",
+      "gameCount": 15,
+      "pgnBytes": 20542,
+      "sha256": "efa6ff03a1bc80892598422c9dd922216cc0e798ce9546b51348c83f99b14421",
       "stages": {
-        "U12": 12
+        "U12": 14,
+        "U14": 1
       },
       "sources": [
         "Lichess Broadcasts",
@@ -48,27 +50,41 @@
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8666857/U12.pgn",
-      "gameCount": 12,
-      "pgnBytes": 33061,
-      "sha256": "2f42d6ddb777908e59ed4e10faf80009707ac485b492baabed437cf0867cf769",
+      "gameCount": 14,
+      "pgnBytes": 19532,
+      "sha256": "c84be4eaeb7e2a633946a4dc8dda6bf5c3240add4666cf5ce68eb527c1d8f07d",
       "stages": {
-        "U12": 12
+        "U12": 14
       },
       "sources": [
         "Lichess Broadcasts",
+        "Static PGN"
+      ]
+    },
+    {
+      "id": "U14",
+      "label": "U14 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8666857/U14.pgn",
+      "gameCount": 1,
+      "pgnBytes": 1140,
+      "sha256": "464362416628378cd2ffb2c38e56a1a7a31d98615bacec32e6997e3ddd58f65f",
+      "stages": {
+        "U14": 1
+      },
+      "sources": [
         "Static PGN"
       ]
     }
   ],
   "events": [
     {
-      "source": "Lichess Broadcasts",
-      "name": "2025年全国国际象棋棋协大师赛（盐城站）",
-      "date": "2025-10-08",
-      "tournamentID": "",
+      "source": "Static PGN",
+      "name": "2026 National CCA Master Tournament - Open (Hangzh",
+      "date": "2026-07-14",
+      "tournamentID": "1455665",
       "canonicalEventID": null,
-      "stage": "U12",
-      "naturalStage": "U12",
+      "stage": "U14",
+      "naturalStage": "U14",
       "eventStage": "",
       "gameCount": 1,
       "results": {
@@ -84,9 +100,8 @@
       "stage": "U12",
       "naturalStage": "U12",
       "eventStage": "",
-      "gameCount": 4,
+      "gameCount": 1,
       "results": {
-        "0-1": 3,
         "1-0": 1
       }
     },
@@ -99,10 +114,25 @@
       "stage": "U12",
       "naturalStage": "U12",
       "eventStage": "",
-      "gameCount": 4,
+      "gameCount": 1,
       "results": {
+        "1/2-1/2": 1
+      }
+    },
+    {
+      "source": "Static PGN",
+      "name": "2025 National Amateur Chess Master Tournament Yancheng Station",
+      "date": "2025-10-06",
+      "tournamentID": "1266792",
+      "canonicalEventID": null,
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 9,
+      "results": {
+        "0-1": 3,
         "1/2-1/2": 3,
-        "1-0": 1
+        "1-0": 3
       }
     },
     {
@@ -136,38 +166,20 @@
   ],
   "games": [
     {
-      "id": "0358a4c01d634f81ed4c4f7e3d127f13ccbafc0fa30f3dccc6ca6b81bbc227fd",
-      "event": "2025年全国国际象棋棋协大师赛（盐城站）",
-      "date": "2025-10-08",
-      "white": "Huang, Yingxiang",
+      "id": "56526084ed1ed03ab79819918056a65312e5b50aacdb50d479e3c3af76a62f7f",
+      "event": "2026 National CCA Master Tournament - Open (Hangzh",
+      "date": "2026-07-14",
+      "white": "Fang, Xiaoyu",
       "black": "Lin, Zihao",
       "result": "1-0",
-      "source": "Lichess Broadcasts",
-      "round": "9.23",
-      "stage": "U12",
-      "naturalStage": "U12",
+      "source": "Static PGN",
+      "round": "1",
+      "stage": "U14",
+      "naturalStage": "U14",
       "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "0358a4c01d634f81ed4c4f7e3d127f13ccbafc0fa30f3dccc6ca6b81bbc227fd"
-    },
-    {
-      "id": "47a7208e3642e31a9ae7aa16ba3e9bfa206f07821156db0415546c71ad6b7082",
-      "event": "2025年全国国际象棋棋协大师赛（盐城站）",
-      "date": "2025-10-07",
-      "white": "Wu, Yuchen",
-      "black": "Lin, Zihao",
-      "result": "0-1",
-      "source": "Lichess Broadcasts",
-      "round": "5.14",
-      "stage": "U12",
-      "naturalStage": "U12",
-      "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "47a7208e3642e31a9ae7aa16ba3e9bfa206f07821156db0415546c71ad6b7082"
+      "tournamentID": "1455665",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1455665/fide-8666857-1455665.pgn",
+      "sha256": "56526084ed1ed03ab79819918056a65312e5b50aacdb50d479e3c3af76a62f7f"
     },
     {
       "id": "a5a019a1c3a5f8efed8bf6e8bd8b00012f48f907bf1e9a091799a2ca605340c4",
@@ -187,40 +199,6 @@
       "sha256": "a5a019a1c3a5f8efed8bf6e8bd8b00012f48f907bf1e9a091799a2ca605340c4"
     },
     {
-      "id": "af7a51eb26862de62584e28b2bbda3c30f8332e7717e17ad752fc201c7712346",
-      "event": "2025年全国国际象棋棋协大师赛（盐城站）",
-      "date": "2025-10-07",
-      "white": "Lin, Zihao",
-      "black": "Tao, Qibing",
-      "result": "0-1",
-      "source": "Lichess Broadcasts",
-      "round": "6.5",
-      "stage": "U12",
-      "naturalStage": "U12",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "af7a51eb26862de62584e28b2bbda3c30f8332e7717e17ad752fc201c7712346"
-    },
-    {
-      "id": "2a191f20a546ad69c4383db4b214bbf20045d6a752c88853458f9f4f6b9f4b18",
-      "event": "2025年全国国际象棋棋协大师赛（盐城站）",
-      "date": "2025-10-07",
-      "white": "Lin, Zihao",
-      "black": "Jiang, Weiyuan",
-      "result": "0-1",
-      "source": "Lichess Broadcasts",
-      "round": "8.16",
-      "stage": "U12",
-      "naturalStage": "U12",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "2a191f20a546ad69c4383db4b214bbf20045d6a752c88853458f9f4f6b9f4b18"
-    },
-    {
       "id": "64eeecdfee607e2a3b75ca298dbb97e1a6eb2adeb2f0b16a17701cc159c78299",
       "event": "2025年全国国际象棋棋协大师赛（盐城站）",
       "date": "2025-10-06",
@@ -238,55 +216,148 @@
       "sha256": "64eeecdfee607e2a3b75ca298dbb97e1a6eb2adeb2f0b16a17701cc159c78299"
     },
     {
-      "id": "5b3d01476d6582f571708218d3a0d97bc0a6fc146ced6354225ddc893c1f8494",
-      "event": "2025年全国国际象棋棋协大师赛（盐城站）",
+      "id": "11cc0fd90ae656d02ca7e99f0238250684cd8da2c412637976523d932c25ede5",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
+      "date": "2025-10-06",
+      "white": "Wu, Yuchen",
+      "black": "Lin, Zihao",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "5",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "11cc0fd90ae656d02ca7e99f0238250684cd8da2c412637976523d932c25ede5"
+    },
+    {
+      "id": "25b429704fb5d23644004d6e83958d58ab3de753b75d7e8f338a517d3ad236f0",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
+      "date": "2025-10-06",
+      "white": "Wang, Zimo(Js)",
+      "black": "Lin, Zihao",
+      "result": "1/2-1/2",
+      "source": "Static PGN",
+      "round": "3",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "25b429704fb5d23644004d6e83958d58ab3de753b75d7e8f338a517d3ad236f0"
+    },
+    {
+      "id": "a4cfa19e6022635daeaf10850ddc5e8e8bddd1ec5d0793b1002e02af3819e275",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
+      "date": "2025-10-06",
+      "white": "Su, Yuanhao",
+      "black": "Lin, Zihao",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "7",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "a4cfa19e6022635daeaf10850ddc5e8e8bddd1ec5d0793b1002e02af3819e275"
+    },
+    {
+      "id": "6c968c257316050408cac5195629fe1f80c602fb2870061b9f7a26ec782e0d83",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
       "date": "2025-10-06",
       "white": "Mao, Yuhan",
       "black": "Lin, Zihao",
       "result": "1/2-1/2",
-      "source": "Lichess Broadcasts",
-      "round": "1.24",
+      "source": "Static PGN",
+      "round": "1",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "5b3d01476d6582f571708218d3a0d97bc0a6fc146ced6354225ddc893c1f8494"
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "6c968c257316050408cac5195629fe1f80c602fb2870061b9f7a26ec782e0d83"
     },
     {
-      "id": "bfd7ba6e48ba6b6df829484130cb4c05d470342ea9de4ab0173660b182e014aa",
-      "event": "2025年全国国际象棋棋协大师赛（盐城站）",
+      "id": "71e135b39ad893bb644f2d15d12600056ba37dcf03b40491a03e3cf5726babe2",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
+      "date": "2025-10-06",
+      "white": "Lin, Zihao",
+      "black": "Tao, Qibing",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "6",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "71e135b39ad893bb644f2d15d12600056ba37dcf03b40491a03e3cf5726babe2"
+    },
+    {
+      "id": "b8cb580003b1c7cdd2bef5f8d4459756313de0acb9503a270476895ebed9a70a",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
       "date": "2025-10-06",
       "white": "Lin, Zihao",
       "black": "Li, Yue",
       "result": "1/2-1/2",
-      "source": "Lichess Broadcasts",
-      "round": "4.12",
+      "source": "Static PGN",
+      "round": "4",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "bfd7ba6e48ba6b6df829484130cb4c05d470342ea9de4ab0173660b182e014aa"
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "b8cb580003b1c7cdd2bef5f8d4459756313de0acb9503a270476895ebed9a70a"
     },
     {
-      "id": "a0b5989e6b2659375bed06f46c124ba2d61c263a1094a90d36cca2ff28490767",
-      "event": "2025年全国国际象棋棋协大师赛（盐城站）",
+      "id": "463c03abd169f6ecaa1e02b7223d6e60041782bc8cf628a47284656cdaaaf629",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
+      "date": "2025-10-06",
+      "white": "Lin, Zihao",
+      "black": "Jiang, Weiyuan",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "8",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "463c03abd169f6ecaa1e02b7223d6e60041782bc8cf628a47284656cdaaaf629"
+    },
+    {
+      "id": "6cfd140f33764b9583629d092f8efc8e5b5521998146325d1e18c0220989cd8c",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
       "date": "2025-10-06",
       "white": "Lin, Zihao",
       "black": "Cheng, Yuchi",
       "result": "1-0",
-      "source": "Lichess Broadcasts",
-      "round": "2.18",
+      "source": "Static PGN",
+      "round": "2",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "a0b5989e6b2659375bed06f46c124ba2d61c263a1094a90d36cca2ff28490767"
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "6cfd140f33764b9583629d092f8efc8e5b5521998146325d1e18c0220989cd8c"
+    },
+    {
+      "id": "6dd0e53afd52cc938157e82c8621487e4cec6b2ae7f463449470354273f36e86",
+      "event": "2025 National Amateur Chess Master Tournament Yancheng Station",
+      "date": "2025-10-06",
+      "white": "Huang, Yingxiang",
+      "black": "Lin, Zihao",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "9",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "tournamentID": "1266792",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266792/fide-8666857-1266792.pgn",
+      "sha256": "6dd0e53afd52cc938157e82c8621487e4cec6b2ae7f463449470354273f36e86"
     },
     {
       "id": "34db778102a942d7dc6ec2cb1016d20182b148873deddfd3f29f3c643c29e720",

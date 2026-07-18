@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-17T17:36:41+00:00",
+  "generatedAt": "2026-07-18T02:50:38+00:00",
   "player": {
     "fideID": "8686769",
     "id": "fide-8686769",
@@ -17,12 +17,12 @@
     ]
   },
   "totals": {
-    "games": 8,
+    "games": 9,
     "events": 2,
     "packages": 2,
-    "bytes": 63300,
+    "bytes": 24186,
     "stages": {
-      "U12": 8
+      "U12": 9
     }
   },
   "packages": [
@@ -30,46 +30,34 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8686769/all.pgn",
-      "gameCount": 8,
-      "pgnBytes": 31650,
-      "sha256": "8ca9a4b9ac623e518140cc54ae9e6aa117cb216c26eee4225484aa1c94e09fb9",
+      "gameCount": 9,
+      "pgnBytes": 12093,
+      "sha256": "0a465049aadcb4032eb9d9ec54a8a92b370d7585b2c87431ea1dd355c8930953",
       "stages": {
-        "U12": 8
+        "U12": 9
       },
       "sources": [
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     },
     {
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8686769/U12.pgn",
-      "gameCount": 8,
-      "pgnBytes": 31650,
-      "sha256": "0c923e497c57f136af89c30fc19d1459b5e86fd6d8e74ece6f61e53f863ee6eb",
+      "gameCount": 9,
+      "pgnBytes": 12093,
+      "sha256": "73d8230d9a0e45f84a78bc7789095cd95be11596d03992c3ef9042577a79aa6d",
       "stages": {
-        "U12": 8
+        "U12": 9
       },
       "sources": [
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     }
   ],
   "events": [
-    {
-      "source": "Lichess Broadcasts",
-      "name": "2025 National Amateur Chess Master Tournament Panjin Station",
-      "date": "2025-10-08",
-      "tournamentID": "",
-      "canonicalEventID": null,
-      "stage": "U12",
-      "naturalStage": "U12",
-      "eventStage": "",
-      "gameCount": 1,
-      "results": {
-        "1-0": 1
-      }
-    },
     {
       "source": "Lichess Broadcasts",
       "name": "2025 National Amateur Chess Master Tournament Panjin Station",
@@ -79,32 +67,29 @@
       "stage": "U12",
       "naturalStage": "U12",
       "eventStage": "",
-      "gameCount": 7,
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
+    {
+      "source": "Static PGN",
+      "name": "2025 National Amateur Chess Master Tournament Panjin Station",
+      "date": "2025-10-06",
+      "tournamentID": "1266707",
+      "canonicalEventID": null,
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 8,
       "results": {
         "0-1": 2,
-        "1-0": 3,
+        "1-0": 4,
         "1/2-1/2": 2
       }
     }
   ],
   "games": [
-    {
-      "id": "62c58f9c37a45ece2a569a69aef5052ae46397c1ea7e3401fc1e4cc6ff6c85d2",
-      "event": "2025 National Amateur Chess Master Tournament Panjin Station",
-      "date": "2025-10-08",
-      "white": "Zhou, Guanbo",
-      "black": "Wang, Yiqi",
-      "result": "1-0",
-      "source": "Lichess Broadcasts",
-      "round": "9.18",
-      "stage": "U12",
-      "naturalStage": "U12",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "62c58f9c37a45ece2a569a69aef5052ae46397c1ea7e3401fc1e4cc6ff6c85d2"
-    },
     {
       "id": "93c38c522b17f8f8e9fc82c801574a9dea6d25cc313872f14926313639d3ac13",
       "event": "2025 National Amateur Chess Master Tournament Panjin Station",
@@ -123,106 +108,132 @@
       "sha256": "93c38c522b17f8f8e9fc82c801574a9dea6d25cc313872f14926313639d3ac13"
     },
     {
-      "id": "719fd52fe68eee4fa9eebf32e929eda183e4d65238a3bce8ab0a381842995092",
+      "id": "b60a4694665ef42d497d367dec85b52633d9369842dd6ba37d1ea9a3e69cfaae",
       "event": "2025 National Amateur Chess Master Tournament Panjin Station",
-      "date": "2025-10-07",
+      "date": "2025-10-06",
+      "white": "Zhou, Guanbo",
+      "black": "Zheng, Yifeng",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "7",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "tournamentID": "1266707",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266707/fide-8686769-1266707.pgn",
+      "sha256": "b60a4694665ef42d497d367dec85b52633d9369842dd6ba37d1ea9a3e69cfaae"
+    },
+    {
+      "id": "a93de1266ab2b08693ea4943929ae42a87361b2cb6071c6a2c8706da91077f71",
+      "event": "2025 National Amateur Chess Master Tournament Panjin Station",
+      "date": "2025-10-06",
+      "white": "Zhou, Guanbo",
+      "black": "Wang, Yiqi",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "9",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "tournamentID": "1266707",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266707/fide-8686769-1266707.pgn",
+      "sha256": "a93de1266ab2b08693ea4943929ae42a87361b2cb6071c6a2c8706da91077f71"
+    },
+    {
+      "id": "af2d82b41755c1765d1a1e27d62a654d17f2c7c9e1b92df03dfa7ea53ec64179",
+      "event": "2025 National Amateur Chess Master Tournament Panjin Station",
+      "date": "2025-10-06",
       "white": "Zhou, Guanbo",
       "black": "Wan, Lexuan",
       "result": "1-0",
-      "source": "Lichess Broadcasts",
-      "round": "5.15",
+      "source": "Static PGN",
+      "round": "5",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "719fd52fe68eee4fa9eebf32e929eda183e4d65238a3bce8ab0a381842995092"
+      "tournamentID": "1266707",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266707/fide-8686769-1266707.pgn",
+      "sha256": "af2d82b41755c1765d1a1e27d62a654d17f2c7c9e1b92df03dfa7ea53ec64179"
     },
     {
-      "id": "14f5587a0bfaf016427637d27a0cabef7b93130cd578263fa70f9d9615ffedcf",
+      "id": "13357b0293f4e211653b4a9deba5571db4f86272ea41c4ef0ceaf6b764961458",
       "event": "2025 National Amateur Chess Master Tournament Panjin Station",
-      "date": "2025-10-07",
+      "date": "2025-10-06",
       "white": "Zhou, Guanbo",
       "black": "Chen, Zhongkai",
       "result": "0-1",
-      "source": "Lichess Broadcasts",
-      "round": "3.5",
+      "source": "Static PGN",
+      "round": "3",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "14f5587a0bfaf016427637d27a0cabef7b93130cd578263fa70f9d9615ffedcf"
+      "tournamentID": "1266707",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266707/fide-8686769-1266707.pgn",
+      "sha256": "13357b0293f4e211653b4a9deba5571db4f86272ea41c4ef0ceaf6b764961458"
     },
     {
-      "id": "11ecca8b2c42adcb05b87ddc0467d49e86e89b63faabeb9fbd309f7e96dc8942",
+      "id": "86873188f80760f3744dc55d98be49b3c2acf9704e7b62b06d6aba72237f7e2c",
       "event": "2025 National Amateur Chess Master Tournament Panjin Station",
-      "date": "2025-10-07",
+      "date": "2025-10-06",
       "white": "Yuan, Qijun",
       "black": "Zhou, Guanbo",
       "result": "1/2-1/2",
-      "source": "Lichess Broadcasts",
-      "round": "6.11",
+      "source": "Static PGN",
+      "round": "6",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "11ecca8b2c42adcb05b87ddc0467d49e86e89b63faabeb9fbd309f7e96dc8942"
+      "tournamentID": "1266707",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266707/fide-8686769-1266707.pgn",
+      "sha256": "86873188f80760f3744dc55d98be49b3c2acf9704e7b62b06d6aba72237f7e2c"
     },
     {
-      "id": "bc06664a1a4888e204d82160c7dcb0e8685fc854c3629640633e15bb49eea4d8",
+      "id": "59c53b8d56cc8814b5cb476fc372fc7b712fa26a21763dd20ae5c445a4f2e4ba",
       "event": "2025 National Amateur Chess Master Tournament Panjin Station",
-      "date": "2025-10-07",
+      "date": "2025-10-06",
       "white": "Wang, Jundi",
       "black": "Zhou, Guanbo",
       "result": "1/2-1/2",
-      "source": "Lichess Broadcasts",
-      "round": "2.10",
+      "source": "Static PGN",
+      "round": "2",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "bc06664a1a4888e204d82160c7dcb0e8685fc854c3629640633e15bb49eea4d8"
+      "tournamentID": "1266707",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266707/fide-8686769-1266707.pgn",
+      "sha256": "59c53b8d56cc8814b5cb476fc372fc7b712fa26a21763dd20ae5c445a4f2e4ba"
     },
     {
-      "id": "12be4b6ea1f9b761a25dc1e1a5f8d154324e90f71443e6bffcf02f4e16106462",
+      "id": "a4cd10acf7f23e14b4bc728558d098245f89e710600d8305cfff14b7925324a0",
       "event": "2025 National Amateur Chess Master Tournament Panjin Station",
-      "date": "2025-10-07",
+      "date": "2025-10-06",
       "white": "Liu, Weichen",
       "black": "Zhou, Guanbo",
       "result": "1-0",
-      "source": "Lichess Broadcasts",
-      "round": "4.12",
+      "source": "Static PGN",
+      "round": "4",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "12be4b6ea1f9b761a25dc1e1a5f8d154324e90f71443e6bffcf02f4e16106462"
+      "tournamentID": "1266707",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266707/fide-8686769-1266707.pgn",
+      "sha256": "a4cd10acf7f23e14b4bc728558d098245f89e710600d8305cfff14b7925324a0"
     },
     {
-      "id": "ab30956811c576a7ab288704e5e0e0c6604252f50081f5846b0cb7d787bf0b61",
+      "id": "23a17fe3d15172bc5f5efdbdcc7522071d839ecca8891cbe6677e71675d9209f",
       "event": "2025 National Amateur Chess Master Tournament Panjin Station",
-      "date": "2025-10-07",
+      "date": "2025-10-06",
       "white": "Jiang, Yu",
       "black": "Zhou, Guanbo",
       "result": "1-0",
-      "source": "Lichess Broadcasts",
-      "round": "8.16",
+      "source": "Static PGN",
+      "round": "8",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "ab30956811c576a7ab288704e5e0e0c6604252f50081f5846b0cb7d787bf0b61"
+      "tournamentID": "1266707",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1266707/fide-8686769-1266707.pgn",
+      "sha256": "23a17fe3d15172bc5f5efdbdcc7522071d839ecca8891cbe6677e71675d9209f"
     }
   ]
 }

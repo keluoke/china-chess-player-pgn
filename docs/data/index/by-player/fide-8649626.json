@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-17T17:36:41+00:00",
+  "generatedAt": "2026-07-18T02:50:38+00:00",
   "player": {
     "fideID": "8649626",
     "id": "fide-8649626",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 6962,
+    "games": 2,
+    "events": 2,
+    "packages": 3,
+    "bytes": 8586,
     "stages": {
-      "U16": 1
+      "U16": 1,
+      "U18": 1
     }
   },
   "packages": [
@@ -33,14 +34,16 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8649626/all.pgn",
-      "gameCount": 1,
-      "pgnBytes": 3481,
-      "sha256": "94e6842bfea9be168a494fd924a34dd35242e40ea390feea9a9a5321f9f44bec",
+      "gameCount": 2,
+      "pgnBytes": 4228,
+      "sha256": "30d27744afa0b862fbfac6c28b62915390a421e72ab5e634ed8f17ba85a7cebb",
       "stages": {
-        "U16": 1
+        "U16": 1,
+        "U18": 1
       },
       "sources": [
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     },
     {
@@ -56,9 +59,37 @@
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U18",
+      "label": "U18 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8649626/U18.pgn",
+      "gameCount": 1,
+      "pgnBytes": 877,
+      "sha256": "a233fbd5e83a5b2c7ff020fedac493fb428dcf267b8ae67aaed202f024f9e621",
+      "stages": {
+        "U18": 1
+      },
+      "sources": [
+        "Static PGN"
+      ]
     }
   ],
   "events": [
+    {
+      "source": "Static PGN",
+      "name": "2025 National Amateur Chess Master Tournament Liaocheng Station",
+      "date": "2025-08-15",
+      "tournamentID": "1233096",
+      "canonicalEventID": null,
+      "stage": "U18",
+      "naturalStage": "U18",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "Chinese National Youth Chess Championship 2024",
@@ -75,6 +106,22 @@
     }
   ],
   "games": [
+    {
+      "id": "6fe901234d5d15822a797728129e4a0c58a7c15dcf1cad60610569b949f41278",
+      "event": "2025 National Amateur Chess Master Tournament Liaocheng Station",
+      "date": "2025-08-15",
+      "white": "Xu, Yaolong",
+      "black": "Yang, Jinyu",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "1",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "black",
+      "tournamentID": "1233096",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1233096/fide-8649626-1233096.pgn",
+      "sha256": "6fe901234d5d15822a797728129e4a0c58a7c15dcf1cad60610569b949f41278"
+    },
     {
       "id": "3253fde814640365921976c2500c36a4768e12e156c49e2bc438c1443f384332",
       "event": "Chinese National Youth Chess Championship 2024",
