@@ -44,11 +44,23 @@ PUBLIC_RELEASE_PREFIXES = (
     "data/generated/chess-results-event-details",
     "data/generated/chess-results-event-pgn",
     "docs/data/pgn/chess-results",
+    "data/generated/person-observations.csv",
+    "data/generated/person-observations.meta.json",
+    "data/generated/pgn-collection-status.json",
+    "data/generated/event-completeness-report.json",
+    "data/generated/pgn-supplement-queue.json",
+    "data/generated/r2-object-receipts/events--chess-results.json",
 )
 CHESS_RESULTS_RELEASE_PREFIXES = (
     "data/generated/chess-results-event-details",
     "data/generated/chess-results-event-pgn",
     "docs/data/pgn/chess-results",
+    "data/generated/person-observations.csv",
+    "data/generated/person-observations.meta.json",
+    "data/generated/pgn-collection-status.json",
+    "data/generated/event-completeness-report.json",
+    "data/generated/pgn-supplement-queue.json",
+    "data/generated/r2-object-receipts/events--chess-results.json",
 )
 
 
@@ -225,6 +237,32 @@ def worktree_status(repo: pathlib.Path) -> dict[str, dict[str, Any]]:
     return result
 
 
+def ignored_machine_files(repo: pathlib.Path, allowed: list[str]) -> dict[str, dict[str, Any]]:
+    """Enumerate ignored files only inside validated machine-release roots.
+
+    Event details/archives are intentionally ignored to keep ordinary Git
+    status usable on the collector.  They must nevertheless enter the exact
+    release manifest; otherwise a workstation can hold 933 complete events
+    while cloud ingest receives only the small historically tracked subset.
+    """
+    roots = [root for root in allowed if (repo / root).exists()]
+    if not roots:
+        return {}
+    raw = git(
+        repo, "ls-files", "--others", "--ignored", "--exclude-standard", "-z", "--", *roots
+    ).stdout
+    result: dict[str, dict[str, Any]] = {}
+    for value in raw.split(b"\0"):
+        if not value:
+            continue
+        relative = value.decode("utf-8", errors="surrogateescape")
+        validate_release_path(relative)
+        full = repo / relative
+        if full.is_file():
+            result[relative] = {"status": "??", "sha256": sha256_file(full), "bytes": full.stat().st_size}
+    return result
+
+
 def within(path: str, roots: list[str]) -> bool:
     return any(path == root.rstrip("/") or path.startswith(root.rstrip("/") + "/") for root in roots)
 
@@ -286,6 +324,7 @@ def source_for_command(command: str) -> str:
 def prepare_release(repo: pathlib.Path, run_dir: pathlib.Path, command: str, allow: list[str]) -> dict[str, Any]:
     baseline = read_json(run_dir / "worktree-baseline.json")
     current = worktree_status(repo)
+    current.update(ignored_machine_files(repo, allow))
     allowed = [*allow, MANIFEST_PATH]
     outside_changes = [
         path for path in set(baseline) | set(current)

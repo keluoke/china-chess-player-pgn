@@ -459,6 +459,12 @@ EVENT_PATHS=(
   "data/generated/chess-results-event-details"
   "data/generated/chess-results-event-pgn"
   "docs/data/pgn/chess-results"
+  "data/generated/person-observations.csv"
+  "data/generated/person-observations.meta.json"
+  "data/generated/pgn-collection-status.json"
+  "data/generated/event-completeness-report.json"
+  "data/generated/pgn-supplement-queue.json"
+  "data/generated/r2-object-receipts/events--chess-results.json"
 )
 
 run_registry() {

@@ -132,7 +132,12 @@ class GitHub:
                 detail = error.read().decode("utf-8", errors="replace")
                 if error.code not in {429, 500, 502, 503, 504} or attempt == 4:
                     raise SystemExit(f"GitHub API {method} {path} failed: HTTP {error.code} {detail[:500]}") from error
-            except (urllib.error.URLError, http.client.IncompleteRead, TimeoutError) as error:
+            except (
+                urllib.error.URLError,
+                http.client.IncompleteRead,
+                http.client.RemoteDisconnected,
+                TimeoutError,
+            ) as error:
                 if attempt == 4:
                     reason = getattr(error, "reason", error)
                     raise SystemExit(f"GitHub API 网络失败（重试 4 次）: {reason}") from error

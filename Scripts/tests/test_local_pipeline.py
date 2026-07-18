@@ -598,6 +598,25 @@ class RunManagerTests(unittest.TestCase):
             run_manager.MANIFEST_PATH,
         ])
 
+    def test_prepare_release_includes_ignored_untracked_machine_output(self) -> None:
+        ignored_root = self.repo / "data/generated/chess-results-event-details"
+        (self.repo / ".gitignore").write_text("data/generated/chess-results-event-details/\n")
+        git(self.repo, "add", ".gitignore")
+        git(self.repo, "commit", "-qm", "ignore collector outputs")
+        allow = ["data/generated/chess-results-event-details"]
+        run_manager.preflight(self.repo, self.run_dir, allow)
+        ignored_root.mkdir(parents=True)
+        target = ignored_root / "tnr999.json"
+        target.write_text('{"tournamentID":"999"}\n')
+        result = run_manager.prepare_release(self.repo, self.run_dir, "event-queue", allow)
+        self.assertEqual([item["path"] for item in result["files"]], [
+            "data/generated/chess-results-event-details/tnr999.json",
+        ])
+        staged = subprocess.check_output(
+            ["git", "diff", "--cached", "--name-only"], cwd=self.repo, text=True
+        ).splitlines()
+        self.assertIn("data/generated/chess-results-event-details/tnr999.json", staged)
+
     def test_preflight_rejects_dirty_owned_path(self) -> None:
         (self.repo / "docs/data/registry/players.json").write_text("dirty\n")
         with self.assertRaises(run_manager.RunManagerError) as caught:
