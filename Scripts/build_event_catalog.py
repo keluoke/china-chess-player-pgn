@@ -63,6 +63,10 @@ MASTER_GROUP_LABELS = {
 TEST_NAME_RE = re.compile(r"\btest\b|测试|演示|\bdemo\b", re.IGNORECASE)
 WORLD_YOUTH_RE = re.compile(r"world\s+(youth|cadets?)", re.IGNORECASE)
 ASIAN_YOUTH_RE = re.compile(r"asian\s+(youth|schools?|junior)", re.IGNORECASE)
+NATIONAL_MASTER_RE = re.compile(
+    r"\bnational\s+(?:amateur\s+chess|cca)\s+master\s+tourn",
+    re.IGNORECASE,
+)
 GROUP_TOKEN_RE = re.compile(r"\(?\b(open\s+)?([UGB])\s?(\d{1,2})\b\)?", re.IGNORECASE)
 EDITION_RE = re.compile(r"\b(\d{1,3})(?:st|nd|rd|th)\b", re.IGNORECASE)
 
@@ -195,7 +199,14 @@ def build_upstream_event(
     """Pure assembly of one catalog event; no state leaks between calls."""
     source = clean(upstream.get("source")) or "Chess-Results"
     tournament_id = clean(upstream.get("tournamentID"))
-    name, aliases = best_source_name(clean(upstream.get("name")), stats.get("names", set()))
+    # The player-search catalog truncates many event titles.  The published
+    # event-detail manifest is built from the tournament page itself, so its
+    # display name is a stronger full-title candidate (without becoming an
+    # authority for player identity fields).
+    name_candidates = set(stats.get("names", set()))
+    if clean(detail.get("displayName")):
+        name_candidates.add(clean(detail.get("displayName")))
+    name, aliases = best_source_name(clean(upstream.get("name")), name_candidates)
     chinese_name = mapping.get("chineseName", "")
     canonical_event_id = mapping.get("canonicalEventID", "")
     source_date = clean(upstream.get("date"))
@@ -389,6 +400,8 @@ def classify_series(event: dict[str, Any]) -> str | None:
         return "world-youth"
     if ASIAN_YOUTH_RE.search(haystack):
         return "asian-youth"
+    if NATIONAL_MASTER_RE.search(haystack):
+        return "chess-association-master"
     return None
 
 

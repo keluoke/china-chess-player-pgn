@@ -26,6 +26,13 @@ class SeriesClassificationTests(unittest.TestCase):
         self.assertEqual(bec.classify_series({"name": "World Cadets Chess Championship U8"}), "world-youth")
         self.assertEqual(bec.classify_series({"name": "28th Asian Youth Blitz Chess Championship (U14)"}), "asian-youth")
 
+    def test_full_domestic_master_titles_are_classified_without_manual_mapping(self) -> None:
+        for name in (
+            "2025 National Amateur Chess Master Tournament Yancheng Station",
+            "2026 National CCA Master Tournament - Open (Yancheng Station)",
+        ):
+            self.assertEqual(bec.classify_series({"name": name}), "chess-association-master")
+
     def test_everything_else_stays_out(self) -> None:
         for name in ("Shenzhen Open 2025", "China Chess League Division A", "Random Weekend Rapid"):
             self.assertIsNone(bec.classify_series({"name": name}), name)
@@ -88,6 +95,29 @@ class TruncatedNameRepairTests(unittest.TestCase):
         best, aliases = bec.best_source_name("Official Title", {"Completely Different"})
         self.assertEqual(best, "Official Title")
         self.assertEqual(aliases, ["Completely Different"])
+
+    def test_event_detail_manifest_repairs_a_truncated_master_title(self) -> None:
+        row = bec.build_upstream_event(
+            {
+                "source": "Chess-Results",
+                "tournamentID": "1437536",
+                "name": "2026 National CCA Master Tourn",
+                "date": "2026-06-21",
+                "players": [],
+            },
+            {},
+            {},
+            {
+                "path": "data/index/event-details/tnr1437536.json",
+                "displayName": "2026 National CCA Master Tournament - Open (Yancheng Station)",
+                "playableComplete": True,
+            },
+            {},
+        )
+        self.assertEqual(row["name"], "2026 National CCA Master Tournament - Open (Yancheng Station)")
+        self.assertIn("2026 National CCA Master Tourn", row["aliases"])
+        self.assertEqual(bec.classify_series(row), "chess-association-master")
+        self.assertTrue(row["playableComplete"])
 
 
 class RoundGateTests(unittest.TestCase):
