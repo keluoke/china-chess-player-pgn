@@ -46,6 +46,43 @@ def git(repo: pathlib.Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
+class CiCommitPushTests(unittest.TestCase):
+    def test_force_add_publishes_an_explicit_ignored_manifest_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            repo = root / "repo"
+            remote = root / "remote.git"
+            repo.mkdir()
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "user.name", "test")
+            git(repo, "config", "user.email", "test@example.com")
+            (repo / ".gitignore").write_text("data/generated/ignored/\n", encoding="utf-8")
+            git(repo, "add", ".gitignore")
+            git(repo, "commit", "-qm", "initial")
+            subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+            git(repo, "remote", "add", "origin", str(remote))
+            git(repo, "push", "-q", "-u", "origin", "main")
+
+            ignored = repo / "data/generated/ignored/event.json"
+            ignored.parent.mkdir(parents=True)
+            ignored.write_text('{"ok":true}\n', encoding="utf-8")
+            env = os.environ.copy()
+            env.update({"CI_COMMIT_FORCE_ADD": "true", "PUSH_BRANCH": "main"})
+            subprocess.run(
+                [str(SCRIPTS / "ci_commit_push.sh"), "ingest", "data/generated/ignored/event.json"],
+                cwd=repo,
+                env=env,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            published = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "show", "main:data/generated/ignored/event.json"],
+                text=True,
+            )
+            self.assertEqual(published, '{"ok":true}\n')
+
+
 class TargetedCaptureCheckpointTests(unittest.TestCase):
     def test_csv_import_preserves_event_and_group_titles(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

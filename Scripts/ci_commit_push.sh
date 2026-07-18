@@ -24,7 +24,14 @@ set_committed() {
 
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-git add "$@"
+if [ "${CI_COMMIT_FORCE_ADD:-false}" = "true" ]; then
+  # The ingest workflow passes only paths from a validated release manifest.
+  # Some machine-data roots are intentionally ignored in a maintainer clone,
+  # so those exact paths must be force-added on the cloud side as well.
+  git add -f -- "$@"
+else
+  git add -- "$@"
+fi
 
 if git diff --cached --quiet; then
   echo "No changes to commit."

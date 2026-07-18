@@ -70,6 +70,7 @@ jobs:
           # Triggered by a push to local-data, but the mirror commit goes to
           # main — without this the script would push HEAD:local-data.
           PUSH_BRANCH: main
+          CI_COMMIT_FORCE_ADD: "true"
         run: |
           set -euo pipefail
           paths=()
