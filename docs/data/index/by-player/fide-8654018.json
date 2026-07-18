@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-17T17:36:41+00:00",
+  "generatedAt": "2026-07-18T02:50:38+00:00",
   "player": {
     "fideID": "8654018",
     "id": "fide-8654018",
@@ -19,12 +19,13 @@
     ]
   },
   "totals": {
-    "games": 5,
-    "events": 1,
-    "packages": 2,
-    "bytes": 41712,
+    "games": 6,
+    "events": 2,
+    "packages": 3,
+    "bytes": 43684,
     "stages": {
-      "U14": 5
+      "U14": 5,
+      "U16": 1
     }
   },
   "packages": [
@@ -32,14 +33,16 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8654018/all.pgn",
-      "gameCount": 5,
-      "pgnBytes": 20856,
-      "sha256": "fb9239c3c30c567dc5852952b8a6d87d3d2906c0b48d80066b890cecff978df8",
+      "gameCount": 6,
+      "pgnBytes": 21777,
+      "sha256": "1f3153a777e36c06851a13274cb14398482b87edd8908ff74d0699b69d06a6bf",
       "stages": {
-        "U14": 5
+        "U14": 5,
+        "U16": 1
       },
       "sources": [
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     },
     {
@@ -55,9 +58,37 @@
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8654018/U16.pgn",
+      "gameCount": 1,
+      "pgnBytes": 1051,
+      "sha256": "027ecdabc17e5884f9bbc07bc812509127dacdbe9c079b8c64fbcec8188eb0f9",
+      "stages": {
+        "U16": 1
+      },
+      "sources": [
+        "Static PGN"
+      ]
     }
   ],
   "events": [
+    {
+      "source": "Static PGN",
+      "name": "2026 National CCA Master Tournament - Open (Hangzh",
+      "date": "2026-07-14",
+      "tournamentID": "1455665",
+      "canonicalEventID": null,
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      }
+    },
     {
       "source": "Lichess Broadcasts",
       "name": "2025年全国国际象棋青少年锦标赛（团体）",
@@ -76,6 +107,22 @@
     }
   ],
   "games": [
+    {
+      "id": "167f7397ebf769138fbf6ee796442250462897848009302fb5bfdf1a8a4e2588",
+      "event": "2026 National CCA Master Tournament - Open (Hangzh",
+      "date": "2026-07-14",
+      "white": "Xu, Jinzhi",
+      "black": "Yang, Jialin",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "9",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "tournamentID": "1455665",
+      "sourcePgnPath": "data/pgn/chess-results/tnr1455665/fide-8654018-1455665.pgn",
+      "sha256": "167f7397ebf769138fbf6ee796442250462897848009302fb5bfdf1a8a4e2588"
+    },
     {
       "id": "b28e860f0f62815e1a544d0102d6d1b652d46d1d5e839c0342f91d4e1e8c0541",
       "event": "2025年全国国际象棋青少年锦标赛（团体）",
