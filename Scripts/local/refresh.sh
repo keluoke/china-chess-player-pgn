@@ -310,6 +310,25 @@ classify_git_error() {
   fi
 }
 
+classify_git_error() {
+  local log="$1"
+  if printf '%s' "$log" | grep -qiE 'could not resolve host|name or service not known'; then
+    echo "GIT_DNS_FAILURE"
+  elif printf '%s' "$log" | grep -qiE 'ssl|tls|certificate'; then
+    echo "GIT_TLS_FAILURE"
+  elif printf '%s' "$log" | grep -qiE 'proxy'; then
+    echo "GIT_PROXY_FAILURE"
+  elif printf '%s' "$log" | grep -qiE 'authentication failed|permission denied|http 401|http 403|access denied'; then
+    echo "GIT_AUTH_FAILED"
+  elif printf '%s' "$log" | grep -qiE 'pre-receive hook|protected branch|remote rejected'; then
+    echo "GIT_REMOTE_REJECTED"
+  elif printf '%s' "$log" | grep -qiE 'timed out|failed to connect|connection (refused|reset)'; then
+    echo "GIT_CONNECT_FAILURE"
+  else
+    echo "GIT_PUSH_FAILED"
+  fi
+}
+
 DATA_BRANCH="local-data"
 STATE_ROOT="$(python3 -c 'import pathlib,sys; sys.path.insert(0,"Scripts"); from source_policy import local_state_root; print(local_state_root())')"
 PUSH_MARKER="$STATE_ROOT/last-local-data-push"
