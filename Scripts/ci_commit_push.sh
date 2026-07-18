@@ -26,6 +26,15 @@ git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git add "$@"
 
+# Machine audit artifacts (completeness report, PGN supplement queue, person
+# observations, rating observations) are part of the reproducible release
+# state: a snapshot that cannot be recomputed from what was committed is not
+# reproducible. They are always included alongside the public tree so callers
+# never have to remember an extra pathspec.
+if [ -d data/generated ]; then
+  git add data/generated
+fi
+
 if git diff --cached --quiet; then
   echo "No changes to commit."
   set_committed false
