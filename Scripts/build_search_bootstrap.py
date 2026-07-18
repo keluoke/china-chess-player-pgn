@@ -45,7 +45,7 @@ def main() -> int:
     youth = read(ROOT / "data" / "generated" / "youth-leaderboards.json", {})
     registry = read(DATA / "registry" / "players.json", [])
     aggregate = {str(row.get("fideID")): row for row in read(DATA / "index" / "by-player" / "players.json", [])}
-    domestic = read(DATA / "registry" / "domestic" / "search-index.json", [])
+    domestic = read(ROOT / "data" / "generated" / "domestic-search-index.json", [])
 
     players = []
     for row in registry:

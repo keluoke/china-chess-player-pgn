@@ -788,11 +788,11 @@ def write_output(
         "generatedAt": generated_at,
         "storage": {
             "players": "data/registry/domestic/players.json",
-            "searchIndex": "data/registry/domestic/search-index.json",
+            "searchIndex": "data/generated/domestic-search-index.json",
             "detailShards": "data/registry/domestic/shards/{prefix}.json",
-            "sightings": "data/registry/domestic/sightings.json",
+            "sightings": "data/generated/domestic-sightings.json",
             "identityLinks": "data/registry/domestic/identity-links.json",
-            "progressions": "data/registry/domestic/progressions.json",
+            "progressions": "data/generated/domestic-progressions.json",
             "promotionReview": "data/registry/domestic/promotion-review.json",
         },
         "totals": {
@@ -829,7 +829,9 @@ def write_output(
     ]
     write_json(output_root / "players.json", summary_payloads)
     write_domestic_search_and_shards(output_root, players)
-    write_json(output_root / "sightings.json", [sighting.payload() for sighting in sightings])
+    # Flat sightings + search-index are build intermediates, not product
+    # surfaces; they left the deployed tree to stay under the hosting size cap.
+    write_json(generated_root / "domestic-sightings.json", [sighting.payload() for sighting in sightings])
     write_json(output_root / "identity-links.json", [link.payload() for link in links])
     # Maintainer adjudication queues carry raw clubs/evidence and belong to
     # the maintainer workbench, never the deployed tree (plan §4.5).
@@ -872,7 +874,7 @@ def write_domestic_search_and_shards(output_root: pathlib.Path, players: list[Do
             "eventNames": ordered_unique([s.event_name for s in player.sightings])[:3],
             "publicLocation": public_location(player),
         }))
-    write_json(output_root / "search-index.json", search_rows)
+    write_json(REPO_ROOT / "data" / "generated" / "domestic-search-index.json", search_rows)
     shard_root = output_root / "shards"
     shard_root.mkdir(parents=True, exist_ok=True)
     for prefix, rows in shards.items():
