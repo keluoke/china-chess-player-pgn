@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260718T024934Z-d160f46e",
-  "generatedAt": "2026-07-18T02:51:06+00:00",
+  "snapshotId": "20260718T030319Z-e25e0914",
+  "generatedAt": "2026-07-18T03:04:50+00:00",
   "steps": [
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/apply_aliases_to_registry.py",
       "status": "ok",
-      "seconds": 0.6
+      "seconds": 0.4
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_release.py --registry docs/data/registry --corrections data/community/name-corrections.csv",
@@ -16,17 +16,17 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_domestic_players.py",
       "status": "ok",
-      "seconds": 11.4
+      "seconds": 11.6
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_static_pgn.py",
       "status": "ok",
-      "seconds": 2.7
+      "seconds": 2.3
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_static_player_pgn.py",
       "status": "ok",
-      "seconds": 56.3
+      "seconds": 57.1
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_completeness_report.py",
@@ -70,7 +70,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/reconcile_pgn_sources.py --write-audit",
       "status": "ok",
-      "seconds": 1.4
+      "seconds": 1.3
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_search_bootstrap.py",
@@ -115,7 +115,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_privacy.py",
       "status": "ok",
-      "seconds": 11.3
+      "seconds": 10.2
     }
   ]
 }
