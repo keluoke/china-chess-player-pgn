@@ -149,6 +149,8 @@ def parse_event_archive(tid: str) -> list[dict[str, str]]:
 def match_archive_games(
     payload: dict[str, Any],
     archive_games: list[dict[str, str]],
+    played_keys: set[tuple[str, str]],
+    advertised_keys: set[tuple[str, str]],
 ) -> dict[str, Any]:
     """Match archived games to pairings by natural key round+board.
 
@@ -170,10 +172,21 @@ def match_archive_games(
             ]))
             by_names.setdefault((rid, names), pairing)
 
-    matched: set[int] = set()
-    fallback: set[int] = set()
+    matched_exact: set[tuple[str, str]] = set()
+    matched_fallback: set[tuple[str, str]] = set()
     mismatched_names = 0
     unmatched_games = 0
+
+    # 提取 forfeits 自然键
+    forfeits_keys = set()
+    for round_row in payload.get("rounds") or []:
+        rid = round_number(round_row.get("round"))
+        for pairing in round_row.get("pairings") or []:
+            if not is_bye(pairing) and is_forfeit(pairing.get("result")):
+                board = clean(pairing.get("board"))
+                if board:
+                    forfeits_keys.add((rid, board))
+
     for game in archive_games:
         game_names = tuple(sorted([normalize_name(game["white"]), normalize_name(game["black"])]))
         pairing = by_key.get((game["round"], game["board"])) if game["board"] else None
@@ -183,22 +196,35 @@ def match_archive_games(
                 normalize_name((pairing.get("black") or {}).get("name")),
             ]))
             if not any(game_names) or not any(pairing_names) or game_names == pairing_names:
-                matched.add(id(pairing))
+                matched_exact.add((game["round"], game["board"]))
                 continue
             # Natural key hit but names disagree: never silently count it.
             mismatched_names += 1
         pairing = by_names.get((game["round"], game_names))
         if pairing is not None:
-            fallback.add(id(pairing))
+            p_board = clean(pairing.get("board"))
+            if p_board:
+                matched_fallback.add((game["round"], p_board))
         else:
             unmatched_games += 1
-    fallback -= matched
+
+    matched_fallback -= matched_exact
+    matched_played = matched_exact & played_keys
+    matched_advertised = matched_exact & advertised_keys
+    matched_forfeits = matched_exact & forfeits_keys
+
     return {
-        "matchedExact": len(matched),
-        "matchedNameFallback": len(fallback),
-        "matched": len(matched | fallback),
+        "matchedPlayedKeys": matched_played,
+        "matchedAdvertisedKeys": matched_advertised,
+        "matchedForfeitKeys": matched_forfeits,
+        "fallbackMatchedKeys": matched_fallback,
+        "unmatchedPlayedKeys": played_keys - matched_exact,
+        "unmatchedAdvertisedKeys": advertised_keys - matched_exact,
         "keyNameMismatches": mismatched_names,
         "unmatchedArchiveGames": unmatched_games,
+        "matchedExact": len(matched_exact),
+        "matchedNameFallback": len(matched_fallback),
+        "matched": len(matched_exact | matched_fallback),
     }
 
 
@@ -258,6 +284,22 @@ def event_report(
     advertised = [p for p in played if advertised_pgn(p)]
     valid_results = sum(1 for p in non_bye if valid_result(p))
 
+    # --- played and advertised expected keys ---
+    played_keys = set()
+    advertised_keys = set()
+    for round_row in rounds:
+        rid = round_number(round_row.get("round"))
+        for p in round_row.get("pairings") or []:
+            if is_bye(p):
+                continue
+            board = clean(p.get("board"))
+            if not board:
+                continue
+            if played_game_expected(p) is True:
+                played_keys.add((rid, board))
+                if advertised_pgn(p):
+                    advertised_keys.add((rid, board))
+
     # --- referential integrity (independent expected values, review §2.4) ---
     standing_ref_violations = sum(
         1 for s in standings
@@ -281,7 +323,7 @@ def event_report(
     # --- archive matching (archives are first-class input, review §2.1) -----
     archive_games = parse_event_archive(tid)
     if archive_games:
-        match = match_archive_games(payload, archive_games)
+        match = match_archive_games(payload, archive_games, played_keys, advertised_keys)
     else:
         matched_keys: set[tuple[str, tuple[str, str]]] = set()
         for round_row in rounds:
@@ -296,11 +338,17 @@ def event_report(
                 if key in by_player_games:
                     matched_keys.add(key)
         match = {
+            "matchedPlayedKeys": set(),
+            "matchedAdvertisedKeys": set(),
+            "matchedForfeitKeys": set(),
+            "fallbackMatchedKeys": matched_keys,
+            "unmatchedPlayedKeys": played_keys,
+            "unmatchedAdvertisedKeys": advertised_keys,
+            "keyNameMismatches": 0,
+            "unmatchedArchiveGames": 0,
             "matchedExact": 0,
             "matchedNameFallback": len(matched_keys),
             "matched": len(matched_keys),
-            "keyNameMismatches": 0,
-            "unmatchedArchiveGames": 0,
         }
     matched = match["matched"]
     local_fingerprints: set[str] = set()
@@ -372,6 +420,11 @@ def event_report(
         availability = "advertised-full"
         scope = "all-played-boards"
 
+    # 严格根据包含性判定
+    matched_exact_keys = match["matchedPlayedKeys"] | match["matchedAdvertisedKeys"] | match["matchedForfeitKeys"]
+    is_matched_full = played_keys.issubset(matched_exact_keys) if played_keys else False
+    is_matched_advertised = advertised_keys.issubset(matched_exact_keys) if advertised_keys else False
+
     # --- archive/matching state (review §2.1 status vocabulary) -------------
     if availability in ("not-published", "no-pairings", "no-played-games"):
         if archive_games or local_fingerprints:
@@ -381,9 +434,9 @@ def event_report(
     elif archive_games:
         if matched == 0:
             archive_status = "archived-unmatched"
-        elif matched >= len(played):
+        elif is_matched_full:
             archive_status = "matched-full"
-        elif matched >= len(advertised) and len(advertised) < len(played):
+        elif is_matched_advertised and len(advertised) < len(played):
             archive_status = "matched-advertised-complete"
         else:
             archive_status = "matched-partial"
@@ -392,10 +445,28 @@ def event_report(
     else:
         archive_status = "missing"
 
-    advertised_coverage = round(matched / len(advertised), 4) if advertised else None
-    played_coverage = round(matched / len(played), 4) if played else None
+    # 分子限制在对应的精确匹配子集中，防范 coverage > 1
+    advertised_coverage = round(len(match["matchedAdvertisedKeys"]) / len(advertised), 4) if advertised else None
+    played_coverage = round(len(match["matchedPlayedKeys"]) / len(played), 4) if played else None
 
     publishable = results_status == "results-complete"
+
+    # 判定 playableComplete：所有 played expected 都能被 FIDE by-player 索引覆盖
+    playable_pairings_count = 0
+    for round_row in rounds:
+        rid = round_number(round_row.get("round"))
+        for pairing in round_row.get("pairings") or []:
+            if is_bye(pairing):
+                continue
+            if played_game_expected(pairing) is True:
+                key = (rid, tuple(sorted([
+                    normalize_name((pairing.get("white") or {}).get("name")),
+                    normalize_name((pairing.get("black") or {}).get("name")),
+                ])))
+                if key in by_player_games:
+                    playable_pairings_count += 1
+
+    playable_complete = publishable and len(played) > 0 and playable_pairings_count >= len(played)
     event_complete = publishable and archive_status == "matched-full"
 
     return {
@@ -408,6 +479,8 @@ def event_report(
         "pgnAvailability": availability,
         "pgnCoverageScope": scope,
         "archiveStatus": archive_status,
+        "playableComplete": playable_complete,
+        "eventComplete": event_complete,
         "counts": {
             "players": len(players),
             "standings": len(standings),
@@ -425,7 +498,6 @@ def event_report(
         "advertisedCoverage": advertised_coverage,
         "allBoardCoverage": played_coverage,
         "publishable": publishable,
-        "eventComplete": event_complete,
     }
 
 

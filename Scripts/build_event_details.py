@@ -252,6 +252,7 @@ def public_completeness(report: dict[str, Any]) -> dict[str, Any]:
         "advertisedCoverage": report.get("advertisedCoverage"),
         "allBoardCoverage": report.get("allBoardCoverage"),
         "eventComplete": bool(report.get("eventComplete")),
+        "playableComplete": bool(report.get("playableComplete")),
     }
 
 
@@ -328,6 +329,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
             **({"roundsPendingVerification": True} if payload.get("roundsPendingVerification") else {}),
             **({"pgnAvailability": report.get("pgnAvailability")} if report else {}),
             **({"eventComplete": True} if report.get("eventComplete") else {}),
+            **({"playableComplete": True} if report.get("playableComplete") else {}),
         })
         totals["events"] += 1
         totals["standings"] += len(payload.get("standings", []))

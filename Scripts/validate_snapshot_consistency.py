@@ -31,6 +31,11 @@ MANIFEST_GLOBS = (
     "api/v2/manifest.json",
     "api/v2/rankings/official/current/standard/*.json",
     "data/snapshot.json",
+    "data/registry/domestic/manifest.json",
+    "data/registry/domestic/presentation-groups.json",
+    "data/search-bootstrap.json",
+    "data/search-bootstrap-domestic.json",
+    "data/search/domestic/*.json",
 )
 
 

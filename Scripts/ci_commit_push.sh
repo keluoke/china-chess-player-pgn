@@ -31,9 +31,6 @@ git add "$@"
 # state: a snapshot that cannot be recomputed from what was committed is not
 # reproducible. They are always included alongside the public tree so callers
 # never have to remember an extra pathspec.
-if [ -d data/generated ]; then
-  git add data/generated
-fi
 
 if git diff --cached --quiet; then
   echo "No changes to commit."

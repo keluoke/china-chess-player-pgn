@@ -1001,6 +1001,7 @@ class StableJSONTests(unittest.TestCase):
             by_player = root / "by-player"
             leaderboards = root / "leaderboards.json"
             api_root = root / "api"
+            api_v2_root = root / "apiv2"
             by_player.mkdir()
             registry.write_text(json.dumps([{
                 "fideID": "1",
@@ -1031,6 +1032,7 @@ class StableJSONTests(unittest.TestCase):
                 mock.patch.object(build_api, "BY_PLAYER_INDEX", by_player),
                 mock.patch.object(build_api, "LEADERBOARDS", leaderboards),
                 mock.patch.object(build_api, "API_ROOT", api_root),
+                mock.patch.object(build_api, "API_V2_ROOT", api_v2_root),
                 mock.patch.object(build_api, "REPO_ROOT", root),
                 mock.patch.object(build_api, "canonical_public_metrics", return_value=metrics),
             ):

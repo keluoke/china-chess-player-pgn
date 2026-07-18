@@ -25,6 +25,11 @@ else if (params.get("player")) form.elements.type.value = "identity-clue";
 form.addEventListener("submit", async event => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(form));
+  const extra = {};
+  if (data.type === "identity-dispute") {
+    if (params.get("group")) extra.groupID = params.get("group");
+    if (params.get("members")) extra.memberIDs = params.get("members").split(",");
+  }
   payload = Object.fromEntries(Object.entries({
     schema: "china-chess-community-contribution/v1",
     collection_policy: "target-only-no-scraped-content",
@@ -37,15 +42,21 @@ form.addEventListener("submit", async event => {
     event_name: data.event_name,
     evidence_url: data.evidence_url,
     notes: data.notes,
-    contributor: data.nickname
+    contributor: data.nickname,
+    ...extra
   }).filter(([, value]) => String(value || "").trim()));
   preview.value = JSON.stringify(payload, null, 2);
   output.hidden = false;
   output.scrollIntoView({ behavior: "smooth", block: "start" });
   status.textContent = "";
-  if (payload.type === "privacy-request") {
-    hint.textContent = "删除或匿名化请求不会进入公开 Issue。请下载内容后，通过项目维护者的私密联系方式发送。";
-    status.textContent = "隐私请求已在本机整理，未上传。";
+  if (payload.type === "privacy-request" || payload.type === "identity-dispute") {
+    if (payload.type === "privacy-request") {
+      hint.textContent = "删除或匿名化请求不会进入公开 Issue。请下载内容后，通过项目维护者的私密联系方式发送。";
+      status.textContent = "隐私请求已在本机整理，未上传。";
+    } else {
+      hint.textContent = "身份质疑与合并纠纷请求不会进入公开 Issue。请下载内容后，通过私密联系方式线下发送给维护者。";
+      status.textContent = "身份质疑已在本机整理，未上传。";
+    }
     githubButton.hidden = true;
     return;
   }
@@ -59,7 +70,7 @@ form.addEventListener("submit", async event => {
 githubButton.addEventListener("click", submitCurrentPayload);
 
 async function submitCurrentPayload() {
-  if (!payload || payload.type === "privacy-request") return;
+  if (!payload || payload.type === "privacy-request" || payload.type === "identity-dispute") return;
   const title = `[数据贡献] ${payload.player_name || payload.event_name || payload.event_ref || payload.type}`;
   const body = issueBody(payload);
   fallbackIssueURL = `https://github.com/${REPOSITORY}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;

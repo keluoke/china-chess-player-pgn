@@ -70,12 +70,21 @@ def main() -> int:
                 digest.update(chunk)
         return digest.hexdigest()
 
-    def remote_sha(key: str) -> str | None:
+    def get_remote_status(key: str) -> dict[str, Any]:
         try:
             head = client.head_object(Bucket=bucket, Key=key)
-        except Exception:
-            return None
-        return (head.get("Metadata") or {}).get("sha256")
+            sha = (head.get("Metadata") or {}).get("sha256")
+            return {
+                "status": "ok",
+                "sha256": sha,
+                "size": head.get("ContentLength"),
+            }
+        except client.exceptions.NoSuchKey:
+            return {"status": "absent"}
+        except Exception as e:
+            if "Not Found" in str(e) or "404" in str(e):
+                return {"status": "absent"}
+            return {"status": "error", "error": str(e)}
 
     existing: dict[str, int] = {}
     paginator = client.get_paginator("list_objects_v2")
@@ -88,33 +97,38 @@ def main() -> int:
     if args.verify:
         # Review §6.1: size equality never certifies content; compare the
         # sha256 stored in object metadata against the local file.
-        verified = mismatched = missing_meta = absent = 0
+        verified = mismatched = missing_meta = absent = error_count = 0
         problems: list[str] = []
         for path in sorted(source_root.glob("*")):
             if not path.is_file():
                 continue
             key = f"{args.prefix}/{path.name}"
-            if key not in existing:
+
+            res = get_remote_status(key)
+            if res["status"] == "absent":
                 absent += 1
                 problems.append(f"absent: {key}")
-                continue
-            remote = remote_sha(key)
-            if not remote:
+            elif res["status"] == "error":
+                error_count += 1
+                problems.append(f"network-error: {key} ({res['error']})")
+            elif not res["sha256"]:
                 missing_meta += 1
                 problems.append(f"no-sha-metadata: {key}")
-                continue
-            if remote == sha256_file(path):
-                verified += 1
             else:
-                mismatched += 1
-                problems.append(f"SHA MISMATCH: {key}")
+                local_sha = sha256_file(path)
+                if res["sha256"] == local_sha:
+                    verified += 1
+                else:
+                    mismatched += 1
+                    problems.append(f"SHA MISMATCH: {key} (local: {local_sha}, remote: {res['sha256']})")
+
         print(json.dumps({
             "bucket": bucket, "prefix": args.prefix, "verified": verified,
             "mismatched": mismatched, "missingMetadata": missing_meta,
-            "absent": absent, "problems": problems[:20],
+            "absent": absent, "errors": error_count, "problems": problems[:20],
             "seconds": round(time.time() - started, 1),
         }, ensure_ascii=False))
-        return 1 if (mismatched or absent) else 0
+        return 1 if (mismatched or absent or missing_meta or error_count) else 0
 
     # Confirmation cache: once a remote object's sha256 metadata matched the
     # local file, skip the per-object HEAD on later runs unless the local
@@ -129,36 +143,59 @@ def main() -> int:
         # Original uploads were integrity-checked per request by the SDK; the
         # sha256 metadata was simply not recorded. Attach it via server-side
         # copy (no byte re-transfer), then --verify closes the loop.
-        stamped = already = size_mismatch = 0
+        stamped = already = size_mismatch = failed_backfill = 0
         pending = []
         for path in sorted(source_root.glob("*")):
             if not path.is_file():
                 continue
             key = f"{args.prefix}/{path.name}"
             stat = path.stat()
+            local_sha = sha256_file(path)
+            # Cache stores size, mtime, and local SHA
+            fingerprint = [stat.st_size, int(stat.st_mtime), local_sha]
+
+            if confirmed.get(key) == fingerprint:
+                already += 1
+                continue
             if existing.get(key) != stat.st_size:
                 size_mismatch += 1
-                continue
-            if confirmed.get(key) == [stat.st_size, int(stat.st_mtime)]:
-                already += 1
                 continue
             if args.max_seconds and time.time() - started > args.max_seconds:
                 pending.append(key)
                 continue
-            if remote_sha(key) and remote_sha(key) != "probe":
-                confirmed[key] = [stat.st_size, int(stat.st_mtime)]
+
+            res = get_remote_status(key)
+            if res["status"] == "error":
+                failed_backfill += 1
+                print(f"Error checking remote status for {key}: {res['error']}")
+                continue
+            if res["status"] == "absent":
+                failed_backfill += 1
+                print(f"Object absent from remote: {key}")
+                continue
+
+            if res["sha256"] == local_sha:
+                confirmed[key] = fingerprint
                 already += 1
                 continue
-            local_sha = sha256_file(path)
+
+            # If SHA mismatched or missing, stamp it
             if not args.dry_run:
-                client.copy_object(
-                    Bucket=bucket, Key=key,
-                    CopySource={"Bucket": bucket, "Key": key},
-                    Metadata={"sha256": local_sha},
-                    MetadataDirective="REPLACE",
-                )
-                confirmed[key] = [stat.st_size, int(stat.st_mtime)]
-            stamped += 1
+                try:
+                    client.copy_object(
+                        Bucket=bucket, Key=key,
+                        CopySource={"Bucket": bucket, "Key": key},
+                        Metadata={"sha256": local_sha},
+                        MetadataDirective="REPLACE",
+                    )
+                    confirmed[key] = fingerprint
+                    stamped += 1
+                except Exception as e:
+                    failed_backfill += 1
+                    print(f"Failed to copy object for metadata replacement: {key} ({e})")
+            else:
+                stamped += 1
+
         try:
             cache_path.write_text(json.dumps(confirmed))
         except OSError:
@@ -166,9 +203,10 @@ def main() -> int:
         print(json.dumps({
             "bucket": bucket, "prefix": args.prefix, "metadataStamped": stamped,
             "alreadyStamped": already, "sizeMismatch": size_mismatch,
+            "failedBackfill": failed_backfill,
             "pending": len(pending), "seconds": round(time.time() - started, 1),
         }, ensure_ascii=False))
-        return 0
+        return 1 if failed_backfill > 0 else 0
 
     uploaded = skipped = reupload = 0
     pending = []
@@ -177,7 +215,8 @@ def main() -> int:
             continue
         key = f"{args.prefix}/{path.name}"
         stat = path.stat()
-        fingerprint = [stat.st_size, int(stat.st_mtime)]
+        local_sha = sha256_file(path)
+        fingerprint = [stat.st_size, int(stat.st_mtime), local_sha]
         if confirmed.get(key) == fingerprint and key in existing:
             skipped += 1
             continue
@@ -185,28 +224,39 @@ def main() -> int:
         if args.max_seconds and time.time() - started > args.max_seconds:
             pending.append(key)
             continue
-        local_sha: str | None = None
+
         if existing.get(key) == stat.st_size:
             # Size match alone is not success (review §6.1): trust only a
             # matching sha256 in the object metadata; anything else re-uploads.
-            remote = remote_sha(key)
-            local_sha = sha256_file(path)
-            if remote == local_sha:
+            res = get_remote_status(key)
+            if res["status"] == "ok" and res["sha256"] == local_sha:
                 skipped += 1
                 confirmed[key] = fingerprint
                 continue
             reupload += 1
+
         if args.max_seconds and time.time() - started > args.max_seconds:
             pending.append(key)
             continue
+
         if not args.dry_run:
-            local_sha = local_sha or sha256_file(path)
-            client.upload_file(
-                str(path), bucket, key,
-                ExtraArgs={"Metadata": {"sha256": local_sha}},
-            )
-            confirmed[key] = fingerprint
-        uploaded += 1
+            try:
+                client.upload_file(
+                    str(path), bucket, key,
+                    ExtraArgs={"Metadata": {"sha256": local_sha}},
+                )
+                # HEAD回读校验并记录审计receipt
+                res_after = get_remote_status(key)
+                if res_after["status"] == "ok" and res_after["sha256"] == local_sha:
+                    confirmed[key] = fingerprint
+                    uploaded += 1
+                else:
+                    print(f"Post-upload HEAD verification failed for {key}")
+            except Exception as e:
+                print(f"Failed to upload {key}: {e}")
+        else:
+            uploaded += 1
+
     try:
         cache_path.write_text(json.dumps(confirmed))
     except OSError:

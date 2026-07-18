@@ -1936,16 +1936,27 @@ function searchEvents(query) {
 
 function sameNameCount(player) {
   const key = normalizedIdentityName(player);
-  if (!key) return 1;
-  return players.filter(candidate => normalizedIdentityName(candidate) === key).length;
+  if (!key) return 0;
+  const groupID = player.presentationGroupID;
+  return players.filter(candidate => {
+    if (normalizedIdentityName(candidate) !== key) return false;
+    if (groupID && candidate.presentationGroupID === groupID) return false;
+    return true;
+  }).length;
 }
 
 function sameNameRelatedPlayers(player) {
   const key = normalizedIdentityName(player);
   const currentKey = playerKey(player);
   if (!key) return [];
+  const groupID = player.presentationGroupID;
   return players
-    .filter(candidate => playerKey(candidate) !== currentKey && normalizedIdentityName(candidate) === key)
+    .filter(candidate => {
+      if (playerKey(candidate) === currentKey) return false;
+      if (normalizedIdentityName(candidate) !== key) return false;
+      if (groupID && candidate.presentationGroupID === groupID) return false;
+      return true;
+    })
     .sort((a, b) => Number(Boolean(b.fideID)) - Number(Boolean(a.fideID)) || Number(b.eventCount ?? 0) - Number(a.eventCount ?? 0));
 }
 
@@ -1982,6 +1993,7 @@ function sightingHasPGN(sighting) {
 
 function publicStatus(player) {
   if (player?.fideID || player?.publicIdentityStatus === "verified") return { key: "verified", label: "已核验" };
+  if (player?.presentationGroupID) return { key: "presentation-high", label: "已归组" };
   if (player?.publicIdentityStatus === "same-name" || sameNameCount(player) > 1) return { key: "same-name", label: "同名待区分" };
   return { key: "pending", label: "待确认" };
 }
@@ -2001,7 +2013,8 @@ function publicStatusBadge(player) {
 
 function eventDataStatus(event) {
   // Copy derives from explicit completeness states only (review §5.1).
-  if (event?.eventComplete) return "complete";
+  if (event?.playableComplete) return "complete";
+  if (event?.eventComplete) return "archive-complete";
   const availability = event?.pgnAvailability;
   if (availability === "not-published") return "results-only";
   if (availability === "advertised-partial") return "partial-live";
@@ -2014,6 +2027,7 @@ function eventDataStatus(event) {
 function dataStatusBadge(status) {
   const labels = {
     complete: "全台棋谱",
+    "archive-complete": "本地归档完整",
     "partial-live": "部分直播台棋谱",
     "results-only": "赛果完整 · 无公开棋谱",
     "pgn-pending": "棋谱待匹配",
@@ -2027,7 +2041,8 @@ function completenessLabel(event, eventDetail) {
   const completeness = eventDetail?.completeness ?? {};
   const availability = completeness.pgnAvailability ?? event?.pgnAvailability;
   const resultsOK = completeness.resultsStatus === "results-complete" || Boolean(event?.detailPath);
-  if (completeness.eventComplete || event?.eventComplete) return "赛果完整 · 全台棋谱";
+  if (completeness.playableComplete || event?.playableComplete) return "赛果完整 · 全台棋谱";
+  if (completeness.eventComplete || event?.eventComplete) return "赛果完整 · 本地归档完整";
   if (resultsOK && availability === "not-published") return "赛果完整 · 来源未公开棋谱";
   if (resultsOK && availability === "advertised-partial") return "赛果完整 · 部分直播台棋谱";
   if (resultsOK && availability === "advertised-full") return "赛果完整 · 棋谱待匹配";

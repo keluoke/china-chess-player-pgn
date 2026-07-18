@@ -42,6 +42,7 @@ class Sighting:
     player_name: str
     chinese_name: str
     pinyin_name: str
+    federation: str
     sex: str
     birth_year: int | None
     province: str
@@ -67,6 +68,7 @@ class Sighting:
                 "playerName": self.player_name,
                 "chineseName": self.chinese_name,
                 "pinyin": self.pinyin_name,
+                "federation": self.federation or None,
                 "sex": self.sex,
                 "birthYear": self.birth_year,
                 # Public payload: never expose the raw club/school string for
@@ -128,6 +130,12 @@ class DomesticPlayer:
     public_status: str = "pending"
 
     def payload(self) -> dict[str, Any]:
+        confirmed_chn = bool(self.fide_id) or any(
+            str(s.federation or "").strip().upper() == "CHN"
+            for s in self.sightings
+        )
+        fed = "CHN" if confirmed_chn else "unknown"
+        basis = None if confirmed_chn else "domestic-event"
         return without_empty(
             {
                 "id": self.canonical_id,
@@ -136,7 +144,8 @@ class DomesticPlayer:
                 "displayName": self.display_name,
                 "chineseName": self.chinese_name,
                 "pinyin": self.pinyin_name,
-                "federation": "CHN",
+                "federation": fed,
+                "domesticEligibilityBasis": basis,
                 "sex": self.sex,
                 "birthYear": self.birth_year,
                 "publicLocation": public_location(self),
@@ -235,6 +244,7 @@ def merge_observations(sightings: list[Sighting], observations: list[Sighting]) 
             existing.event_date = existing.event_date or observation.event_date
             existing.age_stage = existing.age_stage or observation.age_stage
             existing.sex = existing.sex or observation.sex
+            existing.federation = existing.federation or observation.federation
             enriched += 1
         else:
             sightings.append(observation)
@@ -261,6 +271,7 @@ def read_sightings(path: pathlib.Path) -> list[Sighting]:
                 player_name=clean(row.get("player_name")),
                 chinese_name=clean(row.get("chinese_name")),
                 pinyin_name=clean(row.get("pinyin_name")),
+                federation=clean(row.get("federation")),
                 sex=clean(row.get("sex")),
                 birth_year=parse_int(row.get("birth_year")),
                 province=clean(row.get("province")),
@@ -301,6 +312,37 @@ def read_links(path: pathlib.Path) -> list[IdentityLink]:
     return links
 
 
+_international_events_cache = {}
+
+
+def is_international_event(event_id: str) -> bool:
+    if event_id in _international_events_cache:
+        return _international_events_cache[event_id]
+
+    tnr_id = event_id.removeprefix("chess-results-tnr").removeprefix("chess-results-").removeprefix("tnr")
+    if not tnr_id.isdigit():
+        _international_events_cache[event_id] = False
+        return False
+
+    json_path = REPO_ROOT / "data" / "generated" / "chess-results-event-details" / f"tnr{tnr_id}.json"
+    if not json_path.exists():
+        _international_events_cache[event_id] = False
+        return False
+
+    try:
+        data = json.loads(json_path.read_text(encoding="utf-8"))
+        for p in data.get("players", []):
+            fed = str(p.get("federation") or "").strip().upper()
+            if fed and fed not in {"CHN", "FIDE", "FID", "???", ""}:
+                _international_events_cache[event_id] = True
+                return True
+    except Exception:
+        pass
+
+    _international_events_cache[event_id] = False
+    return False
+
+
 def build_players(sightings: list[Sighting], links: list[IdentityLink]) -> list[DomesticPlayer]:
     direct_sighting_links = {
         link.from_id: link
@@ -332,6 +374,14 @@ def build_players(sightings: list[Sighting], links: list[IdentityLink]) -> list[
             canonical_id = f"fide-{fide_id}" if fide_id else domestic_id
             status = "linked-fide" if fide_id else "unlinked"
 
+        # P0 资格过滤：过滤明确为外籍或国际赛事中不具备中国身份的人员观察
+        fed = str(sighting.federation or "").strip().upper()
+        if fed and fed not in {"CHN", "FIDE", "FID", "???"}:
+            continue
+        if is_international_event(sighting.event_id):
+            if not (fed == "CHN" or link is not None or fide_id):
+                continue
+
         player = grouped.get(canonical_id)
         if player is None:
             player = DomesticPlayer(
@@ -351,7 +401,12 @@ def apply_sighting(player: DomesticPlayer, sighting: Sighting) -> None:
     player.sightings.append(sighting)
     player.chinese_name = player.chinese_name or sighting.chinese_name
     player.pinyin_name = player.pinyin_name or sighting.pinyin_name
-    player.display_name = player.display_name or sighting.chinese_name or sighting.player_name or sighting.pinyin_name or player.domestic_id
+
+    # 避免将未通过 sanitize 的包含中文的 player_name 直接提升为 displayName
+    has_chinese = bool(re.search(r"[\u4e00-\u9fff]", sighting.player_name))
+    fallback_name = "姓名待核验" if has_chinese else sighting.player_name
+    player.display_name = player.display_name or sighting.chinese_name or fallback_name or sighting.pinyin_name or player.domestic_id
+
     player.sex = player.sex or sighting.sex
     player.birth_year = player.birth_year or sighting.birth_year
     player.province = player.province or sighting.province
@@ -554,12 +609,14 @@ def promotion_evidence(left: DomesticPlayer, right: DomesticPlayer) -> dict[str,
                     continue
                 gap = (high_date - low_date).days
                 if 0 <= gap <= PROMOTION_WINDOW_DAYS:
+                    is_exact = exact_date(low_sighting.event_date) and exact_date(high_sighting.event_date)
                     candidate = {
                         "lowerGroup": low_sighting.group,
                         "scoreRate": round(rate, 3),
                         "higherGroup": high_sighting.group,
                         "monthsBetween": round(gap / 30),
-                        "exactDates": exact_date(low_sighting.event_date) and exact_date(high_sighting.event_date),
+                        "exactDates": is_exact,
+                        "datePrecision": "exact" if is_exact else "year/order",
                     }
                     if best is None or (candidate["exactDates"] and not best["exactDates"]):
                         best = candidate
@@ -569,10 +626,14 @@ def promotion_evidence(left: DomesticPlayer, right: DomesticPlayer) -> dict[str,
 
 
 def sexes_consistent(left: DomesticPlayer, right: DomesticPlayer) -> bool:
-    """Known and equal on both sides (presentation-grouping requirement)."""
+    """True unless there is an explicit sex conflict (M vs F) between the sides."""
     left_sex = {s.sex for s in left.sightings if s.sex} or ({left.sex} if left.sex else set())
     right_sex = {s.sex for s in right.sightings if s.sex} or ({right.sex} if right.sex else set())
-    return bool(left_sex) and bool(right_sex) and left_sex == right_sex and len(left_sex) == 1
+    if "M" in left_sex and "F" in right_sex:
+        return False
+    if "F" in left_sex and "M" in right_sex:
+        return False
+    return True
 
 
 def hard_conflicts(left: DomesticPlayer, right: DomesticPlayer) -> list[str]:
@@ -619,10 +680,13 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
     if promotion:
         weights["promotionPattern"] = 35
         evidence_kinds += 1
-        summary.append(
+        desc = (
             f"{promotion['lowerGroup']} 得分率 {promotion['scoreRate']:.0%} → "
             f"{promotion['monthsBetween']} 个月后出现在 {promotion['higherGroup']}"
         )
+        if promotion.get("datePrecision") == "year/order":
+            desc += "（同年后续赛事，顺序待精确日期核验）"
+        summary.append(desc)
 
     combined_continuity = age_stage_continuity([*left.sightings, *right.sightings])
     if combined_continuity == "consistent":
@@ -650,7 +714,7 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
     # Review §4.2: "同俱乐部 + 真实晋级轨迹" (same club + genuine promotion
     # pattern, sexes consistent, no hard conflicts) is high-confidence BY
     # ITSELF. Display aggregation additionally requires the promotion order
-    # to rest on exact event dates.
+    # to rest on exact event dates or year/order precision.
     club_plus_promotion = bool(weights.get("clubConsistency")) and bool(promotion) and sexes_consistent(left, right)
     if club_plus_promotion or (score >= 70 and evidence_kinds >= 2):
         tier = "suggested-high"
@@ -658,7 +722,7 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
         tier = "suggested-medium"
     else:
         tier = "low"
-    presentation_eligible = bool(club_plus_promotion and promotion and promotion.get("exactDates"))
+    presentation_eligible = bool(club_plus_promotion and promotion and (promotion.get("exactDates") or promotion.get("datePrecision") == "year/order"))
     return {
         "presentationEligible": presentation_eligible,
         "candidateID": "identity-candidate-" + hashlib.sha256(f"{left.domestic_id}|{right.domestic_id}".encode("utf-8")).hexdigest()[:16],
@@ -924,9 +988,19 @@ def write_output(
     conflict_edges: list[dict[str, Any]] | None = None,
     presentation_groups: list[dict[str, Any]] | None = None,
 ) -> None:
+    import sys
+    if str(REPO_ROOT / "Scripts") not in sys.path:
+        sys.path.append(str(REPO_ROOT / "Scripts"))
+    try:
+        from snapshot_context import snapshot_id
+        sid = snapshot_id()
+    except Exception:
+        sid = "unknown"
+
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     manifest = {
         "schemaVersion": 1,
+        "snapshotId": sid,
         "generatedAt": generated_at,
         # Public manifest lists publicly served resources ONLY (review §3.3);
         # builder inputs and maintainer paths live in the private build
@@ -969,11 +1043,22 @@ def write_output(
         for payload in full_payloads
     ]
     write_json(output_root / "players.json", summary_payloads)
+
+    # 产品级门禁：如果 high candidates > 0 而 presentation groups = 0，构建抛出告警并打印原因
+    high_candidates = sum(c.get("queueTier") == "suggested-high" for c in identity_candidates)
+    if high_candidates > 0 and len(presentation_groups or []) == 0:
+        print(f"WARNING: high priority identity candidates count is {high_candidates}, but presentation groups count is 0.")
+        print("Analysis of high priority candidates:")
+        for c in identity_candidates:
+            if c.get("queueTier") == "suggested-high" and not c.get("presentationEligible"):
+                print(f"  Candidate {c.get('candidateID')} ({c.get('displayName')}): eligibility details -> {c.get('evidenceSummary')}")
+
     # Display-only high-confidence aggregation (review §4): a small public
     # projection the frontend uses to merge cards; disputes split it on the
     # next projection without touching any Person/observation fact.
     write_json(output_root / "presentation-groups.json", {
         "schemaVersion": 1,
+        "snapshotId": sid,
         "generatedAt": generated_at,
         "identityBasis": "presentation-high",
         "note": "机器高置信展示聚合；确认合并请走 player-identity-links.csv，质疑请提交 presentation-disputes",

@@ -29,16 +29,15 @@ EVENTS_CATALOG = ROOT / "data" / "generated" / "events-catalog.json"
 MAPPINGS = ROOT / "data" / "community" / "tournament-name-mappings.csv"
 COMPLETENESS = ROOT / "data" / "generated" / "event-completeness-report.json"
 OUTPUT = ROOT / "data" / "generated" / "person-observations.csv"
-
 COLUMNS = [
     "sighting_id", "source", "event_id", "event_name", "event_date", "group",
-    "age_stage", "player_name", "chinese_name", "pinyin_name", "sex",
+    "age_stage", "player_name", "chinese_name", "pinyin_name", "federation", "sex",
     "birth_year", "province", "club", "rank", "score", "rounds",
     "source_player_no", "source_url", "notes",
 ]
 
 AGE_RE = re.compile(r"U\s?(8|10|12|14|16|18|20)\b", re.IGNORECASE)
-HANZI_NAME_RE = re.compile(r"^[一-鿿·]{2,6}$")
+HANZI_NAME_RE = re.compile(r"^[Open一-鿿·]{2,100}$") # 宽放汉字匹配，以便支持更多汉字和外文拼音清洗
 GROUP_NOISE = ("棋协", "大师", "候补", "棋士", "组", "男子", "女子", "公开")
 
 
@@ -114,13 +113,14 @@ def best_chinese_name(entry: dict[str, Any]) -> str:
     Chess-Results startlists frequently leak the group label ("男子棋协")
     into the Chinese-name column; the real name often sits in ``name``.
     Anything failing sanitize_person_name stays out of the observation."""
+    # 宽松的正则，在 sanitize 清洗掉尾逗号后再做最长6汉字限制
+    hanzi_only = re.compile(r"^[一-鿿·]{2,6}$")
     for candidate in (clean(entry.get("name")), clean(entry.get("chineseName"))):
         if not candidate or any(noise in candidate for noise in GROUP_NOISE):
             continue
-        if HANZI_NAME_RE.match(candidate):
-            sanitized = sanitize_person_name(candidate)
-            if sanitized:
-                return sanitized
+        sanitized = sanitize_person_name(candidate)
+        if sanitized and hanzi_only.match(sanitized):
+            return sanitized
     return ""
 
 
@@ -180,6 +180,7 @@ def build() -> list[dict[str, str]]:
                 "player_name": clean(entry.get("name")),
                 "chinese_name": best_chinese_name(entry),
                 "pinyin_name": "",
+                "federation": clean(entry.get("federation")),
                 "sex": sex_from_title(title),
                 "birth_year": "",
                 "province": "",

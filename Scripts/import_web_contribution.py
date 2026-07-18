@@ -115,8 +115,8 @@ def main() -> int:
             results.append(import_gap(payload))
         elif kind == "event-tnr":
             results.append(import_event_source(payload))
-        elif kind in {"privacy-request", "identity-clue"}:
-            raise SystemExit(f"{kind} 含身份/隐私信息，必须私下处理，不得写入公开仓库")
+        elif kind in {"privacy-request", "identity-clue", "identity-dispute"}:
+            raise SystemExit(f"{kind} 含身份/隐私/争议信息，必须私下处理，不得写入公开仓库")
         else:
             raise SystemExit(f"该贡献类型需人工审核后入库: {kind}")
     print(json.dumps({"imported": results}, ensure_ascii=False, indent=2))

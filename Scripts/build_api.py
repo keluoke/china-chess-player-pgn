@@ -31,6 +31,7 @@ REGISTRY_PLAYERS = DOCS / "data" / "registry" / "players.json"
 BY_PLAYER_INDEX = DOCS / "data" / "index" / "by-player"
 LEADERBOARDS = DOCS / "data" / "leaderboards.json"
 API_ROOT = DOCS / "api" / "v1"
+API_V2_ROOT = DOCS / "api" / "v2"
 API_VERSION = "1"
 
 LICENSE_BLOCK = {
@@ -175,7 +176,7 @@ def main() -> int:
     # the tree already sits near it, so v2 currently ships the manifest and
     # official-ranking shards only. Per-player/event v2 shards and search
     # shards follow once bulk/PGN assets move to object storage (P2-2).
-    v2_root = DOCS / "api" / "v2"
+    v2_root = API_V2_ROOT
     sid = snapshot_id()
     if LEADERBOARDS.exists():
         boards = read_json(LEADERBOARDS)

@@ -119,9 +119,19 @@ def main() -> int:
             payload["eventYears"] = [years[0]] if len(years) == 1 else [years[0], years[-1]]
         domestic_rows.append(payload)
 
+    import sys
+    if str(ROOT / "Scripts") not in sys.path:
+        sys.path.append(str(ROOT / "Scripts"))
+    try:
+        from snapshot_context import snapshot_id
+        sid = snapshot_id()
+    except Exception:
+        sid = "unknown"
+
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     core = {
         "schemaVersion": 2,
+        "snapshotId": sid,
         "generatedAt": generated_at,
         "competitionYear": youth.get("competitionYear"),
         "ageRule": youth.get("ageRule"),
@@ -132,6 +142,7 @@ def main() -> int:
     write_json(OUTPUT_CORE, core, ensure_ascii=False, separators=(",", ":"))
     write_json(OUTPUT_DOMESTIC, {
         "schemaVersion": 2,
+        "snapshotId": sid,
         "generatedAt": generated_at,
         "players": domestic_rows,
     }, ensure_ascii=False, separators=(",", ":"))
@@ -147,6 +158,7 @@ def main() -> int:
     for key, rows in shards.items():
         write_json(SHARD_ROOT / f"{key}.json", {
             "schemaVersion": 1,
+            "snapshotId": sid,
             "generatedAt": generated_at,
             "players": rows,
         }, ensure_ascii=False, separators=(",", ":"))
