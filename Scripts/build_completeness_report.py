@@ -41,7 +41,10 @@ BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
 OUTPUT = ROOT / "data" / "generated" / "event-completeness-report.json"
 QUEUE_OUTPUT = ROOT / "data" / "generated" / "pgn-supplement-queue.json"
 
-RESULT_CORE_RE = re.compile(r"[01½+\-]")
+# Team-format sections report match points ("2", "2½"), so any digit counts
+# as a result core; letters (e.g. a federation code shifted into the result
+# column) still mark the row invalid.
+RESULT_CORE_RE = re.compile(r"[0-9½+\-]")
 RESULT_LETTER_RE = re.compile(r"[A-JL-Za-jl-z]")
 
 
