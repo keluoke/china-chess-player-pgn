@@ -87,8 +87,9 @@ let domesticSearchReady = false;
 
 initialize();
 // Domestic entities load on demand (review §5.3): prefix shards arrive with
-// the first matching keystroke; the full monolith only backs deep links.
-if (initialSelectedPlayerID().startsWith("domestic-")) loadDomesticSearchIndex();
+// the first matching keystroke or domestic deep link. The full monolith is
+// only a compatibility fallback for older shard-less deployments.
+if (initialSelectedPlayerID().startsWith("domestic-")) ensureDomesticShard(initialSelectedPlayerID());
 loadPresentationGroups();
 renderSearchTrustLine();
 
@@ -184,9 +185,19 @@ async function ensureDomesticShard(query) {
     }
     mergeDomesticRows(payload.players);
     domesticSearchReady = true;
+    resolveRoutedDomesticPlayer();
     if (state.query) renderSearch();
   } catch (_error) {
     domesticShardLoaded.delete(key);
+  }
+}
+
+function resolveRoutedDomesticPlayer() {
+  const routedID = initialSelectedPlayerID();
+  if (!state.selectedFideID && routedID && players.some(player => playerKey(player) === routedID)) {
+    state.selectedFideID = routedID;
+    state.selectedEventID = null;
+    renderDetail();
   }
 }
 
@@ -202,11 +213,7 @@ async function loadDomesticSearchIndex() {
     domesticFullLoaded = false;
   } finally {
     domesticSearchReady = true;
-    const routedID = initialSelectedPlayerID();
-    if (!state.selectedFideID && routedID && players.some(player => playerKey(player) === routedID)) {
-      state.selectedFideID = routedID;
-      renderDetail();
-    }
+    resolveRoutedDomesticPlayer();
     if (state.query) renderSearch();
   }
 }
