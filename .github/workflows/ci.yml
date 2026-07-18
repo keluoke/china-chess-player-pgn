@@ -21,6 +21,20 @@ jobs:
       - name: Byte-compile all scripts
         run: python3 -m compileall -q Scripts
 
+      - name: Run unit and regression tests
+        run: |
+          before=$(git status --porcelain)
+          python3 -m unittest discover -s Scripts/tests
+          after=$(git status --porcelain)
+          if [ "$before" != "$after" ]; then
+            echo "Tests mutated the working tree" >&2
+            git status --short
+            exit 1
+          fi
+
+      - name: Validate local shell entrypoint
+        run: bash -n Scripts/local/refresh.sh
+
       - name: Validate community-maintained data
         run: python3 Scripts/validate_community_data.py
 

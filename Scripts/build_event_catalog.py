@@ -235,8 +235,12 @@ def build_upstream_event(
             event["roundsPendingVerification"] = True
         if detail.get("pgnAvailability"):
             event["pgnAvailability"] = detail.get("pgnAvailability")
+        if detail.get("pgnSourceStatus"):
+            event["pgnSourceStatus"] = detail.get("pgnSourceStatus")
         if detail.get("eventComplete"):
             event["eventComplete"] = True
+        if detail.get("playableComplete"):
+            event["playableComplete"] = True
     if canonical_event_id:
         event["canonicalEventID"] = canonical_event_id
         event["sourceRefs"] = [{"source": source, "tournamentID": tournament_id, "url": event["url"]}]
@@ -486,7 +490,9 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         "detailPath": event.get("detailPath"),
         "roundsPendingVerification": event.get("roundsPendingVerification") or None,
         "pgnAvailability": event.get("pgnAvailability") or None,
+        "pgnSourceStatus": event.get("pgnSourceStatus") or None,
         "eventComplete": event.get("eventComplete") or None,
+        "playableComplete": event.get("playableComplete") or None,
         "canonicalEventID": event.get("canonicalEventID"),
     }
 

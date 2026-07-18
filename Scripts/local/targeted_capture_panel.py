@@ -329,7 +329,6 @@ class Panel:
                 return False, f"来源仍在退避期，{retry_after} 前不能续抓；此限制会阻止产生空失败运行。"
             COLLECTION.mkdir(parents=True, exist_ok=True)
             launcher_log = COLLECTION / "panel-launcher.log"
-            handle = launcher_log.open("a", encoding="utf-8")
             plan = read_json(PLAN_PATH, {})
             targets_by_id = {
                 str(item.get("tournamentID")): item for item in plan.get("targets", [])
@@ -343,14 +342,15 @@ class Panel:
                 command.append("--only-manual")
             else:
                 command.append("--refresh-existing")
-            self.child = subprocess.Popen(
-                command,
-                cwd=ROOT,
-                stdout=handle,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-                text=True,
-            )
+            with launcher_log.open("a", encoding="utf-8") as handle:
+                self.child = subprocess.Popen(
+                    command,
+                    cwd=ROOT,
+                    stdout=handle,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                    text=True,
+                )
             return True, "已启动：将从已保存的失败批次继续；页面会自动刷新。"
 
     def regenerate_plan(self) -> tuple[bool, str]:

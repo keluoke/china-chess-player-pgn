@@ -18,13 +18,21 @@ import hashlib
 import json
 import pathlib
 import time
+from typing import Any
+
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+from stable_json import write_json  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SECRETS = ROOT / ".secrets.local"
 
 SOURCES = {
     "bulk/lichess-broadcast/shards": ROOT / "docs/data/bulk/lichess-broadcast/shards",
+    "events/chess-results": ROOT / "data/generated/chess-results-event-pgn",
 }
+PUBLIC_BASE = "https://data.chessdb.aigclabs.cc"
 
 
 def load_secrets() -> dict[str, str]:
@@ -40,6 +48,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prefix", default="bulk/lichess-broadcast/shards")
     parser.add_argument("--max-seconds", type=int, default=0, help="stop cleanly after N seconds (resume later)")
+    parser.add_argument("--allow-pending", action="store_true",
+                        help="return success when the time budget leaves resumable pending objects")
     parser.add_argument("--verify", action="store_true",
                         help="HEAD every remote object and compare its sha256 metadata against the local file")
     parser.add_argument("--backfill-metadata", action="store_true",
@@ -62,6 +72,7 @@ def main() -> int:
     )
     bucket = secrets.get("R2_BUCKET", "chess-data")
     source_root = SOURCES[args.prefix]
+    receipt_path = ROOT / "data" / "generated" / "r2-object-receipts" / f"{args.prefix.replace('/', '--')}.json"
 
     def sha256_file(path: pathlib.Path) -> str:
         digest = hashlib.sha256()
@@ -140,11 +151,12 @@ def main() -> int:
         confirmed = {}
 
     if args.backfill_metadata:
-        # Original uploads were integrity-checked per request by the SDK; the
-        # sha256 metadata was simply not recorded. Attach it via server-side
-        # copy (no byte re-transfer), then --verify closes the loop.
-        stamped = already = size_mismatch = failed_backfill = 0
+        # Missing metadata cannot prove that same-size remote bytes equal the
+        # local object. Re-upload the local file and verify it by HEAD; never
+        # stamp a guessed local digest onto unverified server-side bytes.
+        stamped = already = failed_backfill = 0
         pending = []
+        receipts: list[dict[str, Any]] = []
         for path in sorted(source_root.glob("*")):
             if not path.is_file():
                 continue
@@ -156,43 +168,37 @@ def main() -> int:
 
             if confirmed.get(key) == fingerprint:
                 already += 1
-                continue
-            if existing.get(key) != stat.st_size:
-                size_mismatch += 1
+                receipts.append({"key": key, "sha256": local_sha, "bytes": stat.st_size,
+                                 "publicURL": f"{PUBLIC_BASE}/{key}"})
                 continue
             if args.max_seconds and time.time() - started > args.max_seconds:
                 pending.append(key)
                 continue
 
             res = get_remote_status(key)
-            if res["status"] == "error":
-                failed_backfill += 1
-                print(f"Error checking remote status for {key}: {res['error']}")
-                continue
-            if res["status"] == "absent":
-                failed_backfill += 1
-                print(f"Object absent from remote: {key}")
-                continue
-
-            if res["sha256"] == local_sha:
+            if res["status"] == "ok" and res["sha256"] == local_sha:
                 confirmed[key] = fingerprint
                 already += 1
+                receipts.append({"key": key, "sha256": local_sha, "bytes": stat.st_size,
+                                 "publicURL": f"{PUBLIC_BASE}/{key}"})
                 continue
 
-            # If SHA mismatched or missing, stamp it
             if not args.dry_run:
                 try:
-                    client.copy_object(
-                        Bucket=bucket, Key=key,
-                        CopySource={"Bucket": bucket, "Key": key},
-                        Metadata={"sha256": local_sha},
-                        MetadataDirective="REPLACE",
+                    client.upload_file(
+                        str(path), bucket, key,
+                        ExtraArgs={"Metadata": {"sha256": local_sha}},
                     )
+                    verified = get_remote_status(key)
+                    if verified["status"] != "ok" or verified["sha256"] != local_sha:
+                        raise RuntimeError("post-upload HEAD checksum mismatch")
                     confirmed[key] = fingerprint
+                    receipts.append({"key": key, "sha256": local_sha, "bytes": stat.st_size,
+                                     "publicURL": f"{PUBLIC_BASE}/{key}"})
                     stamped += 1
                 except Exception as e:
                     failed_backfill += 1
-                    print(f"Failed to copy object for metadata replacement: {key} ({e})")
+                    print(f"Failed to re-upload object for metadata repair: {key} ({e})")
             else:
                 stamped += 1
 
@@ -200,16 +206,23 @@ def main() -> int:
             cache_path.write_text(json.dumps(confirmed))
         except OSError:
             pass
+        if not args.dry_run:
+            write_json(receipt_path, {
+                "schemaVersion": 1, "bucket": bucket, "prefix": args.prefix,
+                "verifiedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "objects": sorted(receipts, key=lambda row: row["key"]),
+            }, ensure_ascii=False, indent=2)
         print(json.dumps({
             "bucket": bucket, "prefix": args.prefix, "metadataStamped": stamped,
-            "alreadyStamped": already, "sizeMismatch": size_mismatch,
+            "alreadyStamped": already,
             "failedBackfill": failed_backfill,
             "pending": len(pending), "seconds": round(time.time() - started, 1),
         }, ensure_ascii=False))
-        return 1 if failed_backfill > 0 else 0
+        return 1 if failed_backfill > 0 or (pending and not args.allow_pending) else 0
 
-    uploaded = skipped = reupload = 0
+    uploaded = skipped = reupload = failures = 0
     pending = []
+    receipts: list[dict[str, Any]] = []
     for path in sorted(source_root.glob("*")):
         if not path.is_file():
             continue
@@ -219,6 +232,8 @@ def main() -> int:
         fingerprint = [stat.st_size, int(stat.st_mtime), local_sha]
         if confirmed.get(key) == fingerprint and key in existing:
             skipped += 1
+            receipts.append({"key": key, "sha256": local_sha, "bytes": stat.st_size,
+                             "publicURL": f"{PUBLIC_BASE}/{key}"})
             continue
         # Budget check BEFORE the expensive head+hash round-trip.
         if args.max_seconds and time.time() - started > args.max_seconds:
@@ -232,6 +247,8 @@ def main() -> int:
             if res["status"] == "ok" and res["sha256"] == local_sha:
                 skipped += 1
                 confirmed[key] = fingerprint
+                receipts.append({"key": key, "sha256": local_sha, "bytes": stat.st_size,
+                                 "publicURL": f"{PUBLIC_BASE}/{key}"})
                 continue
             reupload += 1
 
@@ -250,9 +267,13 @@ def main() -> int:
                 if res_after["status"] == "ok" and res_after["sha256"] == local_sha:
                     confirmed[key] = fingerprint
                     uploaded += 1
+                    receipts.append({"key": key, "sha256": local_sha, "bytes": stat.st_size,
+                                     "publicURL": f"{PUBLIC_BASE}/{key}"})
                 else:
+                    failures += 1
                     print(f"Post-upload HEAD verification failed for {key}")
             except Exception as e:
+                failures += 1
                 print(f"Failed to upload {key}: {e}")
         else:
             uploaded += 1
@@ -261,6 +282,12 @@ def main() -> int:
         cache_path.write_text(json.dumps(confirmed))
     except OSError:
         pass
+    if not args.dry_run:
+        write_json(receipt_path, {
+            "schemaVersion": 1, "bucket": bucket, "prefix": args.prefix,
+            "verifiedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "objects": sorted(receipts, key=lambda row: row["key"]),
+        }, ensure_ascii=False, indent=2)
 
     print(json.dumps({
         "bucket": bucket,
@@ -268,10 +295,12 @@ def main() -> int:
         "uploaded": uploaded,
         "reuploadedAfterShaMiss": reupload,
         "skippedVerified": skipped,
+        "failed": failures,
         "pending": len(pending),
+        "receipt": str(receipt_path),
         "seconds": round(time.time() - started, 1),
     }, ensure_ascii=False))
-    return 0
+    return 1 if failures or (pending and not args.allow_pending) else 0
 
 
 if __name__ == "__main__":

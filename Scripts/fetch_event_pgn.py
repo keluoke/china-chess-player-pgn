@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import datetime as dt
 import json
 import pathlib
 import re
@@ -39,6 +40,7 @@ from sync_static_pgn import (  # noqa: E402
     download_chess_results_pgn,
 )
 from source_policy import require_chess_results_publication  # noqa: E402
+from stable_json import write_json  # noqa: E402
 
 SOURCES_CSV = REPO_ROOT / "data" / "manual" / "chess-results-starting-rank-sources.csv"
 ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
@@ -47,6 +49,7 @@ REGISTRY_PLAYERS = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
 # the canonical machine layer for event completeness.
 EVENT_PGN_ARCHIVE = REPO_ROOT / "data" / "generated" / "chess-results-event-pgn"
 EVENT_DETAILS = REPO_ROOT / "data" / "generated" / "chess-results-event-details"
+COLLECTION_STATUS = REPO_ROOT / "data" / "generated" / "pgn-collection-status.json"
 
 
 # ---------------------------------------------------------------------------
@@ -411,6 +414,7 @@ def main() -> int:
         "playersWritten": 0,
         "errors": [],
     }
+    outcomes: dict[str, dict[str, Any]] = {}
 
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = {
@@ -434,20 +438,26 @@ def main() -> int:
             except Exception as exc:
                 stats["errors"].append(f"tnr{tid}: {exc}")
                 stats["eventsError"] += 1
+                outcomes[tid] = {"status": "fetch-failed", "errorCode": type(exc).__name__}
                 continue
 
             status = res["status"]
             if status == "skipped_existing":
                 stats["eventsSkippedExisting"] += 1
+                outcomes[tid] = {"status": "archive-present"}
             elif status == "empty":
                 stats["eventsEmpty"] += 1
+                outcomes[tid] = {"status": "empty-response", "errorCode": "SOURCE_PGN_EMPTY"}
             elif status == "error":
                 stats["eventsError"] += 1
                 stats["errors"].append(f"tnr{tid}: {res['error']}")
+                outcomes[tid] = {"status": "fetch-failed", "errorCode": "SOURCE_PGN_FETCH_FAILED"}
             elif status == "source_unavailable":
                 stats["eventsSourceUnavailable"] += 1
+                outcomes[tid] = {"status": "not-published", "errorCode": "SOURCE_PGN_NOT_PUBLISHED"}
             else:
                 stats["eventsWithGames"] += 1
+                outcomes[tid] = {"status": "fetched", "games": res["games"]}
                 stats["games"] += res["games"]
                 stats["gamesAssigned"] += res["assigned"]
                 stats["gamesUnassigned"] += res["unassigned"]
@@ -457,6 +467,18 @@ def main() -> int:
                     f"assigned={res['assigned']} unassigned={res['unassigned']}",
                     file=sys.stderr,
                 )
+
+    if not args.dry_run:
+        previous = _read_json(COLLECTION_STATUS)
+        events = previous.get("events") if isinstance(previous.get("events"), dict) else {}
+        attempted_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+        for tid, outcome in outcomes.items():
+            events[tid] = {"tournamentID": tid, "attemptedAt": attempted_at, **outcome}
+        write_json(COLLECTION_STATUS, {
+            "schemaVersion": 1,
+            "updatedAt": attempted_at,
+            "events": dict(sorted(events.items())),
+        }, ensure_ascii=False, indent=2)
 
     print(json.dumps(stats, ensure_ascii=False, indent=2))
     # A structured event is not eligible for a complete batch until its full

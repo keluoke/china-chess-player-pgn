@@ -33,6 +33,14 @@
           <label><span>棋手姓名</span><input name="player_name" autocomplete="name" placeholder="例如：丁天一"></label>
           <label><span>棋手 ID</span><input name="player_id" placeholder="FIDE ID 或 domestic-…"></label>
         </div>
+        <fieldset id="identityDisputeFields" class="contribution-fields" hidden>
+          <legend>身份质疑范围</legend>
+          <div class="two-column">
+            <label><span>记录 A</span><select name="dispute_member_a"></select></label>
+            <label><span>记录 B</span><select name="dispute_member_b"></select></label>
+          </div>
+          <label class="consent-row"><input name="dispute_whole_group" type="checkbox"><span>整组撤销（将当前组内所有记录两两拆分待审）</span></label>
+        </fieldset>
         <label><span>赛事 tnr 或 Chess-Results 链接</span><input name="event_ref" inputmode="url" placeholder="例如：tnr759985 或完整链接"></label>
         <label><span>待补数据关键词</span><input name="data_query" placeholder="未命中的姓名、拼音、FIDE ID 或赛事"></label>
         <label><span>赛事中文名 / 参赛组别</span><input name="event_name" placeholder="例如：2023 全国棋协大师赛南京站 · 女子一级组"></label>

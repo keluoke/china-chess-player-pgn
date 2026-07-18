@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import hashlib
 import json
 import os
 import pathlib
@@ -44,6 +45,8 @@ EVENT_PGN = ROOT / "data" / "generated" / "chess-results-event-pgn"
 BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
 OUTPUT = ROOT / "data" / "generated" / "event-completeness-report.json"
 QUEUE_OUTPUT = ROOT / "data" / "generated" / "pgn-supplement-queue.json"
+COLLECTION_STATUS = ROOT / "data" / "generated" / "pgn-collection-status.json"
+EVENT_PGN_RECEIPT = ROOT / "data" / "generated" / "r2-object-receipts" / "events--chess-results.json"
 # Two lead registries: the repo copy holds sanitized, reviewable leads
 # (event id + coverage claim only); URLs/private hints stay in the
 # maintainer-local file outside the repository.
@@ -76,6 +79,23 @@ def read_json(path: pathlib.Path, default: Any) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return default
+
+
+def verified_event_archives() -> set[str]:
+    receipt = read_json(EVENT_PGN_RECEIPT, {})
+    verified: set[str] = set()
+    for item in receipt.get("objects", []) or []:
+        key = clean(item.get("key"))
+        match = re.fullmatch(r"events/chess-results/tnr(\d+)\.pgn", key)
+        if not match:
+            continue
+        path = EVENT_PGN / f"tnr{match.group(1)}.pgn"
+        if not path.is_file():
+            continue
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if digest == clean(item.get("sha256")):
+            verified.add(match.group(1))
+    return verified
 
 
 def is_bye(pairing: dict[str, Any]) -> bool:
@@ -149,13 +169,28 @@ def parse_event_archive(tid: str) -> list[dict[str, str]]:
 def match_archive_games(
     payload: dict[str, Any],
     archive_games: list[dict[str, str]],
-    played_keys: set[tuple[str, str]],
-    advertised_keys: set[tuple[str, str]],
+    played_keys: set[tuple[str, str]] | None = None,
+    advertised_keys: set[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Match archived games to pairings by natural key round+board.
 
     Name equality (either orientation) verifies the key; name-only matching is
     the explicit fallback and is reported separately (review §2.2)."""
+    if played_keys is None or advertised_keys is None:
+        inferred_played: set[tuple[str, str]] = set()
+        inferred_advertised: set[tuple[str, str]] = set()
+        for round_row in payload.get("rounds") or []:
+            rid = round_number(round_row.get("round"))
+            for pairing in round_row.get("pairings") or []:
+                board = clean(pairing.get("board"))
+                if not board or is_bye(pairing) or is_forfeit(pairing.get("result")):
+                    continue
+                inferred_played.add((rid, board))
+                if pairing.get("hasPGN"):
+                    inferred_advertised.add((rid, board))
+        played_keys = inferred_played if played_keys is None else played_keys
+        advertised_keys = inferred_advertised if advertised_keys is None else advertised_keys
+
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
     by_names: dict[tuple[str, tuple[str, str]], dict[str, Any]] = {}
     for round_row in payload.get("rounds") or []:
@@ -266,6 +301,8 @@ def load_pgn_leads() -> dict[str, dict[str, str]]:
 def event_report(
     payload: dict[str, Any],
     by_player_games: dict[tuple[str, tuple[str, str]], set[str]],
+    collection_status: dict[str, Any] | None = None,
+    public_archive_verified: bool = False,
 ) -> dict[str, Any]:
     tid = clean(payload.get("tournamentID"))
     players = payload.get("players") or []
@@ -274,6 +311,7 @@ def event_report(
     round_count = int(payload.get("roundCount") or 0)
     capture_status = clean(payload.get("captureStatus")) or "complete"
     is_team = payload.get("format") == "team"
+    collection_status = collection_status or {}
 
     roster_nos = {clean(p.get("playerNo")) for p in players if clean(p.get("playerNo"))}
     pairings = [p for r in rounds for p in (r.get("pairings") or [])]
@@ -301,6 +339,7 @@ def event_report(
                     advertised_keys.add((rid, board))
 
     # --- referential integrity (independent expected values, review §2.4) ---
+    standing_nos = {clean(s.get("playerNo")) for s in standings if clean(s.get("playerNo"))}
     standing_ref_violations = sum(
         1 for s in standings
         if clean(s.get("playerNo")) and roster_nos and clean(s.get("playerNo")) not in roster_nos
@@ -364,7 +403,7 @@ def event_report(
             "refViolations": standing_ref_violations,
             "status": (
                 "unknown" if is_team or not players else
-                "complete" if standings and standing_ref_violations == 0 and len(standings) >= max(1, int(len(players) * 0.5))
+                "complete" if standings and standing_ref_violations == 0 and standing_nos == roster_nos
                 else "partial"
             ),
         },
@@ -466,7 +505,10 @@ def event_report(
                 if key in by_player_games:
                     playable_pairings_count += 1
 
-    playable_complete = publishable and len(played) > 0 and playable_pairings_count >= len(played)
+    playable_complete = publishable and len(played) > 0 and (
+        (archive_status == "matched-full" and public_archive_verified)
+        or playable_pairings_count >= len(played)
+    )
     event_complete = publishable and archive_status == "matched-full"
 
     return {
@@ -479,6 +521,10 @@ def event_report(
         "pgnAvailability": availability,
         "pgnCoverageScope": scope,
         "archiveStatus": archive_status,
+        "pgnSourceStatus": collection_status.get("status") or "not-attempted",
+        "pgnSourceErrorCode": collection_status.get("errorCode") or None,
+        "pgnLastAttemptedAt": collection_status.get("attemptedAt") or None,
+        "publicArchiveVerified": public_archive_verified,
         "playableComplete": playable_complete,
         "eventComplete": event_complete,
         "counts": {
@@ -514,11 +560,16 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
         archive = report["archiveStatus"]
         counts = report["counts"]
         lead = leads.get(tid)
+        source_status = report.get("pgnSourceStatus")
         priority = action = None
         if archive in ("archived-unmatched", "matched-partial"):
             priority, action = "P0", "offline-rematch-existing-archive"
         elif availability in ("advertised-full", "advertised-partial") and archive == "missing":
             priority, action = "P0", "re-fetch-or-import-advertised-boards"
+        elif source_status in ("fetch-failed", "empty-response") and archive == "missing":
+            priority, action = "P0", "retry-source-pgn-fetch"
+        elif source_status == "not-published" and availability.startswith("advertised"):
+            priority, action = "P0", "audit-contradictory-source-pgn-state"
         elif availability == "advertised-partial" and archive == "matched-advertised-complete":
             continue  # promised boards done
         elif archive == "locally-recoverable":
@@ -535,6 +586,9 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
             "resultsStatus": report["resultsStatus"],
             "pgnAvailability": availability,
             "archiveStatus": archive,
+            "pgnSourceStatus": source_status,
+            "pgnSourceErrorCode": report.get("pgnSourceErrorCode"),
+            "pgnLastAttemptedAt": report.get("pgnLastAttemptedAt"),
             "playedGames": counts["playedGames"],
             "advertisedPGN": counts["advertisedPGN"],
             "archivedGames": counts["archivedGames"],
@@ -563,13 +617,21 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
 
 def build() -> dict[str, Any]:
     games_index = by_player_game_index()
+    public_archives = verified_event_archives()
+    status_payload = read_json(COLLECTION_STATUS, {})
+    collection_statuses = status_payload.get("events") if isinstance(status_payload.get("events"), dict) else {}
     reports = []
     for path in sorted(DETAILS.glob("tnr*.json")):
         payload = read_json(path, {})
         tid = clean(payload.get("tournamentID"))
         if not tid:
             continue
-        reports.append(event_report(payload, games_index.get(tid, {})))
+        reports.append(event_report(
+            payload,
+            games_index.get(tid, {}),
+            collection_statuses.get(tid, {}),
+            tid in public_archives,
+        ))
     summary = {
         "events": len(reports),
         "resultsComplete": sum(1 for r in reports if r["resultsStatus"] == "results-complete"),
@@ -578,10 +640,12 @@ def build() -> dict[str, Any]:
         "eventComplete": sum(1 for r in reports if r["eventComplete"]),
         "pgnAvailability": {},
         "archiveStatus": {},
+        "pgnSourceStatus": {},
     }
     for report in reports:
         summary["pgnAvailability"][report["pgnAvailability"]] = summary["pgnAvailability"].get(report["pgnAvailability"], 0) + 1
         summary["archiveStatus"][report["archiveStatus"]] = summary["archiveStatus"].get(report["archiveStatus"], 0) + 1
+        summary["pgnSourceStatus"][report["pgnSourceStatus"]] = summary["pgnSourceStatus"].get(report["pgnSourceStatus"], 0) + 1
     return {
         "schemaVersion": 2,
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),

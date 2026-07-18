@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import hashlib
 import json
 import pathlib
 import re
@@ -14,6 +15,7 @@ from typing import Any
 from apply_aliases_to_registry import sanitize_person_name
 from snapshot_context import stamp
 from stable_json import write_json
+from fetch_event_pgn import parse_headers, split_games
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -21,6 +23,8 @@ GENERATED = ROOT / "data" / "generated" / "chess-results-event-details"
 COMPLETENESS = ROOT / "data" / "generated" / "event-completeness-report.json"
 OUTPUT = ROOT / "docs" / "data" / "index" / "event-details"
 BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
+EVENT_PGN = ROOT / "data" / "generated" / "chess-results-event-pgn"
+EVENT_PGN_RECEIPT = ROOT / "data" / "generated" / "r2-object-receipts" / "events--chess-results.json"
 REGISTRY = ROOT / "docs" / "data" / "registry" / "players.json"
 MAPPINGS = ROOT / "data" / "community" / "tournament-name-mappings.csv"
 PUBLIC_REGIONS = (
@@ -191,6 +195,54 @@ def event_game_lookup() -> dict[tuple[str, str, tuple[str, str]], dict[str, Any]
     return lookup
 
 
+def event_archive_game_lookup() -> dict[tuple[str, str, str], dict[str, Any]]:
+    """Verified public event archive games keyed by tournament, round, board.
+
+    The complete event archive is independent of FIDE identity, so games
+    involving two no-FIDE players remain directly replayable.  An R2 HEAD
+    receipt with a matching local SHA is required before a public URL leaves
+    this projection.
+    """
+    receipt = read_json(EVENT_PGN_RECEIPT, {})
+    receipts = {
+        clean(item.get("key")): item
+        for item in receipt.get("objects", []) or []
+        if clean(item.get("key")) and clean(item.get("sha256"))
+    }
+    lookup: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for path in sorted(EVENT_PGN.glob("tnr*.pgn")):
+        tid = path.stem.removeprefix("tnr")
+        key = f"events/chess-results/{path.name}"
+        item = receipts.get(key)
+        if not item or hashlib.sha256(path.read_bytes()).hexdigest() != clean(item.get("sha256")):
+            continue
+        if not clean(item.get("publicURL")):
+            continue
+        public_url = f"./api/event-pgn?tnr={tid}&sha={clean(item.get('sha256'))[:16]}"
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for index, game in enumerate(split_games(text)):
+            headers = parse_headers(game)
+            round_id = round_number(headers.get("Round"))
+            board = clean(headers.get("Board"))
+            if not round_id or not board:
+                continue
+            digest = hashlib.sha256(game.strip().encode("utf-8")).hexdigest()
+            lookup[(tid, round_id, board)] = {
+                "id": f"game-{digest[:20]}",
+                "tournamentID": tid,
+                "round": round_id,
+                "board": board,
+                "white": clean(headers.get("White")),
+                "black": clean(headers.get("Black")),
+                "result": clean(headers.get("Result")),
+                "pgnPath": public_url,
+                "gameIndex": index,
+                "sha256": digest,
+                "playerFideIDs": [],
+            }
+    return lookup
+
+
 def attach_fide_id(side: dict[str, Any], names: dict[str, str]) -> None:
     if side.get("fideID"):
         return
@@ -244,6 +296,8 @@ def public_completeness(report: dict[str, Any]) -> dict[str, Any]:
     return {
         "resultsStatus": report.get("resultsStatus"),
         "pgnAvailability": report.get("pgnAvailability"),
+        "pgnSourceStatus": report.get("pgnSourceStatus"),
+        "pgnLastAttemptedAt": report.get("pgnLastAttemptedAt"),
         "pgnCoverageScope": report.get("pgnCoverageScope"),
         "archiveStatus": report.get("archiveStatus"),
         "nonByePairings": counts.get("nonByePairings"),
@@ -261,6 +315,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
     names = name_index()
     registry = registry_index()
     games = event_game_lookup()
+    archive_games = event_archive_game_lookup()
     completeness = completeness_index()
     manifest_events: list[dict[str, Any]] = []
     totals = {
@@ -307,6 +362,24 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
                     normalize_name(pairing.get("black", {}).get("name")),
                 ])))
                 local_game = games.get(key)
+                archive_game = archive_games.get((tid, round_id, clean(pairing.get("board"))))
+                if archive_game:
+                    pairing_names = tuple(sorted([
+                        normalize_name(pairing.get("white", {}).get("name")),
+                        normalize_name(pairing.get("black", {}).get("name")),
+                    ]))
+                    archive_names = tuple(sorted([
+                        normalize_name(archive_game.get("white")),
+                        normalize_name(archive_game.get("black")),
+                    ]))
+                    if not any(archive_names) or archive_names == pairing_names:
+                        archive_game = dict(archive_game)
+                        archive_game["playerFideIDs"] = sorted({
+                            clean(pairing.get(side, {}).get("fideID"))
+                            for side in ("white", "black")
+                            if clean(pairing.get(side, {}).get("fideID"))
+                        })
+                        local_game = archive_game
                 if local_game:
                     pairing["localGame"] = local_game
                     totals["pairingsWithLocalPGN"] += 1
@@ -328,6 +401,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
             "standingCount": len(payload.get("standings", [])),
             **({"roundsPendingVerification": True} if payload.get("roundsPendingVerification") else {}),
             **({"pgnAvailability": report.get("pgnAvailability")} if report else {}),
+            **({"pgnSourceStatus": report.get("pgnSourceStatus")} if report else {}),
             **({"eventComplete": True} if report.get("eventComplete") else {}),
             **({"playableComplete": True} if report.get("playableComplete") else {}),
         })

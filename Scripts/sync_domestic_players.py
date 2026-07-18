@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from collections import Counter
 from typing import Any
 
+from apply_aliases_to_registry import sanitize_person_name
 from stable_json import write_json as write_stable_json
 
 
@@ -28,6 +29,23 @@ OBSERVATIONS_CSV = REPO_ROOT / "data" / "generated" / "person-observations.csv"
 LINKS_CSV = REPO_ROOT / "data" / "manual" / "player-identity-links.csv"
 OUTPUT_ROOT = REPO_ROOT / "docs" / "data" / "registry" / "domestic"
 FIDE_REGISTRY = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
+
+
+def validate_observation_manifest(path: pathlib.Path) -> None:
+    meta_path = path.with_name(f"{path.stem}.meta.json")
+    if not path.exists():
+        return
+    if not meta_path.is_file():
+        raise ValueError(f"{path} has no schema/hash manifest: {meta_path}")
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid observation manifest: {meta_path}") from exc
+    if meta.get("schemaVersion") != 2:
+        raise ValueError(f"unsupported observation schemaVersion: {meta.get('schemaVersion')}")
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest != clean(meta.get("sha256")):
+        raise ValueError("person-observations.csv does not match its manifest sha256")
 
 
 @dataclass
@@ -42,7 +60,6 @@ class Sighting:
     player_name: str
     chinese_name: str
     pinyin_name: str
-    federation: str
     sex: str
     birth_year: int | None
     province: str
@@ -53,6 +70,8 @@ class Sighting:
     source_url: str
     notes: str
     rounds: str = ""
+    federation: str = ""
+    event_scope: str = ""
 
     def payload(self) -> dict[str, Any]:
         return without_empty(
@@ -171,13 +190,20 @@ def main() -> int:
     args = parser.parse_args()
 
     sightings = read_sightings(args.sightings)
-    observation_stats = merge_observations(sightings, read_sightings(args.observations))
+    validate_observation_manifest(args.observations)
+    observation_stats = merge_observations(
+        sightings,
+        read_sightings(args.observations, required_columns={"federation", "event_scope"}),
+    )
     links = read_links(args.links)
     players = build_players(sightings, links)
     assess_identity_confidence(players)
     name_groups = build_identity_name_groups(players)
     identity_candidates, conflict_edges = build_identity_candidates(players)
     presentation_groups = build_presentation_groups(players, identity_candidates, conflict_edges)
+    placeholder_groups = [group for group in presentation_groups if clean(group.get("displayName")) == "姓名待核验"]
+    if placeholder_groups:
+        raise SystemExit(f"placeholder identity entered presentation groups: {len(placeholder_groups)}")
     fide_candidates = build_fide_candidates(players, args.fide_registry)
     write_output(players, sightings, links, name_groups, identity_candidates, fide_candidates, args.output_root, args.dry_run, conflict_edges, presentation_groups)
 
@@ -245,6 +271,7 @@ def merge_observations(sightings: list[Sighting], observations: list[Sighting]) 
             existing.age_stage = existing.age_stage or observation.age_stage
             existing.sex = existing.sex or observation.sex
             existing.federation = existing.federation or observation.federation
+            existing.event_scope = existing.event_scope or observation.event_scope
             enriched += 1
         else:
             sightings.append(observation)
@@ -252,12 +279,16 @@ def merge_observations(sightings: list[Sighting], observations: list[Sighting]) 
     return {"enriched": enriched, "appended": appended}
 
 
-def read_sightings(path: pathlib.Path) -> list[Sighting]:
+def read_sightings(path: pathlib.Path, required_columns: set[str] | None = None) -> list[Sighting]:
     if not path.exists():
         return []
     sightings: list[Sighting] = []
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        for row in csv.DictReader(handle):
+        reader = csv.DictReader(handle)
+        missing = sorted((required_columns or set()) - set(reader.fieldnames or []))
+        if missing:
+            raise ValueError(f"{path} uses an incompatible schema; missing columns: {', '.join(missing)}")
+        for row in reader:
             if not any((value or "").strip() for value in row.values()):
                 continue
             sighting = Sighting(
@@ -282,6 +313,7 @@ def read_sightings(path: pathlib.Path) -> list[Sighting]:
                 source_url=clean(row.get("source_url")),
                 notes=clean(row.get("notes")),
                 rounds=clean(row.get("rounds")),
+                event_scope=clean(row.get("event_scope")),
             )
             sightings.append(sighting)
     return sightings
@@ -378,7 +410,8 @@ def build_players(sightings: list[Sighting], links: list[IdentityLink]) -> list[
         fed = str(sighting.federation or "").strip().upper()
         if fed and fed not in {"CHN", "FIDE", "FID", "???"}:
             continue
-        if is_international_event(sighting.event_id):
+        international = sighting.event_scope == "international" or is_international_event(sighting.event_id)
+        if international:
             if not (fed == "CHN" or link is not None or fide_id):
                 continue
 
@@ -399,13 +432,16 @@ def build_players(sightings: list[Sighting], links: list[IdentityLink]) -> list[
 
 def apply_sighting(player: DomesticPlayer, sighting: Sighting) -> None:
     player.sightings.append(sighting)
-    player.chinese_name = player.chinese_name or sighting.chinese_name
+    chinese_name = sanitize_person_name(sighting.chinese_name) or sanitize_person_name(sighting.player_name)
+    player.chinese_name = player.chinese_name or chinese_name
     player.pinyin_name = player.pinyin_name or sighting.pinyin_name
 
-    # 避免将未通过 sanitize 的包含中文的 player_name 直接提升为 displayName
+    # A mixed/noisy Chinese cell is evidence, not an identity label.  Keep it
+    # out of every public name/alias field instead of replacing it with a
+    # second synthetic identity such as "姓名待核验".
     has_chinese = bool(re.search(r"[\u4e00-\u9fff]", sighting.player_name))
-    fallback_name = "姓名待核验" if has_chinese else sighting.player_name
-    player.display_name = player.display_name or sighting.chinese_name or fallback_name or sighting.pinyin_name or player.domestic_id
+    latin_name = "" if has_chinese else sighting.player_name
+    player.display_name = player.display_name or chinese_name or latin_name or sighting.pinyin_name or player.domestic_id
 
     player.sex = player.sex or sighting.sex
     player.birth_year = player.birth_year or sighting.birth_year
@@ -415,8 +451,8 @@ def apply_sighting(player: DomesticPlayer, sighting: Sighting) -> None:
         [
             player.domestic_id,
             player.fide_id,
-            sighting.player_name,
-            sighting.chinese_name,
+            latin_name,
+            chinese_name,
             sighting.pinyin_name,
             sighting.pinyin_name.replace(" ", ""),
         ]
@@ -492,7 +528,9 @@ def assess_identity_confidence(players: list[DomesticPlayer]) -> None:
 
 
 def identity_name(player: DomesticPlayer) -> str:
-    name = player.chinese_name or player.display_name or player.pinyin_name
+    name = player.chinese_name or player.pinyin_name or player.display_name
+    if not name or name == player.domestic_id or name == "姓名待核验":
+        return ""
     return re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", clean(name).casefold())
 
 
@@ -574,9 +612,7 @@ def score_rate(sighting: Sighting) -> float | None:
 def parse_date(value: str) -> dt.date | None:
     text = str(value or "").strip()
     if re.fullmatch(r"\d{4}", text):
-        # Season-level date: mid-year anchor keeps the 24-month promotion
-        # window meaningful without fabricating an exact day.
-        return dt.date(int(text), 7, 1)
+        return None
     try:
         return dt.date.fromisoformat(text[:10])
     except (TypeError, ValueError):
@@ -585,6 +621,11 @@ def parse_date(value: str) -> dt.date | None:
 
 def exact_date(value: str) -> bool:
     return bool(re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(value or "").strip()[:10]))
+
+
+def date_year(value: str) -> int | None:
+    match = re.match(r"^(\d{4})", str(value or "").strip())
+    return int(match.group(1)) if match else None
 
 
 def promotion_evidence(left: DomesticPlayer, right: DomesticPlayer) -> dict[str, Any] | None:
@@ -600,25 +641,43 @@ def promotion_evidence(left: DomesticPlayer, right: DomesticPlayer) -> dict[str,
             low_level = group_level(low_sighting)
             rate = score_rate(low_sighting)
             low_date = parse_date(low_sighting.event_date)
-            if not low_level or rate is None or rate < PROMOTION_SCORE_RATE or low_date is None:
+            low_year = date_year(low_sighting.event_date)
+            if not low_level or rate is None or rate < PROMOTION_SCORE_RATE or low_year is None:
                 continue
             for high_sighting in higher.sightings:
                 high_level = group_level(high_sighting)
                 high_date = parse_date(high_sighting.event_date)
-                if high_level != low_level + 1 or high_date is None:
+                high_year = date_year(high_sighting.event_date)
+                if high_level != low_level + 1 or high_year is None:
                     continue
-                gap = (high_date - low_date).days
-                if 0 <= gap <= PROMOTION_WINDOW_DAYS:
-                    is_exact = exact_date(low_sighting.event_date) and exact_date(high_sighting.event_date)
+                is_exact = bool(low_date and high_date)
+                if is_exact:
+                    gap = (high_date - low_date).days
+                    ordered = 0 <= gap <= PROMOTION_WINDOW_DAYS
+                    months = round(gap / 30)
+                    precision = "exact"
+                elif high_year > low_year:
+                    gap = (high_year - low_year) * 365
+                    ordered = gap <= PROMOTION_WINDOW_DAYS
+                    months = (high_year - low_year) * 12
+                    precision = "year-ordered"
+                elif high_year == low_year:
+                    ordered = False
+                    months = None
+                    precision = "same-year-unordered"
+                else:
+                    continue
+                if ordered or precision == "same-year-unordered":
                     candidate = {
                         "lowerGroup": low_sighting.group,
                         "scoreRate": round(rate, 3),
                         "higherGroup": high_sighting.group,
-                        "monthsBetween": round(gap / 30),
+                        "monthsBetween": months,
                         "exactDates": is_exact,
-                        "datePrecision": "exact" if is_exact else "year/order",
+                        "ordered": ordered,
+                        "datePrecision": precision,
                     }
-                    if best is None or (candidate["exactDates"] and not best["exactDates"]):
+                    if best is None or (candidate["ordered"] and not best["ordered"]) or (candidate["exactDates"] and not best["exactDates"]):
                         best = candidate
                     if best["exactDates"]:
                         return best
@@ -680,12 +739,16 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
     if promotion:
         weights["promotionPattern"] = 35
         evidence_kinds += 1
-        desc = (
-            f"{promotion['lowerGroup']} 得分率 {promotion['scoreRate']:.0%} → "
-            f"{promotion['monthsBetween']} 个月后出现在 {promotion['higherGroup']}"
-        )
-        if promotion.get("datePrecision") == "year/order":
-            desc += "（同年后续赛事，顺序待精确日期核验）"
+        if promotion.get("ordered"):
+            desc = (
+                f"{promotion['lowerGroup']} 得分率 {promotion['scoreRate']:.0%} → "
+                f"{promotion['monthsBetween']} 个月后出现在 {promotion['higherGroup']}"
+            )
+        else:
+            desc = (
+                f"同年在 {promotion['lowerGroup']} 得分率 {promotion['scoreRate']:.0%} 且出现于 "
+                f"{promotion['higherGroup']}，先后顺序待精确日期核验"
+            )
         summary.append(desc)
 
     combined_continuity = age_stage_continuity([*left.sightings, *right.sightings])
@@ -715,14 +778,15 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
     # pattern, sexes consistent, no hard conflicts) is high-confidence BY
     # ITSELF. Display aggregation additionally requires the promotion order
     # to rest on exact event dates or year/order precision.
-    club_plus_promotion = bool(weights.get("clubConsistency")) and bool(promotion) and sexes_consistent(left, right)
+    ordered_promotion = bool(promotion and promotion.get("ordered"))
+    club_plus_promotion = bool(weights.get("clubConsistency")) and ordered_promotion and sexes_consistent(left, right)
     if club_plus_promotion or (score >= 70 and evidence_kinds >= 2):
         tier = "suggested-high"
     elif score >= 45:
         tier = "suggested-medium"
     else:
         tier = "low"
-    presentation_eligible = bool(club_plus_promotion and promotion and (promotion.get("exactDates") or promotion.get("datePrecision") == "year/order"))
+    presentation_eligible = bool(club_plus_promotion)
     return {
         "presentationEligible": presentation_eligible,
         "candidateID": "identity-candidate-" + hashlib.sha256(f"{left.domestic_id}|{right.domestic_id}".encode("utf-8")).hexdigest()[:16],
@@ -1131,7 +1195,7 @@ def write_domestic_search_and_shards(output_root: pathlib.Path, players: list[Do
             for key in (
                 "id", "domesticID", "displayName", "chineseName", "pinyin",
                 "federation", "sex", "birthYear", "entityType", "aliases",
-                "publicIdentityStatus", "sightingCount",
+                "domesticEligibilityBasis", "publicIdentityStatus", "sightingCount",
             )
         } | {
             "detailPath": detail_path,

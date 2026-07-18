@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import hashlib
 import json
 import pathlib
 import re
@@ -29,15 +30,15 @@ EVENTS_CATALOG = ROOT / "data" / "generated" / "events-catalog.json"
 MAPPINGS = ROOT / "data" / "community" / "tournament-name-mappings.csv"
 COMPLETENESS = ROOT / "data" / "generated" / "event-completeness-report.json"
 OUTPUT = ROOT / "data" / "generated" / "person-observations.csv"
+OUTPUT_META = ROOT / "data" / "generated" / "person-observations.meta.json"
 COLUMNS = [
     "sighting_id", "source", "event_id", "event_name", "event_date", "group",
-    "age_stage", "player_name", "chinese_name", "pinyin_name", "federation", "sex",
+    "age_stage", "player_name", "chinese_name", "pinyin_name", "federation", "event_scope", "sex",
     "birth_year", "province", "club", "rank", "score", "rounds",
     "source_player_no", "source_url", "notes",
 ]
 
 AGE_RE = re.compile(r"U\s?(8|10|12|14|16|18|20)\b", re.IGNORECASE)
-HANZI_NAME_RE = re.compile(r"^[Open一-鿿·]{2,100}$") # 宽放汉字匹配，以便支持更多汉字和外文拼音清洗
 GROUP_NOISE = ("棋协", "大师", "候补", "棋士", "组", "男子", "女子", "公开")
 
 
@@ -162,6 +163,15 @@ def build() -> list[dict[str, str]]:
             for row in payload.get("standings") or []
             if clean(row.get("playerNo"))
         }
+        federations = {
+            clean(entry.get("federation")).upper()
+            for entry in payload.get("players") or []
+            if clean(entry.get("federation"))
+        }
+        event_scope = "international" if any(
+            federation not in {"CHN", "FIDE", "FID", "???"}
+            for federation in federations
+        ) else "domestic-or-unknown"
         for entry in payload.get("players") or []:
             if clean(entry.get("fideID")):
                 continue
@@ -181,6 +191,7 @@ def build() -> list[dict[str, str]]:
                 "chinese_name": best_chinese_name(entry),
                 "pinyin_name": "",
                 "federation": clean(entry.get("federation")),
+                "event_scope": event_scope,
                 "sex": sex_from_title(title),
                 "birth_year": "",
                 "province": "",
@@ -202,6 +213,14 @@ def main() -> int:
     report_events = len((read_json(COMPLETENESS, {}) or {}).get("events") or [])
     visible = len(list(DETAILS.glob("tnr*.json")))
     if report_events and visible < report_events and OUTPUT.exists():
+        with OUTPUT.open("r", encoding="utf-8-sig", newline="") as handle:
+            columns = set(next(csv.reader(handle), []))
+        missing = sorted(set(COLUMNS) - columns)
+        if missing:
+            raise SystemExit(
+                "private capture layer incomplete and committed observations use an incompatible schema; "
+                f"missing columns: {', '.join(missing)}"
+            )
         print(json.dumps({
             "skipped": "private capture layer incomplete; keeping committed observations",
             "visibleDetails": visible,
@@ -211,9 +230,18 @@ def main() -> int:
     rows = build()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with OUTPUT.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=COLUMNS)
+        writer = csv.DictWriter(handle, fieldnames=COLUMNS, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
+    digest = hashlib.sha256(OUTPUT.read_bytes()).hexdigest()
+    OUTPUT_META.write_text(json.dumps({
+        "schemaVersion": 2,
+        "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
+        "rowCount": len(rows),
+        "sha256": digest,
+        "requiredColumns": COLUMNS,
+        "sourceDetailCount": visible,
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     with_rank = sum(1 for row in rows if row["rank"])
     with_name = sum(1 for row in rows if row["chinese_name"])
     print(json.dumps({

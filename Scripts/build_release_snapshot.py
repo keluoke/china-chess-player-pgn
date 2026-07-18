@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import pathlib
@@ -30,6 +31,48 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SNAPSHOT_JSON = ROOT / "docs" / "data" / "snapshot.json"
+
+
+def file_fact(path: pathlib.Path) -> dict:
+    if not path.is_file():
+        return {"path": str(path.relative_to(ROOT)), "present": False}
+    raw = path.read_bytes()
+    fact = {
+        "path": str(path.relative_to(ROOT)),
+        "present": True,
+        "bytes": len(raw),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+    }
+    if path.suffix == ".json":
+        try:
+            payload = json.loads(raw)
+            if isinstance(payload, dict):
+                fact["schemaVersion"] = payload.get("schemaVersion")
+                if isinstance(payload.get("events"), list):
+                    fact["eventCount"] = len(payload["events"])
+                elif isinstance(payload.get("events"), dict):
+                    fact["eventCount"] = len(payload["events"])
+            elif isinstance(payload, list):
+                fact["rowCount"] = len(payload)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            fact["schemaVersion"] = "invalid"
+    return fact
+
+
+def input_facts() -> list[dict]:
+    paths = [
+        ROOT / "docs/data/registry/players.json",
+        ROOT / "docs/data/registry/manifest.json",
+        ROOT / "data/generated/person-observations.csv",
+        ROOT / "data/generated/person-observations.meta.json",
+        ROOT / "data/generated/event-completeness-report.json",
+        ROOT / "data/generated/pgn-collection-status.json",
+        ROOT / "data/generated/r2-object-receipts/events--chess-results.json",
+        ROOT / "data/manual/domestic-player-sightings.csv",
+        ROOT / "data/manual/player-identity-links.csv",
+        ROOT / "data/manual/presentation-disputes.csv",
+    ]
+    return [file_fact(path) for path in paths]
 
 
 def step(cmd: list[str], *, optional_script: str | None = None) -> dict:
@@ -93,6 +136,7 @@ def main() -> int:
     # --- PGN / event fact layers ---------------------------------------
     steps.append(step([py, "Scripts/sync_static_pgn.py"]))
     steps.append(step([py, "Scripts/build_static_player_pgn.py"]))
+    steps.append(step([py, "Scripts/build_pgn_collection_status.py"], optional_script="Scripts/build_pgn_collection_status.py"))
     # CompletenessReport decides the publishable event set BEFORE any public
     # event projection or identity layer consumes event facts.
     steps.append(step([py, "Scripts/build_completeness_report.py"], optional_script="Scripts/build_completeness_report.py"))
@@ -128,19 +172,24 @@ def main() -> int:
 
     # Snapshot is recorded FIRST (so the consistency gate can include it),
     # then verified: every public derived manifest must reference this id.
+    facts = input_facts()
     SNAPSHOT_JSON.write_text(json.dumps({
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "snapshotId": sid,
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
+        "producerVersion": "build-release-snapshot-v3",
+        "inputs": facts,
         "steps": steps,
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     steps.append(step([py, "Scripts/validate_snapshot_consistency.py"]))
 
     # Re-record with the gate outcome included.
     SNAPSHOT_JSON.write_text(json.dumps({
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "snapshotId": sid,
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
+        "producerVersion": "build-release-snapshot-v3",
+        "inputs": facts,
         "steps": steps,
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({

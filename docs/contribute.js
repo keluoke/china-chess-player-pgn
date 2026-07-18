@@ -16,11 +16,26 @@ let payload = null;
 let fallbackIssueURL = "";
 
 const params = new URLSearchParams(location.search);
+const disputeFields = document.querySelector("#identityDisputeFields");
+const disputeMembers = (params.get("members") || "").split(",").map(value => value.trim()).filter(Boolean);
 form.elements.player_id.value = params.get("player") || "";
 form.elements.player_name.value = params.get("name") || "";
 form.elements.data_query.value = params.get("query") || "";
 if (params.get("type") && [...form.elements.type.options].some(option => option.value === params.get("type"))) form.elements.type.value = params.get("type");
 else if (params.get("player")) form.elements.type.value = "identity-clue";
+configureDisputeFields();
+form.elements.type.addEventListener("change", configureDisputeFields);
+
+function configureDisputeFields() {
+  const active = form.elements.type.value === "identity-dispute";
+  disputeFields.hidden = !active;
+  for (const name of ["dispute_member_a", "dispute_member_b"]) {
+    const select = form.elements[name];
+    select.required = active;
+    select.innerHTML = disputeMembers.map(member => `<option value="${escapeAttribute(member)}">${escapeHTML(member)}</option>`).join("");
+  }
+  if (disputeMembers.length > 1) form.elements.dispute_member_b.selectedIndex = 1;
+}
 
 form.addEventListener("submit", async event => {
   event.preventDefault();
@@ -28,7 +43,19 @@ form.addEventListener("submit", async event => {
   const extra = {};
   if (data.type === "identity-dispute") {
     if (params.get("group")) extra.groupID = params.get("group");
-    if (params.get("members")) extra.memberIDs = params.get("members").split(",");
+    if (data.dispute_whole_group) {
+      extra.scope = "whole-group";
+      extra.memberIDs = disputeMembers;
+    } else {
+      const pair = [data.dispute_member_a, data.dispute_member_b].filter(Boolean);
+      if (pair.length !== 2 || pair[0] === pair[1]) {
+        status.textContent = "请选择两条不同的记录。";
+        return;
+      }
+      extra.scope = "pair";
+      extra.memberIDs = pair;
+      extra.pairHash = await identityPairHash(pair[0], pair[1]);
+    }
   }
   payload = Object.fromEntries(Object.entries({
     schema: "china-chess-community-contribution/v1",
@@ -66,6 +93,12 @@ form.addEventListener("submit", async event => {
   githubButton.hidden = false;
   await submitCurrentPayload();
 });
+
+async function identityPairHash(a, b) {
+  const value = [a, b].sort().join("|");
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
 
 githubButton.addEventListener("click", submitCurrentPayload);
 

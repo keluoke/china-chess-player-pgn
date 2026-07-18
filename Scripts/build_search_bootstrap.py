@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import pathlib
+import re
 
 from stable_json import write_json
 
@@ -34,6 +35,10 @@ def shard_keys(row: dict) -> list[str]:
     its first hanzi character and in its pinyin-initial bucket, so the
     client only downloads what the current query prefix can match."""
     keys: set[str] = set()
+    domestic_id = str(row.get("domesticID") or "").lower()
+    match = re.fullmatch(r"domestic-([0-9a-f]+)", domestic_id)
+    if match:
+        keys.add(f"id{match.group(1)[0]}")
     name = str(row.get("displayName") or row.get("chineseName") or "")
     if name and "一" <= name[0] <= "鿿":
         keys.add(f"h{ord(name[0]) % HANZI_BUCKETS:02x}")
@@ -93,7 +98,8 @@ def main() -> int:
         # event observations landed, so every redundant byte matters. The
         # client reconstructs id/detailPath/entityType from domesticID+shard.
         payload = {key: row.get(key) for key in (
-            "domesticID", "displayName", "sightingCount", "publicLocation"
+            "domesticID", "displayName", "sightingCount", "publicLocation",
+            "federation", "domesticEligibilityBasis"
         ) if row.get(key) not in (None, "", False)}
         if row.get("id") and row.get("id") != row.get("domesticID"):
             payload["id"] = row["id"]

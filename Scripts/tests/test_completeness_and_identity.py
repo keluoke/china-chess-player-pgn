@@ -21,6 +21,8 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "Scripts"))
 
 import build_completeness_report as ccr  # noqa: E402
+import build_event_details as bed  # noqa: E402
+import build_search_bootstrap as bsb  # noqa: E402
 import sync_domestic_players as sdp  # noqa: E402
 import validate_snapshot_consistency as vsc  # noqa: E402
 
@@ -220,6 +222,69 @@ def entity(domestic_id, sightings):
     return player
 
 
+class DomesticObservationSafetyTest(unittest.TestCase):
+    def test_foreign_federation_never_enters_domestic_registry(self):
+        foreign = sighting(federation="IND", event_scope="international")
+        self.assertEqual(sdp.build_players([foreign], []), [])
+
+    def test_unknown_federation_in_international_event_is_excluded(self):
+        unknown = sighting(federation="", event_scope="international")
+        self.assertEqual(sdp.build_players([unknown], []), [])
+
+    def test_noisy_chinese_cell_never_becomes_placeholder_identity(self):
+        noisy = sighting(
+            player_name="2025年公开组,张三",
+            chinese_name="",
+            pinyin_name="",
+            event_scope="domestic-or-unknown",
+        )
+        player = sdp.build_players([noisy], [])[0]
+        self.assertEqual(player.display_name, player.domestic_id)
+        self.assertEqual(sdp.identity_name(player), "")
+        self.assertNotIn("姓名待核验", player.aliases)
+        self.assertNotIn(noisy.player_name, player.aliases)
+
+    def test_observation_schema_requires_federation_and_scope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "observations.csv"
+            path.write_text("sighting_id,player_name\ns-1,张三\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "event_scope, federation"):
+                sdp.read_sightings(path, required_columns={"federation", "event_scope"})
+
+
+class PublicEventArchiveTest(unittest.TestCase):
+    def test_verified_archive_creates_no_fide_game_reference(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            archive_root = root / "event-pgn"
+            archive_root.mkdir()
+            archive = archive_root / "tnr999001.pgn"
+            archive.write_text(
+                '[Event "Example"]\n[Round "1"]\n[Board "2"]\n'
+                '[White "张三"]\n[Black "李四"]\n[Result "1-0"]\n\n1. e4 e5 1-0\n',
+                encoding="utf-8",
+            )
+            digest = __import__("hashlib").sha256(archive.read_bytes()).hexdigest()
+            receipt = root / "receipt.json"
+            receipt.write_text(json.dumps({"objects": [{
+                "key": "events/chess-results/tnr999001.pgn",
+                "sha256": digest,
+                "publicURL": "https://data.example/events/chess-results/tnr999001.pgn",
+            }]}), encoding="utf-8")
+            with mock.patch.object(bed, "EVENT_PGN", archive_root), \
+                 mock.patch.object(bed, "EVENT_PGN_RECEIPT", receipt):
+                lookup = bed.event_archive_game_lookup()
+            game = lookup[("999001", "1", "2")]
+            self.assertEqual(game["playerFideIDs"], [])
+            self.assertEqual(game["pgnPath"], f"./api/event-pgn?tnr=999001&sha={digest[:16]}")
+
+
+class DomesticSearchShardTest(unittest.TestCase):
+    def test_stable_id_has_dedicated_prefix_shard(self):
+        keys = bsb.shard_keys({"domesticID": "domestic-a123", "displayName": "张三"})
+        self.assertIn("ida", keys)
+
+
 def promotion_pair(exact_dates=True, sex_b="M", concurrent=False, club_b="X俱乐部"):
     """Entity A: 65%+ in 一级组; entity B: later 候补组 appearance, same club."""
     date_low = "2024-05-01" if exact_dates else "2024"
@@ -256,12 +321,21 @@ class PresentationGroupTest(unittest.TestCase):
         self.assertEqual(groups[0]["members"], ["domestic-aaa", "domestic-bbb"])
         self.assertEqual(groups[0]["identityBasis"], "presentation-high")
 
-    def test_year_only_dates_do_not_aggregate(self):
+    def test_cross_year_dates_prove_order_and_aggregate(self):
         a, b = promotion_pair(exact_dates=False)
         candidates, conflicts = self._candidates(a, b)
-        self.assertFalse(candidates[0]["presentationEligible"])
+        self.assertTrue(candidates[0]["presentationEligible"])
         groups = sdp.build_presentation_groups([a, b], candidates, conflicts)
-        self.assertEqual(groups, [])
+        self.assertEqual(len(groups), 1)
+
+    def test_same_year_without_exact_dates_stays_review_only(self):
+        a, b = promotion_pair(exact_dates=False)
+        b.sightings[0].event_date = "2024"
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(conflicts, [])
+        self.assertFalse(candidates[0]["presentationEligible"])
+        self.assertEqual(candidates[0]["queueTier"], "suggested-medium")
+        self.assertEqual(sdp.build_presentation_groups([a, b], candidates, conflicts), [])
 
     def test_concurrent_event_blocks_grouping(self):
         a, b = promotion_pair(concurrent=True)
