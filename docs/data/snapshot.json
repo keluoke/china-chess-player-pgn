@@ -1,11 +1,130 @@
 {
   "schemaVersion": 2,
-  "snapshotId": "20260718T050000Z-r2round",
-  "generatedAt": "2026-07-18T12:28:08+00:00",
+  "snapshotId": "20260718T123337Z-f29e83b8",
+  "generatedAt": "2026-07-18T12:34:45+00:00",
   "steps": [
     {
-      "command": "manual sharded rebuild (sandbox 45s limit)",
-      "status": "built"
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/apply_aliases_to_registry.py",
+      "status": "built",
+      "seconds": 0.4
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_release.py --registry docs/data/registry --corrections data/community/name-corrections.csv",
+      "status": "built",
+      "seconds": 0.1
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_static_pgn.py",
+      "status": "built",
+      "seconds": 1.7
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_static_player_pgn.py",
+      "status": "built",
+      "seconds": 41.8
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_completeness_report.py",
+      "status": "skipped",
+      "detail": "private capture layer incomplete",
+      "seconds": 0.0
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_person_observations.py",
+      "status": "skipped",
+      "detail": "private capture layer incomplete; keeping committed observations",
+      "seconds": 0.0
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_domestic_players.py",
+      "status": "built",
+      "seconds": 8.7
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_domestic_progressions.py",
+      "status": "built",
+      "seconds": 1.2
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_event_details.py",
+      "status": "reprojected",
+      "detail": "manifest re-derived (875 events)",
+      "seconds": 0.9
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_event_catalog.py",
+      "status": "built",
+      "seconds": 0.8
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/archive_rating_observations.py",
+      "status": "built",
+      "seconds": 0.1
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_domestic_event_queue.py",
+      "status": "built",
+      "seconds": 0.2
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_data_quality_audit.py",
+      "status": "built",
+      "seconds": 1.2
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/reconcile_pgn_sources.py --write-audit",
+      "status": "built",
+      "seconds": 1.0
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_search_bootstrap.py",
+      "status": "built",
+      "seconds": 1.0
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_public_metrics.py",
+      "status": "built",
+      "seconds": 0.0
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_leaderboards.py",
+      "status": "built",
+      "seconds": 0.1
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_api.py",
+      "status": "built",
+      "seconds": 0.8
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_changelog.py",
+      "status": "built",
+      "seconds": 0.0
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_dashboard.py",
+      "status": "built",
+      "seconds": 0.2
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_authority.py",
+      "status": "built",
+      "seconds": 1.5
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_metrics.py",
+      "status": "built",
+      "seconds": 0.0
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_privacy.py",
+      "status": "built",
+      "seconds": 6.2
+    },
+    {
+      "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_snapshot_consistency.py",
+      "status": "built",
+      "seconds": 0.0
     }
   ]
 }
