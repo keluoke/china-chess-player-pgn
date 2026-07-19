@@ -56,6 +56,9 @@ form.addEventListener("submit", async event => {
       extra.memberIDs = pair;
       extra.pairHash = await identityPairHash(pair[0], pair[1]);
     }
+  } else if (data.type === "identity-clue" && params.get("group")) {
+    extra.groupID = params.get("group");
+    extra.memberIDs = disputeMembers;
   }
   payload = Object.fromEntries(Object.entries({
     schema: "china-chess-community-contribution/v1",

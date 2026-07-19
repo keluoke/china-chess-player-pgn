@@ -698,14 +698,8 @@ case "$command" in
     ;;
 
   reindex)
-    state "offline-diagnostic" "本地离线重建；不提交、不推送"
-    py Scripts/sync_domestic_players.py
-    [ -f Scripts/build_domestic_progressions.py ] && py Scripts/build_domestic_progressions.py
-    py Scripts/sync_static_pgn.py
-    py Scripts/build_static_player_pgn.py
-    [ -f Scripts/build_event_details.py ] && py Scripts/build_event_details.py
-    [ -f Scripts/build_event_catalog.py ] && py Scripts/build_event_catalog.py
-    [ -f Scripts/build_data_quality_audit.py ] && py Scripts/build_data_quality_audit.py
+    state "offline-diagnostic" "本地全快照离线重建；不提交、不推送"
+    py Scripts/build_release_snapshot.py
     PUSH_SUMMARY="离线诊断重建完成；工作区改动未自动提交"
     ;;
 

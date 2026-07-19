@@ -66,6 +66,8 @@ def input_facts() -> list[dict]:
         ROOT / "data/generated/person-observations.csv",
         ROOT / "data/generated/person-observations.meta.json",
         ROOT / "data/generated/event-completeness-report.json",
+        ROOT / "data/generated/chess-results-player-events.csv",
+        ROOT / "data/generated/chess-results-player-name-map.csv",
         ROOT / "data/generated/pgn-collection-status.json",
         ROOT / "data/generated/r2-object-receipts/events--chess-results.json",
         ROOT / "data/manual/domestic-player-sightings.csv",
@@ -140,6 +142,9 @@ def main() -> int:
     # CompletenessReport decides the publishable event set BEFORE any public
     # event projection or identity layer consumes event facts.
     steps.append(step([py, "Scripts/build_completeness_report.py"], optional_script="Scripts/build_completeness_report.py"))
+    # The event roster projection resolves same-event FIDE IDs used by the
+    # display-only identity candidate layer below.
+    steps.append(step([py, "Scripts/build_event_details.py"], optional_script="Scripts/build_event_details.py"))
 
     # --- identity layers (observations BEFORE domestic sync, review §3.2) --
     steps.append(step([py, "Scripts/build_person_observations.py"], optional_script="Scripts/build_person_observations.py"))
@@ -148,8 +153,8 @@ def main() -> int:
         steps.append(step([py, "Scripts/build_domestic_progressions.py"], optional_script="Scripts/build_domestic_progressions.py"))
 
     # --- public event projections --------------------------------------
-    steps.append(step([py, "Scripts/build_event_details.py"], optional_script="Scripts/build_event_details.py"))
     steps.append(step([py, "Scripts/build_event_catalog.py"], optional_script="Scripts/build_event_catalog.py"))
+    steps.append(step([py, "Scripts/build_player_participation.py"], optional_script="Scripts/build_player_participation.py"))
 
     # --- maintainer queues / audits ------------------------------------
     steps.append(step([py, "Scripts/archive_rating_observations.py"], optional_script="Scripts/archive_rating_observations.py"))

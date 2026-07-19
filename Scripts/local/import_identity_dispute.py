@@ -41,7 +41,7 @@ def import_dispute(payload: dict[str, Any], target: pathlib.Path = DISPUTES_CSV)
     scope = clean(payload.get("scope")) or "pair"
     if len(member_ids) > 2 and scope != "whole-group":
         raise ValueError("多成员质疑必须显式选择 scope=whole-group")
-    if any(not re.fullmatch(r"domestic-[0-9a-f]+", value) for value in member_ids):
+    if any(not re.fullmatch(r"(?:domestic-[0-9a-f]+|fide-\d+)", value) for value in member_ids):
         raise ValueError("memberID 格式非法")
 
     rows: list[dict[str, str]] = []

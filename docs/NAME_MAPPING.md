@@ -26,9 +26,13 @@
   同名从不自动合并。
 - 机器候选卡（弱证据：同俱乐部 +25、低组得分率 ≥65% 且 24 个月内升组 +35、
   年龄连续 +15、出生年一致 +20、公开地区一致 +10；硬冲突 -100 禁边）输出到
-  `data/generated/audit/identity-candidates.json`，仅用于排序人工审核队列。
+  仓库外 `identity-workbench/identity-candidates.json`，仅用于排序人工审核队列。
 - 人工确认后写 `player-identity-links.csv`；拒绝或不可能的合并记入
-  `identity-conflict-edges.json`（负链接），防止同一错误建议反复出现。
+  `presentation-disputes.csv`（负链接/tombstone），防止同一错误建议反复出现。
+
+高置信候选可以进入前端默认展示聚合，但不构成永久身份链接。FIDE 中文名候选
+使用 `suggestedChineseName` 单独投影；重复赛事一致时可暂定展示，审核接受后才写
+`player-aliases.csv`。完整审核步骤见 `MAINTAINER_IDENTITY_REVIEW_GUIDE.md`。
 
 ## 权威规则（不变）
 
