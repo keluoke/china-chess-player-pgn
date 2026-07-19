@@ -129,7 +129,7 @@ def write_output(rows: dict[str, list[dict[str, Any]]], output_root: pathlib.Pat
             "snapshotId": sid,
             "generatedAt": generated_at,
             "players": players,
-        })
+        }, separators=(",", ":"))
     for stale in bucket_root.glob("*.json"):
         if stale not in expected:
             stale.unlink()
