@@ -30,11 +30,15 @@ runs:
         rsync -a --delete \
           --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
           --exclude 'data/registry/domestic/identity-review.json' \
+          --exclude 'data/search-bootstrap-domestic.json' \
           docs/ "$out"/
 
         # The domestic identity review queue contains maintenance-only scores
         # and adjudication evidence. It is intentionally not a public frontend
         # artifact (and omitting it also keeps the deploy package bounded).
+        # Domestic search is served from Hanzi, pinyin, and stable-ID shards;
+        # the 6 MiB monolith remains in the repository as an offline/legacy
+        # fallback but is redundant in a deployment containing those shards.
 
         # Bulk stage packs can legitimately exceed the per-file hosting limit
         # (e.g. the adult broadcast pack). They are secondary downloads — the
