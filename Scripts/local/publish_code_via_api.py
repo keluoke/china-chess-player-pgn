@@ -37,7 +37,7 @@ except ImportError:  # pragma: no cover - system CA remains the fallback
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-DEFAULT_EXCLUDES = ("docs/data/", "data/generated/", "data/incoming/")
+DEFAULT_EXCLUDES = ("docs/data/", "docs/api/", "data/generated/", "data/incoming/")
 
 
 @dataclass

@@ -43,6 +43,17 @@ class IdentityDisputeImportTest(unittest.TestCase):
             with target.open(encoding="utf-8") as handle:
                 self.assertEqual(len(list(csv.DictReader(handle))), 3)
 
+    def test_fide_to_domestic_dispute_is_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = pathlib.Path(directory) / "presentation-disputes.csv"
+            result = module.import_dispute({
+                "type": "identity-dispute",
+                "groupID": "pg-fide-example",
+                "memberIDs": ["fide-8640491", "domestic-3718d907d01f"],
+            }, target)
+            self.assertEqual(result["pairsAdded"], 1)
+
+
 
 if __name__ == "__main__":
     unittest.main()

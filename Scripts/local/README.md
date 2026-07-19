@@ -78,6 +78,11 @@ bash Scripts/local/refresh.sh receipts
 
 # 仅本地诊断，不自动提交或推送
 bash Scripts/local/refresh.sh reindex
+
+# 查看统一身份审核队列（只读，不改 registry/人工 CSV）
+python3 Scripts/local/identity_review.py --limit 30
+python3 Scripts/local/identity_review.py --type domestic-fide-link --limit 20
+python3 Scripts/local/identity_review.py --show <candidateID>
 ```
 
 `crawl*`、`pgn*`、`events*`、`aliases`、`promote`、`reconcile`、`verify` 和

@@ -29,6 +29,11 @@ OBSERVATIONS_CSV = REPO_ROOT / "data" / "generated" / "person-observations.csv"
 LINKS_CSV = REPO_ROOT / "data" / "manual" / "player-identity-links.csv"
 OUTPUT_ROOT = REPO_ROOT / "docs" / "data" / "registry" / "domestic"
 FIDE_REGISTRY = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
+PLAYER_EVENTS_CSV = REPO_ROOT / "data" / "generated" / "chess-results-player-events.csv"
+PLAYER_NAME_MAP_CSV = REPO_ROOT / "data" / "generated" / "chess-results-player-name-map.csv"
+PROMOTION_REVIEW = REPO_ROOT / "data" / "generated" / "audit" / "promotion-review.json"
+PRESENTATION_NAMES = REPO_ROOT / "docs" / "data" / "identity" / "presentation-names.json"
+PUBLIC_EVENT_DETAILS = REPO_ROOT / "docs" / "data" / "index" / "event-details"
 
 
 def validate_observation_manifest(path: pathlib.Path) -> None:
@@ -186,6 +191,9 @@ def main() -> int:
     parser.add_argument("--links", type=pathlib.Path, default=LINKS_CSV)
     parser.add_argument("--output-root", type=pathlib.Path, default=OUTPUT_ROOT)
     parser.add_argument("--fide-registry", type=pathlib.Path, default=FIDE_REGISTRY)
+    parser.add_argument("--player-events", type=pathlib.Path, default=PLAYER_EVENTS_CSV)
+    parser.add_argument("--player-name-map", type=pathlib.Path, default=PLAYER_NAME_MAP_CSV)
+    parser.add_argument("--promotion-review", type=pathlib.Path, default=PROMOTION_REVIEW)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -200,12 +208,27 @@ def main() -> int:
     assess_identity_confidence(players)
     name_groups = build_identity_name_groups(players)
     identity_candidates, conflict_edges = build_identity_candidates(players)
-    presentation_groups = build_presentation_groups(players, identity_candidates, conflict_edges)
+    chinese_name_candidates = build_chinese_name_candidates(
+        args.fide_registry, args.player_events, args.player_name_map,
+    )
+    fide_candidates = build_fide_candidates(
+        players,
+        args.fide_registry,
+        args.player_events,
+        chinese_name_candidates,
+        args.promotion_review,
+    )
+    presentation_groups = build_presentation_groups(
+        players, identity_candidates, conflict_edges, fide_candidates,
+    )
     placeholder_groups = [group for group in presentation_groups if clean(group.get("displayName")) == "姓名待核验"]
     if placeholder_groups:
         raise SystemExit(f"placeholder identity entered presentation groups: {len(placeholder_groups)}")
-    fide_candidates = build_fide_candidates(players, args.fide_registry)
-    write_output(players, sightings, links, name_groups, identity_candidates, fide_candidates, args.output_root, args.dry_run, conflict_edges, presentation_groups)
+    write_output(
+        players, sightings, links, name_groups, identity_candidates,
+        fide_candidates, chinese_name_candidates, args.output_root,
+        args.dry_run, conflict_edges, presentation_groups,
+    )
 
     stats = {
         "sightings": len(sightings),
@@ -220,6 +243,10 @@ def main() -> int:
         "uniqueNameCount": len({identity_name(player) for player in players if identity_name(player)}),
         "sameNameGroups": len(name_groups),
         "fideLinkCandidates": len(fide_candidates),
+        "highPriorityFideLinkCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in fide_candidates),
+        "chineseNameCandidates": len(chinese_name_candidates),
+        "highPriorityChineseNameCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in chinese_name_candidates),
+        "conflictingChineseNameCandidates": sum(candidate.get("queueTier") == "conflict" for candidate in chinese_name_candidates),
         "identityCandidates": len(identity_candidates),
         "highPriorityIdentityCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in identity_candidates),
         "presentationGroups": len(presentation_groups),
@@ -883,6 +910,7 @@ def build_presentation_groups(
     players: list[DomesticPlayer],
     identity_candidates: list[dict[str, Any]],
     conflict_edges: list[dict[str, Any]],
+    fide_candidates: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """High-confidence display-only aggregation (review §4.1–4.5).
 
@@ -900,6 +928,55 @@ def build_presentation_groups(
         if len(edge.get("domesticIDs") or []) == 2
     }
     by_id = {player.domestic_id: player for player in players}
+    groups: list[dict[str, Any]] = []
+
+    # A domestic observation may project onto a verified FIDE card without
+    # becoming a permanent identity link.  This closes the gap where the
+    # source already ties the name to a FIDE ID (or a distinctive club agrees)
+    # but the reviewed player-identity-links.csv row does not exist yet.
+    fide_groups: dict[str, list[dict[str, Any]]] = {}
+    for candidate in fide_candidates or []:
+        if not candidate.get("presentationEligible"):
+            continue
+        domestic_id = clean(candidate.get("domesticID"))
+        fide_id = clean(candidate.get("candidateFideID"))
+        if not domestic_id or not fide_id:
+            continue
+        if pair_hash(f"fide-{fide_id}", domestic_id) in disputes:
+            continue
+        fide_groups.setdefault(fide_id, []).append(candidate)
+
+    fide_members: set[str] = set()
+    for fide_id, candidates in sorted(fide_groups.items()):
+        member_list = sorted({clean(card.get("domesticID")) for card in candidates if clean(card.get("domesticID"))})
+        internal_block = any(
+            pair_hash(member_list[i], member_list[j]) in conflict_pairs
+            or pair_hash(member_list[i], member_list[j]) in disputes
+            for i in range(len(member_list)) for j in range(i + 1, len(member_list))
+        )
+        if internal_block or not member_list:
+            continue
+        fide_members.update(member_list)
+        suggested_names = {
+            clean(card.get("suggestedChineseName")) for card in candidates
+            if clean(card.get("suggestedChineseName"))
+        }
+        display_name = clean(candidates[0].get("candidateFideName"))
+        groups.append({
+            "groupID": "pg-fide-" + hashlib.sha256(f"{fide_id}|{'|'.join(member_list)}".encode("utf-8")).hexdigest()[:12],
+            "canonicalFideID": fide_id,
+            "members": member_list,
+            "memberRefs": [
+                {"id": member, "shard": hashlib.sha256(member.encode("utf-8")).hexdigest()[:2]}
+                for member in member_list
+            ],
+            "disputeMembers": [f"fide-{fide_id}", *member_list],
+            "displayName": display_name,
+            "suggestedChineseName": next(iter(suggested_names)) if len(suggested_names) == 1 else "",
+            "sightingCount": sum(len(by_id[m].sightings) for m in member_list if m in by_id),
+            "identityBasis": "presentation-high-fide",
+            "disputeEntry": True,
+        })
 
     parent: dict[str, str] = {}
 
@@ -919,6 +996,8 @@ def build_presentation_groups(
         ids = candidate.get("domesticIDs") or []
         if len(ids) != 2:
             continue
+        if ids[0] in fide_members or ids[1] in fide_members:
+            continue
         hash_value = pair_hash(ids[0], ids[1])
         if hash_value in disputes or hash_value in conflict_pairs:
             continue
@@ -929,7 +1008,6 @@ def build_presentation_groups(
     for a, b in eligible_edges:
         components.setdefault(find(a), set()).update([a, b])
 
-    groups: list[dict[str, Any]] = []
     for members in components.values():
         member_list = sorted(members)
         # Mutual-exclusion check: any internal blocked/conflict pair kills
@@ -961,11 +1039,105 @@ def build_presentation_groups(
     return groups
 
 
-def build_fide_candidates(players: list[DomesticPlayer], registry_path: pathlib.Path) -> list[dict[str, Any]]:
+def normalized_name(value: Any) -> str:
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", clean(value).casefold())
+
+
+GENERIC_CLUBS = {
+    "", "0", "a2", "b3", "china", "chn", "open", "中国",
+    "北京市", "上海市", "天津市", "重庆市", "福建省", "广东省",
+    "河北省", "河南省", "江苏省", "四川省", "浙江省",
+}
+
+
+def distinctive_club(value: Any) -> str:
+    club = normalize_club(value)
+    return club if len(club) >= 4 and club not in GENERIC_CLUBS else ""
+
+
+def read_player_event_evidence(path: pathlib.Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        return [
+            {key: clean(value) for key, value in row.items()}
+            for row in csv.DictReader(handle)
+            if clean(row.get("fide_id")) and clean(row.get("tnrid"))
+        ]
+
+
+def build_chinese_name_candidates(
+    registry_path: pathlib.Path,
+    player_events_path: pathlib.Path = PLAYER_EVENTS_CSV,
+    player_name_map_path: pathlib.Path = PLAYER_NAME_MAP_CSV,
+) -> list[dict[str, Any]]:
+    """Build reviewable FIDE->Chinese-name evidence without mutating registry."""
+    if not registry_path.exists():
+        return []
+    registry = {
+        clean(row.get("fideID")): row
+        for row in json.loads(registry_path.read_text(encoding="utf-8"))
+        if clean(row.get("fideID"))
+    }
+    evidence: dict[str, dict[str, set[str]]] = {}
+    for row in read_player_event_evidence(player_events_path):
+        fide_id = row["fide_id"]
+        if fide_id not in registry or clean(registry[fide_id].get("chineseName")):
+            continue
+        chinese_name = sanitize_person_name(row.get("player_name"))
+        if chinese_name:
+            evidence.setdefault(fide_id, {}).setdefault(chinese_name, set()).add(row["tnrid"])
+
+    # The name-map is an additional machine observation.  Only its dedicated
+    # chinese_name cell is accepted; dirty name_variants never flow forward.
+    if player_name_map_path.exists():
+        with player_name_map_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                fide_id = clean(row.get("fide_id"))
+                if fide_id not in registry or clean(registry[fide_id].get("chineseName")):
+                    continue
+                chinese_name = sanitize_person_name(row.get("chinese_name"))
+                if chinese_name:
+                    event_id = clean(row.get("evidence_tnrid")) or "name-map"
+                    evidence.setdefault(fide_id, {}).setdefault(chinese_name, set()).add(event_id)
+
+    result: list[dict[str, Any]] = []
+    for fide_id, names in evidence.items():
+        event_ids = sorted({event_id for ids in names.values() for event_id in ids if event_id != "name-map"})
+        conflict = len(names) > 1
+        chinese_name = next(iter(names)) if len(names) == 1 else ""
+        repeated = bool(chinese_name and len(names[chinese_name] - {"name-map"}) >= 2)
+        tier = "conflict" if conflict else "suggested-high" if repeated else "suggested-medium"
+        result.append({
+            "candidateID": f"chinese-name-{fide_id}",
+            "fideID": fide_id,
+            "registryName": clean(registry[fide_id].get("displayName") or registry[fide_id].get("name")),
+            "suggestedChineseName": chinese_name,
+            "candidateNames": sorted(names),
+            "eventCount": len(event_ids),
+            "eventIDs": event_ids,
+            "queueTier": tier,
+            "presentationEligible": repeated and not conflict,
+            "reviewRequired": True,
+            "warning": "仅为展示/审核候选；接受后写入 player-aliases.csv，禁止直接覆盖 registry",
+        })
+    order = {"conflict": 0, "suggested-high": 1, "suggested-medium": 2}
+    result.sort(key=lambda row: (order.get(row["queueTier"], 9), -row["eventCount"], row["fideID"]))
+    return result
+
+
+def build_fide_candidates(
+    players: list[DomesticPlayer],
+    registry_path: pathlib.Path,
+    player_events_path: pathlib.Path = PLAYER_EVENTS_CSV,
+    chinese_name_candidates: list[dict[str, Any]] | None = None,
+    promotion_review_path: pathlib.Path = PROMOTION_REVIEW,
+    public_event_details_root: pathlib.Path = PUBLIC_EVENT_DETAILS,
+) -> list[dict[str, Any]]:
     if not registry_path.exists():
         return []
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
-    name_hits: dict[str, dict[str, str]] = {}
+    name_hits: dict[str, dict[str, Any]] = {}
     ambiguous: set[str] = set()
     for fide_player in registry:
         fide_id = clean(fide_player.get("fideID"))
@@ -973,16 +1145,71 @@ def build_fide_candidates(players: list[DomesticPlayer], registry_path: pathlib.
             continue
         values = [fide_player.get("chineseName"), fide_player.get("displayName"), *(fide_player.get("aliases") or [])]
         for value in values:
-            key = re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", clean(value).casefold())
+            key = normalized_name(value)
             if not key:
                 continue
             existing = name_hits.get(key)
             if existing and existing["fideID"] != fide_id:
                 ambiguous.add(key)
             else:
-                name_hits[key] = {"fideID": fide_id, "displayName": clean(fide_player.get("displayName") or fide_player.get("name"))}
+                name_hits[key] = {
+                    "fideID": fide_id,
+                    "displayName": clean(fide_player.get("displayName") or fide_player.get("name")),
+                    "standard": int(fide_player.get("standard") or 0),
+                    "title": clean(fide_player.get("title")),
+                }
     for key in ambiguous:
         name_hits.pop(key, None)
+
+    # Public event details have already resolved roster rows to registry FIDE
+    # IDs.  Reusing that explicit same-event projection closes cases such as
+    # Jin Hongtao at tnr990921, where the raw Chinese-language row omitted the
+    # ID but the bilingual/public roster identifies the FIDE card.
+    event_detail_fides: dict[tuple[str, str], set[str]] = {}
+    if public_event_details_root.is_dir():
+        for path in public_event_details_root.glob("tnr*.json"):
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            event_id = clean(payload.get("tournamentID")) or path.stem.removeprefix("tnr")
+            for row in [*(payload.get("players") or []), *(payload.get("standings") or [])]:
+                fide_id = clean(row.get("fideID"))
+                name_key = normalized_name(row.get("chineseName") or row.get("displayName") or row.get("name"))
+                if fide_id and name_key:
+                    event_detail_fides.setdefault((event_id, name_key), set()).add(fide_id)
+
+    player_events = read_player_event_evidence(player_events_path)
+    event_ids_by_fide: dict[str, set[str]] = {}
+    event_names_by_fide: dict[str, dict[str, set[str]]] = {}
+    event_clubs_by_fide: dict[str, set[str]] = {}
+    event_name_fides: dict[str, set[str]] = {}
+    for row in player_events:
+        fide_id = row["fide_id"]
+        name_key = normalized_name(row.get("player_name"))
+        event_ids_by_fide.setdefault(fide_id, set()).add(row["tnrid"])
+        if name_key:
+            event_names_by_fide.setdefault(fide_id, {}).setdefault(name_key, set()).add(row["tnrid"])
+            event_name_fides.setdefault(name_key, set()).add(fide_id)
+        club = distinctive_club(row.get("club"))
+        if club:
+            event_clubs_by_fide.setdefault(fide_id, set()).add(club)
+
+    suggested_names = {
+        row["fideID"]: row.get("suggestedChineseName", "")
+        for row in chinese_name_candidates or []
+        if row.get("presentationEligible") and row.get("suggestedChineseName")
+    }
+    promotion_qualified: set[str] = set()
+    if promotion_review_path.exists():
+        try:
+            promotion_qualified = {
+                clean(row.get("playerID"))
+                for row in json.loads(promotion_review_path.read_text(encoding="utf-8"))
+                if row.get("promotionQualified") and clean(row.get("playerID"))
+            }
+        except (OSError, json.JSONDecodeError):
+            promotion_qualified = set()
 
     domestic_name_counts = Counter(identity_name(player) for player in players if identity_name(player))
     result: list[dict[str, Any]] = []
@@ -996,21 +1223,63 @@ def build_fide_candidates(players: list[DomesticPlayer], registry_path: pathlib.
             continue
         weights = {"uniqueExactFideName": 25}
         score = 25
+        evidence: list[str] = ["注册表唯一精确同名"]
         if len({s.event_id for s in player.sightings if s.event_id}) > 1:
             weights["crossEvent"] = 30
             score += 30
         if cluster_size == 1:
             weights["uniqueDomesticName"] = 25
             score += 25
+        fide_id = hit["fideID"]
+        domestic_events = {
+            clean(s.event_id).removeprefix("chess-results-tnr").removeprefix("tnr")
+            for s in player.sightings if clean(s.event_id)
+        }
+        direct_events = set(domestic_events & event_ids_by_fide.get(fide_id, set()))
+        direct_events.update(
+            event_id for event_id in domestic_events
+            if event_detail_fides.get((event_id, name_key)) == {fide_id}
+        )
+        direct_events = sorted(direct_events)
+        if direct_events:
+            weights["directSameEventFide"] = 50
+            score += 50
+            evidence.append(f"同一赛事直接关联 FIDE（{len(direct_events)} 项）")
+        source_name_events = event_names_by_fide.get(fide_id, {}).get(name_key, set())
+        unambiguous_source_name = source_name_events and len(event_name_fides.get(name_key, set())) == 1
+        if unambiguous_source_name:
+            value = 45 if len(source_name_events) >= 2 else 35
+            weights["sourceFideNameEvidence"] = value
+            score += value
+            evidence.append(f"FIDE 搜索结果中同名出现 {len(source_name_events)} 项赛事")
+        own_clubs = {distinctive_club(s.club) for s in player.sightings if distinctive_club(s.club)}
+        club_matches = sorted(own_clubs & event_clubs_by_fide.get(fide_id, set()))
+        if club_matches:
+            weights["distinctiveClubMatch"] = 40
+            score += 40
+            evidence.append("特色参赛单位一致")
+        if player.domestic_id in promotion_qualified:
+            weights["qualifiedProgression"] = 20
+            score += 20
+            evidence.append("达到晋级线并存在升级轨迹")
+        score = max(0, min(100, score))
+        presentation_eligible = bool(direct_events or unambiguous_source_name or club_matches)
         result.append({
             "domesticID": player.domestic_id,
             "domesticName": player.display_name,
             "candidateFideID": hit["fideID"],
             "candidateFideName": hit["displayName"],
-            "matchBasis": "注册表唯一精确同名",
+            "candidateStandard": hit["standard"],
+            "candidateTitle": hit["title"],
+            "matchBasis": "；".join(evidence),
             "score": score,
-            "queueTier": "high" if score >= 70 else "medium" if score >= 45 else "low",
+            "queueTier": "suggested-high" if presentation_eligible or score >= 70 else "suggested-medium" if score >= 45 else "low",
             "weights": weights,
+            "presentationEligible": presentation_eligible,
+            "directSameEventIDs": direct_events,
+            "matchedClubs": club_matches,
+            "sourceNameEventCount": len(source_name_events),
+            "suggestedChineseName": suggested_names.get(fide_id, ""),
             "sightingCount": len(player.sightings),
             "eventIDs": sorted({s.event_id for s in player.sightings if s.event_id}),
             "clubs": sorted({s.club for s in player.sightings if s.club}),
@@ -1047,6 +1316,7 @@ def write_output(
     name_groups: list[dict[str, Any]],
     identity_candidates: list[dict[str, Any]],
     fide_candidates: list[dict[str, Any]],
+    chinese_name_candidates: list[dict[str, Any]],
     output_root: pathlib.Path,
     dry_run: bool,
     conflict_edges: list[dict[str, Any]] | None = None,
@@ -1073,6 +1343,8 @@ def write_output(
             "players": "data/registry/domestic/players.json",
             "detailShards": "data/registry/domestic/shards/{prefix}.json",
             "identityLinks": "data/registry/domestic/identity-links.json",
+            "presentationGroups": "data/registry/domestic/presentation-groups.json",
+            "presentationNames": "data/identity/presentation-names.json",
         },
         "totals": {
             "sightings": len(sightings),
@@ -1085,6 +1357,10 @@ def write_output(
             "uniqueNameCount": len({identity_name(player) for player in players if identity_name(player)}),
             "sameNameGroups": len(name_groups),
             "fideLinkCandidates": len(fide_candidates),
+            "highPriorityFideLinkCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in fide_candidates),
+            "chineseNameCandidates": len(chinese_name_candidates),
+            "highPriorityChineseNameCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in chinese_name_candidates),
+            "conflictingChineseNameCandidates": sum(candidate.get("queueTier") == "conflict" for candidate in chinese_name_candidates),
             "identityCandidates": len(identity_candidates),
             "highPriorityIdentityCandidates": sum(candidate.get("queueTier") == "suggested-high" for candidate in identity_candidates),
             "parentOnlyNameGroups": sum(group.get("adjudicationMode") == "parent-only" for group in name_groups),
@@ -1128,9 +1404,31 @@ def write_output(
         "note": "机器高置信展示聚合；确认合并请走 player-identity-links.csv，质疑请提交 presentation-disputes",
         "totals": {
             "groups": len(presentation_groups or []),
-            "entities": sum(len(g["members"]) for g in (presentation_groups or [])),
+            "entities": sum(len(g["members"]) + (1 if g.get("canonicalFideID") else 0) for g in (presentation_groups or [])),
         },
         "groups": presentation_groups or [],
+    })
+    # Chinese names discovered in repeated public tournament appearances are
+    # a presentation hint, never a registry mutation.  The authoritative
+    # chineseName stays empty until a reviewer accepts evidence into the
+    # manual alias layer.
+    PRESENTATION_NAMES.parent.mkdir(parents=True, exist_ok=True)
+    public_name_rows = [
+        {
+            "fideID": row["fideID"],
+            "suggestedChineseName": row["suggestedChineseName"],
+            "identityBasis": "presentation-high-name",
+        }
+        for row in chinese_name_candidates
+        if row.get("presentationEligible") and row.get("suggestedChineseName")
+    ]
+    write_json(PRESENTATION_NAMES, {
+        "schemaVersion": 1,
+        "snapshotId": sid,
+        "generatedAt": generated_at,
+        "note": "重复赛事中的高置信中文名，仅用于默认展示；权威姓名仍以 registry 为准",
+        "totals": {"players": len(public_name_rows)},
+        "players": public_name_rows,
     })
     write_domestic_search_and_shards(output_root, players)
     # Flat sightings + search-index are build intermediates, not product
@@ -1152,6 +1450,11 @@ def write_output(
     # impossible merge suggestion must never resurface (tombstones).
     write_json(workbench / "identity-conflict-edges.json", conflict_edges or [])
     write_json(workbench / "fide-link-candidates.json", fide_candidates)
+    write_json(workbench / "chinese-name-candidates.json", chinese_name_candidates)
+    review_queue = build_unified_review_queue(
+        identity_candidates, fide_candidates, chinese_name_candidates,
+    )
+    write_json(workbench / "review-queue.json", review_queue)
     review_rows = [player.payload() for player in players if player.confidence.get("reviewRequired")]
     review_rows.sort(key=lambda player: (player["confidence"]["score"], -player["confidence"]["sameNameConflictCount"], player.get("displayName", "")))
     write_json(workbench / "identity-review.json", review_rows)
@@ -1166,20 +1469,84 @@ def write_output(
             "suggestedHigh": sum(c.get("queueTier") == "suggested-high" for c in identity_candidates),
             "conflictEdges": len(conflict_edges or []),
             "fideLinkCandidates": len(fide_candidates),
+            "highPriorityFideLinkCandidates": sum(c.get("queueTier") == "suggested-high" for c in fide_candidates),
+            "chineseNameCandidates": len(chinese_name_candidates),
+            "highPriorityChineseNameCandidates": sum(c.get("queueTier") == "suggested-high" for c in chinese_name_candidates),
+            "conflictingChineseNameCandidates": sum(c.get("queueTier") == "conflict" for c in chinese_name_candidates),
+            "unifiedReviewQueue": len(review_queue),
             "reviewRows": len(review_rows),
         },
     })
     for stale_root, names in (
         (output_root, ("identity-name-groups.json", "identity-candidates.json",
-                       "fide-link-candidates.json", "identity-review.json")),
+                       "fide-link-candidates.json", "chinese-name-candidates.json",
+                       "review-queue.json", "identity-review.json")),
         (audit_root, ("identity-name-groups.json", "identity-candidates.json",
                       "identity-conflict-edges.json", "fide-link-candidates.json",
+                      "chinese-name-candidates.json", "review-queue.json",
                       "identity-review.json")),
     ):
         for stale in names:
             stale_path = stale_root / stale
             if stale_path.exists():
                 stale_path.unlink()
+
+
+def build_unified_review_queue(
+    identity_candidates: list[dict[str, Any]],
+    fide_candidates: list[dict[str, Any]],
+    chinese_name_candidates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """One maintainer queue ordered by likely user value and decision risk."""
+    rows: list[dict[str, Any]] = []
+    for candidate in chinese_name_candidates:
+        priority = 30 if candidate.get("queueTier") == "conflict" else 40 if candidate.get("queueTier") == "suggested-high" else 70
+        rows.append({
+            "reviewType": "chinese-name",
+            "priority": priority,
+            "candidateID": candidate.get("candidateID"),
+            "subjectID": candidate.get("fideID"),
+            "display": candidate.get("suggestedChineseName") or " / ".join(candidate.get("candidateNames") or []),
+            "queueTier": candidate.get("queueTier"),
+            "eventCount": candidate.get("eventCount", 0),
+        })
+    for candidate in fide_candidates:
+        if candidate.get("directSameEventIDs"):
+            priority = 20
+        elif candidate.get("matchedClubs"):
+            priority = 25
+        elif candidate.get("presentationEligible"):
+            priority = 35
+        elif candidate.get("queueTier") == "suggested-high":
+            priority = 45
+        else:
+            priority = 80
+        rows.append({
+            "reviewType": "domestic-fide-link",
+            "priority": priority,
+            "candidateID": f"fide-link-{candidate.get('domesticID')}-{candidate.get('candidateFideID')}",
+            "subjectID": candidate.get("domesticID"),
+            "targetID": candidate.get("candidateFideID"),
+            "display": candidate.get("domesticName"),
+            "queueTier": candidate.get("queueTier"),
+            "score": candidate.get("score", 0),
+            "valueScore": candidate.get("candidateStandard", 0),
+            "eventCount": candidate.get("sightingCount", 0),
+        })
+    for candidate in identity_candidates:
+        priority = 10 if candidate.get("queueTier") == "suggested-high" and not candidate.get("presentationEligible") else 15 if candidate.get("queueTier") == "suggested-high" else 90
+        rows.append({
+            "reviewType": "domestic-domestic-link",
+            "priority": priority,
+            "candidateID": candidate.get("candidateID"),
+            "subjectID": ",".join(candidate.get("domesticIDs") or []),
+            "display": candidate.get("displayName"),
+            "queueTier": candidate.get("queueTier"),
+            "score": candidate.get("score", 0),
+            "eventCount": len(candidate.get("eventIDs") or []),
+        })
+    rows.sort(key=lambda row: (row["priority"], -int(row.get("valueScore") or 0), -int(row.get("eventCount") or 0), -int(row.get("score") or 0), str(row.get("candidateID") or "")))
+    return rows
 
 
 def write_domestic_search_and_shards(output_root: pathlib.Path, players: list[DomesticPlayer]) -> None:

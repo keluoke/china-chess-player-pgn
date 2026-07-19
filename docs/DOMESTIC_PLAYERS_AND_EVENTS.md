@@ -20,7 +20,7 @@
 `name-corrections.csv`、`player-aliases.csv` 或身份链接机制。网络失败不会删除任何
 已审核人工数据。
 
-`identity-name-groups.json` 按同名观察生成审核分组，`identity-candidates.json` 与 `fide-link-candidates.json` 按跨赛事、俱乐部一致、年龄连续和全库唯一性加权排序；它们都只是审核队列，禁止自动写入 `player-identity-links.csv`。同名簇达到 3 条时标记为 `parent-only`，机器不生成合并提名。
+仓库外 `identity-workbench/` 中的 `identity-name-groups.json` 按同名观察生成审核分组，`identity-candidates.json`、`fide-link-candidates.json` 与 `chinese-name-candidates.json` 按同赛事、跨赛事、俱乐部一致、晋级连续性和全库唯一性加权排序。高置信候选可形成前端展示聚合，但禁止自动写入 `player-identity-links.csv`；用户可提交证据或异议。同名簇达到 3 条时继续生成经过硬冲突剪枝的两两候选，不再以 `parent-only` 为由完全停止建议。维护者流程见 `MAINTAINER_IDENTITY_REVIEW_GUIDE.md`。
 
 ## 需求驱动的赛事整取
 

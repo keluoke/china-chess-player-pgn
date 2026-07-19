@@ -77,6 +77,10 @@ const eventDetailCache = new Map();
 const eventDetailRequests = new Map();
 const domesticDetailCache = new Map();
 const domesticShardRequests = new Map();
+const participationCache = new Map();
+const participationRequests = new Map();
+let presentationFideIndex = null;   // FIDE ID -> display-only group
+let presentationNameIndex = null;   // FIDE ID -> high-confidence Chinese-name hint
 const PGN_VIEWER_CACHE_MAX_ENTRIES = 3;
 const PGN_VIEWER_CACHE_MAX_BYTES = 48 * 1024 * 1024;
 let activeLichessViewer = null;
@@ -102,7 +106,8 @@ async function loadData() {
       bulkManifest,
       bulkYouthManifest,
       byPlayerManifest,
-      domesticManifest
+      domesticManifest,
+      participationManifest
     ] = await Promise.all([
       fetchJSON("./data/search-bootstrap.json", true),
       fetchJSON("./data/index/manifest.json", false),
@@ -110,7 +115,8 @@ async function loadData() {
       fetchJSON("./data/bulk/manifest.json", false),
       fetchJSON("./data/bulk/youth/manifest.json", false),
       fetchJSON("./data/index/by-player/manifest.json", false),
-      fetchJSON("./data/registry/domestic/manifest.json", false)
+      fetchJSON("./data/registry/domestic/manifest.json", false),
+      fetchJSON("./data/index/player-participation/manifest.json", false)
     ]);
     return {
       ...bootstrap,
@@ -120,6 +126,7 @@ async function loadData() {
       bulkYouthManifest,
       byPlayerManifest,
       domesticManifest,
+      participationManifest,
       players: bootstrap.players ?? []
     };
   } catch (error) {
@@ -194,8 +201,9 @@ async function ensureDomesticShard(query) {
 
 function resolveRoutedDomesticPlayer() {
   const routedID = initialSelectedPlayerID();
-  if (!state.selectedFideID && routedID && players.some(player => playerKey(player) === routedID)) {
-    state.selectedFideID = routedID;
+  const routedPlayer = routedID ? players.find(player => playerKey(player) === routedID) : null;
+  if (!state.selectedFideID && routedPlayer) {
+    state.selectedFideID = routedPlayer.presentationCanonicalFideID || routedID;
     state.selectedEventID = null;
     renderDetail();
   }
@@ -221,30 +229,58 @@ async function loadDomesticSearchIndex() {
 // --- presentation identity groups (display-only aggregation, review §4) ----
 async function loadPresentationGroups() {
   try {
-    const payload = await fetchJSON("./data/registry/domestic/presentation-groups.json", false);
+    const [payload, namesPayload] = await Promise.all([
+      fetchJSON("./data/registry/domestic/presentation-groups.json", false),
+      fetchJSON("./data/identity/presentation-names.json", false)
+    ]);
     presentationGroups = new Map();
     presentationMemberIndex = new Map();
+    presentationFideIndex = new Map();
+    presentationNameIndex = new Map();
+    (namesPayload?.players ?? []).forEach(row => {
+      if (row.fideID && row.suggestedChineseName) presentationNameIndex.set(String(row.fideID), row.suggestedChineseName);
+    });
     (payload?.groups ?? []).forEach(group => {
       presentationGroups.set(group.groupID, group);
+      if (group.canonicalFideID) presentationFideIndex.set(String(group.canonicalFideID), group);
       (group.members ?? []).forEach((member, index) => {
-        presentationMemberIndex.set(member, { group, primary: index === 0 });
+        presentationMemberIndex.set(member, { group, primary: !group.canonicalFideID && index === 0 });
       });
     });
     players.forEach(annotatePresentationGroup);
+    const selected = selectedPlayer();
+    if (selected?.presentationCanonicalFideID) state.selectedFideID = selected.presentationCanonicalFideID;
     if (state.query) renderSearch();
+    if (selectedPlayer()) renderDetail();
   } catch (_error) {
     presentationGroups = presentationGroups ?? new Map();
     presentationMemberIndex = presentationMemberIndex ?? new Map();
+    presentationFideIndex = presentationFideIndex ?? new Map();
+    presentationNameIndex = presentationNameIndex ?? new Map();
   }
 }
 
 function annotatePresentationGroup(player) {
-  if (!presentationMemberIndex || player?.entityType !== "domestic-player") return;
+  if (!player) return;
+  if (player.fideID) {
+    const group = presentationFideIndex?.get(String(player.fideID));
+    const suggestedName = presentationNameIndex?.get(String(player.fideID)) || group?.suggestedChineseName;
+    if (group) {
+      player.presentationGroupID = group.groupID;
+      player.presentationGroupSize = (group.members ?? []).length + 1;
+      player.presentationGroupSightings = group.sightingCount;
+    }
+    if (suggestedName && !player.chineseName) player.presentationChineseName = suggestedName;
+    if (group || suggestedName) Object.assign(player, preparePlayer(player));
+    return;
+  }
+  if (!presentationMemberIndex || player.entityType !== "domestic-player") return;
   const membership = presentationMemberIndex.get(player.domesticID);
   if (!membership) return;
   player.presentationGroupID = membership.group.groupID;
   player.presentationGroupSize = (membership.group.members ?? []).length;
   player.presentationGroupSightings = membership.group.sightingCount;
+  player.presentationCanonicalFideID = membership.group.canonicalFideID || "";
   // Default presentation: one card per group; non-primary members stay
   // resolvable via deep link but leave the search list (review §4.3).
   player.hiddenByPresentationGroup = !membership.primary;
@@ -628,7 +664,8 @@ function disambiguationCard(group) {
 }
 
 function playerHref(player) {
-  return player.fideID ? `?fideID=${encodeURIComponent(player.fideID)}` : `?player=${encodeURIComponent(player.domesticID || player.id)}`;
+  const fideID = player.fideID || player.presentationCanonicalFideID;
+  return fideID ? `?fideID=${encodeURIComponent(fideID)}` : `?player=${encodeURIComponent(player.domesticID || player.id)}`;
 }
 
 function renderDetail() {
@@ -646,6 +683,10 @@ function renderDetail() {
   }
   requestPlayerDetail(player);
   requestStaticPlayerDetail(player);
+  requestPlayerParticipation(player);
+  const identityGroup = player.presentationGroupID && presentationGroups
+    ? presentationGroups.get(player.presentationGroupID) : null;
+  if (identityGroup?.canonicalFideID) requestPresentationGroupDetails(identityGroup);
 
   const stage = stageForPlayer(player);
   const note = stage ? liChengzhiNote(player, stage.id) : null;
@@ -672,12 +713,15 @@ function renderDetail() {
         <button class="action-link" type="button" data-action="share-player">分享档案</button>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
         <a class="action-link" href="./contribute.html?type=player-correction&player=${encodeURIComponent(player.fideID)}&name=${encodeURIComponent(displayName(player))}">补充或勘误</a>
+        ${identityGroup ? `<a class="action-link" href="./contribute.html?type=identity-clue&group=${encodeURIComponent(identityGroup.groupID)}&members=${encodeURIComponent((identityGroup.disputeMembers ?? identityGroup.members ?? []).join(","))}&name=${encodeURIComponent(displayName(player))}">补充身份证据</a>
+        <a class="action-link" href="./contribute.html?type=identity-dispute&group=${encodeURIComponent(identityGroup.groupID)}&members=${encodeURIComponent((identityGroup.disputeMembers ?? identityGroup.members ?? []).join(","))}&name=${encodeURIComponent(displayName(player))}">对此身份有异议</a>` : ""}
         <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.fideID)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
       </div>
     </div>
 
     ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}
 
+    ${identityGroup ? `<div class="note-pill">高置信身份展示聚合 · 含 ${identityGroup.members.length} 个尚待维护者落表的国内赛事身份</div>` : ""}
     ${playerEventHistory(detailCache.get(player.fideID) ?? player)}
     ${staticInfo?.gameCount ? staticPlayerHitBlock(player, staticInfo) : ""}
     ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
@@ -749,7 +793,8 @@ function renderDomesticPlayerDetail(player) {
         <button class="action-link" type="button" data-action="share-player">分享档案</button>
         <a class="action-link" href="./contribute.html?type=player-correction&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">补充或勘误</a>
         <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
-        ${group ? `<a class="action-link" href="./contribute.html?type=identity-dispute&group=${encodeURIComponent(group.groupID)}&members=${encodeURIComponent(group.members.join(","))}&name=${encodeURIComponent(displayName(player))}">这不是同一位棋手</a>` : ""}
+        ${group ? `<a class="action-link" href="./contribute.html?type=identity-clue&group=${encodeURIComponent(group.groupID)}&members=${encodeURIComponent((group.disputeMembers ?? group.members).join(","))}&name=${encodeURIComponent(displayName(player))}">补充身份线索</a>
+        <a class="action-link" href="./contribute.html?type=identity-dispute&group=${encodeURIComponent(group.groupID)}&members=${encodeURIComponent((group.disputeMembers ?? group.members).join(","))}&name=${encodeURIComponent(displayName(player))}">对此身份有异议</a>` : ""}
       </div>
     </div>
     <div class="appearance-summary">
@@ -776,7 +821,7 @@ function requestDomesticShardPath(path) {
   const request = fetchJSON(`./${path}`, true)
     .then(rows => {
       (rows ?? []).forEach(row => domesticDetailCache.set(row.domesticID, row));
-      if (isDomesticPlayer(selectedPlayer())) renderDetail();
+      if (selectedPlayer()?.presentationGroupID) renderDetail();
     })
     .catch(() => {})
     .finally(() => { domesticShardRequests.delete(path); });
@@ -998,6 +1043,7 @@ function requestPlayerDetail(player) {
     })
     .then(detail => {
       const prepared = preparePlayer({ ...player, ...detail });
+      annotatePresentationGroup(prepared);
       detailCache.set(prepared.fideID, prepared);
       const index = players.findIndex(item => item.fideID === prepared.fideID);
       if (index >= 0) {
@@ -1018,6 +1064,34 @@ function requestPlayerDetail(player) {
     });
 
   detailRequests.set(player.fideID, request);
+}
+
+function requestPresentationGroupDetails(group) {
+  (group?.memberRefs ?? []).forEach(ref => {
+    if (!domesticDetailCache.has(ref.id)) {
+      requestDomesticShardPath(`data/registry/domestic/shards/${ref.shard}.json`);
+    }
+  });
+}
+
+function participationBucket(fideID) {
+  const numeric = Number.parseInt(String(fideID), 10);
+  return Number.isFinite(numeric) ? (numeric % 256).toString(16).padStart(2, "0") : "";
+}
+
+function requestPlayerParticipation(player) {
+  const fideID = String(player?.fideID ?? "");
+  const bucket = participationBucket(fideID);
+  if (!fideID || !bucket || !data.participationManifest || participationCache.has(fideID) || participationRequests.has(bucket)) return;
+  const request = fetchJSON(`./data/index/player-participation/buckets/${bucket}.json`, false)
+    .then(payload => {
+      Object.entries(payload?.players ?? {}).forEach(([id, events]) => participationCache.set(String(id), events ?? []));
+      if (!participationCache.has(fideID)) participationCache.set(fideID, []);
+      if (state.selectedFideID === fideID) renderDetail();
+    })
+    .catch(() => { participationCache.set(fideID, []); })
+    .finally(() => { participationRequests.delete(bucket); });
+  participationRequests.set(bucket, request);
 }
 
 function requestStaticPlayerDetail(player) {
@@ -1176,24 +1250,61 @@ function staticPlayerHitBlock(player, info) {
 }
 
 function playerEventHistory(player) {
-  const rows = [...(player?.events ?? [])].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const rows = mergedPlayerEvents(player);
   if (!rows.length) return "";
   const eventRow = event => {
-    const eventID = event.id || (event.tournamentID ? `${String(event.source ?? "Chess-Results").toLowerCase().replace(/\s+/g, "-")}:${event.tournamentID}` : "");
+    const eventID = event.id || "";
     const name = event.chineseName || event.displayName || event.name || "未命名赛事";
+    const status = event.gameCount
+      ? `${compactNumber(event.gameCount)} 盘棋谱`
+      : event.resultStatus === "scheduled" ? "报名/名单记录 · 尚未完赛"
+      : event.resultStatus === "recorded" ? "赛果已收录 · 暂无棋谱" : "查看赛事";
     return `<button type="button" class="player-event-row" ${eventID ? `data-action="select-event" data-event-id="${escapeAttribute(eventID)}"` : "disabled"}>
-      <span><strong>${escapeHTML(name)}</strong><small>${escapeHTML(event.date ?? "日期待补")}</small></span>
-      <em>${event.rank ? `<b>第 ${escapeHTML(String(event.rank))} 名</b>` : ""}${event.gameCount ? `${compactNumber(event.gameCount)} 盘` : "查看赛事"}</em>
+      <span><strong>${escapeHTML(name)}</strong><small>${escapeHTML([event.date || "日期待补", event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : ""].filter(Boolean).join(" · "))}</small></span>
+      <em>${event.rank && event.rank !== "-" ? `<b>第 ${escapeHTML(String(event.rank))} 名</b>` : ""}${escapeHTML(status)}</em>
     </button>`;
   };
   const first = rows.slice(0, 12).map(eventRow).join("");
   const rest = rows.slice(12).map(eventRow).join("");
   return `
     <section class="player-event-history">
-      <div class="section-heading"><h3>赛事记录</h3><span>${player.eventCount ?? rows.length} 项</span></div>
+      <div class="section-heading"><h3>赛事记录</h3><span>${rows.length} 项</span></div>
       <div class="player-event-list">${first}</div>
       ${rest ? `<details class="event-history-more"><summary>查看其余 ${rows.length - 12} 项赛事</summary><div class="player-event-list">${rest}</div></details>` : ""}
     </section>`;
+}
+
+function mergedPlayerEvents(player) {
+  const fideID = String(player?.fideID ?? "");
+  const rows = new Map();
+  const merge = event => {
+    const key = String(event?.tournamentID || event?.id || `${event?.name || ""}|${event?.date || ""}`);
+    if (!key) return;
+    const current = rows.get(key) ?? {};
+    rows.set(key, { ...current, ...event, gameCount: Math.max(Number(current.gameCount || 0), Number(event.gameCount || 0)) });
+  };
+  (participationCache.get(fideID) ?? []).forEach(merge);
+
+  const group = player?.presentationGroupID && presentationGroups
+    ? presentationGroups.get(player.presentationGroupID) : null;
+  if (group?.canonicalFideID) {
+    (group.memberRefs ?? []).forEach(ref => {
+      (domesticDetailCache.get(ref.id)?.sightings ?? []).forEach(sighting => merge({
+        id: sightingEventID(sighting),
+        tournamentID: String(sighting.eventID ?? "").match(/(?:tnr)?(\d+)/i)?.[1] || "",
+        name: sighting.eventName || sighting.group || "未命名赛事",
+        date: sighting.eventDate || "",
+        rank: sighting.rank || "",
+        rounds: sighting.rounds || "",
+        resultStatus: "recorded",
+        pgnStatus: sightingHasPGN(sighting) ? "available" : "not-archived",
+        gameCount: 0
+      }));
+    });
+  }
+  (player?.events ?? []).forEach(event => merge({ ...event, pgnStatus: Number(event.gameCount || 0) ? "available" : event.pgnStatus }));
+  (staticPlayerInfo(player)?.events ?? []).forEach(event => merge({ ...event, pgnStatus: Number(event.gameCount || 0) ? "available" : event.pgnStatus }));
+  return [...rows.values()].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 }
 
 function friendlyStageLabel(stage) {
@@ -2172,7 +2283,7 @@ function recordLocalGap(query) {
 }
 
 function normalizedIdentityName(player) {
-  return normalize(player.chineseName || player.displayName || player.name || "").replace(/[^0-9a-z\u4e00-\u9fff]/g, "");
+  return normalize(player.chineseName || player.presentationChineseName || player.displayName || player.name || "").replace(/[^0-9a-z\u4e00-\u9fff]/g, "");
 }
 
 function searchScore(player, normalized, tokens, reversed) {
@@ -2202,6 +2313,7 @@ function searchValuesForPlayer(player) {
     player.displayName,
     player.name,
     player.chineseName,
+    player.presentationChineseName,
     player.pinyin,
     ...(player.aliases ?? [])
   ].filter(Boolean).map(String);
@@ -2222,10 +2334,11 @@ function uniqueStrings(values) {
 
 function displayName(player) {
   let name = "";
-  if (player.chineseName && player.name && player.chineseName !== player.name) {
-    name = `${player.chineseName} · ${player.name}`;
+  const chineseName = player.chineseName || player.presentationChineseName;
+  if (chineseName && player.name && chineseName !== player.name) {
+    name = `${chineseName} · ${player.name}`;
   } else {
-    name = player.displayName ?? player.name ?? player.chineseName ?? `FIDE ${player.fideID}`;
+    name = chineseName ?? player.displayName ?? player.name ?? `FIDE ${player.fideID}`;
   }
   return displayText(name);
 }
@@ -2240,6 +2353,9 @@ function transferBadge(player) {
 }
 
 function detailChineseNameLine(player) {
+  if (player.presentationChineseName && !player.chineseName) {
+    return `<div class="detail-cn-name">中文名暂定：${escapeHTML(displayText(player.presentationChineseName))}</div>`;
+  }
   if (!player.chineseName || displayName(player).includes(player.chineseName)) return "";
   return `<div class="detail-cn-name">${escapeHTML(displayText(player.chineseName))}</div>`;
 }
