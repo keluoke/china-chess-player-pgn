@@ -107,6 +107,22 @@ class GovernanceLanguageTests(unittest.TestCase):
         local_readme = (REPO / "Scripts" / "local" / "README.md").read_text(encoding="utf-8")
         self.assertIn("默认直接在 `main` 上工作", local_readme)
 
+    def test_dual_workspace_and_terminal_proxy_are_documented(self) -> None:
+        agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
+        local_readme = (REPO / "Scripts" / "local" / "README.md").read_text(encoding="utf-8")
+        helper = (REPO / "Scripts" / "local" / "code_workspace.sh").read_text(encoding="utf-8")
+        for text in (agents, local_readme):
+            self.assertIn("代码工作区", text)
+            self.assertIn("采集工作区", text)
+            self.assertIn("http://127.0.0.1:15236", text)
+            self.assertIn("HTTP_PROXY", text)
+            self.assertIn("HTTPS_PROXY", text)
+        self.assertIn("chessdb.workspaceRole code", helper)
+        self.assertIn("git -C \"$CODE_ROOT\" config --local http.proxy", helper)
+        self.assertIn("!/data/generated/", helper)
+        self.assertIn("!/docs/data/", helper)
+        self.assertIn("!/docs/api/", helper)
+
 
 if __name__ == "__main__":
     unittest.main()

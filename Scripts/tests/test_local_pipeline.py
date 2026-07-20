@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import io
 import os
@@ -962,6 +963,162 @@ class IngestWorkflowContractTests(unittest.TestCase):
         self.assertIn("steps.source.outputs.sha", workflow)
         self.assertNotIn("--source-ref origin/local-data", workflow)
         self.assertIn("ingest receipt", workflow.lower())
+
+    def test_ingest_uses_blobless_sparse_checkout(self) -> None:
+        workflow = (SCRIPTS.parent / ".github" / "workflows" / "ingest-local-data.yml").read_text(encoding="utf-8")
+        self.assertIn("fetch-depth: 1", workflow)
+        self.assertNotIn("fetch-depth: 0", workflow)
+        self.assertIn("!/docs/data/", workflow)
+        self.assertIn("!/data/generated/", workflow)
+        self.assertIn("!/docs/api/", workflow)
+
+
+class SparseIngestApplyTests(unittest.TestCase):
+    def test_partial_clone_prefetch_batches_exact_manifest_blob_oids(self) -> None:
+        upserts = [
+            {"path": "docs/data/registry/a.json", "operation": "upsert"},
+            {"path": "docs/data/registry/b.json", "operation": "upsert"},
+        ]
+        configured = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=b"remote.origin.promisor true\n", stderr=b""
+        )
+        tree = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=(
+                b"100644 blob 1111111111111111111111111111111111111111\tdocs/data/registry/a.json\0"
+                b"100644 blob 2222222222222222222222222222222222222222\tdocs/data/registry/b.json\0"
+            ),
+            stderr=b"",
+        )
+        fetched = subprocess.CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b"")
+        with (
+            mock.patch.object(run_manager, "git", side_effect=[configured, tree]),
+            mock.patch.object(run_manager.subprocess, "run", return_value=fetched) as fetch_run,
+        ):
+            run_manager.prefetch_partial_clone_blobs(pathlib.Path("/tmp/repo"), "release", upserts)
+
+        command = fetch_run.call_args.args[0]
+        self.assertIn("fetch.negotiationAlgorithm=noop", command)
+        self.assertIn("--stdin", command)
+        self.assertEqual(
+            fetch_run.call_args.kwargs["input"],
+            b"1111111111111111111111111111111111111111\n"
+            b"2222222222222222222222222222222222222222\n",
+        )
+
+    def test_partial_clone_prefetch_retries_then_falls_back_to_lazy_checkout(self) -> None:
+        upserts = [{"path": "docs/data/registry/a.json", "operation": "upsert"}]
+        configured = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout=b"remote.origin.promisor true\n", stderr=b""
+        )
+        tree = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=b"100644 blob 1111111111111111111111111111111111111111\tdocs/data/registry/a.json\0",
+            stderr=b"",
+        )
+        failed = subprocess.CompletedProcess(args=[], returncode=128, stdout=b"", stderr=b"connection reset")
+        warning = io.StringIO()
+        with (
+            mock.patch.object(run_manager, "git", side_effect=[configured, tree]),
+            mock.patch.object(run_manager.subprocess, "run", return_value=failed) as fetch_run,
+            mock.patch.object(run_manager.time, "sleep") as sleep,
+            mock.patch("sys.stderr", warning),
+        ):
+            run_manager.prefetch_partial_clone_blobs(pathlib.Path("/tmp/repo"), "release", upserts)
+
+        self.assertEqual(fetch_run.call_count, run_manager.PREFETCH_ATTEMPTS)
+        self.assertEqual(sleep.call_count, run_manager.PREFETCH_ATTEMPTS - 1)
+        self.assertIn("falling back to checkout lazy-fetch", warning.getvalue())
+
+    def test_apply_materializes_upsert_and_stages_delete_outside_sparse_checkout(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = pathlib.Path(temp) / "repo"
+            repo.mkdir()
+            git(repo, "init", "-q")
+            git(repo, "config", "user.email", "test@example.com")
+            git(repo, "config", "user.name", "Test")
+            details = repo / "data/generated/chess-results-event-details"
+            details.mkdir(parents=True)
+            upsert = details / "tnr1.json"
+            deleted = details / "tnr2.json"
+            upsert.write_text('{"version":1}\n')
+            deleted.write_text('{"delete":true}\n')
+            (repo / "README.md").write_text("test\n")
+            git(repo, "add", ".")
+            git(repo, "commit", "-qm", "main")
+            main_sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+            ).strip()
+
+            upsert.write_text('{"version":2}\n')
+            deleted.unlink()
+            digest = hashlib.sha256(upsert.read_bytes()).hexdigest()
+            manifest = {
+                "schemaVersion": 1,
+                "runId": "sparse-apply-test",
+                "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+                "files": [
+                    {
+                        "path": str(upsert.relative_to(repo)),
+                        "operation": "upsert",
+                        "sha256": digest,
+                        "bytes": upsert.stat().st_size,
+                    },
+                    {
+                        "path": str(deleted.relative_to(repo)),
+                        "operation": "delete",
+                        "sha256": None,
+                        "bytes": 0,
+                    },
+                ],
+            }
+            manifest_path = repo / run_manager.MANIFEST_PATH
+            manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            manifest_path.write_text(json.dumps(manifest) + "\n")
+            git(repo, "add", "-A")
+            git(repo, "commit", "-qm", "release")
+            release_sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+            ).strip()
+
+            git(repo, "checkout", "-q", main_sha)
+            git(repo, "sparse-checkout", "set", "--no-cone", "/*", "!/data/generated/")
+            self.assertFalse(upsert.exists())
+            self.assertFalse(deleted.exists())
+
+            path_list = repo / "applied-paths.txt"
+            result = run_manager.apply_release(repo, release_sha, path_list)
+            self.assertEqual(result["applied"], 2)
+            self.assertEqual(upsert.read_text(), '{"version":2}\n')
+            self.assertFalse(deleted.exists())
+            applied = path_list.read_text().splitlines()
+            stageable = []
+            for relative in applied:
+                candidate = repo / relative
+                tracked_result = subprocess.run(
+                    ["git", "ls-files", "--error-unmatch", "--", relative],
+                    cwd=repo,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if candidate.exists() or candidate.is_symlink() or tracked_result.returncode == 0:
+                    stageable.append(relative)
+            add_result = subprocess.run(
+                ["git", "add", "--sparse", "-f", "-A", "--", *stageable],
+                cwd=repo,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(add_result.returncode, 0, add_result.stderr)
+            staged = subprocess.check_output(
+                ["git", "diff", "--cached", "--name-status"], cwd=repo, text=True
+            )
+            self.assertIn("M\tdata/generated/chess-results-event-details/tnr1.json", staged)
+            self.assertIn("D\tdata/generated/chess-results-event-details/tnr2.json", staged)
+            self.assertIn(f"A\t{run_manager.MANIFEST_PATH}", staged)
 
 
 class FideArchiveTests(unittest.TestCase):

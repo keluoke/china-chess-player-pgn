@@ -25,7 +25,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
-          fetch-depth: 0
+          # Ingest only needs the current main tree plus the immutable release
+          # SHA fetched below. actions/checkout@v4 automatically uses a
+          # blob:none fetch when sparse-checkout is set, so historical data
+          # blobs and machine-data roots stay absent until the manifest selects
+          # exact files.
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/docs/data/
+            !/data/generated/
+            !/docs/api/
 
       - name: Resolve immutable source SHA
         id: source

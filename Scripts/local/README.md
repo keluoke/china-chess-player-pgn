@@ -182,9 +182,31 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 
 ## 代码发布（与数据发布分离）
 
-代码修改永不通过 `local-data` 投递。**默认直接在 `main` 上工作和提交**，
-不为普通任务创建分支；仅当用户明确要求 PR/隔离时才建短命分支。普通 Git
-不通时使用 API 发布器（以远端 main 为基准，先做 dry-run 三方合并冲突检查）：
+代码修改永不通过 `local-data` 投递，也不再使用采集工作区提交。首次在采集
+工作区运行以下命令，会从远端 `main` 创建同级的轻量 `<repo>-code` 工作区：
+
+```bash
+bash Scripts/local/code_workspace.sh init
+```
+
+代码工作区使用 blobless partial clone，并 sparse 排除 `data/generated/`、
+`docs/data/`、`docs/api/`；它可以正常 fetch/fast-forward，不承载采集状态、
+机器产物或 outbox。日常在代码工作区运行：
+
+```bash
+# 查看角色、分支、代理、体积和 Git 状态
+bash Scripts/local/code_workspace.sh status
+
+# 工作树干净时同步远端 main
+bash Scripts/local/code_workspace.sh sync
+
+# 提交后推送 main
+bash Scripts/local/code_workspace.sh push
+```
+
+**默认直接在 `main` 上工作和提交**，不为普通任务创建分支；仅当用户明确要求
+PR/隔离时才建短命分支。普通 Git 不通时使用 API 发布器（以远端 main 为基准，
+先做 dry-run 三方合并冲突检查）：
 
 ```bash
 python3 Scripts/local/publish_code_via_api.py --help
@@ -192,7 +214,22 @@ python3 Scripts/local/publish_code_via_api.py --help
 
 ## 本地不 pull
 
-采集机永不执行 pull/rebase。GitHub 推送自动尝试直连、macOS 系统代理和常见
-本地代理端口，并对每条路线实测 Git smart HTTP；代理只传给 Git/GitHub API，
-不传给数据来源请求。新机器初始化才允许 clone；已有工作副本永不为"同步"而
-重新 clone/pull。
+“永不 pull/rebase”只约束采集工作区：它继续保留本地采集提交与仓库外 outbox，
+绝不能为追赶云端 `main` 而 pull/rebase/重 clone。代码工作区则以远端 `main` 为
+基线，可通过上述 `sync` 做 fetch + fast-forward。
+
+本机的系统代理工具只对浏览器生效，终端不会自动继承。任何手工终端 GitHub
+访问都必须显式设置代理（脚本同时设置大小写变量）：
+
+```bash
+HTTP_PROXY=http://127.0.0.1:15236 \
+HTTPS_PROXY=http://127.0.0.1:15236 \
+http_proxy=http://127.0.0.1:15236 \
+https_proxy=http://127.0.0.1:15236 \
+git fetch origin main
+```
+
+`code_workspace.sh` 会为代码仓库写入 repo-local `http.proxy`，因此侧边栏的提交
+不受网络影响，推送也能使用 15236；终端命令仍由脚本显式注入代理，不能只依赖
+系统设置或 `scutil`。采集投递脚本可以探测候选路线并自行注入，但代理只能传给
+Git/GitHub API，绝不能传给 Chess-Results、FIDE 或 Lichess 来源请求。

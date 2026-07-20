@@ -19,6 +19,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 from typing import Any
 
@@ -29,6 +30,8 @@ from source_policy import local_state_root, source_release_metadata  # noqa: E40
 
 
 MANIFEST_PATH = "data/generated/local-release-manifest.json"
+CHECKOUT_BATCH_SIZE = 256
+PREFETCH_ATTEMPTS = 3
 FORBIDDEN_PREFIXES = (
     "data/community",
     "data/manual",
@@ -512,6 +515,95 @@ def validate_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return files
 
 
+def prefetch_partial_clone_blobs(
+    repo: pathlib.Path, source_ref: str, upserts: list[dict[str, Any]]
+) -> None:
+    """Fetch manifest-listed blobs in one promisor request when repo is partial."""
+    if not upserts:
+        return
+    configured = git(
+        repo,
+        "config",
+        "--get-regexp",
+        r"^remote\..*\.promisor$",
+        check=False,
+    )
+    promisor_remote = ""
+    for line in configured.stdout.decode("utf-8", errors="replace").splitlines():
+        key, _, value = line.partition(" ")
+        if value.strip().lower() == "true" and key.startswith("remote.") and key.endswith(".promisor"):
+            promisor_remote = key[len("remote.") : -len(".promisor")]
+            break
+    if not promisor_remote:
+        return
+
+    object_ids: list[bytes] = []
+    for start in range(0, len(upserts), CHECKOUT_BATCH_SIZE):
+        batch = upserts[start : start + CHECKOUT_BATCH_SIZE]
+        tree = git(
+            repo,
+            "ls-tree",
+            "-z",
+            source_ref,
+            "--",
+            *(item["path"] for item in batch),
+        ).stdout
+        records = [record for record in tree.split(b"\0") if record]
+        if len(records) != len(batch):
+            raise RunManagerError(
+                "RELEASE_PATH_MISSING",
+                "manifest 中的 upsert 路径未全部出现在发布提交。",
+            )
+        for record in records:
+            metadata, separator, _ = record.partition(b"\t")
+            fields = metadata.split()
+            if not separator or len(fields) != 3 or fields[1] != b"blob":
+                raise RunManagerError("RELEASE_PATH_INVALID", "manifest upsert 必须指向普通 Git blob。")
+            object_ids.append(fields[2])
+
+    # This matches Git's own partial-clone lazy-fetch command, but supplies all
+    # exact manifest blob OIDs at once. The noop negotiation setting is
+    # required for direct object wants; without it GitHub may reject the batch.
+    unique_ids = list(dict.fromkeys(object_ids))
+    command = [
+        "git",
+        "-c",
+        "fetch.negotiationAlgorithm=noop",
+        "fetch",
+        promisor_remote,
+        "--no-tags",
+        "--no-write-fetch-head",
+        "--recurse-submodules=no",
+        "--filter=blob:none",
+        "--stdin",
+    ]
+    object_input = b"\n".join(unique_ids) + b"\n"
+    fetched: subprocess.CompletedProcess[bytes] | None = None
+    for attempt in range(1, PREFETCH_ATTEMPTS + 1):
+        fetched = subprocess.run(
+            command,
+            cwd=repo,
+            input=object_input,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if fetched.returncode == 0:
+            return
+        if attempt < PREFETCH_ATTEMPTS:
+            time.sleep(attempt)
+
+    # Prefetch is a performance optimization, not a correctness gate. Let the
+    # following checkout use Git's normal lazy-fetch path if direct object
+    # wants remain unavailable after bounded retries.
+    assert fetched is not None
+    detail = fetched.stderr.decode("utf-8", errors="replace").strip()
+    print(
+        f"warning: manifest blob batch prefetch failed after {PREFETCH_ATTEMPTS} attempts; "
+        f"falling back to checkout lazy-fetch: {detail or 'git fetch failed'}",
+        file=sys.stderr,
+    )
+
+
 # --- delivery outbox --------------------------------------------------------
 # A release bundle is an immutable snapshot of "what must reach local-data":
 # the exact manifest, the hashed file contents from the release commit, and a
@@ -637,23 +729,43 @@ def apply_release(repo: pathlib.Path, source_ref: str, path_list: pathlib.Path |
     shown = git(repo, "show", f"{source_ref}:{MANIFEST_PATH}").stdout
     payload = json.loads(shown.decode("utf-8"))
     files = validate_manifest(payload)
+    upserts = [item for item in files if item["operation"] == "upsert"]
+    prefetch_partial_clone_blobs(repo, source_ref, upserts)
+
+    # The ingest checkout is blobless and excludes machine-data roots from its
+    # sparse worktree. Materialize only manifest-listed upserts; bounded batches
+    # keep command lines and index updates manageable after the one-shot fetch.
+    for start in range(0, len(upserts), CHECKOUT_BATCH_SIZE):
+        batch = upserts[start : start + CHECKOUT_BATCH_SIZE]
+        git(
+            repo,
+            "checkout",
+            "--ignore-skip-worktree-bits",
+            source_ref,
+            "--",
+            *(item["path"] for item in batch),
+        )
+
     applied: list[str] = []
     for item in files:
         path = item["path"]
         target = repo / path
         if item["operation"] == "delete":
+            # Sparse-excluded files are absent on disk and retain an index
+            # entry with skip-worktree set. Remove that entry directly; this
+            # also makes an already-applied deletion idempotent.
+            git(repo, "update-index", "--force-remove", "--", path)
             if target.is_dir():
                 shutil.rmtree(target)
             elif target.exists():
                 target.unlink()
         else:
-            git(repo, "checkout", source_ref, "--", path)
             if target.is_symlink():
                 raise RunManagerError("RELEASE_PATH_INVALID", f"发布包禁止符号链接：{path}")
             if sha256_file(target) != item.get("sha256"):
                 raise RunManagerError("RELEASE_HASH_MISMATCH", f"发布文件哈希不匹配：{path}")
         applied.append(path)
-    git(repo, "checkout", source_ref, "--", MANIFEST_PATH)
+    git(repo, "checkout", "--ignore-skip-worktree-bits", source_ref, "--", MANIFEST_PATH)
     applied.append(MANIFEST_PATH)
     if path_list:
         path_list.write_text("\n".join(applied) + "\n", encoding="utf-8")

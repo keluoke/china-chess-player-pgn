@@ -46,10 +46,16 @@
      该基线的缺口按 P0 处理。
 3. FIDE/Lichess/Chess-Results 机器发布必须经过 staging、验证和 release manifest；只能把 manifest
    精确列出的文件投递到单写者 `local-data`，由云端 ingest 到 main 后离线 rebuild。
-4. 采集机永不 pull/rebase。GitHub 网络失败时只重投已生成的 release/outbox，禁止
-   为了 push 失败重新抓取。GitHub 代理只用于 Git/GitHub API，来源请求必须直连
-   住宅 IP（数据中心 IP 会被来源封禁）。
-5. 代码和人工数据不得通过 local-data 发布。**默认只在 `main` 上工作和提交；
+4. 采集工作区永不 pull/rebase。GitHub 网络失败时只重投已生成的 release/outbox，
+   禁止为了 push 失败重新抓取。macOS 系统代理只影响浏览器，终端 Git/GitHub API
+   不得假设会继承；每条终端 GitHub 命令必须显式设置
+   `HTTP_PROXY=http://127.0.0.1:15236` 与 `HTTPS_PROXY=http://127.0.0.1:15236`
+   （同时设置小写变量），或调用会注入同等变量的受控脚本。GitHub 代理绝不传给
+   Chess-Results/FIDE/Lichess 来源请求，来源请求必须直连住宅 IP。
+5. 代码和人工数据不得通过 local-data 发布。代码修改必须在独立的轻量代码工作区
+   （默认同级 `<repo>-code`）完成；采集工作区只负责采集、outbox 和 `local-data`。
+   用 `Scripts/local/code_workspace.sh init|sync|push` 初始化、同步和推送代码工作区，
+   其 repo-local `http.proxy` 也供侧边栏 Git 使用。**默认只在 `main` 上工作和提交；
    不要为普通任务创建新分支**——只有用户明确要求 PR/隔离分支时才建分支。
    普通 Git 不通时使用文档化的代码 API publisher
    （`Scripts/local/publish_code_via_api.py`，以远端 main 为基准，先 dry-run
@@ -74,12 +80,14 @@
 
 ## 管线架构要点
 
-- 本地永不 pull:抓取 → 本地提交 → release 包写入仓库外 outbox → force-push
+- 采集工作区永不 pull:抓取 → 本地提交 → release 包写入仓库外 outbox → force-push
   `local-data` 分支 → 云端按触发 SHA ingest 镜像进 main → rebuild → 部署。
+- 代码工作区独立从远端 `main` 做 blobless+sparse clone；允许 fetch/fast-forward，
+  但不承载采集运行状态、机器产物或 outbox。
 - 采集与投递解耦:GitHub push 失败只把发布包标记为 delivery-pending 留在 outbox，
   不阻塞后续采集；恢复后运行 `refresh.sh deliver` 重投。
-- chess-results / FIDE 抓取必须直连住宅 IP(封数据中心 IP);git 推送自动探测本地
-  代理(Veee/Clash 等,读 scutil 系统代理)并逐路线实测 Git smart HTTP。
+- chess-results / FIDE 抓取必须直连住宅 IP(封数据中心 IP);终端 GitHub 访问显式
+  注入 127.0.0.1:15236，`scutil` 只能用于发现候选代理，不能视为终端已继承代理。
 - CI 里绝不能回抓 chess-results(GitHub IP 被封);Chess-Results 只在维护者本机
   抓取、清洗、核对,入口是 `refresh.sh event-queue`;通过完整性门禁的赛事数据
   随 local-data 发布,由云端 ingest 以 main 为基线做字段级三方合并并出回执。

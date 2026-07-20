@@ -16,6 +16,16 @@ shift
 # branch (e.g. ingest-local-data fires on local-data) still commit to main.
 branch="${PUSH_BRANCH:-${GITHUB_REF_NAME:-main}}"
 
+# A delete may already have landed on main during an ingest retry. Keep exact
+# manifest scope, but omit pathspecs that are neither present nor tracked so
+# `git add -A` treats such idempotent deletes as no-ops instead of fatal errors.
+paths=()
+for path in "$@"; do
+  if [ -e "$path" ] || [ -L "$path" ] || git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+    paths+=("$path")
+  fi
+done
+
 set_committed() {
   if [ -n "${GITHUB_OUTPUT:-}" ]; then
     echo "committed=$1" >> "$GITHUB_OUTPUT"
@@ -28,9 +38,13 @@ if [ "${CI_COMMIT_FORCE_ADD:-false}" = "true" ]; then
   # The ingest workflow passes only paths from a validated release manifest.
   # Some machine-data roots are intentionally ignored in a maintainer clone,
   # so those exact paths must be force-added on the cloud side as well.
-  git add -f -- "$@"
+  if [ "${#paths[@]}" -gt 0 ]; then
+    git add --sparse -f -A -- "${paths[@]}"
+  fi
 else
-  git add -- "$@"
+  if [ "${#paths[@]}" -gt 0 ]; then
+    git add --sparse -A -- "${paths[@]}"
+  fi
 fi
 
 if git diff --cached --quiet; then
