@@ -303,6 +303,11 @@ async function fetchJSON(path, required) {
     if (!required && response.status === 404) return null;
     throw new Error(`${path} HTTP ${response.status}`);
   }
+  const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+  if (!contentType.includes("application/json")) {
+    if (!required) return null;
+    throw new Error(`${path} 返回了非 JSON 内容`);
+  }
   return response.json();
 }
 
