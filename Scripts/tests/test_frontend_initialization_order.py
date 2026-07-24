@@ -18,12 +18,25 @@ class FrontendInitializationOrderTest(unittest.TestCase):
             "const domesticShardLoaded = new Set();",
             "let domesticFullLoaded = false;",
             "let defaultSuggestionCache = null;",
+            "const HANZI_SHARD_BUCKETS = 64;",
         ):
             self.assertLess(
                 app.index(declaration),
                 startup,
                 f"{declaration} must be initialized before domestic deep-link startup",
             )
+
+    def test_reviewed_domestic_row_enriches_instead_of_duplicating_fide_card(self) -> None:
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        merge_start = app.index("function mergeDomesticRows(rows)")
+        prepare_start = app.index("const player = preparePlayer({", merge_start)
+        fide_merge = app.index("if (row.fideID)", merge_start)
+        self.assertLess(fide_merge, prepare_start)
+        self.assertIn(
+            "players.find(player => String(player.fideID || \"\") === String(row.fideID))",
+            app[fide_merge:prepare_start],
+        )
+        self.assertIn("return;", app[fide_merge:prepare_start])
 
 
 if __name__ == "__main__":

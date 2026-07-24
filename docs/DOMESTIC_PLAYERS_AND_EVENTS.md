@@ -22,6 +22,15 @@
 
 仓库外 `identity-workbench/` 中的 `identity-name-groups.json` 按同名观察生成审核分组，`identity-candidates.json`、`fide-link-candidates.json` 与 `chinese-name-candidates.json` 按同赛事、跨赛事、俱乐部一致、晋级连续性和全库唯一性加权排序。高置信候选可形成前端展示聚合，但禁止自动写入 `player-identity-links.csv`；用户可提交证据或异议。同名簇达到 3 条时继续生成经过硬冲突剪枝的两两候选，不再以 `parent-only` 为由完全停止建议。维护者流程见 `MAINTAINER_IDENTITY_REVIEW_GUIDE.md`。
 
+FIDE 候选同时比较国内观察的中文名、拼音、拉丁显示名和别名；注册表只有拉丁名
+时，不得因国内记录优先使用中文名而漏掉候选。同名簇达到 3 条以上也不得整体
+跳过，而应逐条检查唯一 FIDE 命中、性别、出生年、同赛事和参赛单位证据。
+姓名或拼音唯一匹配本身只进入审核队列，不自动确认。人工确认写入
+`player-identity-links.csv` 后，前端把国内赛事历史投影到既有 FIDE 卡片，不再
+生成第二张同 FIDE ID 卡片，也不把国内姓名或赛事字段写回 registry。三条以上
+同名记录只有各自具备同赛事 FIDE 或特色参赛单位等成员级证据时才能自动展示
+归组，禁止用全局同名证据把整簇吸附到同一个 FIDE ID。
+
 ## 需求驱动的赛事整取
 
 `Scripts/build_domestic_event_queue.py` 把既有 starting-rank 目标、大师赛五组目录、`domestic-source-catalog.csv` 和人工确认的 `data-demand-gaps.csv` 合成维护者队列。排序固定为李成智杯 > 棋协大师赛 > 省级青少年赛，并叠加查询需求热度和缺失源页快照的优先分。

@@ -99,6 +99,7 @@ let defaultSuggestionCache = null;
 const domesticSeenIDs = new Set();
 const domesticShardLoaded = new Set();
 let domesticFullLoaded = false;
+const HANZI_SHARD_BUCKETS = 64;
 
 initialize();
 // Domestic entities load on demand (review §5.3): prefix shards arrive with
@@ -151,6 +152,19 @@ function mergeDomesticRows(rows) {
     const domesticID = row.domesticID || row.id;
     if (!domesticID || domesticSeenIDs.has(domesticID)) return;
     domesticSeenIDs.add(domesticID);
+    if (row.fideID) {
+      const fidePlayer = players.find(player => String(player.fideID || "") === String(row.fideID));
+      if (fidePlayer) {
+        // Reviewed domestic facts enrich the existing FIDE card. Registry
+        // names and ratings remain authoritative, and no duplicate card is
+        // added to the search union.
+        fidePlayer.linkedDomesticID = domesticID;
+        fidePlayer.linkedDomesticDetailPath = row.detailPath
+          || (row.shard ? `data/registry/domestic/shards/${row.shard}.json` : "");
+        annotatePresentationGroup(fidePlayer);
+        return;
+      }
+    }
     const player = preparePlayer({
       ...row,
       domesticID,
@@ -168,8 +182,6 @@ function mergeDomesticRows(rows) {
 
 // Prefix shards (review §5.3): only the bucket the current query prefix can
 // match is downloaded. The monolith stays as deep-link/legacy fallback.
-const HANZI_SHARD_BUCKETS = 64;
-
 function domesticShardKeyFor(query) {
   const normalized = String(query || "").trim().toLowerCase();
   const idMatch = normalized.match(/^domestic-([0-9a-f])/);

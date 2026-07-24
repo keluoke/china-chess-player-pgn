@@ -565,6 +565,27 @@ def identity_name(player: DomesticPlayer) -> str:
     return re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", clean(name).casefold())
 
 
+def identity_keys(player: DomesticPlayer) -> list[str]:
+    """Return every usable person-name key without changing registry data."""
+    ignored = {
+        normalized_name(player.domestic_id),
+        normalized_name(player.canonical_id),
+        normalized_name(player.fide_id),
+        normalized_name("姓名待核验"),
+    }
+    result: list[str] = []
+    for value in (
+        player.chinese_name,
+        player.pinyin_name,
+        player.display_name,
+        *player.aliases,
+    ):
+        key = normalized_name(value)
+        if key and key not in ignored and key not in result:
+            result.append(key)
+    return result
+
+
 def normalize_club(value: Any) -> str:
     return re.sub(r"(?:有限责任公司|有限公司|体育文化|教育咨询|国际象棋|棋类|俱乐部|学校|协会|中心)", "", clean(value).casefold()).strip()
 
@@ -1071,6 +1092,36 @@ def build_presentation_groups(
     }
     by_id = {player.domestic_id: player for player in players}
     groups: list[dict[str, Any]] = []
+    fide_members: set[str] = set()
+    reviewed_fide_ids: set[str] = set()
+
+    # Reviewed domestic→FIDE links are permanent identity decisions, but
+    # remain a projection on top of the authoritative FIDE registry.  Emit a
+    # group so the frontend can attach the domestic event history and reviewed
+    # Chinese display name to the existing FIDE card without duplicating it.
+    for player in players:
+        fide_id = clean(player.fide_id)
+        if not fide_id or not player.sightings:
+            continue
+        reviewed_fide_ids.add(fide_id)
+        fide_members.add(player.domestic_id)
+        groups.append({
+            "groupID": "pg-fide-reviewed-" + hashlib.sha256(
+                f"{fide_id}|{player.domestic_id}".encode("utf-8")
+            ).hexdigest()[:12],
+            "canonicalFideID": fide_id,
+            "members": [player.domestic_id],
+            "memberRefs": [{
+                "id": player.domestic_id,
+                "shard": hashlib.sha256(player.domestic_id.encode("utf-8")).hexdigest()[:2],
+            }],
+            "disputeMembers": [f"fide-{fide_id}", player.domestic_id],
+            "displayName": player.display_name,
+            "suggestedChineseName": player.chinese_name,
+            "sightingCount": len(player.sightings),
+            "identityBasis": "reviewed-fide-link",
+            "disputeEntry": True,
+        })
 
     # A domestic observation may project onto a verified FIDE card without
     # becoming a permanent identity link.  This closes the gap where the
@@ -1084,11 +1135,12 @@ def build_presentation_groups(
         fide_id = clean(candidate.get("candidateFideID"))
         if not domestic_id or not fide_id:
             continue
+        if fide_id in reviewed_fide_ids:
+            continue
         if pair_hash(f"fide-{fide_id}", domestic_id) in disputes:
             continue
         fide_groups.setdefault(fide_id, []).append(candidate)
 
-    fide_members: set[str] = set()
     for fide_id, candidates in sorted(fide_groups.items()):
         member_list = sorted({clean(card.get("domesticID")) for card in candidates if clean(card.get("domesticID"))})
         internal_block = any(
@@ -1354,6 +1406,8 @@ def build_fide_candidates(
                     "displayName": clean(fide_player.get("displayName") or fide_player.get("name")),
                     "standard": int(fide_player.get("standard") or 0),
                     "title": clean(fide_player.get("title")),
+                    "sex": clean(fide_player.get("sex")),
+                    "birthYear": parse_int(fide_player.get("birthYear")),
                 }
     for key in ambiguous:
         name_hits.pop(key, None)
@@ -1411,17 +1465,50 @@ def build_fide_candidates(
     domestic_name_counts = Counter(identity_name(player) for player in players if identity_name(player))
     result: list[dict[str, Any]] = []
     for player in players:
-        name_key = identity_name(player)
-        hit = name_hits.get(name_key)
-        if not hit:
+        if player.fide_id:
             continue
+        name_key = identity_name(player)
+        player_keys = identity_keys(player)
+        matched_hits = {
+            hit["fideID"]: hit
+            for key in player_keys
+            if (hit := name_hits.get(key))
+        }
+        # Different aliases resolving to different FIDE cards is a hard
+        # ambiguity.  A large same-name domestic cluster is not: every member
+        # still receives its own reviewable candidate.
+        if len(matched_hits) != 1:
+            continue
+        hit = next(iter(matched_hits.values()))
         cluster_size = domestic_name_counts.get(name_key, 1)
-        if cluster_size >= 3:
+        player_sexes = {clean(player.sex), *(clean(s.sex) for s in player.sightings)}
+        player_sexes.discard("")
+        if hit["sex"] and player_sexes and player_sexes != {hit["sex"]}:
+            continue
+        player_birth_years = {
+            year
+            for year in (
+                player.birth_year,
+                *(s.birth_year for s in player.sightings),
+            )
+            if year is not None
+        }
+        if hit["birthYear"] is not None and player_birth_years and player_birth_years != {hit["birthYear"]}:
             continue
         weights = {"uniqueExactFideName": 25}
         score = 25
-        evidence: list[str] = ["注册表唯一精确同名"]
-        if len({s.event_id for s in player.sightings if s.event_id}) > 1:
+        pinyin_or_alias_fallback = name_hits.get(name_key, {}).get("fideID") != hit["fideID"]
+        matched_name_keys = sorted(
+            key for key in player_keys
+            if name_hits.get(key, {}).get("fideID") == hit["fideID"]
+        )
+        evidence: list[str] = [
+            "注册表唯一精确拼音或别名候选"
+            if pinyin_or_alias_fallback
+            else "注册表唯一精确同名"
+        ]
+        event_count = len({s.event_id for s in player.sightings if s.event_id})
+        if event_count > 1:
             weights["crossEvent"] = 30
             score += 30
         if cluster_size == 1:
@@ -1435,15 +1522,33 @@ def build_fide_candidates(
         direct_events = set(domestic_events & event_ids_by_fide.get(fide_id, set()))
         direct_events.update(
             event_id for event_id in domestic_events
-            if event_detail_fides.get((event_id, name_key)) == {fide_id}
+            if any(
+                event_detail_fides.get((event_id, key)) == {fide_id}
+                for key in player_keys
+            )
         )
         direct_events = sorted(direct_events)
         if direct_events:
             weights["directSameEventFide"] = 50
             score += 50
             evidence.append(f"同一赛事直接关联 FIDE（{len(direct_events)} 项）")
-        source_name_events = event_names_by_fide.get(fide_id, {}).get(name_key, set())
-        unambiguous_source_name = source_name_events and len(event_name_fides.get(name_key, set())) == 1
+        # Source-name repetition is independent evidence only for the primary
+        # domestic identity name. A Latin/pinyin fallback merely repeats the
+        # registry alias and must not unlock an automatic presentation group.
+        source_name_keys = (
+            [name_key]
+            if event_names_by_fide.get(fide_id, {}).get(name_key)
+            else []
+        )
+        source_name_events = {
+            event_id
+            for key in source_name_keys
+            for event_id in event_names_by_fide.get(fide_id, {}).get(key, set())
+        }
+        unambiguous_source_name = bool(
+            source_name_events
+            and all(event_name_fides.get(key) == {fide_id} for key in source_name_keys)
+        )
         if unambiguous_source_name:
             value = 45 if len(source_name_events) >= 2 else 35
             weights["sourceFideNameEvidence"] = value
@@ -1459,8 +1564,27 @@ def build_fide_candidates(
             weights["qualifiedProgression"] = 20
             score += 20
             evidence.append("达到晋级线并存在升级轨迹")
+        if (
+            pinyin_or_alias_fallback
+            and cluster_size == 1
+            and event_count <= 1
+            and not direct_events
+            and not unambiguous_source_name
+            and not club_matches
+        ):
+            # One isolated observation plus transliteration is too broad even
+            # for the maintainer queue. Repeated domestic sightings or an
+            # independent event/club edge is required.
+            continue
         score = max(0, min(100, score))
-        presentation_eligible = bool(direct_events or unambiguous_source_name or club_matches)
+        presentation_eligible = bool(
+            not pinyin_or_alias_fallback
+            and (
+                direct_events
+                or club_matches
+                or (cluster_size < 3 and unambiguous_source_name)
+            )
+        )
         result.append({
             "domesticID": player.domestic_id,
             "domesticName": player.display_name,
@@ -1469,6 +1593,8 @@ def build_fide_candidates(
             "candidateStandard": hit["standard"],
             "candidateTitle": hit["title"],
             "matchBasis": "；".join(evidence),
+            "matchedNameKeys": matched_name_keys,
+            "sameNameClusterSize": cluster_size,
             "score": score,
             "queueTier": "suggested-high" if presentation_eligible or score >= 70 else "suggested-medium" if score >= 45 else "low",
             "weights": weights,
