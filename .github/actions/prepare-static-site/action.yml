@@ -29,6 +29,7 @@ runs:
         rm -rf "$out"
         rsync -a --delete \
           --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
+          --exclude 'data/bulk/youth/' \
           --exclude 'data/registry/domestic/identity-review.json' \
           --exclude 'data/search-bootstrap-domestic.json' \
           docs/ "$out"/
@@ -40,10 +41,13 @@ runs:
         # the 6 MiB monolith remains in the repository as an offline/legacy
         # fallback but is redundant in a deployment containing those shards.
 
-        # Bulk stage packs can legitimately exceed the per-file hosting limit
-        # (e.g. the adult broadcast pack). They are secondary downloads — the
-        # per-player packs carry the same games — so DROP oversize bulk packs
-        # from the artifact instead of failing the whole deploy.
+        # Bulk youth stage packs are secondary downloads: the per-player packs
+        # carry the same games. Exclude the whole optional directory, including
+        # its manifest, so the frontend falls back cleanly instead of publishing
+        # links to PGN files that are intentionally absent from the site.
+        #
+        # Other bulk packs can still legitimately exceed the per-file hosting
+        # limit, so drop only those oversize files from the artifact.
         find "$out/data/bulk" -type f -size +${{ inputs.max-file-mib }}M -print -delete 2>/dev/null           | sed 's/^/dropped oversize bulk file: /' || true
 
         if find "$out" -type f -size +${{ inputs.max-file-mib }}M -print -quit | grep -q .; then
