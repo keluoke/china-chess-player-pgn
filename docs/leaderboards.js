@@ -1,7 +1,20 @@
-const data = await fetch("./data/leaderboards.json").then(response => {
-  if (!response.ok) throw new Error(`排行榜加载失败：HTTP ${response.status}`);
-  return response.json();
-});
+import {
+  applyPresentationName,
+  buildPresentationNameIndex,
+  presentationNameBadge,
+  resolvePlayerDisplayName
+} from "./presentation-names.js";
+
+const [data, presentationPayload] = await Promise.all([
+  fetch("./data/leaderboards.json").then(response => {
+    if (!response.ok) throw new Error(`排行榜加载失败：HTTP ${response.status}`);
+    return response.json();
+  }),
+  fetch("./data/identity/presentation-names.json")
+    .then(response => response.ok ? response.json() : null)
+    .catch(() => null)
+]);
+const presentationNames = buildPresentationNameIndex(presentationPayload);
 const groups = data.groups ?? [];
 const tabs = document.querySelector("#leaderboardTabs");
 const page = document.querySelector("#leaderboardPage");
@@ -21,10 +34,11 @@ function render() {
   tabs.querySelectorAll("[data-group]").forEach(button => button.setAttribute("aria-selected", String(button.dataset.group === active)));
   if (!group) { page.innerHTML = '<div class="empty-state">暂无排行数据</div>'; return; }
   const rowFor = (player, index) => {
+    applyPresentationName(player, presentationNames.get(String(player.fideID)));
     const rating = ratingFor(player);
     return `<a class="leaderboard-row-link" href="./?fideID=${encodeURIComponent(player.fideID)}">
       <span class="rank-badge">${index + 1}</span>
-      <span><strong>${escapeHTML(player.displayName || player.chineseName || player.name)}</strong><small>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(player.title || "无称号")} · ${escapeHTML(player.age != null ? `${player.age} 岁` : "年龄待补")}</small></span>
+      <span><strong>${escapeHTML(resolvePlayerDisplayName(player))}</strong>${presentationBadgeHTML(player)}<small>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(player.title || "无称号")} · ${escapeHTML(player.age != null ? `${player.age} 岁` : "年龄待补")}</small></span>
       <span class="rating-value">${escapeHTML(rating ? rating.value : "—")}<small>${escapeHTML(rating?.kind || "无等级分")}</small></span>
     </a>`;
   };
@@ -40,5 +54,10 @@ function ratingFor(player) {
   if (Number.isFinite(player.rapid)) return { value: player.rapid, kind: "快棋" };
   if (Number.isFinite(player.blitz)) return { value: player.blitz, kind: "超快棋" };
   return null;
+}
+function presentationBadgeHTML(player) {
+  const badge = presentationNameBadge(player);
+  if (!badge) return "";
+  return `<span class="identity-status ${badge.key}" title="${escapeHTML(badge.title)}">${escapeHTML(badge.label)}</span>`;
 }
 function escapeHTML(value) { const node = document.createElement("span"); node.textContent = String(value ?? ""); return node.innerHTML; }

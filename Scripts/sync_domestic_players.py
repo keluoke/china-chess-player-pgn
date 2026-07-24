@@ -34,6 +34,10 @@ PLAYER_NAME_MAP_CSV = REPO_ROOT / "data" / "generated" / "chess-results-player-n
 PROMOTION_REVIEW = REPO_ROOT / "data" / "generated" / "audit" / "promotion-review.json"
 PRESENTATION_NAMES = REPO_ROOT / "docs" / "data" / "identity" / "presentation-names.json"
 PUBLIC_EVENT_DETAILS = REPO_ROOT / "docs" / "data" / "index" / "event-details"
+FORBIDDEN_PRESENTATION_NAMES = {
+    "8602980": {"居文君"},
+    "8608288": {"徐翔宇"},
+}
 
 
 def validate_observation_manifest(path: pathlib.Path) -> None:
@@ -227,7 +231,7 @@ def main() -> int:
     write_output(
         players, sightings, links, name_groups, identity_candidates,
         fide_candidates, chinese_name_candidates, args.output_root,
-        args.dry_run, conflict_edges, presentation_groups,
+        args.dry_run, conflict_edges, presentation_groups, args.fide_registry,
     )
 
     stats = {
@@ -1126,6 +1130,51 @@ def build_chinese_name_candidates(
     return result
 
 
+def build_public_presentation_name_rows(
+    candidates: list[dict[str, Any]],
+    registry_rows: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    """Build display hints while keeping registry values authoritative."""
+    registry = {
+        clean(row.get("fideID")): row
+        for row in registry_rows
+        if clean(row.get("fideID"))
+    }
+    result: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        fide_id = clean(candidate.get("fideID"))
+        chinese_name = sanitize_person_name(candidate.get("suggestedChineseName"))
+        tier = clean(candidate.get("queueTier"))
+        if not fide_id or fide_id not in registry or not chinese_name:
+            continue
+        if clean(registry[fide_id].get("chineseName")):
+            continue
+        if chinese_name in FORBIDDEN_PRESENTATION_NAMES.get(fide_id, set()):
+            raise ValueError(f"historical wrong presentation name resurfaced: {fide_id}={chinese_name}")
+        if tier == "suggested-high" and candidate.get("presentationEligible"):
+            confidence, policy = "high", "default"
+        elif tier == "suggested-medium" and not candidate.get("presentationEligible"):
+            confidence, policy = "medium", "detail-only"
+        else:
+            # Conflicts and inconsistent eligibility remain in the private
+            # maintainer queue and never enter a public projection.
+            continue
+        if fide_id in seen:
+            raise ValueError(f"duplicate public presentation-name candidate: {fide_id}")
+        seen.add(fide_id)
+        result.append({
+            "fideID": fide_id,
+            "suggestedChineseName": chinese_name,
+            "confidence": confidence,
+            "displayPolicy": policy,
+            "identityBasis": f"presentation-{confidence}-name",
+        })
+    order = {"high": 0, "medium": 1}
+    result.sort(key=lambda row: (order[row["confidence"]], row["fideID"]))
+    return result
+
+
 def build_fide_candidates(
     players: list[DomesticPlayer],
     registry_path: pathlib.Path,
@@ -1321,6 +1370,7 @@ def write_output(
     dry_run: bool,
     conflict_edges: list[dict[str, Any]] | None = None,
     presentation_groups: list[dict[str, Any]] | None = None,
+    fide_registry_path: pathlib.Path = FIDE_REGISTRY,
 ) -> None:
     import sys
     if str(REPO_ROOT / "Scripts") not in sys.path:
@@ -1408,26 +1458,22 @@ def write_output(
         },
         "groups": presentation_groups or [],
     })
-    # Chinese names discovered in repeated public tournament appearances are
-    # a presentation hint, never a registry mutation.  The authoritative
-    # chineseName stays empty until a reviewer accepts evidence into the
-    # manual alias layer.
+    # Presentation hints never mutate the registry. High confidence is a
+    # default frontend fallback; medium confidence is detail-only; conflicts
+    # remain private review material.
     PRESENTATION_NAMES.parent.mkdir(parents=True, exist_ok=True)
-    public_name_rows = [
-        {
-            "fideID": row["fideID"],
-            "suggestedChineseName": row["suggestedChineseName"],
-            "identityBasis": "presentation-high-name",
-        }
-        for row in chinese_name_candidates
-        if row.get("presentationEligible") and row.get("suggestedChineseName")
-    ]
+    registry_rows = json.loads(fide_registry_path.read_text(encoding="utf-8")) if fide_registry_path.exists() else []
+    public_name_rows = build_public_presentation_name_rows(chinese_name_candidates, registry_rows)
     write_json(PRESENTATION_NAMES, {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "snapshotId": sid,
         "generatedAt": generated_at,
-        "note": "重复赛事中的高置信中文名，仅用于默认展示；权威姓名仍以 registry 为准",
-        "totals": {"players": len(public_name_rows)},
+        "note": "展示候选不覆盖 registry；高置信默认展示，中置信仅详情提示，冲突不公开",
+        "totals": {
+            "players": len(public_name_rows),
+            "high": sum(row["confidence"] == "high" for row in public_name_rows),
+            "medium": sum(row["confidence"] == "medium" for row in public_name_rows),
+        },
         "players": public_name_rows,
     })
     write_domestic_search_and_shards(output_root, players)

@@ -397,5 +397,83 @@ class PresentationGroupTest(unittest.TestCase):
             self.assertFalse({"domestic-aaa", "domestic-ccc"} <= set(group["members"]))
 
 
+class PresentationNameProjectionTest(unittest.TestCase):
+    def test_public_projection_separates_high_medium_and_conflict_without_mutation(self):
+        registry = [
+            {"fideID": "1001", "name": "High, Player"},
+            {"fideID": "1002", "name": "Medium, Player"},
+            {"fideID": "1003", "name": "Conflict, Player"},
+            {"fideID": "1004", "name": "Registry, Player", "chineseName": "主档姓名"},
+        ]
+        candidates = [
+            {
+                "fideID": "1001", "suggestedChineseName": "高可信名",
+                "queueTier": "suggested-high", "presentationEligible": True,
+            },
+            {
+                "fideID": "1002", "suggestedChineseName": "单场候选",
+                "queueTier": "suggested-medium", "presentationEligible": False,
+            },
+            {
+                "fideID": "1003", "suggestedChineseName": "",
+                "candidateNames": ["冲突甲名", "冲突乙名"],
+                "queueTier": "conflict", "presentationEligible": False,
+            },
+            {
+                "fideID": "1004", "suggestedChineseName": "赛事候选",
+                "queueTier": "suggested-high", "presentationEligible": True,
+            },
+        ]
+        before = copy.deepcopy(registry)
+        rows = sdp.build_public_presentation_name_rows(candidates, registry)
+        self.assertEqual(registry, before)
+        self.assertEqual(
+            rows,
+            [
+                {
+                    "fideID": "1001",
+                    "suggestedChineseName": "高可信名",
+                    "confidence": "high",
+                    "displayPolicy": "default",
+                    "identityBasis": "presentation-high-name",
+                },
+                {
+                    "fideID": "1002",
+                    "suggestedChineseName": "单场候选",
+                    "confidence": "medium",
+                    "displayPolicy": "detail-only",
+                    "identityBasis": "presentation-medium-name",
+                },
+            ],
+        )
+        self.assertFalse(any("source" in key.lower() or "evidence" in key.lower() for row in rows for key in row))
+
+    def test_historical_wrong_names_are_pinned_at_projection_boundary(self):
+        registry = [{"fideID": "8602980", "name": "Hou, Yifan"}]
+        candidates = [{
+            "fideID": "8602980",
+            "suggestedChineseName": "居文君",
+            "queueTier": "suggested-high",
+            "presentationEligible": True,
+        }]
+        with self.assertRaisesRegex(ValueError, "historical wrong presentation name"):
+            sdp.build_public_presentation_name_rows(candidates, registry)
+
+    def test_duplicate_fide_candidates_are_rejected(self):
+        registry = [{"fideID": "1001", "name": "Duplicate, Player"}]
+        candidates = [
+            {
+                "fideID": "1001", "suggestedChineseName": "候选甲名",
+                "queueTier": "suggested-high", "presentationEligible": True,
+            },
+            {
+                "fideID": "1001", "suggestedChineseName": "候选乙名",
+                "queueTier": "suggested-medium", "presentationEligible": False,
+            },
+        ]
+        with self.assertRaisesRegex(ValueError, "duplicate public presentation-name candidate"):
+            sdp.build_public_presentation_name_rows(candidates, registry)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -107,6 +107,21 @@ class GovernanceLanguageTests(unittest.TestCase):
         local_readme = (REPO / "Scripts" / "local" / "README.md").read_text(encoding="utf-8")
         self.assertIn("默认直接在 `main` 上工作", local_readme)
 
+    def test_all_player_frontends_use_shared_presentation_name_resolver(self) -> None:
+        app = (REPO / "docs" / "app.js").read_text(encoding="utf-8")
+        leaderboards = (REPO / "docs" / "leaderboards.js").read_text(encoding="utf-8")
+        shared = (REPO / "docs" / "presentation-names.js").read_text(encoding="utf-8")
+        for text in (app, leaderboards):
+            self.assertIn('from "./presentation-names.js"', text)
+            self.assertIn("resolvePlayerDisplayName", text)
+            self.assertIn("buildPresentationNameIndex", text)
+        self.assertNotIn("player.displayName || player.chineseName || player.name", leaderboards)
+        self.assertIn("player?.chineseName", shared)
+        self.assertIn("presentationNameConfidence === \"high\"", shared)
+        self.assertIn("presentationNameConfidence === \"medium\"", shared)
+        self.assertIn('"8602980"', shared)
+        self.assertIn('"8608288"', shared)
+
     def test_dual_workspace_and_terminal_proxy_are_documented(self) -> None:
         agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
         local_readme = (REPO / "Scripts" / "local" / "README.md").read_text(encoding="utf-8")

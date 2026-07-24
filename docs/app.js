@@ -1,4 +1,11 @@
 import LichessPgnViewer from "./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min.js";
+import {
+  applyPresentationName,
+  buildPresentationNameIndex,
+  presentationNameBadge,
+  presentationNameDetail,
+  resolvePlayerDisplayName
+} from "./presentation-names.js";
 
 const state = {
   selectedFideID: null,
@@ -80,7 +87,7 @@ const domesticShardRequests = new Map();
 const participationCache = new Map();
 const participationRequests = new Map();
 let presentationFideIndex = null;   // FIDE ID -> display-only group
-let presentationNameIndex = null;   // FIDE ID -> high-confidence Chinese-name hint
+let presentationNameIndex = null;   // FIDE ID -> sanitized display-only name candidate
 const PGN_VIEWER_CACHE_MAX_ENTRIES = 3;
 const PGN_VIEWER_CACHE_MAX_BYTES = 48 * 1024 * 1024;
 let activeLichessViewer = null;
@@ -88,6 +95,7 @@ let viewerAutoplayTimer = null;
 let searchDebounceTimer = null;
 let composingSearch = false;
 let domesticSearchReady = false;
+let defaultSuggestionCache = null;
 
 initialize();
 // Domestic entities load on demand (review §5.3): prefix shards arrive with
@@ -236,10 +244,7 @@ async function loadPresentationGroups() {
     presentationGroups = new Map();
     presentationMemberIndex = new Map();
     presentationFideIndex = new Map();
-    presentationNameIndex = new Map();
-    (namesPayload?.players ?? []).forEach(row => {
-      if (row.fideID && row.suggestedChineseName) presentationNameIndex.set(String(row.fideID), row.suggestedChineseName);
-    });
+    presentationNameIndex = buildPresentationNameIndex(namesPayload);
     (payload?.groups ?? []).forEach(group => {
       presentationGroups.set(group.groupID, group);
       if (group.canonicalFideID) presentationFideIndex.set(String(group.canonicalFideID), group);
@@ -250,8 +255,7 @@ async function loadPresentationGroups() {
     players.forEach(annotatePresentationGroup);
     const selected = selectedPlayer();
     if (selected?.presentationCanonicalFideID) state.selectedFideID = selected.presentationCanonicalFideID;
-    if (state.query) renderSearch();
-    if (selectedPlayer()) renderDetail();
+    if (state.query || selectedPlayer() || state.selectedEventID) render();
   } catch (_error) {
     presentationGroups = presentationGroups ?? new Map();
     presentationMemberIndex = presentationMemberIndex ?? new Map();
@@ -264,14 +268,21 @@ function annotatePresentationGroup(player) {
   if (!player) return;
   if (player.fideID) {
     const group = presentationFideIndex?.get(String(player.fideID));
-    const suggestedName = presentationNameIndex?.get(String(player.fideID)) || group?.suggestedChineseName;
+    const candidate = presentationNameIndex?.get(String(player.fideID))
+      || (group?.suggestedChineseName ? {
+        fideID: String(player.fideID),
+        suggestedChineseName: group.suggestedChineseName,
+        confidence: "high",
+        displayPolicy: "default",
+        provisional: true
+      } : null);
     if (group) {
       player.presentationGroupID = group.groupID;
       player.presentationGroupSize = (group.members ?? []).length + 1;
       player.presentationGroupSightings = group.sightingCount;
     }
-    if (suggestedName && !player.chineseName) player.presentationChineseName = suggestedName;
-    if (group || suggestedName) Object.assign(player, preparePlayer(player));
+    applyPresentationName(player, candidate);
+    if (group || candidate) Object.assign(player, preparePlayer(player));
     return;
   }
   if (!presentationMemberIndex || player.entityType !== "domestic-player") return;
@@ -513,7 +524,6 @@ async function renderSearchTrustLine() {
   }
 }
 
-let defaultSuggestionCache = null;
 function defaultSearchSuggestions() {
   // Derive examples from the live data (top rated players that actually have
   // games and a Chinese name) instead of a hardcoded list that can go stale.
@@ -613,7 +623,7 @@ function renderSearch() {
     const titleLabel = player.title || "无称号";
     return `
       <a class="result-button" href="${escapeAttribute(playerHref(player))}" data-player="${escapeAttribute(playerKey(player))}" aria-pressed="${state.selectedFideID === playerKey(player)}">
-        <div class="player-name">${highlightMatch(displayName(player), state.query)} ${publicStatusBadge(player)}</div>
+        <div class="player-name">${highlightMatch(displayName(player), state.query)} ${publicStatusBadge(player)} ${presentationNameBadgeHTML(player)}</div>
         <div class="player-meta">${escapeHTML(fideLabel)} · ${escapeHTML(ratingLabel)} · ${escapeHTML(birthLabel)} · ${escapeHTML(titleLabel)}</div>
       </a>
     `;
@@ -702,7 +712,7 @@ function renderDetail() {
   els.detailPane.innerHTML = `
     <div class="detail-title">
       <div>
-        <span class="eyebrow">${publicStatusBadge(player)} · 赛前情报</span>
+        <span class="eyebrow">${publicStatusBadge(player)} ${presentationNameBadgeHTML(player, { detail: true })} · 赛前情报</span>
         <h2>${escapeHTML(displayName(player))}</h2>
         ${detailChineseNameLine(player)}
         <p>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(uniqueStrings([publicAgeLabel(player), stageLabelForPlayer(player, stage)]).join(" · "))}</p>
@@ -911,7 +921,7 @@ function renderEvent() {
       <summary class="section-heading"><h3>${eventDetail ? "已收录 FIDE 棋手" : "参赛中国棋手"}</h3><span>${eventPlayers.length ? `${eventPlayers.length} 名可跳转` : "名单待同步"}</span></summary>
       ${visiblePlayers.length ? `<div class="event-player-grid">${visiblePlayers.map(player => `
         <button class="event-player" type="button" data-action="select-event-player" data-fide="${escapeAttribute(player.fideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}">
-          <strong>${escapeHTML(displayName(player))}</strong><span>FIDE ${escapeHTML(player.fideID)}</span>
+          <strong>${escapeHTML(displayName(player))}</strong>${presentationNameBadgeHTML(player)}<span>FIDE ${escapeHTML(player.fideID)}</span>
         </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手。</p>` : ""}` : `<div class="empty-state compact">该赛事已有赛事记录，但棋手名单尚未同步。</div>`}
     </details>
     ${eventDetail ? domesticEventData(event, eventDetail) : event.detailPath ? `<div class="event-loading">正在载入逐轮成绩与最终排名…</div>` : ""}
@@ -2185,6 +2195,12 @@ function publicStatusBadge(player) {
   return `<span class="identity-status ${status.key}">${status.label}</span>`;
 }
 
+function presentationNameBadgeHTML(player, { detail = false } = {}) {
+  const badge = presentationNameBadge(player, { detail });
+  if (!badge) return "";
+  return `<span class="identity-status ${badge.key}" title="${escapeAttribute(badge.title)}">${escapeHTML(badge.label)}</span>`;
+}
+
 function eventDataStatus(event) {
   // Copy derives from explicit completeness states only (review §5.1).
   if (event?.playableComplete) return "complete";
@@ -2333,14 +2349,7 @@ function uniqueStrings(values) {
 }
 
 function displayName(player) {
-  let name = "";
-  const chineseName = player.chineseName || player.presentationChineseName;
-  if (chineseName && player.name && chineseName !== player.name) {
-    name = `${chineseName} · ${player.name}`;
-  } else {
-    name = chineseName ?? player.displayName ?? player.name ?? `FIDE ${player.fideID}`;
-  }
-  return displayText(name);
+  return displayText(resolvePlayerDisplayName(player));
 }
 
 function transferBadge(player) {
@@ -2353,8 +2362,9 @@ function transferBadge(player) {
 }
 
 function detailChineseNameLine(player) {
-  if (player.presentationChineseName && !player.chineseName) {
-    return `<div class="detail-cn-name">中文名暂定：${escapeHTML(displayText(player.presentationChineseName))}</div>`;
+  const presentation = presentationNameDetail(player);
+  if (presentation) {
+    return `<div class="detail-cn-name">${escapeHTML(presentation.label)}：${escapeHTML(displayText(presentation.value))}</div>`;
   }
   if (!player.chineseName || displayName(player).includes(player.chineseName)) return "";
   return `<div class="detail-cn-name">${escapeHTML(displayText(player.chineseName))}</div>`;

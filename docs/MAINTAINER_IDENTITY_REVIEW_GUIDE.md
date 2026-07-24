@@ -31,11 +31,18 @@ domestic,domestic-3718d907d01f,fide,8640491,reviewed-high,same-event-roster+dist
 中文名候选来自已抓取赛事中的专用姓名字段，先经过 `sanitize_person_name`。规则如下：
 
 - registry 已有中文名：不生成普通补名候选；如发现错误，走 `name-corrections.csv`；
-- 同一 FIDE ID 在至少 2 个赛事中出现同一中文名且没有冲突：高置信，前端以“中文名暂定”展示；
-- 只出现 1 个赛事：中优先级，只进入维护者队列；
-- 出现多个不同中文名：冲突队列最高优先，不进入前端展示。
+- 同一 FIDE ID 在至少 2 个赛事中出现同一中文名且没有冲突：高置信，搜索、
+  排行榜、赛事名单和棋手详情默认显示，并标注“中文名高置信暂定”；
+- 只出现 1 个赛事：中置信，不参与搜索、排行榜或名单的默认名称，仅在棋手详情
+  中显示“可能中文名（单场观测，待核验）”；
+- 出现多个不同中文名：冲突队列最高优先，不进入任何公开展示投影。
 
-高置信展示使用 `docs/data/identity/presentation-names.json` 的 `suggestedChineseName`，不会写入或覆盖 registry 的 `chineseName`。审核接受后，把中文名、拼音和别名写入 `data/manual/player-aliases.csv`；确认是历史错标时写 `data/community/name-corrections.csv`。
+前端统一通过 `docs/presentation-names.js` 解析姓名，优先级固定为
+`registry.chineseName → 高置信展示候选 → registry 英文名`。中置信只提供详情
+提示；删除展示候选后自动回退英文名。展示候选不会写入或覆盖 registry 的
+`chineseName`。审核接受后，把中文名、拼音和别名写入
+`data/manual/player-aliases.csv`；确认是历史错标时写
+`data/community/name-corrections.csv`。
 
 ```csv
 fide_id,chinese_name,pinyin_name,aliases,source,confidence,notes
