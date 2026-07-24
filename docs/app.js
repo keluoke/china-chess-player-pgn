@@ -96,6 +96,9 @@ let searchDebounceTimer = null;
 let composingSearch = false;
 let domesticSearchReady = false;
 let defaultSuggestionCache = null;
+const domesticSeenIDs = new Set();
+const domesticShardLoaded = new Set();
+let domesticFullLoaded = false;
 
 initialize();
 // Domestic entities load on demand (review §5.3): prefix shards arrive with
@@ -142,10 +145,6 @@ async function loadData() {
     throw error;
   }
 }
-
-const domesticSeenIDs = new Set();
-const domesticShardLoaded = new Set();
-let domesticFullLoaded = false;
 
 function mergeDomesticRows(rows) {
   (rows ?? []).forEach(row => {

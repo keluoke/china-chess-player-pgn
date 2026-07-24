@@ -569,6 +569,18 @@ def normalize_club(value: Any) -> str:
     return re.sub(r"(?:有限责任公司|有限公司|体育文化|教育咨询|国际象棋|棋类|俱乐部|学校|协会|中心)", "", clean(value).casefold()).strip()
 
 
+GENERIC_CLUBS = {
+    "", "0", "a2", "b3", "china", "chn", "open", "中国",
+    "北京市", "上海市", "天津市", "重庆市", "福建省", "广东省",
+    "河北省", "河南省", "江苏省", "四川省", "浙江省",
+}
+
+
+def distinctive_club(value: Any) -> str:
+    club = normalize_club(value)
+    return club if len(club) >= 4 and club not in GENERIC_CLUBS else ""
+
+
 def age_stage_continuity(sightings: list[Sighting]) -> str:
     observations: list[tuple[str, int]] = []
     for sighting in sightings:
@@ -614,11 +626,11 @@ def build_identity_name_groups(players: list[DomesticPlayer]) -> list[dict[str, 
 # adjacent levels of this graph, never across arbitrary group names.
 GROUP_LEVELS = (
     ("四级棋士", 1), ("三级棋士", 2), ("二级棋士", 3), ("一级棋士", 4),
-    ("候补", 5), ("棋协大师", 6), ("公开", 6),
+    ("候补", 5), ("公开", 6), ("棋协大师", 6),
 )
 PROMOTION_SCORE_RATE = 0.65
 PROMOTION_WINDOW_DAYS = 730
-CANDIDATE_ALGORITHM_VERSION = "identity-candidates-v2"
+CANDIDATE_ALGORITHM_VERSION = "identity-candidates-v3"
 
 
 def group_level(sighting: Sighting) -> int:
@@ -715,6 +727,103 @@ def promotion_evidence(left: DomesticPlayer, right: DomesticPlayer) -> dict[str,
     return best
 
 
+def competition_stage_key(sighting: Sighting) -> str:
+    """Stable key for proving that two sightings stayed in the same section.
+
+    Domestic title levels take precedence over broad age labels such as OPEN,
+    otherwise two different master levels could be mistaken for one group.
+    """
+    title = f"{sighting.group} {sighting.event_name}"
+    for keyword, _level in GROUP_LEVELS:
+        if keyword in title:
+            return f"ladder:{keyword}"
+    group = normalized_name(sighting.group)
+    if group:
+        return f"group:{group}"
+    age_stage = normalized_name(sighting.age_stage)
+    return f"age:{age_stage}" if age_stage else ""
+
+
+def sighting_event_key(sighting: Sighting) -> str:
+    event_id = clean(sighting.event_id)
+    if event_id:
+        return event_id
+    event_name = clean(sighting.event_name)
+    event_date = clean(sighting.event_date)
+    return f"{event_name}|{event_date}" if event_name and event_date else ""
+
+
+def same_stage_nonpromotion_evidence(
+    left: DomesticPlayer,
+    right: DomesticPlayer,
+) -> dict[str, Any] | None:
+    """Prove same-person continuity when a player did not earn promotion.
+
+    A display merge requires a distinctive club, the same normalized group,
+    an earlier score below the promotion threshold, two distinct events and
+    an ordered timeline within the normal promotion window. Year-only dates
+    are accepted only across different years; same-year ordering needs exact
+    dates. Hard conflicts are checked by the caller before this runs.
+    """
+    best: dict[str, Any] | None = None
+    for earlier_player, later_player in ((left, right), (right, left)):
+        for earlier in earlier_player.sightings:
+            earlier_rate = score_rate(earlier)
+            stage_key = competition_stage_key(earlier)
+            club_key = distinctive_club(earlier.club)
+            earlier_event = sighting_event_key(earlier)
+            if (
+                earlier_rate is None
+                or earlier_rate >= PROMOTION_SCORE_RATE
+                or not stage_key
+                or not club_key
+                or not earlier_event
+            ):
+                continue
+            for later in later_player.sightings:
+                later_event = sighting_event_key(later)
+                if (
+                    later_event == earlier_event
+                    or distinctive_club(later.club) != club_key
+                    or competition_stage_key(later) != stage_key
+                ):
+                    continue
+                earlier_date = parse_date(earlier.event_date)
+                later_date = parse_date(later.event_date)
+                earlier_year = date_year(earlier.event_date)
+                later_year = date_year(later.event_date)
+                if earlier_date and later_date:
+                    gap = (later_date - earlier_date).days
+                    ordered = 0 < gap <= PROMOTION_WINDOW_DAYS
+                    months = round(gap / 30)
+                    precision = "exact"
+                elif earlier_year and later_year and later_year > earlier_year:
+                    gap = (later_year - earlier_year) * 365
+                    ordered = gap <= PROMOTION_WINDOW_DAYS
+                    months = (later_year - earlier_year) * 12
+                    precision = "year-ordered"
+                else:
+                    ordered = False
+                    months = None
+                    precision = "same-year-unordered"
+                if not ordered:
+                    continue
+                candidate = {
+                    "group": earlier.group or earlier.age_stage,
+                    "scoreRate": round(earlier_rate, 3),
+                    "monthsBetween": months,
+                    "exactDates": bool(earlier_date and later_date),
+                    "ordered": True,
+                    "datePrecision": precision,
+                    "eventIDs": [earlier_event, later_event],
+                }
+                if best is None or (candidate["exactDates"] and not best["exactDates"]):
+                    best = candidate
+                if candidate["exactDates"]:
+                    return candidate
+    return best
+
+
 def sexes_consistent(left: DomesticPlayer, right: DomesticPlayer) -> bool:
     """True unless there is an explicit sex conflict (M vs F) between the sides."""
     left_sex = {s.sex for s in left.sightings if s.sex} or ({left.sex} if left.sex else set())
@@ -761,6 +870,11 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
 
     left_clubs = {normalize_club(s.club) for s in left.sightings if normalize_club(s.club)}
     right_clubs = {normalize_club(s.club) for s in right.sightings if normalize_club(s.club)}
+    shared_distinctive_clubs = {
+        distinctive_club(s.club) for s in left.sightings if distinctive_club(s.club)
+    } & {
+        distinctive_club(s.club) for s in right.sightings if distinctive_club(s.club)
+    }
     if left_clubs & right_clubs:
         weights["clubConsistency"] = 25
         evidence_kinds += 1
@@ -781,6 +895,15 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
                 f"{promotion['higherGroup']}，先后顺序待精确日期核验"
             )
         summary.append(desc)
+
+    same_stage = same_stage_nonpromotion_evidence(left, right)
+    if same_stage:
+        weights["sameStageAfterNonPromotion"] = 35
+        evidence_kinds += 1
+        summary.append(
+            f"{same_stage['group']} 得分率 {same_stage['scoreRate']:.0%} 未达晋级线，"
+            f"{same_stage['monthsBetween']} 个月后仍在同组"
+        )
 
     combined_continuity = age_stage_continuity([*left.sightings, *right.sightings])
     if combined_continuity == "consistent":
@@ -805,21 +928,35 @@ def pair_candidate(key: str, left: DomesticPlayer, right: DomesticPlayer,
         summary.append("公开地区一致")
 
     score = max(0, min(100, sum(weights.values())))
-    # Review §4.2: "同俱乐部 + 真实晋级轨迹" (same club + genuine promotion
-    # pattern, sexes consistent, no hard conflicts) is high-confidence BY
-    # ITSELF. Display aggregation additionally requires the promotion order
-    # to rest on exact event dates or year/order precision.
+    # Review §4.2: same-club continuity supports two symmetric paths:
+    # a real ordered promotion, or a below-threshold result followed by an
+    # ordered appearance in the same group. The latter requires a distinctive
+    # club because generic province/team labels are not identity evidence.
     ordered_promotion = bool(promotion and promotion.get("ordered"))
     club_plus_promotion = bool(weights.get("clubConsistency")) and ordered_promotion and sexes_consistent(left, right)
-    if club_plus_promotion or (score >= 70 and evidence_kinds >= 2):
+    club_plus_same_stage = bool(
+        shared_distinctive_clubs
+        and same_stage
+        and same_stage.get("ordered")
+        and sexes_consistent(left, right)
+    )
+    if club_plus_promotion or club_plus_same_stage or (score >= 70 and evidence_kinds >= 2):
         tier = "suggested-high"
     elif score >= 45:
         tier = "suggested-medium"
     else:
         tier = "low"
-    presentation_eligible = bool(club_plus_promotion)
+    presentation_eligible = bool(club_plus_promotion or club_plus_same_stage)
+    presentation_basis = (
+        "distinctive-club+same-stage-after-nonpromotion"
+        if club_plus_same_stage
+        else "club+ordered-promotion"
+        if club_plus_promotion
+        else ""
+    )
     return {
         "presentationEligible": presentation_eligible,
+        "presentationBasis": presentation_basis,
         "candidateID": "identity-candidate-" + hashlib.sha256(f"{left.domestic_id}|{right.domestic_id}".encode("utf-8")).hexdigest()[:16],
         "algorithmVersion": CANDIDATE_ALGORITHM_VERSION,
         "normalizedName": key,
@@ -918,9 +1055,10 @@ def build_presentation_groups(
 ) -> list[dict[str, Any]]:
     """High-confidence display-only aggregation (review §4.1–4.5).
 
-    - Edges: presentationEligible candidate pairs (same club + exact-date
-      promotion pattern + consistent sex + no hard conflicts) minus disputed/
-      tombstoned pairs.
+    - Edges: presentationEligible candidate pairs (same club + ordered
+      promotion, or distinctive club + ordered same-group continuation after
+      a below-threshold result; always consistent sex and no hard conflicts)
+      minus disputed/tombstoned pairs.
     - Components form via union-find, but a component containing ANY internal
       hard-conflict or blocked pair is discarded entirely: transitive closure
       never bypasses a conflict edge (review §4.5).
@@ -994,6 +1132,7 @@ def build_presentation_groups(
         parent[find(a)] = find(b)
 
     eligible_edges: list[tuple[str, str]] = []
+    eligible_edge_basis: dict[str, str] = {}
     for candidate in identity_candidates:
         if not candidate.get("presentationEligible"):
             continue
@@ -1006,6 +1145,7 @@ def build_presentation_groups(
         if hash_value in disputes or hash_value in conflict_pairs:
             continue
         eligible_edges.append((ids[0], ids[1]))
+        eligible_edge_basis[hash_value] = clean(candidate.get("presentationBasis"))
         union(ids[0], ids[1])
 
     components: dict[str, set[str]] = {}
@@ -1023,6 +1163,26 @@ def build_presentation_groups(
         )
         if internal_block or len(member_list) < 2:
             continue
+        uses_same_stage_evidence = any(
+            eligible_edge_basis.get(pair_hash(member_list[i], member_list[j]))
+            == "distinctive-club+same-stage-after-nonpromotion"
+            for i in range(len(member_list)) for j in range(i + 1, len(member_list))
+        )
+        if uses_same_stage_evidence:
+            shared_component_clubs: set[str] | None = None
+            for member in member_list:
+                member_clubs = {
+                    distinctive_club(sighting.club)
+                    for sighting in by_id[member].sightings
+                    if distinctive_club(sighting.club)
+                }
+                shared_component_clubs = (
+                    member_clubs
+                    if shared_component_clubs is None
+                    else shared_component_clubs & member_clubs
+                )
+            if not shared_component_clubs:
+                continue
         primary = by_id.get(member_list[0])
         groups.append({
             "groupID": "pg-" + hashlib.sha256("|".join(member_list).encode("utf-8")).hexdigest()[:12],
@@ -1045,18 +1205,6 @@ def build_presentation_groups(
 
 def normalized_name(value: Any) -> str:
     return re.sub(r"[^0-9a-z\u4e00-\u9fff]", "", clean(value).casefold())
-
-
-GENERIC_CLUBS = {
-    "", "0", "a2", "b3", "china", "chn", "open", "中国",
-    "北京市", "上海市", "天津市", "重庆市", "福建省", "广东省",
-    "河北省", "河南省", "江苏省", "四川省", "浙江省",
-}
-
-
-def distinctive_club(value: Any) -> str:
-    club = normalize_club(value)
-    return club if len(club) >= 4 and club not in GENERIC_CLUBS else ""
 
 
 def read_player_event_evidence(path: pathlib.Path) -> list[dict[str, str]]:

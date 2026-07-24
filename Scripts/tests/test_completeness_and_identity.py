@@ -304,6 +304,33 @@ def promotion_pair(exact_dates=True, sex_b="M", concurrent=False, club_b="X俱�
     return a, b
 
 
+def same_stage_pair(
+    *,
+    exact_dates=True,
+    club_b="南京博智弈国际象棋俱乐部",
+    group_b="男子一级棋士组",
+    earlier_score="4",
+    birth_b=2010,
+):
+    """Same distinctive club, below promotion line, then the same group."""
+    date_earlier = "2024-05-01" if exact_dates else "2024"
+    date_later = "2025-03-01" if exact_dates else "2025"
+    a = entity("domestic-stable-a", [sighting(
+        sighting_id="s-stable-a", event_id="chess-results-tnr401",
+        group="男子一级棋士组", club="南京博智弈国际象棋俱乐部",
+        score=earlier_score, rounds="9", event_date=date_earlier,
+        sex="M", birth_year=2010,
+    )])
+    b = entity("domestic-stable-b", [sighting(
+        sighting_id="s-stable-b", event_id="chess-results-tnr402",
+        group=group_b, club=club_b, score="4", rounds="9",
+        event_date=date_later, sex="M", birth_year=birth_b,
+    )])
+    a.birth_year = 2010
+    b.birth_year = birth_b
+    return a, b
+
+
 class PresentationGroupTest(unittest.TestCase):
     """§7.6–7.10: high-confidence grouping, conflicts, disputes, immutability."""
 
@@ -327,6 +354,83 @@ class PresentationGroupTest(unittest.TestCase):
         self.assertTrue(candidates[0]["presentationEligible"])
         groups = sdp.build_presentation_groups([a, b], candidates, conflicts)
         self.assertEqual(len(groups), 1)
+
+    def test_distinctive_club_same_group_after_nonpromotion_aggregates(self):
+        a, b = same_stage_pair()
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(conflicts, [])
+        self.assertEqual(candidates[0]["queueTier"], "suggested-high")
+        self.assertTrue(candidates[0]["presentationEligible"])
+        self.assertEqual(
+            candidates[0]["presentationBasis"],
+            "distinctive-club+same-stage-after-nonpromotion",
+        )
+        self.assertIn("sameStageAfterNonPromotion", candidates[0]["weights"])
+        groups = sdp.build_presentation_groups([a, b], candidates, conflicts)
+        self.assertEqual(groups[0]["members"], ["domestic-stable-a", "domestic-stable-b"])
+        self.assertNotIn("clubs", groups[0])
+        self.assertNotIn("evidenceSummary", groups[0])
+
+    def test_cross_year_same_group_after_nonpromotion_proves_order(self):
+        a, b = same_stage_pair(exact_dates=False)
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(conflicts, [])
+        self.assertTrue(candidates[0]["presentationEligible"])
+
+    def test_same_year_without_exact_dates_does_not_merge_same_group(self):
+        a, b = same_stage_pair(exact_dates=False)
+        b.sightings[0].event_date = "2024"
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(conflicts, [])
+        self.assertFalse(candidates[0]["presentationEligible"])
+        self.assertNotIn("sameStageAfterNonPromotion", candidates[0]["weights"])
+
+    def test_generic_club_does_not_merge_same_group(self):
+        a, b = same_stage_pair(club_b="江苏省")
+        a.sightings[0].club = "江苏省"
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(conflicts, [])
+        self.assertFalse(candidates[0]["presentationEligible"])
+
+    def test_reaching_promotion_line_does_not_use_nonpromotion_path(self):
+        a, b = same_stage_pair(earlier_score="6")
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(conflicts, [])
+        self.assertFalse(candidates[0]["presentationEligible"])
+        self.assertNotIn("sameStageAfterNonPromotion", candidates[0]["weights"])
+
+    def test_different_group_does_not_use_same_group_path(self):
+        a, b = same_stage_pair(group_b="男子三级棋士组")
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(conflicts, [])
+        self.assertFalse(candidates[0]["presentationEligible"])
+
+    def test_birth_year_conflict_blocks_same_group_merge(self):
+        a, b = same_stage_pair(birth_b=2012)
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(candidates, [])
+        self.assertTrue(any("birth-year-conflict" in row["reasons"] for row in conflicts))
+
+    def test_same_stage_edges_cannot_bridge_two_different_clubs(self):
+        a, b = same_stage_pair()
+        b.sightings.append(sighting(
+            sighting_id="s-stable-b2", event_id="chess-results-tnr403",
+            group="男子一级棋士组", club="上海弘睿传棋体育文化有限公司",
+            score="4", rounds="9", event_date="2025-05-01",
+            sex="M", birth_year=2010,
+        ))
+        c = entity("domestic-stable-c", [sighting(
+            sighting_id="s-stable-c", event_id="chess-results-tnr404",
+            group="男子一级棋士组", club="上海弘睿传棋体育文化有限公司",
+            score="4", rounds="9", event_date="2026-03-01",
+            sex="M", birth_year=2010,
+        )])
+        c.birth_year = 2010
+        candidates, conflicts = sdp.build_identity_candidates([a, b, c])
+        self.assertEqual(conflicts, [])
+        self.assertTrue(any(card["presentationEligible"] for card in candidates))
+        groups = sdp.build_presentation_groups([a, b, c], candidates, conflicts)
+        self.assertEqual(groups, [])
 
     def test_same_year_without_exact_dates_stays_review_only(self):
         a, b = promotion_pair(exact_dates=False)
