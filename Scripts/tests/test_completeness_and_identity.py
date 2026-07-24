@@ -88,6 +88,24 @@ class ArchiveFirstMatchingTest(unittest.TestCase):
         queue = ccr.supplement_queue([report], leads={})
         self.assertEqual(queue, [])
 
+    def test_lichess_archive_defines_and_completes_published_scope(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Player, A", 2, "Player, B", has_pgn=False),
+            pairing(1, 2, 3, "Player, C", 4, "Player, D", has_pgn=False),
+        ]}]
+        payload = payload_with_rounds(rounds)
+        game = {
+            **archive_game(1, 1, "Player, A", "Player, B"),
+            "source": "Lichess Broadcasts",
+        }
+        with mock.patch.object(ccr, "parse_event_archive", return_value=[game]):
+            report = ccr.event_report(payload, by_player_games={})
+        self.assertEqual(report["pgnAvailability"], "advertised-partial")
+        self.assertEqual(report["archiveStatus"], "matched-advertised-complete")
+        self.assertEqual(report["pgnIngestStatus"], "source-published-complete")
+        self.assertEqual(report["counts"]["lichessBroadcastGames"], 1)
+        self.assertEqual(report["pgnArchiveSources"], ["Lichess Broadcasts"])
+
 
 class NaturalKeyMatchingTest(unittest.TestCase):
     """§7.2: same names, reversed colors and different boards never mis-match."""

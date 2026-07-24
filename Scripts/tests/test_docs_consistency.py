@@ -77,6 +77,14 @@ class RefreshCommandContractTests(unittest.TestCase):
         retired_line = re.search(r"^\s*(crawl\|[^)]+)\)", script, re.MULTILINE)
         self.assertIsNotNone(retired_line, "refresh.sh must keep the retired-command block")
 
+    def test_bulk_git_manifest_excludes_immutable_lichess_shards(self) -> None:
+        script = (REPO / "Scripts" / "local" / "refresh.sh").read_text(encoding="utf-8")
+        block = re.search(r"BULK_PATHS=\((.*?)\)\nEVENT_PATHS=", script, re.DOTALL)
+        self.assertIsNotNone(block)
+        self.assertNotIn('"docs/data/bulk"', block.group(1))
+        self.assertNotIn("lichess-broadcast/shards", block.group(1))
+        self.assertIn('"docs/data/bulk/lichess-events"', block.group(1))
+
 
 class GovernanceLanguageTests(unittest.TestCase):
     def test_no_current_scraped_upload_pipeline(self) -> None:

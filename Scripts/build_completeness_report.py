@@ -42,6 +42,9 @@ except Exception:  # pragma: no cover - CI without local policy module extras
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DETAILS = ROOT / "data" / "generated" / "chess-results-event-details"
 EVENT_PGN = ROOT / "data" / "generated" / "chess-results-event-pgn"
+LICHESS_EVENT_ROOT = ROOT / "docs" / "data" / "bulk" / "lichess-events"
+LICHESS_EVENT_PGN = LICHESS_EVENT_ROOT / "pgn"
+LICHESS_EVENT_MANIFEST = LICHESS_EVENT_ROOT / "manifest.json"
 BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
 OUTPUT = ROOT / "data" / "generated" / "event-completeness-report.json"
 QUEUE_OUTPUT = ROOT / "data" / "generated" / "pgn-supplement-queue.json"
@@ -142,8 +145,7 @@ def valid_result(pairing: dict[str, Any]) -> bool:
 _HEADER_RE = re.compile(r'^\[(\w+)\s+"([^"]*)"\]', re.MULTILINE)
 
 
-def parse_event_archive(tid: str) -> list[dict[str, str]]:
-    path = EVENT_PGN / f"tnr{tid}.pgn"
+def parse_archive_path(path: pathlib.Path, source: str) -> list[dict[str, str]]:
     if not path.is_file():
         return []
     try:
@@ -162,8 +164,31 @@ def parse_event_archive(tid: str) -> list[dict[str, str]]:
             "white": clean(headers.get("White")),
             "black": clean(headers.get("Black")),
             "result": clean(headers.get("Result")),
+            "source": source,
         })
     return games
+
+
+def parse_event_archive(tid: str) -> list[dict[str, str]]:
+    return [
+        *parse_archive_path(EVENT_PGN / f"tnr{tid}.pgn", "Chess-Results"),
+        *parse_archive_path(LICHESS_EVENT_PGN / f"tnr{tid}.pgn", "Lichess Broadcasts"),
+    ]
+
+
+def verified_lichess_event_archives() -> set[str]:
+    manifest = read_json(LICHESS_EVENT_MANIFEST, {})
+    verified: set[str] = set()
+    for event in manifest.get("events", []) or []:
+        tid = clean(event.get("tournamentID"))
+        path_value = clean(event.get("pgnPath"))
+        expected = clean(event.get("sha256"))
+        if not tid or path_value != f"data/bulk/lichess-events/pgn/tnr{tid}.pgn" or not expected:
+            continue
+        path = LICHESS_EVENT_PGN / f"tnr{tid}.pgn"
+        if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == expected:
+            verified.add(tid)
+    return verified
 
 
 def match_archive_games(
@@ -319,7 +344,6 @@ def event_report(
     played = [p for p in non_bye if played_game_expected(p) is True]
     played_unknown = sum(1 for p in non_bye if played_game_expected(p) is None)
     forfeits = sum(1 for p in non_bye if is_forfeit(p.get("result")))
-    advertised = [p for p in played if advertised_pgn(p)]
     valid_results = sum(1 for p in non_bye if valid_result(p))
 
     # --- played and advertised expected keys ---
@@ -361,6 +385,14 @@ def event_report(
 
     # --- archive matching (archives are first-class input, review §2.1) -----
     archive_games = parse_event_archive(tid)
+    archive_sources = sorted({clean(game.get("source")) for game in archive_games if clean(game.get("source"))})
+    lichess_games = [game for game in archive_games if clean(game.get("source")) == "Lichess Broadcasts"]
+    if lichess_games:
+        # A successfully cross-matched Lichess broadcast game is itself
+        # evidence that the source published that board.  Expand the
+        # source-published denominator before matching the combined archives.
+        lichess_match = match_archive_games(payload, lichess_games, played_keys, set())
+        advertised_keys.update(lichess_match["matchedPlayedKeys"])
     if archive_games:
         match = match_archive_games(payload, archive_games, played_keys, advertised_keys)
     else:
@@ -427,9 +459,9 @@ def event_report(
         },
         "results": {"expected": len(non_bye), "valid": valid_results,
                     "status": "complete" if non_bye and valid_results == len(non_bye) else ("unknown" if not non_bye else "partial")},
-        "pgnExpected": {"expected": len(advertised), "playedGames": len(played),
+        "pgnExpected": {"expected": len(advertised_keys), "playedGames": len(played),
                         "playedUnknown": played_unknown, "forfeits": forfeits},
-        "pgnMatched": {"expected": len(advertised), "matched": matched,
+        "pgnMatched": {"expected": len(advertised_keys), "matched": matched,
                        "matchedExact": match["matchedExact"],
                        "matchedNameFallback": match["matchedNameFallback"],
                        "keyNameMismatches": match["keyNameMismatches"],
@@ -449,10 +481,10 @@ def event_report(
     if not played:
         availability = "no-played-games" if non_bye else "no-pairings"
         scope = "none-published"
-    elif not advertised:
+    elif not advertised_keys:
         availability = "not-published"
         scope = "none-published"
-    elif len(advertised) < len(played):
+    elif len(advertised_keys) < len(played_keys):
         availability = "advertised-partial"
         scope = "selected-live-boards"
     else:
@@ -475,7 +507,7 @@ def event_report(
             archive_status = "archived-unmatched"
         elif is_matched_full:
             archive_status = "matched-full"
-        elif is_matched_advertised and len(advertised) < len(played):
+        elif is_matched_advertised and len(advertised_keys) < len(played_keys):
             archive_status = "matched-advertised-complete"
         else:
             archive_status = "matched-partial"
@@ -485,8 +517,19 @@ def event_report(
         archive_status = "missing"
 
     # 分子限制在对应的精确匹配子集中，防范 coverage > 1
-    advertised_coverage = round(len(match["matchedAdvertisedKeys"]) / len(advertised), 4) if advertised else None
+    advertised_coverage = round(len(match["matchedAdvertisedKeys"]) / len(advertised_keys), 4) if advertised_keys else None
     played_coverage = round(len(match["matchedPlayedKeys"]) / len(played), 4) if played else None
+
+    if availability in ("no-pairings", "no-played-games"):
+        pgn_ingest_status = "not-applicable"
+    elif availability == "not-published":
+        pgn_ingest_status = "not-published"
+    elif is_matched_advertised:
+        pgn_ingest_status = "full-board-complete" if is_matched_full else "source-published-complete"
+    elif match["matchedAdvertisedKeys"]:
+        pgn_ingest_status = "source-published-partial"
+    else:
+        pgn_ingest_status = "source-published-missing"
 
     publishable = results_status == "results-complete"
 
@@ -521,6 +564,8 @@ def event_report(
         "pgnAvailability": availability,
         "pgnCoverageScope": scope,
         "archiveStatus": archive_status,
+        "pgnIngestStatus": pgn_ingest_status,
+        "pgnArchiveSources": archive_sources,
         "pgnSourceStatus": collection_status.get("status") or "not-attempted",
         "pgnSourceErrorCode": collection_status.get("errorCode") or None,
         "pgnLastAttemptedAt": collection_status.get("attemptedAt") or None,
@@ -536,7 +581,8 @@ def event_report(
             "nonByePairings": len(non_bye),
             "playedGames": len(played),
             "forfeits": forfeits,
-            "advertisedPGN": len(advertised),
+            "advertisedPGN": len(advertised_keys),
+            "lichessBroadcastGames": len(lichess_games),
             "archivedGames": len(archive_games),
             "matchedPairings": matched,
             "localGameFingerprints": len(local_fingerprints),
@@ -617,7 +663,7 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
 
 def build() -> dict[str, Any]:
     games_index = by_player_game_index()
-    public_archives = verified_event_archives()
+    public_archives = verified_event_archives() | verified_lichess_event_archives()
     status_payload = read_json(COLLECTION_STATUS, {})
     collection_statuses = status_payload.get("events") if isinstance(status_payload.get("events"), dict) else {}
     reports = []
@@ -640,11 +686,13 @@ def build() -> dict[str, Any]:
         "eventComplete": sum(1 for r in reports if r["eventComplete"]),
         "pgnAvailability": {},
         "archiveStatus": {},
+        "pgnIngestStatus": {},
         "pgnSourceStatus": {},
     }
     for report in reports:
         summary["pgnAvailability"][report["pgnAvailability"]] = summary["pgnAvailability"].get(report["pgnAvailability"], 0) + 1
         summary["archiveStatus"][report["archiveStatus"]] = summary["archiveStatus"].get(report["archiveStatus"], 0) + 1
+        summary["pgnIngestStatus"][report["pgnIngestStatus"]] = summary["pgnIngestStatus"].get(report["pgnIngestStatus"], 0) + 1
         summary["pgnSourceStatus"][report["pgnSourceStatus"]] = summary["pgnSourceStatus"].get(report["pgnSourceStatus"], 0) + 1
     return {
         "schemaVersion": 2,

@@ -31,6 +31,21 @@
      抓取检查点，不再充当发布门禁；`partial` 一律隔离。PGN 补件队列见
      `data/generated/pgn-supplement-queue.json`（P0=已承诺未归档，P1=可本地
      恢复/外部线索，P2=来源未发布不回抓）。
+   - **公开直播范围完整（不等于全台完整）**：李成智杯、棋协大师赛等国内赛事
+     常仅公开前若干台直播棋谱。若每轮来源实际公开的全部直播棋谱均已归档并与
+     `round + board + 白黑 playerNo` 唯一匹配，可标
+     `pgnIngestStatus=source-published-complete`，表示在客观公开范围内完整；
+     仍不得标 `archived-full-board` 或宣称“全台棋谱完整”。来源未发布任何棋谱
+     则标 `not-published`，不进入回抓队列；空响应、下载错误、少局或错配仍是
+     `source-published-missing/partial`，不得用“通常只播前十台”豁免。
+   - **Lichess 广播交叉归档**：亚少赛、世少赛须在 Chess-Results 对阵事实层上
+     与 Lichess Broadcast 月度库交叉比对。只接受赛事系列、慢棋项目、年份/
+     日期窗口、年龄/性别组、轮次及双方身份均相容的唯一匹配；FIDE ID 优先，
+     规范化姓名只作回退，歧义局拒绝。投影写入
+     `docs/data/bulk/lichess-events/`，保留 Lichess 名称、URL、CC BY-SA 4.0
+     许可证及署名；广播容器中的未匹配残差必须写入 manifest，禁止静默算完整。
+     `.pgn.zst` 月度原档只保存在本地/R2，不进入 Git 发布 manifest；合法的
+     Zstandard skippable frame 不得误判为坏文件。
    - **合并发生在云端 ingest，不在本机**：采集机永不 pull，本机旧工作区不得
      假设等于云端 main。发布包携带赛事 ID、每类对象的自然键、基线版本/哈希；
      云端以当前 main 为基线做字段级三方合并（一致跳过 / 本地优先覆盖 / 保留

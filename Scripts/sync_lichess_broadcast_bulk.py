@@ -34,10 +34,13 @@ BULK_ROOT = DOCS_DATA / "bulk"
 LICHESS_ROOT = BULK_ROOT / "lichess-broadcast"
 SHARD_ROOT = LICHESS_ROOT / "shards"
 YOUTH_ROOT = BULK_ROOT / "youth"
+LICHESS_EVENT_ROOT = BULK_ROOT / "lichess-events"
 OBJECT_STORAGE_BASE = "https://data.chessdb.aigclabs.cc"
 EXISTING_SHARD_ROOT = PUBLIC_DOCS_DATA / "bulk" / "lichess-broadcast" / "shards"
 REGISTRY_PLAYERS_JSON = PUBLIC_DOCS_DATA / "registry" / "players.json"
 MANUAL_ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
+EVENT_DETAILS_ROOT = REPO_ROOT / "data" / "generated" / "chess-results-event-details"
+PUBLIC_EVENTS_JSON = PUBLIC_DOCS_DATA / "index" / "public-events.json"
 DATABASE_URL = "https://database.lichess.org/"
 USER_AGENT = "ChinaChessPlayerPGNBulkSync/1.0"
 COMPETITION_YEAR = 2026
@@ -178,8 +181,10 @@ def main() -> int:
     write_bulk_manifest(all_shards, source_meta, args.dry_run)
 
     youth_stats = None
+    target_event_stats = None
     if args.index_youth:
         youth_stats = build_youth_index(selected_shards, args.dry_run)
+        target_event_stats = build_target_event_archives(selected_shards, args.dry_run)
     elif not args.dry_run and not (YOUTH_ROOT / "manifest.json").exists():
         write_empty_youth_manifest()
 
@@ -189,6 +194,7 @@ def main() -> int:
         "mirroredShards": sum(1 for shard in all_shards if shard.shard_path.exists()),
         "mirroredBytes": sum(shard.shard_path.stat().st_size for shard in all_shards if shard.shard_path.exists()),
         "youth": youth_stats,
+        "targetEvents": target_event_stats,
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
@@ -270,8 +276,23 @@ def validate_local_shard(path: pathlib.Path, expected_size: int) -> None:
     if size <= 0 or (expected_size and size < int(expected_size * 0.5)):
         raise RuntimeError(f"VALIDATION_REGRESSION: Lichess 分片尺寸异常：{path.name} ({size}/{expected_size})")
     with path.open("rb") as handle:
-        if handle.read(4) != b"\x28\xb5\x2f\xfd":
-            raise RuntimeError(f"VALIDATION_REGRESSION: Lichess 分片签名无效：{path.name}")
+        magic = handle.read(4)
+        # RFC 8878 allows one or more skippable frames (0x184D2A50–5F)
+        # before the first compressed frame.  Lichess 2026-06 uses this for a
+        # four-byte metadata preamble, so checking only byte offset zero
+        # falsely rejected a valid archive and triggered an endless re-fetch.
+        for _ in range(16):
+            value = int.from_bytes(magic, "little")
+            if magic == b"\x28\xb5\x2f\xfd":
+                return
+            if not 0x184D2A50 <= value <= 0x184D2A5F:
+                break
+            length_bytes = handle.read(4)
+            if len(length_bytes) != 4:
+                break
+            handle.seek(int.from_bytes(length_bytes, "little"), os.SEEK_CUR)
+            magic = handle.read(4)
+    raise RuntimeError(f"VALIDATION_REGRESSION: Lichess 分片签名无效：{path.name}")
 
 
 def mirror_shards(shards: list[BroadcastShard], force: bool, delay: float, dry_run: bool) -> None:
@@ -295,8 +316,11 @@ def mirror_shards(shards: list[BroadcastShard], force: bool, delay: float, dry_r
             retries=2,
             expected_size=shard.size_bytes,
             minimum_ratio=0.5,
-            magic=b"\x28\xb5\x2f\xfd",
+            # Zstandard permits a skippable-frame preamble; validate with the
+            # format-aware checker below instead of a fixed offset-zero magic.
+            magic=b"",
         )
+        validate_local_shard(target, shard.size_bytes)
         if delay:
             time.sleep(delay)
 
@@ -440,6 +464,325 @@ def build_youth_index(shards: list[BroadcastShard], dry_run: bool) -> dict[str, 
     }
     if not dry_run:
         write_json(YOUTH_ROOT / "manifest.json", manifest)
+    return manifest["totals"]
+
+
+def target_series_event(value: dict[str, Any]) -> bool:
+    """Return the standard-play Asian/World youth events audited by TNR.
+
+    The public catalog can contain schools, junior, cup, rapid and blitz rows
+    under the broad youth labels.  Those are deliberately excluded here so a
+    broadcast cannot be attached to the wrong competition.
+    """
+    series = clean(value.get("series")).casefold()
+    name = clean(value.get("name")).casefold()
+    excluded = ("rapid", "blitz", "schools", "school", "junior", "olympiad", "cup", "training", "eastern")
+    if any(token in name for token in excluded):
+        return False
+    if series == "asian-youth":
+        return "asian youth" in name and "championship" in name
+    if series == "world-youth":
+        return "world" in name and ("youth" in name or "cadet" in name) and "championship" in name
+    return False
+
+
+def target_event_rows() -> list[dict[str, Any]]:
+    if not PUBLIC_EVENTS_JSON.exists():
+        return []
+    payload = read_json(PUBLIC_EVENTS_JSON)
+    rows = payload.get("events", []) if isinstance(payload, dict) else payload
+    result: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        tid = clean(row.get("tournamentID"))
+        if not tid or tid in result or not target_series_event(row):
+            continue
+        detail_path = EVENT_DETAILS_ROOT / f"tnr{tid}.json"
+        if not detail_path.exists():
+            continue
+        detail = read_json(detail_path)
+        year_match = re.search(r"\b(20(?:2[2-9]|3\d))\b", clean(row.get("date")) or clean(detail.get("sourceName")))
+        if not year_match:
+            continue
+        result[tid] = {
+            "tournamentID": tid,
+            "series": clean(row.get("series")),
+            "name": clean(detail.get("sourceName")) or clean(row.get("name")),
+            "date": clean(row.get("date")),
+            "year": year_match.group(1),
+            "detail": detail,
+        }
+    return sorted(result.values(), key=lambda item: (item["year"], item["tournamentID"]))
+
+
+def target_player_key(value: Any) -> str:
+    """Order-insensitive Latin token key, with domestic region suffix removed."""
+    text = re.sub(r"\([^)]*\)", "", clean(value).casefold())
+    tokens = re.findall(r"[0-9a-z\u4e00-\u9fff]+", text)
+    return "".join(sorted(tokens))
+
+
+def target_round(value: Any) -> str:
+    text = clean(value)
+    direct = re.match(r"(\d+)", text)
+    if direct:
+        return direct.group(1)
+    match = re.search(r"\b(?:round|rd)\s*([0-9]+)\b", text, flags=re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
+def game_round(headers: dict[str, str]) -> str:
+    for value in (headers.get("Round"), headers.get("StudyName"), headers.get("Event")):
+        result = target_round(value)
+        if result:
+            return result
+    return ""
+
+
+def event_group(value: Any) -> tuple[str, str] | None:
+    text = clean(value).casefold()
+    matches = list(re.finditer(
+        r"\b(girls?|girl|open|boys?|boy|[gou])\s*(?:under\s*)?(?:u\s*)?-?\s*0?(8|10|12|14|16|18)\b",
+        text,
+    ))
+    if not matches:
+        return None
+    # Some official titles enumerate every age in the series prefix and put
+    # the actual group after the final dash.  The last recognized group is
+    # therefore the specific section represented by the TNR/broadcast.
+    match = matches[-1]
+    label, age = match.groups()
+    sex = "G" if label.startswith("g") else "O"
+    return sex, age
+
+
+def compatible_target_broadcast(event: dict[str, Any], headers: dict[str, str]) -> bool:
+    broadcast = clean(headers.get("BroadcastName") or headers.get("Event"))
+    lowered = broadcast.casefold()
+    excluded = ("rapid", "blitz", "schools", "school", "junior", "olympiad", "cup", "training", "eastern", "western")
+    if any(token in lowered for token in excluded):
+        return False
+    if event["series"] == "asian-youth":
+        if "asian youth" not in lowered or "championship" not in lowered:
+            return False
+    elif event["series"] == "world-youth":
+        if "world" not in lowered or ("youth" not in lowered and "cadet" not in lowered) or "championship" not in lowered:
+            return False
+    target_group = event_group(event.get("name"))
+    broadcast_group = event_group(broadcast)
+    if target_group and broadcast_group and target_group != broadcast_group:
+        return False
+
+    event_date = normalize_pgn_date(clean(event.get("date")))
+    game_date = normalize_pgn_date(
+        headers.get("EventDate") or headers.get("Date") or headers.get("UTCDate") or ""
+    )
+    if event_date and game_date:
+        try:
+            expected = dt.date.fromisoformat(event_date)
+            actual = dt.date.fromisoformat(game_date)
+        except ValueError:
+            return False
+        # Catalog dates may be either the first or final round.  Youth events
+        # in scope are shorter than six weeks; series/discipline/group checks
+        # above keep adjacent rapid and blitz broadcasts out.
+        if abs((actual - expected).days) > 45:
+            return False
+    return True
+
+
+def pgn_with_archive_headers(game: str, tid: str, board: str, round_no: str, headers: dict[str, str]) -> str:
+    additions = {
+        "Round": round_no,
+        "Board": board,
+        "TournamentID": tid,
+        "Source": "Lichess Broadcasts",
+        "SourceURL": headers.get("BroadcastURL") or DATABASE_URL,
+        "License": "CC BY-SA 4.0",
+        "LicenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+    }
+    existing = pgn_headers(game)
+    lines = []
+    for key, value in additions.items():
+        if value and not existing.get(key):
+            escaped = clean(value).replace("\\", "\\\\").replace('"', '\\"')
+            lines.append(f'[{key} "{escaped}"]')
+    if not lines:
+        return game.strip()
+    split = game.find("\n\n")
+    if split < 0:
+        return game.rstrip() + "\n" + "\n".join(lines)
+    return game[:split].rstrip() + "\n" + "\n".join(lines) + game[split:]
+
+
+def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> dict[str, Any]:
+    """Cross-match Lichess broadcast games to TNR pairings and archive them.
+
+    Matching is intentionally strict: year + round + both player identities.
+    FIDE IDs are preferred; normalized names are fallback evidence.  Only a
+    unique TNR/board match is accepted, so this projection cannot guess across
+    rapid/standard events or repeated opponents.
+    """
+    events = target_event_rows()
+    by_id: dict[tuple[str, str, tuple[str, str]], list[tuple[str, str]]] = {}
+    by_name: dict[tuple[str, str, tuple[str, str]], list[tuple[str, str]]] = {}
+    event_meta: dict[str, dict[str, Any]] = {}
+
+    for event in events:
+        detail = event.pop("detail")
+        roster = {
+            clean(player.get("playerNo")): player
+            for player in detail.get("players", [])
+            if clean(player.get("playerNo"))
+        }
+        played = 0
+        for round_row in detail.get("rounds", []):
+            round_no = target_round(round_row.get("round"))
+            for pairing in round_row.get("pairings", []):
+                white = pairing.get("white") or {}
+                black = pairing.get("black") or {}
+                board = clean(pairing.get("board"))
+                if not round_no or not board or not white.get("playerNo") or not black.get("playerNo"):
+                    continue
+                result = clean(pairing.get("result"))
+                if not result or re.fullmatch(r"[+\-]\s*-\s*[+\-]", result):
+                    continue
+                white_player = roster.get(clean(white.get("playerNo")), {})
+                black_player = roster.get(clean(black.get("playerNo")), {})
+                id_pair = tuple(sorted((clean(white_player.get("fideID")), clean(black_player.get("fideID")))))
+                name_pair = tuple(sorted((target_player_key(white.get("name")), target_player_key(black.get("name")))))
+                ref = (event["tournamentID"], board)
+                if all(id_pair):
+                    by_id.setdefault((event["year"], round_no, id_pair), []).append(ref)
+                if all(name_pair):
+                    by_name.setdefault((event["year"], round_no, name_pair), []).append(ref)
+                played += 1
+        event_meta[event["tournamentID"]] = {
+            **event,
+            "playedGames": played,
+            "games": [],
+            "gameHashes": set(),
+            "matchedBoards": set(),
+            "broadcastNames": set(),
+            "sourceShards": set(),
+            "idMatches": 0,
+            "nameMatches": 0,
+        }
+
+    ambiguous = 0
+    scanned = 0
+    container_games: dict[str, int] = {}
+    container_matches: dict[str, int] = {}
+    for shard in shards:
+        if not shard.shard_path.exists() or shard.month[:4] not in {event["year"] for event in events}:
+            continue
+        print(f"index-target-events {shard.file_name}", flush=True)
+        for game in iter_zst_pgn_games(shard.shard_path):
+            scanned += 1
+            headers = pgn_headers(game)
+            container = clean(headers.get("BroadcastName") or headers.get("Event"))
+            if container:
+                container_games[container] = container_games.get(container, 0) + 1
+            year = normalize_pgn_date(
+                headers.get("EventDate") or headers.get("Date") or headers.get("UTCDate") or ""
+            )[:4] or shard.month[:4]
+            round_no = game_round(headers)
+            if not round_no:
+                continue
+            id_pair = tuple(sorted((clean(headers.get("WhiteFideId") or headers.get("WhiteFideID")),
+                                    clean(headers.get("BlackFideId") or headers.get("BlackFideID")))))
+            name_pair = tuple(sorted((target_player_key(headers.get("White")), target_player_key(headers.get("Black")))))
+            refs: list[tuple[str, str]] = []
+            match_kind = ""
+            if all(id_pair):
+                refs = by_id.get((year, round_no, id_pair), [])
+                match_kind = "id"
+            if not refs and all(name_pair):
+                refs = by_name.get((year, round_no, name_pair), [])
+                match_kind = "name"
+            refs = [
+                ref
+                for ref in dict.fromkeys(refs)
+                if compatible_target_broadcast(event_meta[ref[0]], headers)
+            ]
+            if len(refs) != 1:
+                ambiguous += int(len(refs) > 1)
+                continue
+            tid, board = refs[0]
+            meta = event_meta[tid]
+            marker = stable_game_hash(game)
+            if marker in meta["gameHashes"]:
+                continue
+            meta["gameHashes"].add(marker)
+            meta["matchedBoards"].add((round_no, board))
+            meta["broadcastNames"].add(clean(headers.get("BroadcastName") or headers.get("Event")))
+            meta["sourceShards"].add(shard.local_path or public_data_path(shard.shard_path))
+            meta[f"{match_kind}Matches"] += 1
+            meta["games"].append(pgn_with_archive_headers(game, tid, board, round_no, headers))
+            if container:
+                container_matches[container] = container_matches.get(container, 0) + 1
+
+    event_rows = []
+    total_games = 0
+    for tid, meta in sorted(event_meta.items()):
+        games = meta.pop("games")
+        hashes = meta.pop("gameHashes")
+        matched_boards = meta.pop("matchedBoards")
+        broadcast_names = sorted(meta.pop("broadcastNames"))
+        source_shards = sorted(meta.pop("sourceShards"))
+        linked_container_games = sum(container_games.get(name, 0) for name in broadcast_names)
+        linked_container_matches = sum(container_matches.get(name, 0) for name in broadcast_names)
+        linked_container_unmatched = max(0, linked_container_games - linked_container_matches)
+        path = LICHESS_EVENT_ROOT / "pgn" / f"tnr{tid}.pgn"
+        if games and not dry_run:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("\n\n".join(games).rstrip() + "\n", encoding="utf-8")
+        elif not games and path.exists() and not dry_run:
+            path.unlink()
+        total_games += len(games)
+        event_rows.append({
+            **meta,
+            "broadcastGames": len(games),
+            "matchedPairings": len(matched_boards),
+            "broadcastNames": broadcast_names,
+            "sourceShards": source_shards,
+            "linkedContainerGames": linked_container_games,
+            "linkedContainerMatchedToTargetEvents": linked_container_matches,
+            "linkedContainerUnmatchedGames": linked_container_unmatched,
+            "broadcastComplete": bool(games) and linked_container_unmatched == 0,
+            **({
+                "pgnPath": public_data_path(path),
+                "sha256": sha256_file(path) if path.exists() and not dry_run else "",
+            } if games else {}),
+        })
+
+    manifest = {
+        "schemaVersion": 1,
+        "generatedAt": now(),
+        "source": "Lichess Broadcasts",
+        "sourceURL": DATABASE_URL,
+        "license": "Creative Commons Attribution-ShareAlike 4.0",
+        "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "matchingRule": "unique year + round + player pair; FIDE IDs preferred, normalized names fallback",
+        "totals": {
+            "targetEvents": len(events),
+            "eventsWithBroadcasts": sum(bool(row["broadcastGames"]) for row in event_rows),
+            "broadcastGames": total_games,
+            "scannedGames": scanned,
+            "ambiguousGamesRejected": ambiguous,
+        },
+        "events": event_rows,
+        "containers": [
+            {
+                "broadcastName": name,
+                "games": container_games[name],
+                "matchedToTargetEvents": container_matches.get(name, 0),
+                "unmatchedGames": container_games[name] - container_matches.get(name, 0),
+            }
+            for name in sorted({name for row in event_rows for name in row["broadcastNames"]})
+        ],
+    }
+    if not dry_run:
+        write_json(LICHESS_EVENT_ROOT / "manifest.json", manifest)
     return manifest["totals"]
 
 

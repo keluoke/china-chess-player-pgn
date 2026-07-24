@@ -1,8 +1,8 @@
 # 赛事数据完备性整改设计基线
 
-状态：**设计基线（未实施）**。本文档固化三方 code review 后的整改方案，是
-`AGENTS.md` 铁律二的实施细则。现行代码与本基线的缺口按 P0 处理；实施顺序见
-文末。本阶段不改代码。
+状态：**分阶段实施中**。本文档固化三方 code review 后的整改方案，是
+`AGENTS.md` 铁律二的实施细则。完整性报告、公开直播范围 PGN 门禁及 Lichess
+广播交叉归档已实施；云端字段级三方合并等其余缺口仍按 P0 处理。
 
 ## P0 缺陷（当前实现）
 
@@ -51,6 +51,40 @@
   verdict 记为 `complete-with-source-gaps`，前台展示对应缺失原因。
 - PGN 下载/解析错误必须使 PGN 项失败并阻断 `complete`，不允许统计后返回成功；
   已有 PGN 文件在门禁时必须重新校验与当前对阵的匹配率。
+
+### 2.1 PGN 完整度的两种不可混淆口径
+
+- `full-board-complete` / `matched-full`：覆盖全部已下且非轮空对局；只有此状态
+  可称“全台棋谱完整”。
+- `source-published-complete` / `matched-advertised-complete`：覆盖来源实际公开
+  的全部直播棋谱，允许只覆盖前 N 台；适用于李成智杯、棋协大师赛等客观上仅
+  提供直播台棋谱的赛事。该状态是“公开范围完整”，不是“全台完整”。
+- `not-published`：来源没有公开棋谱链接，不是抓取失败，不进入补抓队列。
+- `source-published-partial` / `source-published-missing`：来源已公开但存在少局、
+  错配、下载空响应或未归档，必须保留为缺口；不得根据“通常只直播前十台”推断
+  完整。
+
+门禁分母以每轮来源实际宣称/返回的可用棋谱为准，排除轮空和明确判负；每局必须
+与 `round + board + 白黑 playerNo` 唯一匹配。直播台数可以因轮次变化，不能把
+固定“前十台”写死成分母。
+
+### 2.2 亚少赛、世少赛的 Lichess 交叉归档
+
+Lichess Broadcast 月度库作为 Chess-Results 对阵事实层的补充棋谱源，流程为：
+
+1. 仅从严格主赛清单选择标准慢棋的亚少赛/世少赛组别，排除 rapid、blitz、
+   schools、junior、cup、training、eastern 等相邻赛事。
+2. 先校验赛事系列、项目、年份/日期窗口及年龄/性别组，再以轮次和双方身份匹配；
+   FIDE ID 优先，规范化姓名只作回退。
+3. 只有唯一 TNR/台次候选才可归档；歧义局拒绝，广播容器总局数、已匹配局数和
+   未匹配残差写入 manifest。
+4. 赛事投影位于 `docs/data/bulk/lichess-events/`，保留 Lichess Broadcast
+   名称、URL、CC BY-SA 4.0 许可证及署名。月度 `.pgn.zst` 原档只驻留本地/R2，
+   不进入 Git manifest；校验器接受合法 Zstandard skippable frame。
+
+Chess-Results 与 Lichess 的并集决定 `advertisedPGN` 分母；任一广播容器存在未
+唯一匹配的局时，只能按实际事件覆盖标记 complete/partial，不能因有 PGN 文件
+就整体宣称完整。
 
 ## 3. 云端三方合并（迁移合并点）
 
@@ -119,8 +153,9 @@ partial 候选不得覆盖 main 上的完整赛事、显式删除、隐式缺失
 
 1. **P0-1/P0-4**：发布包携带基线与自然键；云端 ingest 实现字段级三方合并 +
    回执；本机 merge 降级为"生成候选"，不再直接决定最终值。
-2. **P0-2**：completeness report + 门禁进入采集器；PGN 匹配率纳入 `complete`
-   判定；`fetch_event_pgn` 失败向上传播。
+2. **P0-2（已实施核心门禁）**：completeness report 已区分 results、来源公开
+   范围和全台覆盖；PGN 匹配率进入 `pgnIngestStatus`，Lichess 广播可按严格规则
+   补充。仍需继续补齐面板展示和所有旧数据迁移。
 3. **P0-3 / 工作台**：面板单条状态链 + Chess-Results 发布包进发布中心。
 4. **P0-6**：公共对象与前台去来源化（生成层剥离 `source`/`sourceRefs`/外链，
    app.js 改口径）。

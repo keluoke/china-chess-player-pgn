@@ -454,7 +454,14 @@ REGISTRY_PATHS=(
   "data/generated/federation-snapshots"
   "data/generated/transfer-candidates.json"
 )
-BULK_PATHS=("docs/data/bulk")
+BULK_PATHS=(
+  # Immutable .pgn.zst shards remain local/R2 and are deliberately excluded
+  # from Git manifests even though they live below docs/data/bulk locally.
+  "docs/data/bulk/manifest.json"
+  "docs/data/bulk/lichess-broadcast/manifest.json"
+  "docs/data/bulk/youth"
+  "docs/data/bulk/lichess-events"
+)
 EVENT_PATHS=(
   "data/generated/chess-results-event-details"
   "data/generated/chess-results-event-pgn"
@@ -563,7 +570,10 @@ run_lichess() {
   py_extra Scripts/sync_lichess_broadcast_bulk.py "${args[@]}" || return $?
   state "promoting" "晋升带 CC BY-SA 4.0 元数据的 Lichess 暂存输出"
   py "$RUN_MANAGER" promote --repo "$REPO_ROOT" --run-dir "$RUN_DIR" \
-    --overlay "$staging/bulk::docs/data/bulk" || return $?
+    --file "$staging/bulk/manifest.json::docs/data/bulk/manifest.json" \
+    --file "$staging/bulk/lichess-broadcast/manifest.json::docs/data/bulk/lichess-broadcast/manifest.json" \
+    --tree "$staging/bulk/youth::docs/data/bulk/youth" \
+    --tree "$staging/bulk/lichess-events::docs/data/bulk/lichess-events" || return $?
   prepare_release bulk "${BULK_PATHS[@]}" || return $?
 }
 

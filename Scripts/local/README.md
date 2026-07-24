@@ -19,6 +19,14 @@ manifest，并离线重建派生索引。
   `data/generated/chess-results-event-pgn/`（全赛事 PGN 归档）、
   `docs/data/pgn/chess-results/`（按棋手拆分的 PGN）。
 - Lichess Broadcast 数据保留 CC BY-SA 4.0 名称、许可证 URL 和来源署名。
+- 国内赛事 PGN 分为“全台完整”和“公开直播范围完整”：来源只公开前若干台时，
+  只要实际公开的每局都已唯一匹配归档，可标 `source-published-complete`；
+  该状态不得对外表述为全台完整。没有公开链接标 `not-published`，空响应或少局
+  仍按缺口处理。
+- 亚少赛、世少赛通过 Lichess Broadcast 月度库补充：严格校验系列、慢棋项目、
+  年份/日期、年龄/性别组、轮次和双方身份，歧义局拒绝；投影写入
+  `docs/data/bulk/lichess-events/` 并保留 CC BY-SA 4.0 署名。月度 `.pgn.zst`
+  原档只在本地/R2，不能被加入 Git 发布 manifest。
 - registry 是姓名和等级分的唯一权威；`name-corrections.csv` 在每次 FIDE 重建中
   最后强制应用，并在发布前再次断言。
 
@@ -67,6 +75,8 @@ bash Scripts/local/refresh.sh event-queue -- 1110333 --replay --overwrite
 bash Scripts/local/refresh.sh candidates -- --tournament-id 1110333
 
 # Lichess：暂存、验证、BY-SA manifest、精确发布
+# bulk 同时重建亚少赛/世少赛的严格 TNR 交叉归档；只发布 manifest、youth
+# 投影和 lichess-events 投影，不发布本地月度 .pgn.zst 原档。
 bash Scripts/local/refresh.sh bulk
 bash Scripts/local/refresh.sh bulk-full
 
@@ -110,6 +120,12 @@ python3 Scripts/local/identity_review.py --show <candidateID>
   quarantined/unsupported）、`attempts`、`errorCode`、`failedPage`、
   `pagesFetched/pagesExpected`、`nextRetryAt`、`parserVersion`；面板与调度器
   使用同一份口径。
+- **PGN 判定**：`source-published-complete` 表示来源实际公开的直播棋谱全部入库，
+  可少于全台；`full-board-complete` 才表示全台。分母来自实际公开链接/广播，
+  不把“前十台”写死；每局必须与轮次、台次和双方 playerNo 唯一匹配。
+- **Lichess 交叉比对**：只接受标准慢棋亚少赛/世少赛的唯一匹配，FIDE ID 优先、
+  规范化姓名回退。manifest 必须保留每个广播容器的总局数、匹配数、未匹配数及
+  歧义拒绝数；未匹配残差不能静默视为完整。
 
 ## 发布事务
 
