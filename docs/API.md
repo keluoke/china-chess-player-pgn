@@ -58,11 +58,11 @@ v2 按资源分片，所有响应带 `schemaVersion` / `snapshotId`（同一次�
 ```text
 GET /api/v2/manifest.json
 GET /api/v2/rankings/official/current/{control}/{cohort}.json
-GET /api/v2/rankings/official/current/{control}/by-birth-year/{birthYear}.json
 ```
 
 `control` 为 `standard` / `rapid` / `blitz`；cohort 响应的 `rankings`
-包含 `all` 与 `female`，并附组内 `birthYears` 切分。
+包含 `all` 与 `female`，并内嵌组内 `birthYears` 切分；为遵守部署文件数上限，
+出生年份暂不拆成独立文件。
 
 受 Cloudflare Pages 单次部署 2 万文件上限约束，v2 的棋手/赛事/搜索分片端点
 将随大文件迁对象存储（见 `docs/OBJECT_STORAGE_MIGRATION.md`）一起上线；

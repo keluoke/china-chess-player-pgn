@@ -33,4 +33,5 @@
 - Node 搜索核心回归覆盖带声调拼音、声母缩写、FIDE ID 和中段汉字路由。
 - Python 回归覆盖多棋种/女子/出生年份独立排行、隐藏导航与隐私入口。
 - 构建仍由 `build_release_snapshot.py` 统一生成，routing、排行榜和 v2 API 共用
-  同一 `snapshotId`。
+  同一 `snapshotId`；出生年份数据内嵌在 cohort 响应中，不额外拆文件，以守住
+  Cloudflare Pages 2 万文件上限。

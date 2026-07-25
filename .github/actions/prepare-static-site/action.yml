@@ -17,6 +17,10 @@ inputs:
     description: Reject the deploy if the whole artifact exceeds this (KiB).
     required: false
     default: "870400"
+  max-files:
+    description: Reject the deploy if the artifact exceeds the hosting file-count limit.
+    required: false
+    default: "20000"
 
 runs:
   using: composite
@@ -61,4 +65,9 @@ runs:
           echo "Static site artifact is ${size_kib} KiB; keep it below ${{ inputs.max-total-kib }} KiB before deploy." >&2
           exit 1
         fi
-        echo "Prepared $out (${size_kib} KiB)."
+        file_count="$(find "$out" -type f | wc -l | tr -d ' ')"
+        if [ "$file_count" -gt ${{ inputs.max-files }} ]; then
+          echo "Static site artifact contains ${file_count} files; keep it at or below ${{ inputs.max-files }} before deploy." >&2
+          exit 1
+        fi
+        echo "Prepared $out (${size_kib} KiB, ${file_count} files)."

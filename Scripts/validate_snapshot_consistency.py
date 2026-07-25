@@ -32,7 +32,6 @@ MANIFEST_GLOBS = (
     "api/v1/manifest.json",
     "api/v2/manifest.json",
     "api/v2/rankings/official/current/*/*.json",
-    "api/v2/rankings/official/current/*/by-birth-year/*.json",
     "data/snapshot.json",
     "data/registry/domestic/manifest.json",
     "data/registry/domestic/presentation-groups.json",
