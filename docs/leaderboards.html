@@ -3,22 +3,28 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>中国棋手 FIDE 积分排行榜</title>
-    <meta name="description" content="中国国际象棋棋手全年龄组 FIDE 积分排行榜。">
+    <title>棋手排行榜 · 中国国际象棋棋手数据库</title>
+    <meta name="description" content="按年龄组、出生年份、棋种与性别筛选的中国棋手 FIDE 官方积分排行榜。">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="styles.css?v=20260724-1">
+    <link rel="stylesheet" href="styles.css?v=20260726-1">
   </head>
   <body class="coverage-page">
     <main class="coverage-shell leaderboard-page-shell">
-      <nav class="page-nav"><a href="./">← 棋手搜索</a><a href="./coverage.html">数据覆盖</a></nav>
+      <nav class="page-nav"><a href="./">← 返回棋手搜索</a></nav>
       <header class="coverage-head">
-        <span class="eyebrow">FIDE ratings</span>
-        <h1>中国棋手 FIDE 积分排行榜</h1>
-        <p>自然年龄分组；优先显示标准棋等级分，无标准分时显示快棋或超快棋。</p>
+        <span class="eyebrow">Official FIDE ratings</span>
+        <h1>棋手排行榜</h1>
+        <p>官方 FIDE 积分，按自然年龄分组；标准棋、快棋和超快棋独立排序，不混用分值。</p>
       </header>
-      <div id="leaderboardTabs" class="stage-tabs" role="tablist" aria-label="年龄组"></div>
+      <section class="leaderboard-filters" aria-label="排行榜筛选">
+        <div><span>棋种</span><div id="controlFilters" class="filter-chips"></div></div>
+        <div><span>性别</span><div id="sexFilters" class="filter-chips"></div></div>
+      </section>
+      <div id="leaderboardTabs" class="segmented-stage-tabs" role="tablist" aria-label="年龄组"></div>
+      <div id="birthYearFilters" class="birth-year-filters" hidden></div>
+      <p id="leaderboardScopeNote" class="leaderboard-scope-note"></p>
       <section id="leaderboardPage" class="leaderboard-grid single-page-grid" aria-live="polite"></section>
     </main>
-    <script type="module" src="leaderboards.js?v=20260724-2"></script>
+    <script type="module" src="leaderboards.js?v=20260726-1"></script>
   </body>
 </html>

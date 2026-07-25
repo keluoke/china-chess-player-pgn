@@ -18,7 +18,8 @@ class FrontendInitializationOrderTest(unittest.TestCase):
             "const domesticShardLoaded = new Set();",
             "let domesticFullLoaded = false;",
             "let defaultSuggestionCache = null;",
-            "const HANZI_SHARD_BUCKETS = 64;",
+            "let domesticRouting = null;",
+            "let domesticRoutingRequest = null;",
         ):
             self.assertLess(
                 app.index(declaration),
@@ -37,6 +38,18 @@ class FrontendInitializationOrderTest(unittest.TestCase):
             app[fide_merge:prepare_start],
         )
         self.assertIn("return;", app[fide_merge:prepare_start])
+
+    def test_user_input_during_bootstrap_is_preserved(self) -> None:
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        data_ready = app.index("const data = await loadData();")
+        capture = app.index('const typedBeforeDataReady = els.searchInput?.value || "";')
+        startup = app.index("initialize();")
+        self.assertLess(data_ready, capture)
+        self.assertLess(capture, startup)
+        self.assertIn(
+            'new URLSearchParams(location.search).get("q") || typedBeforeDataReady || ""',
+            app,
+        )
 
 
 if __name__ == "__main__":

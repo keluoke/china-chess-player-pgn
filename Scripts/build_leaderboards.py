@@ -22,6 +22,11 @@ from stable_json import write_json  # noqa: E402
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY_PLAYERS = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
 OUTPUT = REPO_ROOT / "docs" / "data" / "leaderboards.json"
+CONTROLS = {
+    "standard": "标准棋",
+    "rapid": "快棋",
+    "blitz": "超快棋",
+}
 
 
 def player_row(player: dict, age: int) -> dict:
@@ -48,6 +53,23 @@ def player_row(player: dict, age: int) -> dict:
     return row
 
 
+def ranking_payload(rows: list[dict], control: str, top: int) -> dict:
+    eligible = [row for row in rows if row.get(control) is not None]
+    eligible.sort(key=lambda row: (-int(row[control]), str(row.get("fideID") or "")))
+    birth_years: dict[str, dict] = {}
+    for birth_year in sorted({int(row["birthYear"]) for row in eligible if row.get("birthYear")}, reverse=True):
+        bucket = [row for row in eligible if int(row.get("birthYear") or 0) == birth_year]
+        birth_years[str(birth_year)] = {
+            "totalEligible": len(bucket),
+            "players": bucket[:top],
+        }
+    return {
+        "totalEligible": len(eligible),
+        "players": eligible[:top],
+        "birthYears": birth_years,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build all-age leaderboards from the registry.")
     parser.add_argument("--top", type=int, default=100, help="players per group")
@@ -70,25 +92,41 @@ def main() -> int:
                 continue
             if player.get("inactive") and not args.include_inactive:
                 continue
-            if player.get("standard") is None:
-                continue
             rows.append(player_row(player, age))
-        rows.sort(key=lambda r: (-(r["standard"] or 0), r["fideID"]))
+        rankings = {}
+        for control in CONTROLS:
+            rankings[control] = {
+                "all": ranking_payload(rows, control, args.top),
+                "female": ranking_payload([row for row in rows if row.get("sex") == "F"], control, args.top),
+            }
+        legacy = rankings["standard"]["all"]
         groups_out.append(
             {
                 "id": group["id"],
                 "label": group["label"],
                 "minAge": group["minAge"],
                 "maxAge": group["maxAge"],
-                "totalEligible": len(rows),
-                "players": rows[: args.top],
+                "totalEligible": legacy["totalEligible"],
+                "players": legacy["players"],
+                "rankings": rankings,
             }
         )
 
+    active_players = [player for player in players if args.include_inactive or not player.get("inactive")]
     payload = {
+        "schemaVersion": 2,
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "basisYear": ref_year,
         "note": "age = basisYear - birthYear (自然年龄口径); groups may overlap (OPEN ⊇ S50 ⊇ S65)",
+        "controls": [{"id": key, "label": label} for key, label in CONTROLS.items()],
+        "sexes": [{"id": "all", "label": "全部"}, {"id": "female", "label": "女子"}],
+        "birthYearMissing": {
+            control: {
+                "all": sum(1 for player in active_players if player.get(control) is not None and not player.get("birthYear")),
+                "female": sum(1 for player in active_players if player.get("sex") == "F" and player.get(control) is not None and not player.get("birthYear")),
+            }
+            for control in CONTROLS
+        },
         "groups": groups_out,
     }
     if not args.dry_run:

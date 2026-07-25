@@ -32,7 +32,7 @@ https://china-chess-player-pgn.pages.dev
 
 ### `GET /api/v1/leaderboards.json`
 
-全年龄组排行榜。年龄组:`U8 U10 U12 U14 U16 U18`(李成智杯两年一组口径)、`U20`、`OPEN`(成年 19+)、`S50`、`S65`。`age = basisYear - birthYear`。
+全年龄组排行榜。年龄组:`U8 U10 U12 U14 U16 U18`(李成智杯两年一组口径)、`U20`、`OPEN`(成年 19+)、`S50`、`S65`。`age = basisYear - birthYear`。v2 数据同时提供标准棋、快棋、超快棋和女子子榜；三种等级分独立排序，不互相回退。
 
 ### `GET /api/v1/players/fide-{fideID}.json`
 
@@ -57,8 +57,12 @@ v2 按资源分片，所有响应带 `schemaVersion` / `snapshotId`（同一次�
 
 ```text
 GET /api/v2/manifest.json
-GET /api/v2/rankings/official/current/standard/{cohort}.json   # U8…U18/U20/OPEN/S50/S65
+GET /api/v2/rankings/official/current/{control}/{cohort}.json
+GET /api/v2/rankings/official/current/{control}/by-birth-year/{birthYear}.json
 ```
+
+`control` 为 `standard` / `rapid` / `blitz`；cohort 响应的 `rankings`
+包含 `all` 与 `female`，并附组内 `birthYears` 切分。
 
 受 Cloudflare Pages 单次部署 2 万文件上限约束，v2 的棋手/赛事/搜索分片端点
 将随大文件迁对象存储（见 `docs/OBJECT_STORAGE_MIGRATION.md`）一起上线；

@@ -183,20 +183,38 @@ def main() -> int:
         basis_year = boards.get("basisYear")
         for group in boards.get("groups", []):
             cohort = str(group.get("id") or "").strip() or "unknown"
-            emit(v2_root / "rankings" / "official" / "current" / "standard" / f"{cohort}.json", {
-                "schemaVersion": 2,
-                "snapshotId": sid,
-                "generatedAt": generated_at,
-                "track": "official",
-                "control": "standard",
-                "cohort": cohort,
-                "label": group.get("label"),
-                "basisYear": basis_year,
-                "cohortRule": {"minAge": group.get("minAge"), "maxAge": group.get("maxAge")},
+            rankings = group.get("rankings") or {"standard": {"all": {
                 "totalEligible": group.get("totalEligible"),
                 "players": group.get("players"),
-                "license": LICENSE_BLOCK,
-            })
+                "birthYears": {},
+            }}}
+            for control, scopes in rankings.items():
+                emit(v2_root / "rankings" / "official" / "current" / control / f"{cohort}.json", {
+                    "schemaVersion": 2,
+                    "snapshotId": sid,
+                    "generatedAt": generated_at,
+                    "track": "official",
+                    "control": control,
+                    "cohort": cohort,
+                    "label": group.get("label"),
+                    "basisYear": basis_year,
+                    "cohortRule": {"minAge": group.get("minAge"), "maxAge": group.get("maxAge")},
+                    "rankings": scopes,
+                    "license": LICENSE_BLOCK,
+                })
+                for birth_year, bucket in (scopes.get("all", {}).get("birthYears") or {}).items():
+                    emit(v2_root / "rankings" / "official" / "current" / control / "by-birth-year" / f"{birth_year}.json", {
+                        "schemaVersion": 2,
+                        "snapshotId": sid,
+                        "generatedAt": generated_at,
+                        "track": "official",
+                        "control": control,
+                        "birthYear": int(birth_year),
+                        "basisYear": basis_year,
+                        "totalEligible": bucket.get("totalEligible"),
+                        "players": bucket.get("players"),
+                        "license": LICENSE_BLOCK,
+                    })
     emit(v2_root / "manifest.json", {
         "apiVersion": "2",
         "schemaVersion": 2,
@@ -204,7 +222,8 @@ def main() -> int:
         "generatedAt": generated_at,
         "status": "preview",
         "endpoints": {
-            "rankings": "/api/v2/rankings/official/current/standard/{cohort}.json",
+            "rankings": "/api/v2/rankings/official/current/{control}/{cohort}.json",
+            "rankingsByBirthYear": "/api/v2/rankings/official/current/{control}/by-birth-year/{birthYear}.json",
             "playersCompat": "/api/v1/players/fide-{fideID}.json（v2 分片端点将随对象存储迁移上线）",
             "eventsCompat": "/data/index/event-details/tnr{tournamentID}.json",
         },

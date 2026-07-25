@@ -32,6 +32,13 @@ jobs:
             exit 1
           fi
 
+      - name: Validate frontend modules
+        run: |
+          node --check docs/app.js
+          node --check docs/leaderboards.js
+          node Scripts/tests/frontend_presentation_names_test.mjs
+          node Scripts/tests/frontend_search_core_test.mjs
+
       - name: Validate local shell entrypoint
         run: bash -n Scripts/local/refresh.sh
 

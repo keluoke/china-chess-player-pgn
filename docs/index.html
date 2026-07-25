@@ -7,7 +7,7 @@
     <meta name="description" content="社区共建的中国国际象棋棋手数据库:全年龄组 FIDE 排行榜、棋手查询与对局 PGN。">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="vendor/lichess-pgn-viewer/lichess-pgn-viewer.css">
-    <link rel="stylesheet" href="styles.css?v=20260724-1">
+    <link rel="stylesheet" href="styles.css?v=20260726-1">
   </head>
   <body>
     <div class="app-shell">
@@ -20,30 +20,34 @@
           </span>
         </a>
 
-        <label class="search-box">
-          <span aria-hidden="true">⌕</span>
-          <input id="searchInput" type="search" autocomplete="off" aria-label="搜索棋手或赛事" placeholder="正在加载 2.6 万名棋手…" disabled>
-        </label>
-
         <nav class="topnav" aria-label="主要页面">
-          <a href="./leaderboards.html">FIDE 排行榜</a>
-          <a href="./events.html">赛事目录</a>
-          <a href="./coverage.html">数据覆盖</a>
-          <a href="./contribute.html">贡献数据</a>
+          <a href="./leaderboards.html">棋手排行榜</a>
         </nav>
 
       </header>
 
       <main class="workspace search-workspace">
         <section class="main-pane search-main-pane" id="mainPane">
-          <section class="search-home" id="searchHome">
+          <section class="search-command">
             <span class="eyebrow">China chess player archive</span>
             <h1>查找中国国际象棋棋手</h1>
-            <p>输入中文名、拼音、FIDE ID，或赛事名称。至少输入两个字符。</p>
+            <form id="searchForm" class="hero-search-form" action="./" method="get" role="search">
+              <label class="search-box hero-search-box">
+                <span aria-hidden="true">⌕</span>
+                <input id="searchInput" name="q" type="search" autocomplete="off"
+                  role="combobox" aria-autocomplete="list" aria-expanded="false"
+                  aria-controls="searchResults" aria-label="搜索棋手或赛事"
+                  placeholder="中文名 / 拼音 / FIDE ID / 赛事名">
+              </label>
+              <button type="submit">搜索</button>
+            </form>
+            <p class="search-guidance">支持单个汉字；补全姓名、拼音或 FIDE ID 可获得更精确的结果。</p>
+          </section>
+          <section class="search-home" id="searchHome">
             <div class="search-suggestions" id="searchSuggestions"></div>
             <p class="search-trust" id="searchTrust" hidden></p>
           </section>
-          <section class="search-results" id="searchResultsSection" hidden>
+          <section class="search-results" id="searchResultsSection" aria-live="polite" hidden>
             <div class="section-heading">
               <h2>搜索结果</h2>
               <span id="searchCount">0 名</span>
@@ -55,8 +59,12 @@
           <aside class="event-pane" id="eventPane" aria-label="赛事看板" hidden></aside>
         </section>
       </main>
+      <footer class="site-footer">
+        <span>数据展示遵循最小必要原则。</span>
+        <a href="./contribute.html?type=privacy-request">删除或匿名化请求</a>
+      </footer>
     </div>
 
-    <script type="module" src="app.js?v=20260725-1"></script>
+    <script type="module" src="app.js?v=20260726-1"></script>
   </body>
 </html>

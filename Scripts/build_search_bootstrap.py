@@ -27,6 +27,7 @@ DATA = ROOT / "docs" / "data"
 OUTPUT_CORE = DATA / "search-bootstrap.json"
 OUTPUT_DOMESTIC = DATA / "search-bootstrap-domestic.json"
 SHARD_ROOT = DATA / "search" / "domestic"
+ROUTING_OUTPUT = DATA / "search" / "domestic-routing.json"
 HANZI_BUCKETS = 64
 
 
@@ -54,6 +55,41 @@ def shard_keys(row: dict) -> list[str]:
     if not keys:
         keys.add("p0")
     return sorted(keys)
+
+
+def primary_search_shard(row: dict) -> str:
+    """Choose one existing row shard as the routing destination."""
+    name = str(row.get("displayName") or row.get("chineseName") or "")
+    if name and "一" <= name[0] <= "鿿":
+        return f"h{ord(name[0]) % HANZI_BUCKETS:02x}"
+    pinyin = str(row.get("pinyin") or "").strip().lower()
+    if pinyin and pinyin[0].isascii() and pinyin[0].isalpha():
+        return f"p{pinyin[0]}"
+    return shard_keys(row)[0]
+
+
+def routing_terms(row: dict) -> set[str]:
+    """Compact substring routes point at existing prefix shards.
+
+    Rows stay single-copy in their current shards. Chinese character/bigram
+    bigram routes fix middle-name recall without tripling the public search payload.
+    Single-character queries intentionally keep using the existing prefix
+    bucket, avoiding dozens of downloads for common characters.
+    """
+    terms: set[str] = set()
+    for value in [
+        row.get("displayName"),
+        row.get("chineseName"),
+        *(row.get("aliases") or []),
+    ]:
+        hanzi = [char for char in str(value or "") if "\u4e00" <= char <= "\u9fff"]
+        terms.update(f"g:{hanzi[index]}{hanzi[index + 1]}" for index in range(len(hanzi) - 1))
+    for value in [row.get("pinyin"), *(row.get("aliases") or [])]:
+        tokens = re.findall(r"[a-z]+", str(value or "").casefold())
+        for normalized in [*tokens, "".join(tokens)]:
+            if normalized:
+                terms.add(f"p:{normalized}")
+    return terms
 
 
 def read(path: pathlib.Path, default):
@@ -142,7 +178,10 @@ def main() -> int:
         "competitionYear": youth.get("competitionYear"),
         "ageRule": youth.get("ageRule"),
         "totals": {"players": len(players) + len(domestic_rows), "fide": len(registry), "domestic": len(domestic_rows)},
-        "deferred": {"domestic": "data/search-bootstrap-domestic.json"},
+        "deferred": {
+            "domestic": "data/search-bootstrap-domestic.json",
+            "domesticRouting": "data/search/domestic-routing.json",
+        },
         "players": players,
     }
     write_json(OUTPUT_CORE, core, ensure_ascii=False, separators=(",", ":"))
@@ -156,9 +195,17 @@ def main() -> int:
     # Prefix shards for on-demand loading; the monolith above remains the
     # deep-link / legacy fallback.
     shards: dict[str, list[dict]] = {}
+    routes: dict[str, set[str]] = {}
     for row in domestic_rows:
-        for key in shard_keys(row):
+        row_shards = shard_keys(row)
+        for key in row_shards:
             shards.setdefault(key, []).append(row)
+        route_shard = primary_search_shard(row)
+        pinyin = str(row.get("pinyin") or "").strip().lower()
+        roman_shard = f"p{pinyin[0]}" if pinyin and pinyin[0].isascii() and pinyin[0].isalpha() else route_shard
+        for term in routing_terms(row):
+            destination = roman_shard if term.startswith("p:") else route_shard
+            routes.setdefault(term, set()).add(destination)
     SHARD_ROOT.mkdir(parents=True, exist_ok=True)
     written = set()
     for key, rows in shards.items():
@@ -172,11 +219,18 @@ def main() -> int:
     for stale in SHARD_ROOT.glob("*.json"):
         if stale.name not in written:
             stale.unlink()
+    write_json(ROUTING_OUTPUT, {
+        "schemaVersion": 1,
+        "snapshotId": sid,
+        "generatedAt": generated_at,
+        "routes": {term: sorted(keys) for term, keys in sorted(routes.items())},
+    }, ensure_ascii=False, separators=(",", ":"))
     shard_bytes = sum((SHARD_ROOT / name).stat().st_size for name in written)
     print(json.dumps({
         "corePlayers": len(players), "coreBytes": OUTPUT_CORE.stat().st_size,
         "domesticPlayers": len(domestic_rows), "domesticBytes": OUTPUT_DOMESTIC.stat().st_size,
         "domesticShards": len(written), "domesticShardBytes": shard_bytes,
+        "domesticRoutingBytes": ROUTING_OUTPUT.stat().st_size,
     }, ensure_ascii=False))
     return 0
 

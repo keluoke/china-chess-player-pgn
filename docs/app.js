@@ -6,6 +6,17 @@ import {
   presentationNameDetail,
   resolvePlayerDisplayName
 } from "./presentation-names.js";
+import {
+  defaultDomesticShardKey,
+  isLikelyFideID,
+  isSingleHanziQuery,
+  normalizeSearchText,
+  playerQualityScore,
+  routingKeysForQuery,
+  searchScore,
+  searchTokens,
+  searchValuesForPlayer
+} from "./search-core.js";
 
 const state = {
   selectedFideID: null,
@@ -44,6 +55,7 @@ const els = {
   searchCount: document.querySelector("#searchCount"),
   searchHome: document.querySelector("#searchHome"),
   searchSuggestions: document.querySelector("#searchSuggestions"),
+  searchForm: document.querySelector("#searchForm"),
   rankingMeta: document.querySelector("#rankingMeta"),
   leaderboards: document.querySelector(".leaderboards"),
   dashboardSection: document.querySelector("#dashboardSection"),
@@ -58,6 +70,7 @@ const els = {
 };
 
 const data = await loadData();
+const typedBeforeDataReady = els.searchInput?.value || "";
 const stages = data.ageRule.stages;
 const ADULT_GROUPS = [
   { id: "U20", label: "U20", minAge: 19, maxAge: 20, desc: "19-20 岁" },
@@ -99,7 +112,8 @@ let defaultSuggestionCache = null;
 const domesticSeenIDs = new Set();
 const domesticShardLoaded = new Set();
 let domesticFullLoaded = false;
-const HANZI_SHARD_BUCKETS = 64;
+let domesticRouting = null;
+let domesticRoutingRequest = null;
 
 initialize();
 // Domestic entities load on demand (review §5.3): prefix shards arrive with
@@ -111,24 +125,16 @@ renderSearchTrustLine();
 
 async function loadData() {
   try {
-    const [
-      bootstrap,
-      manifest,
-      registryManifest,
-      bulkManifest,
-      bulkYouthManifest,
-      byPlayerManifest,
-      domesticManifest,
-      participationManifest
-    ] = await Promise.all([
-      fetchJSON("./data/search-bootstrap.json", true),
-      fetchJSON("./data/index/manifest.json", false),
-      fetchJSON("./data/registry/manifest.json", false),
-      fetchJSON("./data/bulk/manifest.json", false),
-      fetchJSON("./data/bulk/youth/manifest.json", false),
-      fetchJSON("./data/index/by-player/manifest.json", false),
-      fetchJSON("./data/registry/domestic/manifest.json", false),
-      fetchJSON("./data/index/player-participation/manifest.json", false)
+    const bootstrap = await fetchJSON("./data/search-bootstrap.json", true);
+    const optional = path => fetchJSON(path, false).catch(() => null);
+    const [manifest, registryManifest, bulkManifest, bulkYouthManifest, byPlayerManifest, domesticManifest, participationManifest] = await Promise.all([
+      optional("./data/index/manifest.json"),
+      optional("./data/registry/manifest.json"),
+      optional("./data/bulk/manifest.json"),
+      optional("./data/bulk/youth/manifest.json"),
+      optional("./data/index/by-player/manifest.json"),
+      optional("./data/registry/domestic/manifest.json"),
+      optional("./data/index/player-participation/manifest.json")
     ]);
     return {
       ...bootstrap,
@@ -142,7 +148,8 @@ async function loadData() {
       players: bootstrap.players ?? []
     };
   } catch (error) {
-    document.body.innerHTML = `<main class="empty-state">无法加载静态数据：${escapeHTML(error.message)}</main>`;
+    const target = document.querySelector("#searchCount");
+    if (target) target.textContent = `核心搜索数据加载失败：${error.message}`;
     throw error;
   }
 }
@@ -182,23 +189,33 @@ function mergeDomesticRows(rows) {
 
 // Prefix shards (review §5.3): only the bucket the current query prefix can
 // match is downloaded. The monolith stays as deep-link/legacy fallback.
-function domesticShardKeyFor(query) {
-  const normalized = String(query || "").trim().toLowerCase();
-  const idMatch = normalized.match(/^domestic-([0-9a-f])/);
-  if (idMatch) return `id${idMatch[1]}`;
-  const first = normalized[0];
-  if (!first) return "";
-  if (first >= "一" && first <= "鿿") {
-    return `h${(first.codePointAt(0) % HANZI_SHARD_BUCKETS).toString(16).padStart(2, "0")}`;
+async function loadDomesticRouting() {
+  if (domesticRouting) return domesticRouting;
+  if (!domesticRoutingRequest) {
+    domesticRoutingRequest = fetchJSON("./data/search/domestic-routing.json", false)
+      .then(payload => {
+        domesticRouting = payload?.routes ?? {};
+        return domesticRouting;
+      })
+      .catch(() => (domesticRouting = {}));
   }
-  const lower = first.toLowerCase();
-  if (lower >= "a" && lower <= "z") return `p${lower}`;
-  return "";
+  return domesticRoutingRequest;
 }
 
 async function ensureDomesticShard(query) {
   if (domesticFullLoaded) return;
-  const key = domesticShardKeyFor(query);
+  const routeKeys = routingKeysForQuery(query);
+  const routing = routeKeys.length ? await loadDomesticRouting() : {};
+  const routed = routeKeys.map(key => routing[key]).filter(Array.isArray).sort((a, b) => a.length - b.length)[0];
+  const keys = [...new Set(routed?.length ? routed : [defaultDomesticShardKey(query)].filter(Boolean))];
+  if (!keys.length || keys.every(key => domesticShardLoaded.has(key))) return;
+  await Promise.all(keys.map(loadDomesticShard));
+  domesticSearchReady = true;
+  resolveRoutedDomesticPlayer();
+  if (state.query) renderSearch();
+}
+
+async function loadDomesticShard(key) {
   if (!key || domesticShardLoaded.has(key)) return;
   domesticShardLoaded.add(key);
   try {
@@ -210,9 +227,6 @@ async function ensureDomesticShard(query) {
       return;
     }
     mergeDomesticRows(payload.players);
-    domesticSearchReady = true;
-    resolveRoutedDomesticPlayer();
-    if (state.query) renderSearch();
   } catch (_error) {
     domesticShardLoaded.delete(key);
   }
@@ -338,9 +352,9 @@ function initialize() {
     ? routedFideID
     : null;
   state.selectedEventID = state.selectedFideID ? null : routedEventID;
-  state.query = String(new URLSearchParams(location.search).get("q") || "");
+  state.query = String(new URLSearchParams(location.search).get("q") || typedBeforeDataReady || "");
   els.searchInput.disabled = false;
-  els.searchInput.placeholder = "搜索棋手、拼音、FIDE ID 或赛事";
+  els.searchInput.placeholder = "中文名 / 拼音 / FIDE ID / 赛事名";
   els.searchInput.value = state.query;
   els.searchInput.addEventListener("compositionstart", () => { composingSearch = true; });
   els.searchInput.addEventListener("compositionend", event => {
@@ -351,6 +365,15 @@ function initialize() {
     if (!composingSearch) scheduleSearch(event.target.value);
   });
   els.searchInput.addEventListener("keydown", handleSearchInputKeydown);
+  els.searchForm?.addEventListener("submit", event => {
+    event.preventDefault();
+    state.query = String(els.searchInput.value || "").trim();
+    const url = new URL(location.href);
+    if (state.query) url.searchParams.set("q", state.query);
+    else url.searchParams.delete("q");
+    history.pushState(routeSnapshot(), "", url);
+    renderSearch();
+  });
   els.searchResults.addEventListener("click", event => {
     const gapLink = event.target.closest("[data-gap-query]");
     if (gapLink) recordLocalGap(gapLink.dataset.gapQuery);
@@ -497,6 +520,10 @@ function initialize() {
   });
 
   render();
+  if (!state.query && !state.selectedFideID && !state.selectedEventID
+      && window.matchMedia("(pointer: fine)").matches) {
+    requestAnimationFrame(() => els.searchInput.focus({ preventScroll: true }));
+  }
 }
 
 function render() {
@@ -533,7 +560,7 @@ async function renderSearchTrustLine() {
       updated ? `更新于 ${updated}` : ""
     ].filter(Boolean);
     if (!parts.length) return;
-    target.innerHTML = `${escapeHTML(parts.join(" · "))} · <a href="./coverage.html">数据覆盖 →</a>`;
+    target.textContent = parts.join(" · ");
     target.hidden = false;
   } catch (_error) {
     /* trust line is optional */
@@ -602,21 +629,23 @@ function handleSearchInputKeydown(event) {
 
 function renderSearch() {
   const normalizedQuery = normalize(state.query);
-  const queryReady = normalizedQuery.length >= 2 || /^\d{2,}$/.test(normalizedQuery);
+  const singleHanzi = isSingleHanziQuery(state.query);
+  const queryReady = normalizedQuery.length >= 2 || singleHanzi || /^\d{2,}$/.test(normalizedQuery);
   if (state.query) ensureDomesticShard(state.query);
   const playerSearch = queryReady ? searchPlayers(state.query) : { items: [], total: 0, truncated: false };
   const matches = playerSearch.items;
   const playerGroups = groupPlayerMatches(matches);
-  const eventSearch = queryReady ? searchEvents(state.query) : { items: [], total: 0, truncated: false };
+  const eventSearch = normalizedQuery.length >= 2 ? searchEvents(state.query) : { items: [], total: 0, truncated: false };
   const eventMatches = eventSearch.items;
   const hasQuery = state.query.length > 0;
   if (queryReady && !eventCatalog) requestEventCatalog();
   els.searchResultsSection.hidden = !hasQuery;
+  els.searchInput.setAttribute("aria-expanded", String(hasQuery));
   if (els.searchHome) els.searchHome.hidden = hasQuery || Boolean(selectedPlayer()) || Boolean(state.selectedEventID);
   const ambiguousNames = playerGroups.filter(group => group.length > 1).length;
   els.searchCount.textContent = queryReady
     ? `找到 ${eventSearch.total} 项赛事 · ${playerSearch.total} 位棋手${ambiguousNames ? `（${ambiguousNames} 个姓名待区分）` : ""}${domesticSearchReady ? "" : " · 无 FIDE 档案加载中…"}`
-    : "请至少输入两个字符";
+    : "请输入姓名、拼音、FIDE ID 或赛事名";
   const eventResults = eventMatches.length ? `
     <section class="search-result-group">
       <div class="search-result-group-title"><h3>赛事</h3><span>${eventSearch.truncated ? `显示 ${eventMatches.length} / ${eventSearch.total} 项` : `${eventSearch.total} 项`}</span></div>
@@ -644,13 +673,13 @@ function renderSearch() {
       </a>
     `;
   })()).join("")}</div>${playerSearch.truncated ? `<p class="search-limit-note">仅显示前 30 条，请补充拼音、出生年份或 FIDE ID 缩小范围。</p>` : ""}</section>` : "";
-  const eventFirst = /^\d+$/.test(normalizedQuery) || /(杯|赛|锦标|公开|master|open|tnr)/i.test(state.query);
+  const eventFirst = !isLikelyFideID(normalizedQuery) && (/^tnr\d+$/i.test(normalizedQuery) || /(杯|赛|锦标|公开|master|open)/i.test(state.query));
   if (!queryReady) {
-    els.searchResults.innerHTML = `<div class="empty-state compact"><strong>继续输入</strong><span>至少两个字符后开始搜索，避免单字产生数千条无效结果。</span></div>`;
+    els.searchResults.innerHTML = `<div class="empty-state compact"><strong>开始搜索</strong><span>可输入中文名、拼音、FIDE ID 或赛事名称；单个汉字会显示前 30 条，并建议继续补全姓名。</span></div>`;
   } else if (eventResults || playerResults) {
     els.searchResults.innerHTML = eventFirst ? `${eventResults}${playerResults}` : `${playerResults}${eventResults}`;
   } else {
-    els.searchResults.innerHTML = `<div class="empty-state compact gap-empty"><strong>本地库暂未匹配</strong><span>可以试试中文名、拼音、FIDE ID 或赛事名称。</span><a class="primary-button" data-gap-query="${escapeAttribute(state.query)}" href="./contribute.html?type=data-gap&query=${encodeURIComponent(state.query)}">登记这条数据缺口</a><small>点击后只在本机记录；提交前会再次展示内容，不会静默上传姓名。</small></div>`;
+    els.searchResults.innerHTML = `<div class="empty-state compact gap-empty"><strong>本地库暂未匹配</strong><span>试试完整中文名、不带空格拼音或 7–8 位 FIDE ID。</span><a class="primary-button" href="./leaderboards.html">浏览棋手排行榜</a><small>搜索词仅保存在当前浏览器，不会静默上传。</small></div>`;
   }
 
 }
@@ -738,9 +767,6 @@ function renderDetail() {
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
         <button class="action-link" type="button" data-action="share-player">分享档案</button>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
-        <a class="action-link" href="./contribute.html?type=player-correction&player=${encodeURIComponent(player.fideID)}&name=${encodeURIComponent(displayName(player))}">补充或勘误</a>
-        ${identityGroup ? `<a class="action-link" href="./contribute.html?type=identity-clue&group=${encodeURIComponent(identityGroup.groupID)}&members=${encodeURIComponent((identityGroup.disputeMembers ?? identityGroup.members ?? []).join(","))}&name=${encodeURIComponent(displayName(player))}">补充身份证据</a>
-        <a class="action-link" href="./contribute.html?type=identity-dispute&group=${encodeURIComponent(identityGroup.groupID)}&members=${encodeURIComponent((identityGroup.disputeMembers ?? identityGroup.members ?? []).join(","))}&name=${encodeURIComponent(displayName(player))}">对此身份有异议</a>` : ""}
         <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.fideID)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
       </div>
     </div>
@@ -817,10 +843,7 @@ function renderDomesticPlayerDetail(player) {
         <span class="stage-chip domestic-chip">无 FIDE</span>
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
         <button class="action-link" type="button" data-action="share-player">分享档案</button>
-        <a class="action-link" href="./contribute.html?type=player-correction&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">补充或勘误</a>
         <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
-        ${group ? `<a class="action-link" href="./contribute.html?type=identity-clue&group=${encodeURIComponent(group.groupID)}&members=${encodeURIComponent((group.disputeMembers ?? group.members).join(","))}&name=${encodeURIComponent(displayName(player))}">补充身份线索</a>
-        <a class="action-link" href="./contribute.html?type=identity-dispute&group=${encodeURIComponent(group.groupID)}&members=${encodeURIComponent((group.disputeMembers ?? group.members).join(","))}&name=${encodeURIComponent(displayName(player))}">对此身份有异议</a>` : ""}
       </div>
     </div>
     <div class="appearance-summary">
@@ -2096,9 +2119,8 @@ function searchPlayers(query) {
     .filter(entry => entry.score > 0)
     .sort((a, b) => {
       if (a.score !== b.score) return b.score - a.score;
-      const stageA = stageForPlayer(a.player)?.id ?? "";
-      const stageB = stageForPlayer(b.player)?.id ?? "";
-      if (stageA !== stageB) return stageA.localeCompare(stageB);
+      const quality = playerQualityScore(b.player) - playerQualityScore(a.player);
+      if (quality) return quality;
       return (ratingForPlayer(b.player)?.value ?? 0) - (ratingForPlayer(a.player)?.value ?? 0);
     });
   return {
@@ -2268,7 +2290,7 @@ function playerCoverageStatus(player, staticInfo, bulkInfo) {
     : status === "compare"
     ? "已有赛事记录，但棋谱仍待与数据源比对。"
     : "目前只有注册信息，尚缺可复盘赛事来源。";
-  return `<div class="coverage-callout">${dataStatusBadge(status)}<span>${escapeHTML(message)}</span>${status !== "cached" ? `<a href="./contribute.html?type=data-gap&player=${encodeURIComponent(player.fideID || playerKey(player))}&name=${encodeURIComponent(displayName(player))}">帮我们补全这名棋手</a>` : ""}</div>`;
+  return `<div class="coverage-callout">${dataStatusBadge(status)}<span>${escapeHTML(message)}</span></div>`;
 }
 
 function publicLocationFromSightings(sightings) {
@@ -2318,17 +2340,6 @@ function normalizedIdentityName(player) {
   return normalize(player.chineseName || player.presentationChineseName || player.displayName || player.name || "").replace(/[^0-9a-z\u4e00-\u9fff]/g, "");
 }
 
-function searchScore(player, normalized, tokens, reversed) {
-  const terms = player.searchIndex ?? [];
-  if (terms.some(term => term === normalized)) return 1000;
-  if (reversed && terms.some(term => term === reversed)) return 960;
-  if (terms.some(term => term.startsWith(normalized))) return 850;
-  if (terms.some(term => term.includes(normalized))) return 700;
-  if (tokens.length && tokens.every(token => player.searchTokens?.has(token))) return 620;
-  if (tokens.length && tokens.every(token => terms.some(term => term.includes(token)))) return 520;
-  return 0;
-}
-
 function preparePlayer(player) {
   const values = searchValuesForPlayer(player);
   const tokenSet = new Set(values.flatMap(searchTokens));
@@ -2339,25 +2350,8 @@ function preparePlayer(player) {
   };
 }
 
-function searchValuesForPlayer(player) {
-  const values = [
-    player.fideID,
-    player.displayName,
-    player.name,
-    player.chineseName,
-    player.presentationChineseName,
-    player.pinyin,
-    ...(player.aliases ?? [])
-  ].filter(Boolean).map(String);
-
-  for (const value of [...values]) {
-    const parts = searchTokens(value);
-    if (parts.length >= 2) {
-      values.push(parts.join(" "));
-      values.push(parts.slice().reverse().join(" "));
-    }
-  }
-  return [...new Set(values)];
+function normalize(value) {
+  return normalizeSearchText(displayText(value));
 }
 
 function uniqueStrings(values) {
@@ -2403,23 +2397,6 @@ function compactNumber(value) {
 function clampInt(value, min, max) {
   const number = Number.isFinite(value) ? Math.trunc(value) : min;
   return Math.min(Math.max(number, min), max);
-}
-
-function normalize(value) {
-  return displayText(value)
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[\s,.'’"()，。·_\-]+/g, "");
-}
-
-function searchTokens(value) {
-  return displayText(value)
-    .normalize("NFKD")
-    .toLowerCase()
-    .replace(/[,.，。'’"()·_\-]+/g, " ")
-    .split(/\s+/)
-    .map(token => token.trim())
-    .filter(Boolean);
 }
 
 function slug(value) {

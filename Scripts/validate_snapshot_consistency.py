@@ -31,13 +31,15 @@ MANIFEST_GLOBS = (
     "data/index/player-participation/buckets/*.json",
     "api/v1/manifest.json",
     "api/v2/manifest.json",
-    "api/v2/rankings/official/current/standard/*.json",
+    "api/v2/rankings/official/current/*/*.json",
+    "api/v2/rankings/official/current/*/by-birth-year/*.json",
     "data/snapshot.json",
     "data/registry/domestic/manifest.json",
     "data/registry/domestic/presentation-groups.json",
     "data/identity/presentation-names.json",
     "data/search-bootstrap.json",
     "data/search-bootstrap-domestic.json",
+    "data/search/domestic-routing.json",
     "data/search/domestic/*.json",
 )
 
