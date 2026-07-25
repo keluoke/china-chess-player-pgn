@@ -46,12 +46,13 @@ EVENT_QUEUE = ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json
 CAPTURE_STATE = local_state_root() / "chess-results" / "capture-state.json"
 USER_AGENT = "ChinaChessPlayerPGN/EventDetailSync"
 
-# v4: v3's pagination and roster-containment protections, plus the common
-# domestic ``No. / Name / Club`` starting-rank layout (no FIDE/rating columns).
+# v5: v4 plus unique roster-name recovery for pairing pages that omit serial
+# numbers.  Any non-bye side that still lacks a roster reference is rejected
+# instead of being silently reclassified as a bye by downstream completeness.
 # Bumping the version releases affected targets for one evidence-backed retry;
 # cached starting-rank pages are replayed locally before any missing page is
 # requested.
-PARSER_VERSION = "chess-results-v4"
+PARSER_VERSION = "chess-results-v5"
 QUARANTINE_DAYS = 7
 STRUCTURE_QUARANTINE_THRESHOLD = 2
 
@@ -65,6 +66,7 @@ STRUCTURAL_ERROR_CODES = {
     "PARSER_LAYOUT_CHANGED",
     "ROUND_COUNT_UNKNOWN",
     "VALIDATION_REGRESSION",
+    "PAIRING_REFS_MISSING",
     "PAIRING_REFS_OUTSIDE_ROSTER",
 }
 
@@ -85,6 +87,13 @@ def clean(value: Any) -> str:
 
 def normalized_header(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", clean(value).casefold())
+
+
+def normalized_pairing_name(value: str) -> str:
+    return re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", clean(value).casefold())
+
+
+NON_PLAYER_PAIRING_NAMES = {"bye", "notpaired"}
 
 
 @dataclass
@@ -412,7 +421,24 @@ def parse_team_standings(parser: TableParser) -> list[dict[str, Any]]:
     return result
 
 
+def roster_number_for_name(name: str, players: dict[str, dict[str, str]]) -> str:
+    """Return a roster number only when the normalized name is unambiguous."""
+    wanted = normalized_pairing_name(name)
+    if not wanted or wanted in NON_PLAYER_PAIRING_NAMES:
+        return ""
+    matches = {
+        number
+        for number, player in players.items()
+        if wanted in {
+            normalized_pairing_name(player.get("name", "")),
+            normalized_pairing_name(player.get("chineseName", "")),
+        }
+    }
+    return next(iter(matches)) if len(matches) == 1 else ""
+
+
 def pairing_side(number: str, name: str, chinese_name: str, players: dict[str, dict[str, str]]) -> dict[str, str]:
+    number = number or roster_number_for_name(name, players)
     known = players.get(number, {})
     return {
         key: value for key, value in {
@@ -936,6 +962,22 @@ class EventCollector:
                         "PAIRING_REFS_OUTSIDE_ROSTER",
                         f"tnr{self.tid} 第 {round_no} 轮有 {len(unknown_refs)} 个名单外编号"
                         f"（如 {', '.join(unknown_refs[:8])}）；疑似名单分页截断，禁止作为完整赛事保存。",
+                        failed_page=kind,
+                    )
+                missing_refs = sorted({
+                    clean(side.get("name"))
+                    for pairing in pairings
+                    for side in (pairing.get("white") or {}, pairing.get("black") or {})
+                    if (
+                        not side.get("playerNo")
+                        and normalized_pairing_name(side.get("name", "")) not in NON_PLAYER_PAIRING_NAMES
+                    )
+                })
+                if missing_refs and event_format != "team":
+                    raise EventCaptureError(
+                        "PAIRING_REFS_MISSING",
+                        f"tnr{self.tid} 第 {round_no} 轮有 {len(missing_refs)} 个对阵方无法唯一回查名单"
+                        f"（如 {', '.join(missing_refs[:8])}）；禁止作为完整赛事保存。",
                         failed_page=kind,
                     )
                 self.pages_parsed += 1

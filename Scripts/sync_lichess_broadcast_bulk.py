@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 from source_http import download_to_path, fetch_bytes
+from stable_json import write_json as write_stable_json
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -1102,10 +1103,7 @@ def read_json(path: pathlib.Path) -> Any:
 
 
 def write_json(path: pathlib.Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    write_stable_json(path, data, ensure_ascii=False, indent=2)
 
 
 def public_data_path(path: pathlib.Path) -> str:

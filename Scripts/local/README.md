@@ -123,9 +123,14 @@ python3 Scripts/local/identity_review.py --show <candidateID>
 - **PGN 判定**：`source-published-complete` 表示来源实际公开的直播棋谱全部入库，
   可少于全台；`full-board-complete` 才表示全台。分母来自实际公开链接/广播，
   不把“前十台”写死；每局必须与轮次、台次和双方 playerNo 唯一匹配。
+- **对阵引用三态**：双方都能唯一回查名单才是普通对局；只有来源明确写出
+  `bye` / `not paired` 才是轮空；其余缺 `playerNo` 的记录都是 unresolved，
+  整场降为 partial，并进入 `repair-pairing-player-numbers` P0 队列。奇数名单
+  的 `minRoundRosterCoverage < 1` 不单独触发降级。
 - **Lichess 交叉比对**：只接受标准慢棋亚少赛/世少赛的唯一匹配，FIDE ID 优先、
   规范化姓名回退。manifest 必须保留每个广播容器的总局数、匹配数、未匹配数及
-  歧义拒绝数；未匹配残差不能静默视为完整。
+  歧义拒绝数；未匹配残差或范围未验证时标
+  `source-published-coverage-unresolved`，不能静默视为完整。
 
 ## 发布事务
 
@@ -158,8 +163,11 @@ FIDE/Lichess/Chess-Results 发布前必须满足：
    GitHub Git Database API（同一 manifest、同一哈希文件，复用
    `run_manager.validate_manifest`，无第二套白名单）；
 8. `ingest-local-data.yml` 按触发 push 的不可变 event SHA 摄入（不重读移动的
-   分支头），用同一验证器只应用 manifest 文件清单，并在 job summary 写入
-   run-id / source SHA / main commit 的 receipt；
+   分支头），先用 manifest 的 `baseBlobOid` / `baseSha256` 对每个路径完成
+   baseline/current/candidate 三方检查；真实并发修改以
+   `RELEASE_BASE_CONFLICT` 整包隔离且不修改 worktree/index。检查通过后才应用
+   manifest 文件清单，并在 job summary 写入 run-id / source SHA / baseline /
+   main commit 的 receipt；
 9. Actions 离线重建索引和部署。
 
 push 成功不等于发布成功。`refresh.sh receipts`（deliver 成功后也会自动尝试）
@@ -187,6 +195,10 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 - `PARTIAL_FAILURE`：批次部分目标失败并已隔离；成功赛事已保留。
 - `PARSER_LAYOUT_CHANGED`：来源页面不再符合解析器预期；raw 证据已保留，更新
   解析器后 `--replay` 离线重放。
+- `PAIRING_REFS_MISSING`：普通对局方无法按编号或名单内唯一姓名回查；该赛事
+  不得作为完整赛事保存，解析器修复后用 `--replay` 离线重放。
+- `RELEASE_BASE_CONFLICT`：远端 main 在采集基线后修改了同一路径，候选整包
+  已隔离且尚未写入工作树；先人工核对冲突，不得回抓来源。
 - `VALIDATION_REGRESSION`：人数、分片、勘误或解析行数出现异常。
 - `COMPLIANCE_POLICY_BLOCKED`：操作违反数据边界（原始 HTML 入库、人工数据
   路径、或环境显式设为已退役的 link-only 模式）。

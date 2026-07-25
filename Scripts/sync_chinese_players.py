@@ -35,6 +35,7 @@ from xml.etree import ElementTree
 
 from source_http import record_provider_result, reserve_provider_request
 from source_policy import require_local_collector
+from stable_json import write_json as write_stable_json
 
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -819,10 +820,7 @@ def numeric_sort_key(value: str) -> tuple[int, str]:
 
 
 def write_json(path: pathlib.Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
+    write_stable_json(path, data, ensure_ascii=False, indent=2)
 
 
 def tls_context() -> ssl.SSLContext:

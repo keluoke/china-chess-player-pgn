@@ -210,6 +210,60 @@ def sha256_file(path: pathlib.Path) -> str:
     return digest.hexdigest()
 
 
+def git_blob_oid(repo: pathlib.Path, ref: str, path: str) -> str | None:
+    try:
+        raw = git(repo, "ls-tree", "-z", ref, "--", path).stdout
+    except subprocess.CalledProcessError as error:
+        raise RunManagerError(
+            "RELEASE_BASE_UNAVAILABLE",
+            f"无法读取 Git 树 {ref}:{path}: {error.stderr.decode('utf-8', errors='replace').strip()}",
+        ) from error
+    records = [record for record in raw.split(b"\0") if record]
+    if not records:
+        return None
+    if len(records) != 1:
+        raise RunManagerError("RELEASE_PATH_INVALID", f"{ref}:{path} 解析为多个 Git 对象。")
+    metadata, separator, recorded_path = records[0].partition(b"\t")
+    fields = metadata.split()
+    if (
+        not separator
+        or recorded_path.decode("utf-8", errors="surrogateescape") != path
+        or len(fields) != 3
+        or fields[1] != b"blob"
+        or fields[0] not in {b"100644", b"100755"}
+    ):
+        raise RunManagerError("RELEASE_PATH_INVALID", f"{ref}:{path} 不是普通 Git blob。")
+    return fields[2].decode("ascii", errors="strict")
+
+
+def git_blob_sha256(repo: pathlib.Path, oid: str) -> str:
+    digest = hashlib.sha256()
+    process = subprocess.Popen(
+        ["git", "cat-file", "blob", oid],
+        cwd=repo,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert process.stdout is not None
+    for chunk in iter(lambda: process.stdout.read(1024 * 1024), b""):
+        digest.update(chunk)
+    process.stdout.close()
+    stderr = process.stderr.read() if process.stderr is not None else b""
+    if process.stderr is not None:
+        process.stderr.close()
+    if process.wait() != 0:
+        raise RunManagerError(
+            "RELEASE_BASE_UNAVAILABLE",
+            f"无法读取基线 blob {oid}: {stderr.decode('utf-8', errors='replace').strip()}",
+        )
+    return digest.hexdigest()
+
+
+def git_blob_facts(repo: pathlib.Path, ref: str, path: str) -> tuple[str | None, str | None]:
+    oid = git_blob_oid(repo, ref, path)
+    return (oid, git_blob_sha256(repo, oid)) if oid else (None, None)
+
+
 def worktree_status(repo: pathlib.Path) -> dict[str, dict[str, Any]]:
     raw = git(repo, "status", "--porcelain=v1", "-z", "--untracked-files=all").stdout
     fields = raw.split(b"\0")
@@ -344,22 +398,38 @@ def prepare_release(repo: pathlib.Path, run_dir: pathlib.Path, command: str, all
     if not changed:
         return {"changed": 0, "files": [], "manifest": None}
 
+    base_commit = git(repo, "rev-parse", "HEAD").stdout.decode().strip()
     files: list[dict[str, Any]] = []
     for path in changed:
         full = repo / path
         if full.is_symlink():
             raise RunManagerError("RELEASE_PATH_INVALID", f"发布包禁止符号链接：{path}")
+        base_oid, base_sha256 = git_blob_facts(repo, base_commit, path)
         if full.is_file():
-            files.append({"path": path, "operation": "upsert", "sha256": sha256_file(full), "bytes": full.stat().st_size})
+            files.append({
+                "path": path,
+                "operation": "upsert",
+                "sha256": sha256_file(full),
+                "bytes": full.stat().st_size,
+                "baseBlobOid": base_oid,
+                "baseSha256": base_sha256,
+            })
         else:
-            files.append({"path": path, "operation": "delete", "sha256": None, "bytes": 0})
+            files.append({
+                "path": path,
+                "operation": "delete",
+                "sha256": None,
+                "bytes": 0,
+                "baseBlobOid": base_oid,
+                "baseSha256": base_sha256,
+            })
     source = source_for_command(command)
     manifest = {
         "schemaVersion": 1,
         "runId": read_json(run_dir / "run.json").get("runId"),
         "command": command,
         "createdAt": now(),
-        "baseCommit": git(repo, "rev-parse", "HEAD").stdout.decode().strip(),
+        "baseCommit": base_commit,
         "source": source_release_metadata(source),
         "files": files,
     }
@@ -485,6 +555,14 @@ def validate_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
         raise RunManagerError("RELEASE_LICENSE_MISSING", "Lichess 发布缺少 CC BY-SA 4.0 许可或署名信息。")
     files: list[dict[str, Any]] = []
     seen: set[str] = set()
+    base_commit = payload.get("baseCommit")
+    delivery_base_commit = payload.get("deliveryBaseCommit")
+    for label, value in (
+        ("baseCommit", base_commit),
+        ("deliveryBaseCommit", delivery_base_commit),
+    ):
+        if value is not None and not re.fullmatch(r"[0-9a-f]{40,64}", str(value)):
+            raise RunManagerError("RELEASE_MANIFEST_INVALID", f"{label} 不是有效 Git commit id。")
     for item in payload["files"]:
         path = str(item.get("path") or "")
         if path in seen:
@@ -511,8 +589,110 @@ def validate_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
                 raise RunManagerError("RELEASE_MANIFEST_INVALID", f"upsert 字节数无效：{path}")
         elif item.get("sha256") not in {None, ""}:
             raise RunManagerError("RELEASE_MANIFEST_INVALID", f"delete 不应携带 SHA-256：{path}")
+        for prefix, commit in (
+            ("base", base_commit),
+            ("deliveryBase", delivery_base_commit),
+        ):
+            oid_key = f"{prefix}BlobOid"
+            sha_key = f"{prefix}Sha256"
+            if oid_key not in item and sha_key not in item:
+                continue
+            oid = item.get(oid_key)
+            sha = item.get(sha_key)
+            if oid is None and sha is None:
+                pass
+            elif (
+                not re.fullmatch(r"[0-9a-f]{40,64}", str(oid or ""))
+                or not re.fullmatch(r"[0-9a-f]{64}", str(sha or ""))
+            ):
+                raise RunManagerError(
+                    "RELEASE_MANIFEST_INVALID",
+                    f"{path} 的 {prefix} blob/hash 不完整。",
+                )
+            if not commit:
+                raise RunManagerError(
+                    "RELEASE_MANIFEST_INVALID",
+                    f"{path} 携带 {prefix} blob/hash 但 manifest 缺少对应 commit。",
+                )
         files.append(item)
     return files
+
+
+def validate_release_baseline(
+    repo: pathlib.Path,
+    source_ref: str,
+    payload: dict[str, Any],
+    files: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Validate every baseline/current/candidate tuple before worktree writes."""
+    try:
+        ancestry = git(repo, "rev-list", "--parents", "-n", "1", source_ref).stdout.decode().split()
+    except subprocess.CalledProcessError as error:
+        raise RunManagerError(
+            "RELEASE_BASE_UNAVAILABLE",
+            f"无法读取发布提交 {source_ref} 的父节点。",
+        ) from error
+    if len(ancestry) != 2:
+        raise RunManagerError(
+            "RELEASE_BASE_UNAVAILABLE",
+            f"发布提交 {source_ref} 必须有且仅有一个可用父节点；请至少 fetch depth 2。",
+        )
+    parent = ancestry[1]
+    delivery_mode = bool(payload.get("deliveryBaseCommit"))
+    baseline_ref = str(payload.get("deliveryBaseCommit") or payload.get("baseCommit") or parent)
+    if baseline_ref != parent:
+        raise RunManagerError(
+            "RELEASE_BASE_COMMIT_MISMATCH",
+            f"发布提交父节点 {parent} 与 manifest 基线 {baseline_ref} 不一致。",
+        )
+
+    prefix = "deliveryBase" if delivery_mode else "base"
+    conflicts: list[str] = []
+    idempotent = 0
+    verified = 0
+    for item in files:
+        path = item["path"]
+        oid_key = f"{prefix}BlobOid"
+        sha_key = f"{prefix}Sha256"
+        expected_oid = item.get(oid_key) if oid_key in item else None
+        expected_sha = item.get(sha_key) if sha_key in item else None
+        has_embedded_baseline = oid_key in item or sha_key in item
+        actual_base_oid, actual_base_sha = git_blob_facts(repo, baseline_ref, path)
+        if has_embedded_baseline and (
+            expected_oid != actual_base_oid or expected_sha != actual_base_sha
+        ):
+            raise RunManagerError(
+                "RELEASE_BASE_HASH_MISMATCH",
+                f"manifest 基线与 {baseline_ref}:{path} 不一致。",
+            )
+
+        baseline_oid = actual_base_oid
+        current_oid = git_blob_oid(repo, "HEAD", path)
+        candidate_oid = (
+            git_blob_oid(repo, source_ref, path)
+            if item["operation"] == "upsert"
+            else None
+        )
+        if item["operation"] == "upsert" and candidate_oid is None:
+            raise RunManagerError("RELEASE_PATH_MISSING", f"发布提交缺少候选文件：{path}")
+        if current_oid == candidate_oid:
+            idempotent += 1
+        elif current_oid != baseline_oid:
+            conflicts.append(path)
+        verified += 1
+
+    if conflicts:
+        raise RunManagerError(
+            "RELEASE_BASE_CONFLICT",
+            "main 已在发布基线之后修改以下路径，候选已隔离且未写入工作树："
+            + ", ".join(conflicts[:8]),
+        )
+    return {
+        "baselineCommit": baseline_ref,
+        "baselineMode": "delivery" if delivery_mode else ("manifest" if payload.get("baseCommit") else "legacy-parent"),
+        "verified": verified,
+        "idempotent": idempotent,
+    }
 
 
 def prefetch_partial_clone_blobs(
@@ -729,6 +909,7 @@ def apply_release(repo: pathlib.Path, source_ref: str, path_list: pathlib.Path |
     shown = git(repo, "show", f"{source_ref}:{MANIFEST_PATH}").stdout
     payload = json.loads(shown.decode("utf-8"))
     files = validate_manifest(payload)
+    baseline = validate_release_baseline(repo, source_ref, payload, files)
     upserts = [item for item in files if item["operation"] == "upsert"]
     prefetch_partial_clone_blobs(repo, source_ref, upserts)
 
@@ -769,7 +950,12 @@ def apply_release(repo: pathlib.Path, source_ref: str, path_list: pathlib.Path |
     applied.append(MANIFEST_PATH)
     if path_list:
         path_list.write_text("\n".join(applied) + "\n", encoding="utf-8")
-    return {"runId": payload.get("runId"), "applied": len(files), "paths": applied}
+    return {
+        "runId": payload.get("runId"),
+        "applied": len(files),
+        "paths": applied,
+        "baseline": baseline,
+    }
 
 
 def parser() -> argparse.ArgumentParser:

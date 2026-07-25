@@ -22,6 +22,7 @@ sys.path.insert(0, str(REPO_ROOT / "Scripts"))
 
 import build_completeness_report as ccr  # noqa: E402
 import build_event_details as bed  # noqa: E402
+import build_release_snapshot as brs  # noqa: E402
 import build_search_bootstrap as bsb  # noqa: E402
 import sync_domestic_players as sdp  # noqa: E402
 import validate_snapshot_consistency as vsc  # noqa: E402
@@ -99,12 +100,51 @@ class ArchiveFirstMatchingTest(unittest.TestCase):
             "source": "Lichess Broadcasts",
         }
         with mock.patch.object(ccr, "parse_event_archive", return_value=[game]):
-            report = ccr.event_report(payload, by_player_games={})
+            report = ccr.event_report(
+                payload,
+                by_player_games={},
+                lichess_status={
+                    "broadcastComplete": True,
+                    "linkedContainerUnmatchedGames": 0,
+                },
+            )
         self.assertEqual(report["pgnAvailability"], "advertised-partial")
         self.assertEqual(report["archiveStatus"], "matched-advertised-complete")
         self.assertEqual(report["pgnIngestStatus"], "source-published-complete")
         self.assertEqual(report["counts"]["lichessBroadcastGames"], 1)
         self.assertEqual(report["pgnArchiveSources"], ["Lichess Broadcasts"])
+
+    def test_lichess_residual_prevents_complete_status_and_queues_audit(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Player, A", 2, "Player, B", has_pgn=False),
+        ]}]
+        payload = payload_with_rounds(rounds, players=[
+            {"playerNo": "1", "name": "Player, A"},
+            {"playerNo": "2", "name": "Player, B"},
+        ])
+        game = {
+            **archive_game(1, 1, "Player, A", "Player, B"),
+            "source": "Lichess Broadcasts",
+        }
+        with mock.patch.object(ccr, "parse_event_archive", return_value=[game]):
+            report = ccr.event_report(
+                payload,
+                by_player_games={},
+                lichess_status={
+                    "broadcastComplete": False,
+                    "linkedContainerUnmatchedGames": 1,
+                },
+            )
+        self.assertEqual(report["archiveStatus"], "matched-partial")
+        self.assertEqual(
+            report["pgnIngestStatus"],
+            "source-published-coverage-unresolved",
+        )
+        self.assertEqual(report["counts"]["lichessUnmatchedResidual"], 1)
+        self.assertFalse(report["lichessScopeVerified"])
+        self.assertFalse(report["eventComplete"])
+        queue = ccr.supplement_queue([report], leads={})
+        self.assertEqual(queue[0]["nextAction"], "offline-rematch-lichess-residual")
 
 
 class NaturalKeyMatchingTest(unittest.TestCase):
@@ -170,6 +210,58 @@ class PlayedGameDenominatorTest(unittest.TestCase):
             report = ccr.event_report(payload, by_player_games={})
         self.assertEqual(report["pgnAvailability"], "advertised-partial")
 
+    def test_unresolved_pairing_is_not_a_bye_and_enters_repair_queue(self):
+        unresolved = {
+            "board": "1",
+            "white": {"name": "Player, A"},
+            "black": {"name": "Player, B"},
+            "result": "1 - 0",
+            "hasPGN": True,
+        }
+        payload = payload_with_rounds(
+            [{"round": "1", "pairings": [unresolved]}],
+            players=[
+                {"playerNo": "1", "name": "Player, A"},
+                {"playerNo": "2", "name": "Player, B"},
+            ],
+        )
+        with mock.patch.object(ccr, "parse_event_archive", return_value=[]):
+            report = ccr.event_report(payload, by_player_games={})
+        self.assertFalse(ccr.is_bye(unresolved))
+        self.assertTrue(ccr.is_unresolved_pairing(unresolved))
+        self.assertEqual(report["resultsStatus"], "partial")
+        self.assertEqual(report["pgnAvailability"], "unresolved-pairings")
+        self.assertEqual(report["pgnIngestStatus"], "coverage-unresolved")
+        self.assertEqual(report["counts"]["unresolvedPairings"], 1)
+        queue = ccr.supplement_queue([report], leads={})
+        self.assertEqual(queue[0]["priority"], "P0")
+        self.assertEqual(queue[0]["nextAction"], "repair-pairing-player-numbers")
+
+    def test_odd_roster_coverage_is_diagnostic_not_a_false_hard_gate(self):
+        players = [
+            {"playerNo": str(number), "name": f"Player {number}"}
+            for number in range(1, 6)
+        ]
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Player 1", 2, "Player 2", has_pgn=False),
+            pairing(1, 2, 3, "Player 3", 4, "Player 4", has_pgn=False),
+        ]}]
+        payload = payload_with_rounds(rounds, players=players)
+        with mock.patch.object(ccr, "parse_event_archive", return_value=[]):
+            report = ccr.event_report(payload, by_player_games={})
+        self.assertEqual(report["gates"]["pairings"]["minRoundRosterCoverage"], 0.8)
+        self.assertEqual(report["gates"]["pairings"]["status"], "complete")
+        self.assertEqual(report["resultsStatus"], "results-complete")
+
+
+class RequiredFactInputTest(unittest.TestCase):
+    def test_invalid_required_json_fails_loudly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "fact.json"
+            path.write_text('{"truncated":', encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "required JSON is invalid"):
+                ccr.read_json_required(path)
+
 
 class PerBoardVerificationTest(unittest.TestCase):
     """§7.4: advertised boards verify per pairing, not by comparing totals."""
@@ -216,6 +308,28 @@ class SnapshotConsistencyTest(unittest.TestCase):
         with tmp, mock.patch.object(vsc, "ROOT", root), mock.patch.object(vsc, "DOCS", docs), \
              mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
             self.assertEqual(vsc.main(), 0)
+
+    def test_failed_snapshot_gate_restores_previous_snapshot_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot = pathlib.Path(directory) / "snapshot.json"
+            original = b'{"snapshotId":"previous"}\n'
+            snapshot.write_bytes(original)
+
+            def fake_step(command, **_kwargs):
+                if command[1].endswith("validate_snapshot_consistency.py"):
+                    raise SystemExit(1)
+                return {"command": " ".join(command), "status": "built", "seconds": 0}
+
+            with (
+                mock.patch.object(brs, "SNAPSHOT_JSON", snapshot),
+                mock.patch.object(brs, "input_facts", return_value=[]),
+                mock.patch.object(brs, "step", side_effect=fake_step),
+                mock.patch.object(sys, "argv", ["build_release_snapshot.py", "--skip-domestic"]),
+                mock.patch("snapshot_context.snapshot_id", return_value="candidate"),
+            ):
+                with self.assertRaises(SystemExit):
+                    brs.main()
+            self.assertEqual(snapshot.read_bytes(), original)
 
 
 def sighting(**kwargs):

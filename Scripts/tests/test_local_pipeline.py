@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import io
@@ -615,6 +616,9 @@ class RunManagerTests(unittest.TestCase):
         manifest = json.loads((self.repo / run_manager.MANIFEST_PATH).read_text())
         self.assertEqual(manifest["source"]["source"], "FIDE Rating List")
         self.assertEqual(manifest["files"][0]["path"], "docs/data/registry/players.json")
+        self.assertRegex(manifest["baseCommit"], r"^[0-9a-f]{40,64}$")
+        self.assertRegex(manifest["files"][0]["baseBlobOid"], r"^[0-9a-f]{40,64}$")
+        self.assertRegex(manifest["files"][0]["baseSha256"], r"^[0-9a-f]{64}$")
 
     def test_prepare_release_force_adds_an_ignored_tracked_output(self) -> None:
         target = self.repo / "data/generated/chess-results-event-details/tnr1.json"
@@ -796,6 +800,13 @@ class ApiFallbackPolicyTests(unittest.TestCase):
         }
         with self.assertRaises(run_manager.RunManagerError):
             run_manager.validate_manifest(payload)
+
+    def test_api_three_way_guard_allows_baseline_or_idempotent_only(self) -> None:
+        import publish_data_via_api
+
+        self.assertFalse(publish_data_via_api.release_conflicts("base", "base", "candidate"))
+        self.assertFalse(publish_data_via_api.release_conflicts("base", "candidate", "candidate"))
+        self.assertTrue(publish_data_via_api.release_conflicts("base", "concurrent", "candidate"))
 
 
 REFRESH_SH = LOCAL / "refresh.sh"
@@ -1120,6 +1131,69 @@ class SparseIngestApplyTests(unittest.TestCase):
             self.assertIn("D\tdata/generated/chess-results-event-details/tnr2.json", staged)
             self.assertIn(f"A\t{run_manager.MANIFEST_PATH}", staged)
 
+    def test_apply_rejects_concurrent_main_change_before_worktree_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            repo = pathlib.Path(temp) / "repo"
+            repo.mkdir()
+            git(repo, "init", "-q")
+            git(repo, "config", "user.email", "test@example.com")
+            git(repo, "config", "user.name", "Test")
+            target = repo / "docs/data/registry/players.json"
+            target.parent.mkdir(parents=True)
+            target.write_text('{"version":1}\n')
+            git(repo, "add", ".")
+            git(repo, "commit", "-qm", "base")
+            base_commit = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+            ).strip()
+            base_oid, base_sha256 = run_manager.git_blob_facts(
+                repo, base_commit, "docs/data/registry/players.json"
+            )
+
+            target.write_text('{"version":2}\n')
+            candidate_sha256 = hashlib.sha256(target.read_bytes()).hexdigest()
+            manifest = {
+                "schemaVersion": 1,
+                "runId": "baseline-conflict",
+                "baseCommit": base_commit,
+                "source": {
+                    "source": "FIDE Rating List",
+                    "releasePolicy": "factual-registry-projection",
+                },
+                "files": [{
+                    "path": "docs/data/registry/players.json",
+                    "operation": "upsert",
+                    "sha256": candidate_sha256,
+                    "bytes": target.stat().st_size,
+                    "baseBlobOid": base_oid,
+                    "baseSha256": base_sha256,
+                }],
+            }
+            manifest_path = repo / run_manager.MANIFEST_PATH
+            manifest_path.parent.mkdir(parents=True)
+            manifest_path.write_text(json.dumps(manifest) + "\n")
+            git(repo, "add", ".")
+            git(repo, "commit", "-qm", "release candidate")
+            release_commit = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True
+            ).strip()
+
+            git(repo, "checkout", "-q", base_commit)
+            target.write_text('{"version":3-concurrent}\n')
+            git(repo, "add", ".")
+            git(repo, "commit", "-qm", "concurrent main change")
+            before = target.read_bytes()
+            with self.assertRaises(run_manager.RunManagerError) as caught:
+                run_manager.apply_release(repo, release_commit, None)
+            self.assertEqual(caught.exception.code, "RELEASE_BASE_CONFLICT")
+            self.assertEqual(target.read_bytes(), before)
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "status", "--porcelain"], cwd=repo, text=True
+                ),
+                "",
+            )
+
 
 class FideArchiveTests(unittest.TestCase):
     def test_truncated_zip_is_rejected(self) -> None:
@@ -1187,6 +1261,37 @@ class SourceHTTPTests(unittest.TestCase):
             with self.assertRaises(OSError), managed as stream:
                 stream.read()
             record.assert_called_once_with("chess-results", False)
+
+    def test_provider_throttle_sleeps_after_releasing_shared_ledger(self) -> None:
+        events = []
+        ledger = {
+            "schemaVersion": 1,
+            "providers": {
+                "fide": {
+                    # datetime.date.today() observes the patched epoch below.
+                    "date": "1970-01-01",
+                    "requests": 1,
+                    "consecutiveFailures": 0,
+                    "lastRequestAt": 99.0,
+                    "circuitOpenUntil": 0.0,
+                },
+            },
+        }
+
+        @contextlib.contextmanager
+        def locked():
+            events.append("lock-enter")
+            yield pathlib.Path("unused"), ledger
+            events.append("lock-exit")
+
+        with (
+            mock.patch.object(source_http, "_locked_ledger", side_effect=locked),
+            mock.patch.object(source_http.time, "time", return_value=100.0),
+            mock.patch.object(source_http.time, "sleep", side_effect=lambda _wait: events.append("sleep")),
+        ):
+            source_http._reserve_request("fide")
+        self.assertEqual(events, ["lock-enter", "lock-exit", "sleep"])
+        self.assertEqual(ledger["providers"]["fide"]["lastRequestAt"], 101.0)
 
 
 class StableJSONTests(unittest.TestCase):

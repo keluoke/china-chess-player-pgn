@@ -107,6 +107,7 @@ def _reserve_request(provider: str) -> None:
     policy = POLICIES[provider]
     today = dt.date.today().isoformat()
     now = time.time()
+    wait = 0.0
     with _locked_ledger() as (_path, ledger):
         providers = ledger.setdefault("providers", {})
         state = providers.setdefault(provider, {})
@@ -125,12 +126,15 @@ def _reserve_request(provider: str) -> None:
                 "VISIT_BUDGET_EXHAUSTED",
                 f"{provider} 今日访问预算 {policy.daily_budget} 已用完。",
             )
-        wait = policy.min_interval - (now - float(state.get("lastRequestAt") or 0))
-        if wait > 0:
-            time.sleep(wait)
-            now = time.time()
+        # Reserve the next provider-specific slot while locked, then release
+        # the shared ledger before sleeping. A slow FIDE interval must not
+        # block an unrelated Lichess/Chess-Results process on the same flock.
+        reserved_at = max(now, float(state.get("lastRequestAt") or 0) + policy.min_interval)
+        wait = max(0.0, reserved_at - now)
         state["requests"] = requests + 1
-        state["lastRequestAt"] = now
+        state["lastRequestAt"] = reserved_at
+    if wait > 0:
+        time.sleep(wait)
 
 
 def _record_result(provider: str, success: bool, *, force_circuit: bool = False) -> None:
@@ -365,8 +369,10 @@ def download_to_path(
                     "SOURCE_TRUNCATED_DOWNLOAD",
                     f"下载文件相对目录元数据异常小：{written}/{expected_size} 字节。",
                 )
-            if magic and tmp.open("rb").read(len(magic)) != magic:
-                raise SourceHTTPError("SOURCE_FILE_SIGNATURE_INVALID", f"{target.name} 文件签名无效。")
+            if magic:
+                with tmp.open("rb") as handle:
+                    if handle.read(len(magic)) != magic:
+                        raise SourceHTTPError("SOURCE_FILE_SIGNATURE_INVALID", f"{target.name} 文件签名无效。")
             os.replace(tmp, target)
             _record_result(provider, True)
             return {"bytes": written, "contentType": content_type}

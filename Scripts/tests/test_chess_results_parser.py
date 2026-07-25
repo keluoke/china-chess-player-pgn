@@ -159,6 +159,22 @@ class ParserMatrixTests(unittest.TestCase):
         self.assertEqual(pairings[0]["black"]["playerNo"], "2")
         self.assertEqual(pairings[0]["result"], "0 - 1")
 
+    def test_pairings_without_numbers_use_unique_roster_names(self) -> None:
+        players = sce.parse_players(parse("starting_rank_individual.html"))
+        pairings = sce.parse_pairings(parse("pairings_names_only.html"), players)
+        self.assertEqual(len(pairings), 2)
+        self.assertEqual(pairings[0]["white"]["playerNo"], "1")
+        self.assertEqual(pairings[0]["black"]["playerNo"], "4")
+        self.assertEqual(pairings[1]["white"]["playerNo"], "2")
+        self.assertEqual(pairings[1]["black"]["playerNo"], "3")
+
+    def test_roster_name_fallback_rejects_ambiguous_names(self) -> None:
+        players = {
+            "1": {"playerNo": "1", "name": "Same, Name"},
+            "2": {"playerNo": "2", "name": "Same Name"},
+        }
+        self.assertEqual(sce.roster_number_for_name("Same Name", players), "")
+
     def test_legacy_page_with_all_rounds_in_one_table_selects_requested_round(self) -> None:
         body = """
         <table>
@@ -315,6 +331,8 @@ class FakeFetcher:
         if art == 2:
             if tid == "999006":
                 return fixture("pairings_out_of_roster.html"), url
+            if tid == "999007":
+                return fixture("pairings_missing_refs.html"), url
             return fixture("pairings_round.html"), url
         raise AssertionError(f"unexpected page request {key}")
 
@@ -447,6 +465,18 @@ class PaginationAndRosterTests(unittest.TestCase):
             self.assertEqual(events["999006"]["failedPage"], "round-1")
             # Structural: no pointless network retry of the same round page.
             self.assertEqual(fetcher.calls[("999006", 2, 1)], 1)
+
+    def test_missing_pairing_refs_block_the_capture_but_explicit_bye_does_not(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
+            temp = pathlib.Path(name)
+            fetcher = FakeFetcher()
+            runner = BatchIsolationTests()
+            code = runner.run_main(temp, fetcher, ["999007"], "run1")
+            self.assertEqual(code, 1)
+            events = runner.load_state(temp)
+            self.assertEqual(events["999007"]["errorCode"], "PAIRING_REFS_MISSING")
+            self.assertEqual(events["999007"]["failedPage"], "round-1")
+            self.assertEqual(fetcher.calls[("999007", 2, 1)], 1)
 
     def test_truncated_cache_from_old_request_params_is_not_reused(self) -> None:
         with tempfile.TemporaryDirectory() as name:

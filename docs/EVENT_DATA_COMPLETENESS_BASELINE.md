@@ -151,11 +151,15 @@ partial 候选不得覆盖 main 上的完整赛事、显式删除、隐式缺失
 
 ## 实施顺序
 
-1. **P0-1/P0-4**：发布包携带基线与自然键；云端 ingest 实现字段级三方合并 +
-   回执；本机 merge 降级为"生成候选"，不再直接决定最终值。
-2. **P0-2（已实施核心门禁）**：completeness report 已区分 results、来源公开
-   范围和全台覆盖；PGN 匹配率进入 `pgnIngestStatus`，Lichess 广播可按严格规则
-   补充。仍需继续补齐面板展示和所有旧数据迁移。
+1. **P0-1/P0-4（安全隔离阶段已实施）**：发布包逐路径携带
+   `baseBlobOid` / `baseSha256`；云端及 API fallback 在任何写入前验证
+   baseline/current/candidate，真实并发冲突以 `RELEASE_BASE_CONFLICT` 整包隔离。
+   后续若要自动解决冲突，仍须实现自然键字段级合并及逐对象回执；在此之前禁止
+   用候选覆盖 current。
+2. **P0-2（核心门禁已实施）**：completeness report 已区分 results、来源公开
+   范围和全台覆盖；缺 playerNo 的非轮空对阵显式降为 partial/P0，奇数名单覆盖率
+   不误作硬门禁；Lichess 未匹配残差否决 complete 并进入离线复核。仍需继续补齐
+   面板展示和所有旧数据迁移。
 3. **P0-3 / 工作台**：面板单条状态链 + Chess-Results 发布包进发布中心。
 4. **P0-6**：公共对象与前台去来源化（生成层剥离 `source`/`sourceRefs`/外链，
    app.js 改口径）。

@@ -77,15 +77,24 @@ def round_number(value: Any) -> str:
     return match.group(1) if match else clean(value)
 
 
-def read_json(path: pathlib.Path, default: Any) -> Any:
+def read_json_optional(path: pathlib.Path, default: Any) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return default
 
 
+def read_json_required(path: pathlib.Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise RuntimeError(f"required JSON is unreadable: {path}") from error
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"required JSON is invalid: {path}: {error}") from error
+
+
 def verified_event_archives() -> set[str]:
-    receipt = read_json(EVENT_PGN_RECEIPT, {})
+    receipt = read_json_optional(EVENT_PGN_RECEIPT, {})
     verified: set[str] = set()
     for item in receipt.get("objects", []) or []:
         key = clean(item.get("key"))
@@ -101,7 +110,31 @@ def verified_event_archives() -> set[str]:
     return verified
 
 
+NON_PLAYER_PAIRING_NAMES = {"bye", "notpaired"}
+
+
+def side_player_number(pairing: dict[str, Any], side: str) -> str:
+    return clean((pairing.get(side) or {}).get("playerNo"))
+
+
+def side_name_key(pairing: dict[str, Any], side: str) -> str:
+    return normalize_name((pairing.get(side) or {}).get("name"))
+
+
 def is_bye(pairing: dict[str, Any]) -> bool:
+    """A bye requires exactly one roster player and an explicit source marker."""
+    white_no = side_player_number(pairing, "white")
+    black_no = side_player_number(pairing, "black")
+    if bool(white_no) == bool(black_no):
+        return False
+    missing_side = "black" if white_no else "white"
+    return side_name_key(pairing, missing_side) in NON_PLAYER_PAIRING_NAMES
+
+
+def is_unresolved_pairing(pairing: dict[str, Any]) -> bool:
+    """A non-bye row with either roster reference missing is unresolved."""
+    if is_bye(pairing):
+        return False
     white = pairing.get("white") or {}
     black = pairing.get("black") or {}
     return not clean(white.get("playerNo")) or not clean(black.get("playerNo"))
@@ -177,7 +210,7 @@ def parse_event_archive(tid: str) -> list[dict[str, str]]:
 
 
 def verified_lichess_event_archives() -> set[str]:
-    manifest = read_json(LICHESS_EVENT_MANIFEST, {})
+    manifest = read_json_optional(LICHESS_EVENT_MANIFEST, {})
     verified: set[str] = set()
     for event in manifest.get("events", []) or []:
         tid = clean(event.get("tournamentID"))
@@ -189,6 +222,15 @@ def verified_lichess_event_archives() -> set[str]:
         if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == expected:
             verified.add(tid)
     return verified
+
+
+def lichess_event_metadata() -> dict[str, dict[str, Any]]:
+    manifest = read_json_optional(LICHESS_EVENT_MANIFEST, {})
+    return {
+        clean(event.get("tournamentID")): event
+        for event in manifest.get("events", []) or []
+        if clean(event.get("tournamentID"))
+    }
 
 
 def match_archive_games(
@@ -208,7 +250,7 @@ def match_archive_games(
             rid = round_number(round_row.get("round"))
             for pairing in round_row.get("pairings") or []:
                 board = clean(pairing.get("board"))
-                if not board or is_bye(pairing) or is_forfeit(pairing.get("result")):
+                if not board or is_bye(pairing) or is_unresolved_pairing(pairing) or is_forfeit(pairing.get("result")):
                     continue
                 inferred_played.add((rid, board))
                 if pairing.get("hasPGN"):
@@ -221,7 +263,7 @@ def match_archive_games(
     for round_row in payload.get("rounds") or []:
         rid = round_number(round_row.get("round"))
         for pairing in round_row.get("pairings") or []:
-            if is_bye(pairing):
+            if is_bye(pairing) or is_unresolved_pairing(pairing):
                 continue
             board = clean(pairing.get("board"))
             if board:
@@ -242,7 +284,7 @@ def match_archive_games(
     for round_row in payload.get("rounds") or []:
         rid = round_number(round_row.get("round"))
         for pairing in round_row.get("pairings") or []:
-            if not is_bye(pairing) and is_forfeit(pairing.get("result")):
+            if not is_bye(pairing) and not is_unresolved_pairing(pairing) and is_forfeit(pairing.get("result")):
                 board = clean(pairing.get("board"))
                 if board:
                     forfeits_keys.add((rid, board))
@@ -291,7 +333,7 @@ def match_archive_games(
 def by_player_game_index() -> dict[str, dict[tuple[str, tuple[str, str]], set[str]]]:
     index: dict[str, dict[tuple[str, tuple[str, str]], set[str]]] = defaultdict(dict)
     for path in sorted(BY_PLAYER.glob("fide-*.json")):
-        detail = read_json(path, {})
+        detail = read_json_required(path)
         for game in detail.get("games", []) or []:
             tid = clean(game.get("tournamentID"))
             if not tid:
@@ -328,6 +370,7 @@ def event_report(
     by_player_games: dict[tuple[str, tuple[str, str]], set[str]],
     collection_status: dict[str, Any] | None = None,
     public_archive_verified: bool = False,
+    lichess_status: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     tid = clean(payload.get("tournamentID"))
     players = payload.get("players") or []
@@ -337,10 +380,12 @@ def event_report(
     capture_status = clean(payload.get("captureStatus")) or "complete"
     is_team = payload.get("format") == "team"
     collection_status = collection_status or {}
+    lichess_status = lichess_status or {}
 
     roster_nos = {clean(p.get("playerNo")) for p in players if clean(p.get("playerNo"))}
     pairings = [p for r in rounds for p in (r.get("pairings") or [])]
-    non_bye = [p for p in pairings if not is_bye(p)]
+    unresolved_pairings = [p for p in pairings if is_unresolved_pairing(p)]
+    non_bye = [p for p in pairings if not is_bye(p) and not is_unresolved_pairing(p)]
     played = [p for p in non_bye if played_game_expected(p) is True]
     played_unknown = sum(1 for p in non_bye if played_game_expected(p) is None)
     forfeits = sum(1 for p in non_bye if is_forfeit(p.get("result")))
@@ -352,7 +397,7 @@ def event_report(
     for round_row in rounds:
         rid = round_number(round_row.get("round"))
         for p in round_row.get("pairings") or []:
-            if is_bye(p):
+            if is_bye(p) or is_unresolved_pairing(p):
                 continue
             board = clean(p.get("board"))
             if not board:
@@ -387,6 +432,14 @@ def event_report(
     archive_games = parse_event_archive(tid)
     archive_sources = sorted({clean(game.get("source")) for game in archive_games if clean(game.get("source"))})
     lichess_games = [game for game in archive_games if clean(game.get("source")) == "Lichess Broadcasts"]
+    lichess_residual = int(lichess_status.get("linkedContainerUnmatchedGames") or 0)
+    lichess_scope_verified = (
+        not lichess_games
+        or (
+            lichess_status.get("broadcastComplete") is True
+            and lichess_residual == 0
+        )
+    )
     if lichess_games:
         # A successfully cross-matched Lichess broadcast game is itself
         # evidence that the source published that board.  Expand the
@@ -400,7 +453,7 @@ def event_report(
         for round_row in rounds:
             rid = round_number(round_row.get("round"))
             for pairing in round_row.get("pairings") or []:
-                if is_bye(pairing):
+                if is_bye(pairing) or is_unresolved_pairing(pairing):
                     continue
                 key = (rid, tuple(sorted([
                     normalize_name((pairing.get("white") or {}).get("name")),
@@ -451,14 +504,19 @@ def event_report(
             "expected": None,  # no independent per-board expectation yet
             "actual": len(pairings),
             "refViolations": pairing_ref_violations,
+            "unresolved": len(unresolved_pairings),
             "minRoundRosterCoverage": min_round_coverage,
             "status": (
                 "unknown" if not pairings else
-                "complete" if pairing_ref_violations == 0 else "partial"
+                "complete" if pairing_ref_violations == 0 and not unresolved_pairings else "partial"
             ),
         },
         "results": {"expected": len(non_bye), "valid": valid_results,
-                    "status": "complete" if non_bye and valid_results == len(non_bye) else ("unknown" if not non_bye else "partial")},
+                    "status": (
+                        "partial" if unresolved_pairings else
+                        "complete" if non_bye and valid_results == len(non_bye)
+                        else ("unknown" if not non_bye else "partial")
+                    )},
         "pgnExpected": {"expected": len(advertised_keys), "playedGames": len(played),
                         "playedUnknown": played_unknown, "forfeits": forfeits},
         "pgnMatched": {"expected": len(advertised_keys), "matched": matched,
@@ -478,7 +536,10 @@ def event_report(
         results_status = "results-complete"
 
     # --- source-advertised availability (played-game denominator) -----------
-    if not played:
+    if unresolved_pairings and not played:
+        availability = "unresolved-pairings"
+        scope = "coverage-unresolved"
+    elif not played:
         availability = "no-played-games" if non_bye else "no-pairings"
         scope = "none-published"
     elif not advertised_keys:
@@ -497,7 +558,9 @@ def event_report(
     is_matched_advertised = advertised_keys.issubset(matched_exact_keys) if advertised_keys else False
 
     # --- archive/matching state (review §2.1 status vocabulary) -------------
-    if availability in ("not-published", "no-pairings", "no-played-games"):
+    if availability == "unresolved-pairings":
+        archive_status = "coverage-unresolved"
+    elif availability in ("not-published", "no-pairings", "no-played-games"):
         if archive_games or local_fingerprints:
             archive_status = "external-or-legacy-supplement"
         else:
@@ -515,13 +578,24 @@ def event_report(
         archive_status = "locally-recoverable"
     else:
         archive_status = "missing"
+    if (
+        (unresolved_pairings or not lichess_scope_verified)
+        and archive_status in {"matched-full", "matched-advertised-complete"}
+    ):
+        archive_status = "matched-partial"
 
     # 分子限制在对应的精确匹配子集中，防范 coverage > 1
     advertised_coverage = round(len(match["matchedAdvertisedKeys"]) / len(advertised_keys), 4) if advertised_keys else None
     played_coverage = round(len(match["matchedPlayedKeys"]) / len(played), 4) if played else None
 
-    if availability in ("no-pairings", "no-played-games"):
+    if unresolved_pairings:
+        pgn_ingest_status = "coverage-unresolved"
+    elif lichess_games and not lichess_scope_verified:
+        pgn_ingest_status = "source-published-coverage-unresolved"
+    elif availability in ("no-pairings", "no-played-games"):
         pgn_ingest_status = "not-applicable"
+    elif availability == "unresolved-pairings":
+        pgn_ingest_status = "coverage-unresolved"
     elif availability == "not-published":
         pgn_ingest_status = "not-published"
     elif is_matched_advertised:
@@ -538,7 +612,7 @@ def event_report(
     for round_row in rounds:
         rid = round_number(round_row.get("round"))
         for pairing in round_row.get("pairings") or []:
-            if is_bye(pairing):
+            if is_bye(pairing) or is_unresolved_pairing(pairing):
                 continue
             if played_game_expected(pairing) is True:
                 key = (rid, tuple(sorted([
@@ -578,17 +652,20 @@ def event_report(
             "roundsExpected": round_count or None,
             "roundsCaptured": len(rounds),
             "pairings": len(pairings),
+            "unresolvedPairings": len(unresolved_pairings),
             "nonByePairings": len(non_bye),
             "playedGames": len(played),
             "forfeits": forfeits,
             "advertisedPGN": len(advertised_keys),
             "lichessBroadcastGames": len(lichess_games),
+            "lichessUnmatchedResidual": lichess_residual,
             "archivedGames": len(archive_games),
             "matchedPairings": matched,
             "localGameFingerprints": len(local_fingerprints),
         },
         "advertisedCoverage": advertised_coverage,
         "allBoardCoverage": played_coverage,
+        "lichessScopeVerified": lichess_scope_verified,
         "publishable": publishable,
     }
 
@@ -608,7 +685,13 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
         lead = leads.get(tid)
         source_status = report.get("pgnSourceStatus")
         priority = action = None
-        if archive in ("archived-unmatched", "matched-partial"):
+        if counts.get("unresolvedPairings"):
+            priority, action = "P0", "repair-pairing-player-numbers"
+        elif counts.get("lichessUnmatchedResidual"):
+            priority, action = "P0", "offline-rematch-lichess-residual"
+        elif counts.get("lichessBroadcastGames") and report.get("lichessScopeVerified") is False:
+            priority, action = "P0", "audit-lichess-broadcast-scope"
+        elif archive in ("archived-unmatched", "matched-partial"):
             priority, action = "P0", "offline-rematch-existing-archive"
         elif availability in ("advertised-full", "advertised-partial") and archive == "missing":
             priority, action = "P0", "re-fetch-or-import-advertised-boards"
@@ -664,11 +747,12 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
 def build() -> dict[str, Any]:
     games_index = by_player_game_index()
     public_archives = verified_event_archives() | verified_lichess_event_archives()
-    status_payload = read_json(COLLECTION_STATUS, {})
+    lichess_statuses = lichess_event_metadata()
+    status_payload = read_json_optional(COLLECTION_STATUS, {})
     collection_statuses = status_payload.get("events") if isinstance(status_payload.get("events"), dict) else {}
     reports = []
     for path in sorted(DETAILS.glob("tnr*.json")):
-        payload = read_json(path, {})
+        payload = read_json_required(path)
         tid = clean(payload.get("tournamentID"))
         if not tid:
             continue
@@ -677,6 +761,7 @@ def build() -> dict[str, Any]:
             games_index.get(tid, {}),
             collection_statuses.get(tid, {}),
             tid in public_archives,
+            lichess_statuses.get(tid, {}),
         ))
     summary = {
         "events": len(reports),
@@ -705,7 +790,7 @@ def build() -> dict[str, Any]:
 def main() -> int:
     # Shrink guard: environments without the full private capture layer keep
     # the committed report instead of silently shrinking the publishable set.
-    previous = read_json(OUTPUT, {})
+    previous = read_json_optional(OUTPUT, {})
     visible = len(list(DETAILS.glob("tnr*.json")))
     committed = len(previous.get("events") or [])
     if committed and visible < committed and not os.environ.get("FORCE_COMPLETENESS_SHRINK"):

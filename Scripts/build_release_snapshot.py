@@ -77,6 +77,34 @@ def input_facts() -> list[dict]:
     return [file_fact(path) for path in paths]
 
 
+def snapshot_document(snapshot_id: str, generated_at: str, facts: list[dict], steps: list[dict]) -> dict:
+    return {
+        "schemaVersion": 3,
+        "snapshotId": snapshot_id,
+        "generatedAt": generated_at,
+        "producerVersion": "build-release-snapshot-v3",
+        "inputs": facts,
+        "steps": steps,
+    }
+
+
+def atomic_snapshot_bytes(raw: bytes | None) -> None:
+    """Atomically install snapshot bytes, or remove a candidate when absent."""
+    if raw is None:
+        SNAPSHOT_JSON.unlink(missing_ok=True)
+        return
+    SNAPSHOT_JSON.parent.mkdir(parents=True, exist_ok=True)
+    temporary = SNAPSHOT_JSON.with_name(f".{SNAPSHOT_JSON.name}.{os.getpid()}.tmp")
+    temporary.write_bytes(raw)
+    os.replace(temporary, SNAPSHOT_JSON)
+
+
+def write_snapshot(payload: dict) -> None:
+    atomic_snapshot_bytes(
+        (json.dumps(payload, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    )
+
+
 def step(cmd: list[str], *, optional_script: str | None = None) -> dict:
     """Run one build step; abort the snapshot on failure."""
     if optional_script and not (ROOT / optional_script).is_file():
@@ -175,28 +203,20 @@ def main() -> int:
     steps.append(step([py, "Scripts/validate_public_metrics.py"]))
     steps.append(step([py, "Scripts/validate_public_privacy.py"]))
 
-    # Snapshot is recorded FIRST (so the consistency gate can include it),
-    # then verified: every public derived manifest must reference this id.
+    # The consistency gate reads the canonical path, so install a candidate
+    # there temporarily. If the gate or final write fails, restore the exact
+    # previous snapshot bytes; a failed rebuild must never leave a new,
+    # unverified snapshot id in the worktree.
     facts = input_facts()
-    SNAPSHOT_JSON.write_text(json.dumps({
-        "schemaVersion": 3,
-        "snapshotId": sid,
-        "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
-        "producerVersion": "build-release-snapshot-v3",
-        "inputs": facts,
-        "steps": steps,
-    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    steps.append(step([py, "Scripts/validate_snapshot_consistency.py"]))
-
-    # Re-record with the gate outcome included.
-    SNAPSHOT_JSON.write_text(json.dumps({
-        "schemaVersion": 3,
-        "snapshotId": sid,
-        "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
-        "producerVersion": "build-release-snapshot-v3",
-        "inputs": facts,
-        "steps": steps,
-    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    previous_snapshot = SNAPSHOT_JSON.read_bytes() if SNAPSHOT_JSON.is_file() else None
+    try:
+        write_snapshot(snapshot_document(sid, generated_at, facts, steps))
+        steps.append(step([py, "Scripts/validate_snapshot_consistency.py"]))
+        write_snapshot(snapshot_document(sid, generated_at, facts, steps))
+    except BaseException:
+        atomic_snapshot_bytes(previous_snapshot)
+        raise
     print(json.dumps({
         "snapshotId": sid,
         "steps": len(steps),

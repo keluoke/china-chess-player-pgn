@@ -57,14 +57,24 @@ jobs:
         id: apply
         run: |
           set -euo pipefail
-          git fetch origin "${{ steps.source.outputs.sha }}"
+          # Baseline validation compares the immutable release commit with its
+          # single parent before touching the sparse worktree/index.
+          git fetch --depth=2 origin "${{ steps.source.outputs.sha }}"
           result="$(python3 Scripts/local/run_manager.py apply \
             --repo . \
             --source-ref "${{ steps.source.outputs.sha }}" \
             --path-list "$RUNNER_TEMP/local-release-paths.txt")"
           echo "$result"
           run_id="$(printf '%s' "$result" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("runId") or "")')"
+          baseline_commit="$(printf '%s' "$result" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("baseline") or {}).get("baselineCommit") or "")')"
+          baseline_mode="$(printf '%s' "$result" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("baseline") or {}).get("baselineMode") or "")')"
+          baseline_verified="$(printf '%s' "$result" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("baseline") or {}).get("verified") or 0)')"
+          idempotent_paths="$(printf '%s' "$result" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("baseline") or {}).get("idempotent") or 0)')"
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "baseline_commit=$baseline_commit" >> "$GITHUB_OUTPUT"
+          echo "baseline_mode=$baseline_mode" >> "$GITHUB_OUTPUT"
+          echo "baseline_verified=$baseline_verified" >> "$GITHUB_OUTPUT"
+          echo "idempotent_paths=$idempotent_paths" >> "$GITHUB_OUTPUT"
 
       - name: Validate staged registry when present
         run: |
@@ -101,6 +111,10 @@ jobs:
             echo "|---|---|"
             echo "| release run-id | \`${{ steps.apply.outputs.run_id || 'n/a' }}\` |"
             echo "| source (event) SHA | \`${{ steps.source.outputs.sha }}\` |"
+            echo "| validated baseline | \`${{ steps.apply.outputs.baseline_commit || 'n/a' }}\` |"
+            echo "| baseline mode | \`${{ steps.apply.outputs.baseline_mode || 'n/a' }}\` |"
+            echo "| baseline paths verified | \`${{ steps.apply.outputs.baseline_verified || '0' }}\` |"
+            echo "| idempotent paths | \`${{ steps.apply.outputs.idempotent_paths || '0' }}\` |"
             echo "| main commit | \`$(git rev-parse HEAD)\` |"
             echo "| committed | \`${{ steps.commit.outputs.committed || 'false' }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"

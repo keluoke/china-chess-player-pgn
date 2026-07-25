@@ -31,6 +31,10 @@
      抓取检查点，不再充当发布门禁；`partial` 一律隔离。PGN 补件队列见
      `data/generated/pgn-supplement-queue.json`（P0=已承诺未归档，P1=可本地
      恢复/外部线索，P2=来源未发布不回抓）。
+     对阵只有在来源明确写出 `bye` / `not paired` 时才算轮空；任何非轮空方缺
+     `playerNo` 都是 `unresolvedPairing`，必须令赛事降为 `partial` 并进入
+     `repair-pairing-player-numbers` P0 队列。奇数名单造成的每轮覆盖率低于
+     100% 只是诊断信号，禁止单独作为缺台硬门禁。
    - **公开直播范围完整（不等于全台完整）**：李成智杯、棋协大师赛等国内赛事
      常仅公开前若干台直播棋谱。若每轮来源实际公开的全部直播棋谱均已归档并与
      `round + board + 白黑 playerNo` 唯一匹配，可标
@@ -46,12 +50,20 @@
      许可证及署名；广播容器中的未匹配残差必须写入 manifest，禁止静默算完整。
      `.pgn.zst` 月度原档只保存在本地/R2，不进入 Git 发布 manifest；合法的
      Zstandard skippable frame 不得误判为坏文件。
+     `linkedContainerUnmatchedGames > 0` 或广播范围尚未验证时必须否决
+     `source-published-complete` / `full-board-complete`，状态保留为
+     `source-published-coverage-unresolved` 并进入离线复核队列。
    - **合并发生在云端 ingest，不在本机**：采集机永不 pull，本机旧工作区不得
      假设等于云端 main。发布包携带赛事 ID、每类对象的自然键、基线版本/哈希；
      云端以当前 main 为基线做字段级三方合并（一致跳过 / 本地优先覆盖 / 保留
      更完整字段 / 身份冲突隔离）并产出合并回执（新增/更新/跳过/覆盖/隔离及
      旧新哈希）。自然键：排名=`playerNo`；配对=`round + board + 白黑 playerNo`；
      棋局=规范化 PGN 指纹。
+     发布 manifest 同时记录每个路径的 `baseBlobOid` 与 `baseSha256`。云端在
+     checkout/index 发生任何修改前验证发布提交父节点及每个
+     baseline/current/candidate 三元组；current 同时不同于 baseline 与 candidate
+     时以 `RELEASE_BASE_CONFLICT` 隔离整包，不得部分落盘。API fallback 必须在
+     创建远端 blob/tree 前执行同一冲突判定，并把 delivery baseline 写回 manifest。
    - **公共对象与前台去来源化**：Chess-Results 公共数据和界面不出现
      `source`、`sourceRefs`、外链或信源原名；Lichess 数据保留 CC BY-SA 4.0
      许可与署名义务不受此条影响。
