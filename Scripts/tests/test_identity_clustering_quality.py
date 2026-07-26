@@ -101,6 +101,28 @@ class IdentityClusteringQualityTest(unittest.TestCase):
         }
         self.assertEqual(vic.payload_hard_conflicts(left, right), [])
 
+    def test_same_event_only_conflicts_when_roster_slots_differ(self):
+        left = {
+            "domesticID": "a",
+            "sightings": [{"eventID": "tnr1", "playerNo": "7"}],
+        }
+        same_slot = {
+            "domesticID": "b",
+            "sightings": [{
+                "eventID": "chess-results-tnr1",
+                "playerNo": "7",
+            }],
+        }
+        different_slot = {
+            "domesticID": "c",
+            "sightings": [{"eventID": "tnr1", "playerNo": "8"}],
+        }
+        self.assertEqual(vic.payload_hard_conflicts(left, same_slot), [])
+        self.assertIn(
+            "concurrent-event",
+            vic.payload_hard_conflicts(left, different_slot),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -231,9 +231,22 @@ def payload_hard_conflicts(
     left_sightings = left.get("sightings") or []
     right_sightings = right.get("sightings") or []
     conflicts: list[str] = []
-    left_events = {event_key(row.get("eventID")) for row in left_sightings if row.get("eventID")}
-    right_events = {event_key(row.get("eventID")) for row in right_sightings if row.get("eventID")}
-    if left_events & right_events:
+    left_roster_slots: dict[str, set[str]] = defaultdict(set)
+    right_roster_slots: dict[str, set[str]] = defaultdict(set)
+    for row in left_sightings:
+        event_id = event_key(row.get("eventID"))
+        player_no = str(row.get("playerNo") or "").strip()
+        if event_id and player_no:
+            left_roster_slots[event_id].add(player_no)
+    for row in right_sightings:
+        event_id = event_key(row.get("eventID"))
+        player_no = str(row.get("playerNo") or "").strip()
+        if event_id and player_no:
+            right_roster_slots[event_id].add(player_no)
+    if any(
+        left_roster_slots[event_id].isdisjoint(right_roster_slots[event_id])
+        for event_id in left_roster_slots.keys() & right_roster_slots.keys()
+    ):
         conflicts.append("concurrent-event")
     left_birth = {row.get("birthYear") for row in left_sightings if row.get("birthYear")}
     right_birth = {row.get("birthYear") for row in right_sightings if row.get("birthYear")}

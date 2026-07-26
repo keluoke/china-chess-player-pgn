@@ -16,7 +16,7 @@ import json
 import pathlib
 import re
 from dataclasses import dataclass, field
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Any
 
 from apply_aliases_to_registry import sanitize_person_name
@@ -918,12 +918,21 @@ def sexes_consistent(left: DomesticPlayer, right: DomesticPlayer) -> bool:
 
 def hard_conflicts(left: DomesticPlayer, right: DomesticPlayer) -> list[str]:
     conflicts: list[str] = []
-    left_events = {s.event_id for s in left.sightings if s.event_id}
-    right_events = {s.event_id for s in right.sightings if s.event_id}
-    shared = left_events & right_events
-    if shared:
-        # Same person cannot hold two roster slots in one section capture.
-        conflicts.append(f"concurrent-event:{sorted(shared)[0]}")
+    left_roster_slots: dict[str, set[str]] = defaultdict(set)
+    right_roster_slots: dict[str, set[str]] = defaultdict(set)
+    for sighting in left.sightings:
+        if sighting.event_id and sighting.source_player_no:
+            left_roster_slots[sighting.event_id].add(sighting.source_player_no)
+    for sighting in right.sightings:
+        if sighting.event_id and sighting.source_player_no:
+            right_roster_slots[sighting.event_id].add(sighting.source_player_no)
+    for event_id in sorted(left_roster_slots.keys() & right_roster_slots.keys()):
+        if left_roster_slots[event_id].isdisjoint(right_roster_slots[event_id]):
+            # Same person cannot occupy two different roster slots in one
+            # section. Repeated captures of the same slot are deduplication
+            # evidence, not a conflict.
+            conflicts.append(f"concurrent-event:{event_id}")
+            break
     left_birth = {s.birth_year for s in left.sightings if s.birth_year}
     right_birth = {s.birth_year for s in right.sightings if s.birth_year}
     if left_birth and right_birth and left_birth.isdisjoint(right_birth):

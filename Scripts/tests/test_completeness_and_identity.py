@@ -584,11 +584,18 @@ class PresentationGroupTest(unittest.TestCase):
 
     def test_concurrent_event_blocks_grouping(self):
         a, b = promotion_pair(concurrent=True)
+        b.sightings[0].source_player_no = "2"
         candidates, conflicts = self._candidates(a, b)
         self.assertTrue(conflicts)
         self.assertIn("concurrent-event", conflicts[0]["reasons"][0])
         groups = sdp.build_presentation_groups([a, b], candidates, conflicts)
         self.assertEqual(groups, [])
+
+    def test_repeated_capture_of_same_roster_slot_is_not_a_conflict(self):
+        a, b = promotion_pair(concurrent=True)
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(conflicts, [])
+        self.assertTrue(candidates[0]["presentationEligible"])
 
     def test_sex_mismatch_is_a_soft_gate_not_a_hard_conflict(self):
         a, b = promotion_pair(sex_b="F")
