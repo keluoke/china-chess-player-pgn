@@ -198,6 +198,7 @@ def main() -> int:
     parser.add_argument("--player-events", type=pathlib.Path, default=PLAYER_EVENTS_CSV)
     parser.add_argument("--player-name-map", type=pathlib.Path, default=PLAYER_NAME_MAP_CSV)
     parser.add_argument("--promotion-review", type=pathlib.Path, default=PROMOTION_REVIEW)
+    parser.add_argument("--event-details", type=pathlib.Path, default=PUBLIC_EVENT_DETAILS)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -221,10 +222,12 @@ def main() -> int:
         args.player_events,
         chinese_name_candidates,
         args.promotion_review,
+        args.event_details,
     )
     presentation_groups = build_presentation_groups(
         players, identity_candidates, conflict_edges, fide_candidates,
     )
+    apply_presentation_confidence(players, presentation_groups)
     placeholder_groups = [group for group in presentation_groups if clean(group.get("displayName")) == "姓名待核验"]
     if placeholder_groups:
         raise SystemExit(f"placeholder identity entered presentation groups: {len(placeholder_groups)}")
@@ -242,7 +245,7 @@ def main() -> int:
         "domesticPlayers": len(players),
         "linkedToFIDE": sum(1 for player in players if player.fide_id),
         "unlinked": sum(1 for player in players if not player.fide_id),
-        "lowConfidence": sum(1 for player in players if player.confidence.get("reviewRequired")),
+        **identity_confidence_totals(players),
         "sameNameConflicts": sum(1 for player in players if player.confidence.get("sameNameConflictCount", 0)),
         "uniqueNameCount": len({identity_name(player) for player in players if identity_name(player)}),
         "sameNameGroups": len(name_groups),
@@ -558,6 +561,62 @@ def assess_identity_confidence(players: list[DomesticPlayer]) -> None:
         }
 
 
+def identity_confidence_totals(players: list[DomesticPlayer]) -> dict[str, int]:
+    levels = Counter(clean(player.confidence.get("level")).lower() for player in players)
+    return {
+        "highConfidence": levels.get("high", 0),
+        "mediumConfidence": levels.get("medium", 0),
+        "lowConfidence": levels.get("low", 0),
+        "reviewRequired": sum(
+            bool(player.confidence.get("reviewRequired")) for player in players
+        ),
+    }
+
+
+def apply_presentation_confidence(
+    players: list[DomesticPlayer],
+    groups: list[dict[str, Any]],
+) -> None:
+    """Project evidence-backed group confidence onto public domestic cards.
+
+    This does not merge sightings or mutate registry/manual data. It only
+    prevents the derived player summaries from continuing to call every
+    machine-grouped member ``low`` after the stricter presentation graph has
+    already proved a high-confidence, conflict-free component.
+    """
+    by_id = {player.domestic_id: player for player in players}
+    for group in groups:
+        if group.get("confidenceTier") != "high":
+            continue
+        basis = clean(group.get("identityBasis"))
+        for domestic_id in group.get("members") or []:
+            player = by_id.get(clean(domestic_id))
+            if player is None or player.fide_id:
+                continue
+            confidence = dict(player.confidence)
+            weights = dict(confidence.get("weights") or {})
+            weights["presentationEvidence"] = max(
+                90, int(weights.get("presentationEvidence") or 0)
+            )
+            reasons = list(confidence.get("reasons") or [])
+            reason = f"成员级证据通过 {basis or 'presentation-high'} 展示归组"
+            if reason not in reasons:
+                reasons.append(reason)
+            confidence.update({
+                "score": max(90, int(confidence.get("score") or 0)),
+                "level": "high",
+                "weights": weights,
+                # A display projection remains disputable until a reviewed
+                # player-identity-links.csv row makes it permanent.
+                "reviewRequired": True,
+                "presentationGroupID": clean(group.get("groupID")),
+                "presentationRuleVersion": IDENTITY_CLUSTER_RULE_VERSION,
+                "reasons": reasons,
+            })
+            player.confidence = confidence
+            player.public_status = "presentation-high"
+
+
 def identity_name(player: DomesticPlayer) -> str:
     name = player.chinese_name or player.pinyin_name or player.display_name
     if not name or name == player.domestic_id or name == "姓名待核验":
@@ -651,7 +710,8 @@ GROUP_LEVELS = (
 )
 PROMOTION_SCORE_RATE = 0.65
 PROMOTION_WINDOW_DAYS = 730
-CANDIDATE_ALGORITHM_VERSION = "identity-candidates-v3"
+CANDIDATE_ALGORITHM_VERSION = "identity-candidates-v4"
+IDENTITY_CLUSTER_RULE_VERSION = "identity-presentation-v4"
 
 
 def group_level(sighting: Sighting) -> int:
@@ -864,14 +924,12 @@ def hard_conflicts(left: DomesticPlayer, right: DomesticPlayer) -> list[str]:
     if shared:
         # Same person cannot hold two roster slots in one section capture.
         conflicts.append(f"concurrent-event:{sorted(shared)[0]}")
-    left_sex = {s.sex for s in left.sightings if s.sex}
-    right_sex = {s.sex for s in right.sightings if s.sex}
-    if left_sex and right_sex and left_sex.isdisjoint(right_sex):
-        conflicts.append("sex-conflict")
     left_birth = {s.birth_year for s in left.sightings if s.birth_year}
     right_birth = {s.birth_year for s in right.sightings if s.birth_year}
     if left_birth and right_birth and left_birth.isdisjoint(right_birth):
         conflicts.append("birth-year-conflict")
+    if age_stage_continuity([*left.sightings, *right.sightings]) == "conflict":
+        conflicts.append("age-stage-conflict")
     return conflicts
 
 
@@ -1120,6 +1178,8 @@ def build_presentation_groups(
             "suggestedChineseName": player.chinese_name,
             "sightingCount": len(player.sightings),
             "identityBasis": "reviewed-fide-link",
+            "confidenceTier": "high",
+            "ruleVersion": IDENTITY_CLUSTER_RULE_VERSION,
             "disputeEntry": True,
         })
 
@@ -1169,6 +1229,8 @@ def build_presentation_groups(
             "suggestedChineseName": next(iter(suggested_names)) if len(suggested_names) == 1 else "",
             "sightingCount": sum(len(by_id[m].sightings) for m in member_list if m in by_id),
             "identityBasis": "presentation-high-fide",
+            "confidenceTier": "high",
+            "ruleVersion": IDENTITY_CLUSTER_RULE_VERSION,
             "disputeEntry": True,
         })
 
@@ -1249,6 +1311,8 @@ def build_presentation_groups(
             "sex": primary.sex if primary else "",
             "sightingCount": sum(len(by_id[m].sightings) for m in member_list if m in by_id),
             "identityBasis": "presentation-high",
+            "confidenceTier": "high",
+            "ruleVersion": IDENTITY_CLUSTER_RULE_VERSION,
             "disputeEntry": True,
         })
     groups.sort(key=lambda group: group["groupID"])
@@ -1579,11 +1643,11 @@ def build_fide_candidates(
         score = max(0, min(100, score))
         presentation_eligible = bool(
             not pinyin_or_alias_fallback
-            and (
-                direct_events
-                or club_matches
-                or (cluster_size < 3 and unambiguous_source_name)
-            )
+            # Repeated/global name evidence orders the review queue but is not
+            # member-level proof. Automatic presentation requires this exact
+            # domestic observation to share an event FIDE ID or a distinctive
+            # club with the registry candidate.
+            and (direct_events or club_matches)
         )
         result.append({
             "domesticID": player.domestic_id,
@@ -1656,10 +1720,12 @@ def write_output(
         sid = "unknown"
 
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    confidence_totals = identity_confidence_totals(players)
     manifest = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "snapshotId": sid,
         "generatedAt": generated_at,
+        "identityRuleVersion": IDENTITY_CLUSTER_RULE_VERSION,
         # Public manifest lists publicly served resources ONLY (review §3.3);
         # builder inputs and maintainer paths live in the private build
         # summary (data/generated/audit/identity-workbench-summary.json).
@@ -1669,6 +1735,7 @@ def write_output(
             "identityLinks": "data/registry/domestic/identity-links.json",
             "presentationGroups": "data/registry/domestic/presentation-groups.json",
             "presentationNames": "data/identity/presentation-names.json",
+            "identityQuality": "data/registry/domestic/identity-quality.json",
         },
         "totals": {
             "sightings": len(sightings),
@@ -1676,7 +1743,7 @@ def write_output(
             "linkedToFIDE": sum(1 for player in players if player.fide_id),
             "unlinked": sum(1 for player in players if not player.fide_id),
             "identityLinks": len(links),
-            "lowConfidence": sum(1 for player in players if player.confidence.get("reviewRequired")),
+            **confidence_totals,
             "sameNameConflicts": sum(1 for player in players if player.confidence.get("sameNameConflictCount", 0)),
             "uniqueNameCount": len({identity_name(player) for player in players if identity_name(player)}),
             "sameNameGroups": len(name_groups),
@@ -1721,11 +1788,12 @@ def write_output(
     # projection the frontend uses to merge cards; disputes split it on the
     # next projection without touching any Person/observation fact.
     write_json(output_root / "presentation-groups.json", {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "snapshotId": sid,
         "generatedAt": generated_at,
+        "algorithmVersion": IDENTITY_CLUSTER_RULE_VERSION,
         "identityBasis": "presentation-high",
-        "note": "机器高置信展示聚合；确认合并请走 player-identity-links.csv，质疑请提交 presentation-disputes",
+        "note": "成员级证据通过硬冲突否决后的高置信展示聚合；不覆盖 registry，质疑可强制拆分",
         "totals": {
             "groups": len(presentation_groups or []),
             "entities": sum(len(g["members"]) + (1 if g.get("canonicalFideID") else 0) for g in (presentation_groups or [])),

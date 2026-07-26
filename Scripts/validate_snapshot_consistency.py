@@ -35,6 +35,7 @@ MANIFEST_GLOBS = (
     "data/snapshot.json",
     "data/registry/domestic/manifest.json",
     "data/registry/domestic/presentation-groups.json",
+    "data/registry/domestic/identity-quality.json",
     "data/identity/presentation-names.json",
     "data/search-bootstrap.json",
     "data/search-bootstrap-domestic.json",

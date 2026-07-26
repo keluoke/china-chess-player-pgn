@@ -4,8 +4,8 @@
 
 - `docs/data/registry/players.json` 是 FIDE 棋手姓名、等级分与身份的唯一权威。
 - `data/manual/domestic-player-sightings.csv` 保存国内赛事中观察到的人名证据；没有 FIDE ID 也必须入库。
-- `data/manual/player-identity-links.csv` 是唯一允许合并 sightings、或把国内实体连接到 FIDE ID 的机制。姓名、年龄组和俱乐部相同都不能自动合并。
-- `Scripts/sync_domestic_players.py` 输出置信分、同名冲突数、跨赛事出现数、年龄段连续性与 `identity-review.json`。置信分只用于排列人工审核优先级。
+- `data/manual/player-identity-links.csv` 是唯一允许形成永久身份合并、或把国内实体连接到 FIDE ID 的机制。机器只能生成可撤销的展示层归组，不能写回 registry/manual/community。
+- `Scripts/sync_domestic_players.py` 输出置信分、同名冲突数、跨赛事出现数、年龄段连续性与仓库外审核队列。未归组分数只用于排列人工审核优先级；成员级正证据形成展示归组后，公开实体才标为 `high`。
 
 前端搜索使用 FIDE 注册表与国内实体的并集。无 FIDE 结果显示 `[无FIDE]`，每条结果固定展示 FIDE ID、等级分、出生年和 title；库内同名实体达到 3 个时显示警告。
 
@@ -20,7 +20,7 @@
 `name-corrections.csv`、`player-aliases.csv` 或身份链接机制。网络失败不会删除任何
 已审核人工数据。
 
-仓库外 `identity-workbench/` 中的 `identity-name-groups.json` 按同名观察生成审核分组，`identity-candidates.json`、`fide-link-candidates.json` 与 `chinese-name-candidates.json` 按同赛事、跨赛事、俱乐部一致、晋级连续性和全库唯一性加权排序。高置信候选可形成前端展示聚合，但禁止自动写入 `player-identity-links.csv`；用户可提交证据或异议。同名簇达到 3 条时继续生成经过硬冲突剪枝的两两候选，不再以 `parent-only` 为由完全停止建议。维护者流程见 `MAINTAINER_IDENTITY_REVIEW_GUIDE.md`。
+仓库外 `identity-workbench/` 中的 `identity-name-groups.json` 按同名观察生成审核分组，`identity-candidates.json`、`fide-link-candidates.json` 与 `chinese-name-candidates.json` 按同赛事、跨赛事、俱乐部一致、晋级连续性和全库唯一性加权排序。只有同赛事 FIDE、特色参赛单位加有序晋级/同组延续等成员级正证据才可形成前端展示聚合；姓名唯一、重复姓名、拼音、地区或性别只用于候选排序或软门禁。展示归组禁止自动写入 `player-identity-links.csv`，并带规则版本和一键身份异议入口。同名簇达到 3 条时继续生成经过硬冲突剪枝的两两候选，不再以 `parent-only` 为由完全停止建议。维护者流程见 `MAINTAINER_IDENTITY_REVIEW_GUIDE.md`。
 
 FIDE 候选同时比较国内观察的中文名、拼音、拉丁显示名和别名；注册表只有拉丁名
 时，不得因国内记录优先使用中文名而漏掉候选。同名簇达到 3 条以上也不得整体
@@ -30,6 +30,13 @@ FIDE 候选同时比较国内观察的中文名、拼音、拉丁显示名和别
 生成第二张同 FIDE ID 卡片，也不把国内姓名或赛事字段写回 registry。三条以上
 同名记录只有各自具备同赛事 FIDE 或特色参赛单位等成员级证据时才能自动展示
 归组，禁止用全局同名证据把整簇吸附到同一个 FIDE ID。
+
+`Scripts/validate_identity_clustering.py` 每次统一快照重建都使用赛事名单中已有的
+FIDE ID 作离线真值，输出聚合指标
+`docs/data/registry/domestic/identity-quality.json`。中文姓名基线精确率低于
+99.7%、召回率低于 98%、实际展示归组精确率低于 99.5%、真值边少于 100 条，
+或任何公开归组包含同赛事/出生年/年龄时间线硬冲突时，整次快照失败。性别字段
+在公开组语境中不稳定，因此仅阻止自动归组，不作为永久拆分证据。
 
 ## 需求驱动的赛事整取
 

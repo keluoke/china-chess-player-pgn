@@ -178,6 +178,12 @@ def main() -> int:
     steps.append(step([py, "Scripts/build_person_observations.py"], optional_script="Scripts/build_person_observations.py"))
     if not args.skip_domestic:
         steps.append(step([py, "Scripts/sync_domestic_players.py"], optional_script="Scripts/sync_domestic_players.py"))
+        # Embedded FIDE-labelled roster rows act as an offline truth set.
+        # A precision or hard-conflict regression aborts the whole snapshot
+        # before any downstream search/API projection is rebuilt.
+        steps.append(step([
+            py, "Scripts/validate_identity_clustering.py",
+        ], optional_script="Scripts/validate_identity_clustering.py"))
         steps.append(step([py, "Scripts/build_domestic_progressions.py"], optional_script="Scripts/build_domestic_progressions.py"))
 
     # --- public event projections --------------------------------------

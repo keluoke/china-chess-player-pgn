@@ -45,6 +45,9 @@ jobs:
       - name: Validate community-maintained data
         run: python3 Scripts/validate_community_data.py
 
+      - name: Validate identity clustering against embedded FIDE truth
+        run: python3 Scripts/validate_identity_clustering.py --check-only
+
       - name: Reject scraped community payloads; validate target-only submissions
         run: python3 Scripts/validate_incoming.py
 

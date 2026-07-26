@@ -135,6 +135,9 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn('<h1>${escapeHTML(displayName(player))}</h1>', app)
         self.assertIn('.search-command[data-mode="compact"]', styles)
         self.assertIn(".detail-title {\n    flex-direction: column;", styles)
+        self.assertIn("function identityDisputeHref(group, player)", app)
+        self.assertIn('type: "identity-dispute"', app)
+        self.assertIn("高置信归组", app)
 
 
 if __name__ == "__main__":

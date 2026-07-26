@@ -543,6 +543,15 @@ class PresentationGroupTest(unittest.TestCase):
         self.assertEqual(candidates, [])
         self.assertTrue(any("birth-year-conflict" in row["reasons"] for row in conflicts))
 
+    def test_age_stage_reversal_is_a_hard_conflict(self):
+        a, b = promotion_pair()
+        a.sightings[0].age_stage = "U14"
+        b.sightings[0].age_stage = "U8"
+        candidates, conflicts = self._candidates(a, b)
+        self.assertEqual(candidates, [])
+        self.assertTrue(any("age-stage-conflict" in row["reasons"] for row in conflicts))
+        self.assertEqual(sdp.build_presentation_groups([a, b], candidates, conflicts), [])
+
     def test_same_stage_edges_cannot_bridge_two_different_clubs(self):
         a, b = same_stage_pair()
         b.sightings.append(sighting(
@@ -581,10 +590,11 @@ class PresentationGroupTest(unittest.TestCase):
         groups = sdp.build_presentation_groups([a, b], candidates, conflicts)
         self.assertEqual(groups, [])
 
-    def test_sex_conflict_blocks_grouping(self):
+    def test_sex_mismatch_is_a_soft_gate_not_a_hard_conflict(self):
         a, b = promotion_pair(sex_b="F")
         candidates, conflicts = self._candidates(a, b)
-        self.assertTrue(any("sex-conflict" in edge["reasons"] for edge in conflicts))
+        self.assertEqual(conflicts, [])
+        self.assertFalse(candidates[0]["presentationEligible"])
         groups = sdp.build_presentation_groups([a, b], candidates, conflicts)
         self.assertEqual(groups, [])
 
@@ -612,6 +622,22 @@ class PresentationGroupTest(unittest.TestCase):
         self.assertEqual(before[0], after[0])
         self.assertEqual(before[1], after[1])
         self.assertEqual(before[2], after[2])
+
+    def test_group_confidence_projects_without_permanent_identity_link(self):
+        a, b = promotion_pair()
+        sdp.assess_identity_confidence([a, b])
+        candidates, conflicts = self._candidates(a, b)
+        groups = sdp.build_presentation_groups([a, b], candidates, conflicts)
+        sdp.apply_presentation_confidence([a, b], groups)
+        for player in (a, b):
+            self.assertEqual(player.confidence["level"], "high")
+            self.assertTrue(player.confidence["reviewRequired"])
+            self.assertEqual(player.public_status, "presentation-high")
+            self.assertEqual(
+                player.confidence["presentationRuleVersion"],
+                sdp.IDENTITY_CLUSTER_RULE_VERSION,
+            )
+            self.assertEqual(player.identity_status, "unlinked")
 
     def test_transitive_closure_never_bypasses_conflict_edge(self):
         # a—b and b—c are eligible; a—c is a hard conflict → whole component

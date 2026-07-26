@@ -110,6 +110,28 @@ class IdentityEvidenceChainTest(unittest.TestCase):
             unchanged = json.loads(registry.read_text(encoding="utf-8"))[0]
             self.assertEqual(unchanged["chineseName"], "")
 
+    def test_repeated_global_name_is_review_signal_not_member_level_fide_proof(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            registry = root / "players.json"
+            registry.write_text(json.dumps([{
+                "fideID": "8640491", "displayName": "金鸿涛",
+                "name": "Jin, Hongtao", "chineseName": "金鸿涛",
+            }], ensure_ascii=False), encoding="utf-8")
+            events = root / "events.csv"
+            write_csv(events, ["fide_id", "tnrid", "player_name", "club"], [
+                {"fide_id": "8640491", "tnrid": "1", "player_name": "金鸿涛", "club": ""},
+                {"fide_id": "8640491", "tnrid": "2", "player_name": "金鸿涛", "club": ""},
+            ])
+            player = domestic_player(event_id="chess-results-tnr999")
+            candidates = sdp.build_fide_candidates(
+                [player], registry, events, [], root / "none.json", root / "details",
+            )
+            self.assertEqual(len(candidates), 1)
+            self.assertEqual(candidates[0]["sourceNameEventCount"], 2)
+            self.assertEqual(candidates[0]["queueTier"], "suggested-high")
+            self.assertFalse(candidates[0]["presentationEligible"])
+
     def test_latin_fide_alias_nominates_every_member_of_large_chinese_cluster(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

@@ -773,13 +773,14 @@ function renderDetail() {
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
         <button class="action-link" type="button" data-action="share-player">分享档案</button>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
+        ${identityGroup ? `<a class="action-link" href="${escapeAttribute(identityDisputeHref(identityGroup, player))}">身份异议</a>` : ""}
         <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.fideID)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
       </div>
     </div>
 
     ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}
 
-    ${identityGroup ? `<div class="note-pill">高置信身份展示聚合 · 含 ${identityGroup.members.length} 个尚待维护者落表的国内赛事身份</div>` : ""}
+    ${identityGroup ? `<div class="note-pill">成员级证据通过硬冲突校验 · 高置信展示归组 · 含 ${identityGroup.members.length} 个可独立提出异议的国内赛事身份</div>` : ""}
     ${playerEventHistory(detailCache.get(player.fideID) ?? player)}
     ${staticInfo?.gameCount ? staticPlayerHitBlock(player, staticInfo) : ""}
     ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
@@ -841,7 +842,7 @@ function renderDomesticPlayerDetail(player) {
   els.detailPane.innerHTML = `
     <div class="detail-title">
       <div>
-        <span class="eyebrow">${publicStatusBadge(player)} · 国内赛事参赛档案${group ? ` · <span class="identity-status pending">身份暂定 · 已聚合 ${group.members.length} 条记录</span>` : ""}</span>
+        <span class="eyebrow">${publicStatusBadge(player)} · 国内赛事参赛档案${group ? ` · <span class="identity-status presentation-high">高置信归组 · 已聚合 ${group.members.length} 条记录</span>` : ""}</span>
         <h1>${escapeHTML(displayName(player))}</h1>
         <p>[无FIDE] · ${escapeHTML(stages[0] || "年龄组待补")} · 公开赛事记录</p>
       </div>
@@ -849,6 +850,7 @@ function renderDomesticPlayerDetail(player) {
         <span class="stage-chip domestic-chip">无 FIDE</span>
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
         <button class="action-link" type="button" data-action="share-player">分享档案</button>
+        ${group ? `<a class="action-link" href="${escapeAttribute(identityDisputeHref(group, player))}">身份异议</a>` : ""}
         <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
       </div>
     </div>
@@ -2212,6 +2214,18 @@ function sightingEventID(sighting) {
   return match ? `chess-results:${match[1]}` : "";
 }
 
+function identityDisputeHref(group, player) {
+  const members = uniqueStrings(group?.disputeMembers ?? group?.members ?? []);
+  const params = new URLSearchParams({
+    type: "identity-dispute",
+    player: String(player?.fideID || player?.domesticID || player?.id || ""),
+    name: displayName(player),
+    group: String(group?.groupID || ""),
+    members: members.join(",")
+  });
+  return `./contribute.html?${params.toString()}`;
+}
+
 function sightingHasPGN(sighting) {
   const eventID = sightingEventID(sighting);
   const event = (eventCatalog ?? []).find(item => item.id === eventID);
@@ -2221,7 +2235,7 @@ function sightingHasPGN(sighting) {
 
 function publicStatus(player) {
   if (player?.fideID || player?.publicIdentityStatus === "verified") return { key: "verified", label: "已核验" };
-  if (player?.presentationGroupID) return { key: "presentation-high", label: "已归组" };
+  if (player?.presentationGroupID || player?.publicIdentityStatus === "presentation-high") return { key: "presentation-high", label: "高置信归组" };
   if (player?.publicIdentityStatus === "same-name" || sameNameCount(player) > 1) return { key: "same-name", label: "同名待区分" };
   return { key: "pending", label: "待确认" };
 }

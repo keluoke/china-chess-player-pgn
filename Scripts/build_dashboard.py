@@ -146,7 +146,7 @@ def main() -> int:
             "domesticUniqueNames": domestic.get("uniqueNameCount"),
             "domesticSightings": domestic.get("sightings"),
             "searchablePlayers": (registry.get("players") or 0) + (domestic.get("unlinked") or 0),
-            "domesticIdentityReview": domestic.get("lowConfidence"),
+            "domesticIdentityReview": domestic.get("reviewRequired", domestic.get("lowConfidence")),
             "withChineseName": registry.get("withChineseName"),
             "games": public_metrics["totals"]["games"],
             # 赛事数只统计真实赛事层;round/game 级 source item 单独计数,
