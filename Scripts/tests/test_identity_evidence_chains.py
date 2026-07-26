@@ -219,12 +219,16 @@ class ParticipationChainTest(unittest.TestCase):
                 "fide_id", "tnrid", "tournament_name", "end_date", "rank", "rounds",
                 "participants", "player_name", "club",
             ], [{
-                "fide_id": "8608369", "tnrid": "123", "tournament_name": "测试赛事",
+                "fide_id": "8608369", "tnrid": "123", "tournament_name": "全国国际象棋锦标赛",
                 "end_date": "2024-01-02", "rank": "7", "rounds": "9", "participants": "60",
                 "player_name": "戴文智", "club": "测试俱乐部",
             }])
             catalog = root / "catalog.json"
-            catalog.write_text(json.dumps({"events": []}), encoding="utf-8")
+            catalog.write_text(json.dumps({"events": [{
+                "id": "chess-results:123",
+                "tournamentID": "123",
+                "displayName": "全国国际象棋锦标赛",
+            }]}), encoding="utf-8")
             details = root / "players"
             details.mkdir()
             rows = bpp.build_rows(events, catalog, details)
@@ -242,7 +246,11 @@ class ParticipationChainTest(unittest.TestCase):
                 "end_date": "2999-01-01",
             }])
             catalog = root / "catalog.json"
-            catalog.write_text(json.dumps({"events": []}), encoding="utf-8")
+            catalog.write_text(json.dumps({"events": [{
+                "id": "chess-results:124",
+                "tournamentID": "124",
+                "displayName": "未来赛事",
+            }]}), encoding="utf-8")
             details = root / "players"
             details.mkdir()
             rows = bpp.build_rows(events, catalog, details)
