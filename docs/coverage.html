@@ -7,11 +7,19 @@
     <title>数据覆盖与状态 · 中国国际象棋棋手数据库</title>
     <meta name="description" content="查看各年龄组棋谱覆盖率、数据源状态、赛事抓取队列与最近更新时间。">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="styles.css?v=20260727-1">
+    <script src="theme.js?v=20260727-1"></script>
+    <link rel="stylesheet" href="styles.css?v=20260727-2">
   </head>
   <body class="coverage-page">
     <main class="coverage-shell">
-      <nav class="page-nav"><a href="./">← 返回棋手搜索</a></nav>
+      <nav class="page-nav">
+        <a href="./">← 返回棋手搜索</a>
+        <div class="theme-switcher" role="group" aria-label="外观主题">
+          <button type="button" data-theme-choice="auto" aria-label="跟随系统主题" title="跟随系统主题">自动</button>
+          <button type="button" data-theme-choice="light" aria-label="使用浅色主题" title="浅色主题">☀</button>
+          <button type="button" data-theme-choice="dark" aria-label="使用深色主题" title="深色主题">☾</button>
+        </div>
+      </nav>
       <header class="coverage-head">
         <span class="eyebrow">Coverage & provenance</span>
         <h1>数据覆盖与状态</h1>

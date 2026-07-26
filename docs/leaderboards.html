@@ -6,11 +6,19 @@
     <title>棋手排行榜 · 中国国际象棋棋手数据库</title>
     <meta name="description" content="按年龄组、出生年份、棋种与性别筛选的中国棋手 FIDE 官方积分排行榜。">
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="styles.css?v=20260727-1">
+    <script src="theme.js?v=20260727-1"></script>
+    <link rel="stylesheet" href="styles.css?v=20260727-2">
   </head>
   <body class="coverage-page">
     <main class="coverage-shell leaderboard-page-shell">
-      <nav class="page-nav"><a href="./">← 返回棋手搜索</a></nav>
+      <nav class="page-nav">
+        <a href="./">← 返回棋手搜索</a>
+        <div class="theme-switcher" role="group" aria-label="外观主题">
+          <button type="button" data-theme-choice="auto" aria-label="跟随系统主题" title="跟随系统主题">自动</button>
+          <button type="button" data-theme-choice="light" aria-label="使用浅色主题" title="浅色主题">☀</button>
+          <button type="button" data-theme-choice="dark" aria-label="使用深色主题" title="深色主题">☾</button>
+        </div>
+      </nav>
       <header class="coverage-head">
         <span class="eyebrow">Official FIDE ratings</span>
         <h1>棋手排行榜</h1>

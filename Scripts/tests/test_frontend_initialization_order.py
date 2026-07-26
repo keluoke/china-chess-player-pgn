@@ -86,7 +86,34 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         self.assertIn("@media (prefers-color-scheme: dark)", styles)
         dark = styles[styles.index("@media (prefers-color-scheme: dark)"):]
         self.assertIn("color-scheme: dark", dark)
-        self.assertIn("--canvas: #101419", dark)
+        self.assertIn("--canvas: #0f141a", dark)
+
+    def test_theme_control_supports_auto_and_manual_preferences(self) -> None:
+        theme = (ROOT / "docs" / "theme.js").read_text(encoding="utf-8")
+        self.assertIn('window.matchMedia("(prefers-color-scheme: dark)")', theme)
+        self.assertIn('new Set(["auto", "light", "dark"])', theme)
+        self.assertIn('localStorage.setItem(STORAGE_KEY, next)', theme)
+        self.assertIn('systemDark.addEventListener("change"', theme)
+        self.assertIn('window.addEventListener("storage"', theme)
+
+        for name in ("index.html", "coverage.html", "leaderboards.html", "events.html", "contribute.html"):
+            html = (ROOT / "docs" / name).read_text(encoding="utf-8")
+            self.assertIn('theme.js?v=20260727-1', html)
+            self.assertIn('data-theme-choice="auto"', html)
+            self.assertIn('data-theme-choice="light"', html)
+            self.assertIn('data-theme-choice="dark"', html)
+            self.assertLess(html.index("theme.js?v=20260727-1"), html.index("styles.css?v=20260727-2"))
+
+    def test_dark_search_surface_has_no_light_hero_background(self) -> None:
+        styles = (ROOT / "docs" / "styles.css").read_text(encoding="utf-8")
+        manual_dark = styles[
+            styles.index(':root[data-theme="dark"] {'):
+            styles.index("@media (prefers-color-scheme: dark)")
+        ]
+        self.assertIn("--hero-gradient:", manual_dark)
+        self.assertIn("--search-field: #1b2530", manual_dark)
+        self.assertIn(':root[data-theme="dark"] .search-box', manual_dark)
+        self.assertIn(':root[data-theme="dark"] .hero-search-form > button', manual_dark)
 
 
 if __name__ == "__main__":
