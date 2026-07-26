@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pathlib
 import sys
+import tempfile
 import unittest
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
@@ -11,6 +12,8 @@ sys.path.insert(0, str(SCRIPTS))
 
 import build_event_catalog as bec  # noqa: E402
 import build_event_details as bed  # noqa: E402
+import build_player_participation as bpp  # noqa: E402
+import build_static_player_pgn as bsp  # noqa: E402
 
 
 class SeriesClassificationTests(unittest.TestCase):
@@ -68,6 +71,39 @@ class StructuredFieldTests(unittest.TestCase):
     def test_missing_structured_fields_are_rejected_not_downgraded(self) -> None:
         self.assertIsNone(bec.public_event({"id": "x", "tournamentID": ""}, "world-youth", {}))
         self.assertIsNone(bec.public_event({"id": "x", "tournamentID": "1", "date": None}, "world-youth", {}))
+
+    def test_english_source_title_gets_a_chinese_public_title(self) -> None:
+        event = {
+            "id": "chess-results:1451321",
+            "tournamentID": "1451321",
+            "date": "2026-07-24",
+            "name": "28th Asian Youth Blitz Chess Championships 2026 - G16",
+        }
+        row = bec.public_event(event, "asian-youth", {})
+        self.assertEqual(row["displayName"], "2026年第28届亚洲青少年国际象棋锦标赛（超快棋·女子U16组）")
+        self.assertRegex(row["displayName"], r"[\u3400-\u9fff]")
+
+    def test_duplicate_tnr_rows_coalesce_and_keep_detail_and_pgn_counts(self) -> None:
+        events = [
+            {
+                "id": "chess-results:42", "source": "Chess-Results", "tournamentID": "42",
+                "date": "2026-07-24", "name": "Asian Youth U12", "displayName": "Asian Youth U12",
+                "players": ["1"], "playerCount": 1, "gameCount": 0, "level": "event",
+                "detailPath": "data/index/event-details/tnr42.json",
+            },
+            {
+                "id": "static-pgn:42", "source": "Static PGN", "tournamentID": "42",
+                "date": "2026-07-17", "name": "Asian Youth U12", "displayName": "Asian Youth U12",
+                "players": ["1", "2"], "playerCount": 2, "gameCount": 9, "level": "event",
+            },
+        ]
+        rows, excluded = bec.public_catalog(events, {}, today="2026-07-27")
+        self.assertEqual(excluded, [])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["id"], "chess-results:42")
+        self.assertEqual(rows[0]["detailPath"], "data/index/event-details/tnr42.json")
+        self.assertEqual(rows[0]["gameCount"], 9)
+        self.assertEqual(rows[0]["playerCount"], 2)
 
 
 class PublicFilterTests(unittest.TestCase):
@@ -135,6 +171,61 @@ class RoundGateTests(unittest.TestCase):
             {"white": {"name": "庚"}, "black": {"name": "辛"}, "result": "1 - 0 K"},
         ]}]
         self.assertEqual(bed.round_anomalies(rounds), 0)
+
+
+class PlayerProjectionTests(unittest.TestCase):
+    def test_participation_only_projects_curated_chinese_non_test_events(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            player_events = root / "player-events.csv"
+            player_events.write_text(
+                "fide_id,tnrid,tournament_name,end_date,rank,rounds,participants\n"
+                "8600001,1,Test Match,2026-01-01,1,9,10\n"
+                "8600001,2,English Open,2026-01-02,2,9,20\n"
+                "8600001,3,Raw English Title,2026-01-03,3,9,30\n",
+                encoding="utf-8",
+            )
+            catalog = root / "public-events.json"
+            catalog.write_text(
+                '{"events":['
+                '{"id":"chess-results:1","tournamentID":"1","displayName":"测试赛"},'
+                '{"id":"chess-results:2","tournamentID":"2","displayName":"2026年亚洲青少年国际象棋锦标赛"}'
+                "]}\n",
+                encoding="utf-8",
+            )
+            rows = bpp.build_rows(player_events, catalog, root / "missing-player-details")
+        self.assertEqual([row["tournamentID"] for row in rows["8600001"]], ["2"])
+        self.assertEqual(rows["8600001"][0]["name"], "2026年亚洲青少年国际象棋锦标赛")
+
+    def test_round_broadcast_items_collapse_to_one_event_and_tests_are_removed(self) -> None:
+        games = [
+            bsp.PlayerGame(
+                pgn="", event=f"Round {round_number}: A - B",
+                broadcast_name="2025年世界青少年国际象棋锦标赛（女子U12组）",
+                date=f"2025-09-{day:02d}", white="A", black="B", result="1-0",
+                source="Lichess Broadcasts",
+            )
+            for round_number, day in ((6, 23), (7, 24))
+        ]
+        games.append(bsp.PlayerGame(
+            pgn="", event="Parser Test Round 1", broadcast_name="Parser Test Event",
+            date="2025-09-25", white="A", black="B", result="1-0",
+            source="Lichess Broadcasts",
+        ))
+        games.append(bsp.PlayerGame(
+            pgn="", event="Round 12 & Semifinals: A - B",
+            date="2025-09-26", white="A", black="B", result="1-0",
+            source="Lichess Broadcasts",
+        ))
+        games.append(bsp.PlayerGame(
+            pgn="", event="Untranslated English Open",
+            date="2025-09-27", white="A", black="B", result="1-0",
+            source="Lichess Broadcasts",
+        ))
+        rows = bsp.event_summaries(games)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["gameCount"], 2)
+        self.assertNotRegex(rows[0]["name"], bec.ROUND_ITEM_RE)
 
 
 if __name__ == "__main__":

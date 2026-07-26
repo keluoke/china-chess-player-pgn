@@ -23,6 +23,7 @@ MASTER_GROUPS = ROOT / "data" / "community" / "master-tournament-groups.csv"
 SOURCE_CATALOG = ROOT / "data" / "manual" / "domestic-source-catalog.csv"
 DEMAND_GAPS = ROOT / "data" / "manual" / "data-demand-gaps.csv"
 EVENT_DETAILS = ROOT / "data" / "generated" / "chess-results-event-details"
+PUBLIC_EVENTS = ROOT / "docs" / "data" / "index" / "public-events.json"
 OUTPUT = ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json"
 DEMAND_OUTPUT = ROOT / "docs" / "data" / "audit" / "demand-queue.json"
 SUMMARY_OUTPUT = ROOT / "docs" / "data" / "audit" / "event-queue-summary.json"
@@ -65,9 +66,10 @@ def detail_state(tournament_id: str) -> dict[str, Any]:
         return {"ingestionStatus": "needs-review", "snapshotAudited": False}
     snapshots = payload.get("sourceSnapshots") or []
     return {
-        "ingestionStatus": "captured",
+        "ingestionStatus": "captured" if payload.get("players") and payload.get("standings") else "roster-missing",
         "snapshotAudited": bool(snapshots) and all(item.get("sha256") for item in snapshots),
         "capturedPlayers": len(payload.get("players") or []),
+        "capturedStandings": len(payload.get("standings") or []),
         "capturedRounds": len(payload.get("rounds") or []),
         "lastCapturedAt": payload.get("fetchedAt"),
     }
@@ -145,6 +147,33 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
             refreshTier=row.get("refresh_tier"),
         )
 
+    # Close the public projection loop offline: a catalogued TNR without a
+    # publishable detail/roster becomes a maintainer-local capture target.
+    # Duplicate source/PGN rows have already been coalesced by the catalog,
+    # so an existing good detail never causes a redundant source request.
+    try:
+        public_events = json.loads(PUBLIC_EVENTS.read_text(encoding="utf-8")).get("events") or []
+    except (OSError, json.JSONDecodeError):
+        public_events = []
+    public_gap_priorities = {
+        "lichengzhi-cup": 320,
+        "chess-association-master": 240,
+        "world-youth": 180,
+        "asian-youth": 180,
+    }
+    for event in public_events:
+        tournament_id = tnr(event.get("tournamentID"))
+        if not tournament_id or event.get("detailPath"):
+            continue
+        upsert(
+            tournament_id,
+            eventName=event.get("displayName"),
+            category=event.get("series") or "public-event-detail-gap",
+            basePriority=public_gap_priorities.get(event.get("series"), 150),
+            refreshTier="until-results-complete",
+            publicDetailMissing=True,
+        )
+
     demand_by_tnr, demand_rows = demand_index()
     result: list[dict[str, Any]] = []
     for tournament_id, target in targets.items():
@@ -153,8 +182,19 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
         needs_snapshot = not state.get("snapshotAudited")
         target.update(state)
         target["demandCount"] = demand_count
-        target["priorityScore"] = int(target.get("basePriority") or 0) + demand_count * 20 + (35 if needs_snapshot else 0)
-        target["nextAction"] = "capture-event" if state["ingestionStatus"] == "registered" else "refresh-snapshot" if needs_snapshot else "monitor"
+        target["priorityScore"] = (
+            int(target.get("basePriority") or 0)
+            + demand_count * 20
+            + (75 if target.get("publicDetailMissing") else 0)
+            + (35 if needs_snapshot else 0)
+        )
+        target["nextAction"] = (
+            "capture-event"
+            if state["ingestionStatus"] in {"registered", "roster-missing"} or target.get("publicDetailMissing")
+            else "refresh-snapshot"
+            if needs_snapshot
+            else "monitor"
+        )
         result.append(target)
     result.sort(key=lambda item: (-item["priorityScore"], item["ingestionStatus"] != "registered", item["tournamentID"]))
 
@@ -162,11 +202,16 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
     event_queue = {
         "schemaVersion": 1,
         "generatedAt": generated_at,
-        "policy": ["li-chengzhi", "master-tournament", "provincial-youth", "other-domestic"],
+        "policy": [
+            "li-chengzhi", "master-tournament", "provincial-youth", "other-domestic",
+            "public-event-detail-gap",
+        ],
         "totals": {
             "targets": len(result),
             "registered": sum(item["ingestionStatus"] == "registered" for item in result),
             "captured": sum(item["ingestionStatus"] == "captured" for item in result),
+            "rosterMissing": sum(item["ingestionStatus"] == "roster-missing" for item in result),
+            "publicDetailMissing": sum(bool(item.get("publicDetailMissing")) for item in result),
             "snapshotAudited": sum(bool(item.get("snapshotAudited")) for item in result),
         },
         "targets": result,

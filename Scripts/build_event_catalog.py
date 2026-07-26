@@ -69,6 +69,8 @@ NATIONAL_MASTER_RE = re.compile(
 )
 GROUP_TOKEN_RE = re.compile(r"\(?\b(open\s+)?([UGB])\s?(\d{1,2})\b\)?", re.IGNORECASE)
 EDITION_RE = re.compile(r"\b(\d{1,3})(?:st|nd|rd|th)\b", re.IGNORECASE)
+RAPID_RE = re.compile(r"\brapid\b|快棋", re.IGNORECASE)
+BLITZ_RE = re.compile(r"\bblitz\b|超快棋", re.IGNORECASE)
 
 
 def read_json(path: pathlib.Path, default: Any) -> Any:
@@ -153,7 +155,7 @@ def static_event_stats() -> dict[tuple[str, str], dict[str, Any]]:
 # tournaments. They stay in the catalog for provenance but are tagged
 # level="source-item" so product surfaces only treat level="event" rows as赛事.
 ROUND_ITEM_RE = re.compile(
-    r"^\s*(round|rd\.?|game|board|tiebreak)\s*\d+\s*([:.\-–—]|$)", re.IGNORECASE
+    r"^\s*(round|rd\.?|game|board|tiebreak)\s*\d+\b", re.IGNORECASE
 )
 
 
@@ -433,6 +435,39 @@ def parse_chinese_group(chinese_name: str) -> tuple[str | None, str | None, str 
     return label, sex, age
 
 
+def has_chinese_text(value: Any) -> bool:
+    return bool(re.search(r"[\u3400-\u9fff]", clean(value)))
+
+
+def localized_public_name(
+    event: dict[str, Any],
+    series: str,
+    year: str,
+    *,
+    edition: str | None = None,
+    station: str | None = None,
+    group_label: str | None = None,
+) -> str:
+    """Return a Chinese-only public title while retaining source names internally."""
+    reviewed = clean(event.get("chineseName"))
+    if has_chinese_text(reviewed):
+        if group_label and group_label not in reviewed:
+            return f"{reviewed}（{group_label}）"
+        return reviewed
+
+    if series == "chess-association-master":
+        location = f"（{station}）" if station else ""
+        return f"{year}年{SERIES_LABELS[series]}{location}{group_label or ''}"
+
+    base = f"{year}年{edition or ''}{SERIES_LABELS[series]}"
+    source_names = " ".join(filter(None, [
+        event.get("name"), event.get("displayName"), *(event.get("aliases") or []),
+    ]))
+    format_label = "超快棋" if BLITZ_RE.search(source_names) else "快棋" if RAPID_RE.search(source_names) else ""
+    qualifiers = "·".join(filter(None, [format_label, group_label]))
+    return f"{base}（{qualifiers}）" if qualifiers else base
+
+
 def public_event(event: dict[str, Any], series: str, master_group: dict[str, str]) -> dict[str, Any] | None:
     """Project one internal event into the structured public-catalog shape.
 
@@ -460,23 +495,22 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         code = clean(master_group.get("group_code"))
         group_label = MASTER_GROUP_LABELS.get(code)
         sex = clean(master_group.get("sex")) or None
-        display = f"{year}年全国国际象棋棋协大师赛（{station}）{group_label}" if station and group_label else None
     elif series == "lichengzhi-cup":
         chinese = event.get("chineseName") or ""
         group_label, sex, age_group = parse_chinese_group(chinese)
-        display = chinese or None
     else:  # world-youth / asian-youth
         haystack = " ".join(filter(None, [event.get("name"), *(event.get("aliases") or [])]))
         group_label, sex, age_group = parse_group_token(haystack)
         edition_match = EDITION_RE.search(haystack)
         edition = f"第{edition_match.group(1)}届" if edition_match else None
-        display = event.get("chineseName") or event.get("name")
-        if display and group_label and group_label not in display and (age_group or "") not in display:
-            display = f"{display}（{group_label}）"
-
-    display_name = display or event.get("displayName") or event.get("name")
-    if group_label and group_label not in (display_name or ""):
-        display_name = f"{display_name}（{group_label}）"
+    display_name = localized_public_name(
+        event,
+        series,
+        year,
+        edition=edition,
+        station=station,
+        group_label=group_label,
+    )
 
     return {
         "id": event.get("id"),
@@ -526,7 +560,7 @@ def excluded_from_public(event: dict[str, Any], today: str) -> str | None:
 def public_catalog(events: list[dict[str, Any]], master_groups: dict[str, dict[str, str]],
                    today: str | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     today = today or dt.date.today().isoformat()
-    rows: list[dict[str, Any]] = []
+    rows_by_tournament: dict[str, list[dict[str, Any]]] = defaultdict(list)
     excluded: list[dict[str, Any]] = []
     for event in events:
         if (event.get("level") or "event") != "event":
@@ -542,9 +576,41 @@ def public_catalog(events: list[dict[str, Any]], master_groups: dict[str, dict[s
         if projected is None:
             excluded.append({"tournamentID": event.get("tournamentID"), "id": event.get("id"), "reason": "missing-structured-fields"})
             continue
-        rows.append(projected)
+        rows_by_tournament[projected["tournamentID"]].append(projected)
+    rows = [merge_public_event_rows(group) for group in rows_by_tournament.values()]
     rows.sort(key=lambda item: (item.get("date") or "", item.get("id") or ""), reverse=True)
     return rows, excluded
+
+
+def merge_public_event_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Coalesce duplicate source/PGN projections for one TNR into one page."""
+    if not rows:
+        raise ValueError("cannot merge an empty public event group")
+
+    def score(row: dict[str, Any]) -> tuple[int, int, int, int, str]:
+        return (
+            1 if row.get("detailPath") else 0,
+            1 if str(row.get("id") or "").startswith("chess-results:") else 0,
+            1 if row.get("participants") else 0,
+            1 if row.get("groupLabel") else 0,
+            str(row.get("date") or ""),
+        )
+
+    primary = max(rows, key=score)
+    merged = dict(primary)
+    aliases: set[str] = set(primary.get("aliases") or [])
+    for row in rows:
+        for key, value in row.items():
+            if merged.get(key) in (None, "", [], {}) and value not in (None, "", [], {}):
+                merged[key] = value
+        aliases.update(row.get("aliases") or [])
+        if row.get("name") and row.get("name") != merged.get("name"):
+            aliases.add(str(row["name"]))
+        merged["playerCount"] = max(int(merged.get("playerCount") or 0), int(row.get("playerCount") or 0))
+        merged["gameCount"] = max(int(merged.get("gameCount") or 0), int(row.get("gameCount") or 0))
+    aliases.discard(str(merged.get("name") or ""))
+    merged["aliases"] = sorted(aliases) or None
+    return merged
 
 
 def detail_gap_audit(events: list[dict[str, Any]]) -> list[dict[str, Any]]:

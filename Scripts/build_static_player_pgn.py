@@ -21,6 +21,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from build_event_catalog import ROUND_ITEM_RE, TEST_NAME_RE, has_chinese_text
 from snapshot_context import stamp
 from stable_json import write_json as write_stable_json
 
@@ -78,6 +79,7 @@ class PlayerGame:
     black: str
     result: str
     source: str
+    broadcast_name: str = ""
     round: str = ""
     stage: str = ""
     natural_stage: str = ""
@@ -289,7 +291,11 @@ def ingest_static_event_pgns(
                 game = repair_pgn_text(game)
                 headers = pgn_headers(game)
                 date = normalize_pgn_date(headers.get("EventDate") or headers.get("Date") or clean(event.get("date")))
-                event_name = headers.get("Event") or clean(event.get("name"))
+                source_event_name = headers.get("Event") or clean(event.get("name"))
+                broadcast_name = clean(headers.get("BroadcastName"))
+                if TEST_NAME_RE.search(" ".join(filter(None, [source_event_name, broadcast_name]))):
+                    continue
+                event_name = broadcast_name if ROUND_ITEM_RE.match(source_event_name) and broadcast_name else source_event_name
                 natural_stage = natural_stage_for_player(profile, date)
                 entered_stage = event_stage_from_name(event_name)
                 game_record = PlayerGame(
@@ -300,6 +306,7 @@ def ingest_static_event_pgns(
                     black=headers.get("Black", ""),
                     result=headers.get("Result", ""),
                     source=clean(event.get("source")) or "Static PGN",
+                    broadcast_name=broadcast_name,
                     round=clean(headers.get("Round")),
                     stage=natural_stage or entered_stage,
                     natural_stage=natural_stage,
@@ -395,7 +402,11 @@ def ingest_bulk_youth_pgns(
             if not game:
                 continue
             headers = pgn_headers(game)
-            event_name = headers.get("Event") or clean(entry.get("event"))
+            source_event_name = headers.get("Event") or clean(entry.get("event"))
+            broadcast_name = clean(headers.get("BroadcastName"))
+            if TEST_NAME_RE.search(" ".join(filter(None, [source_event_name, broadcast_name]))):
+                continue
+            event_name = broadcast_name if ROUND_ITEM_RE.match(source_event_name) and broadcast_name else source_event_name
             game_record = PlayerGame(
                 pgn=game,
                 event=event_name,
@@ -404,6 +415,7 @@ def ingest_bulk_youth_pgns(
                 black=headers.get("Black") or clean(entry.get("black")),
                 result=headers.get("Result") or clean(entry.get("result")),
                 source=clean(entry.get("source")) or "Lichess Broadcasts",
+                broadcast_name=broadcast_name,
                 round=clean(headers.get("Round")),
                 stage=stage_id,
                 natural_stage=stage_id,
@@ -637,12 +649,30 @@ def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
     mappings = event_mappings()
     events: dict[str, dict[str, Any]] = {}
     for game in games:
+        if TEST_NAME_RE.search(" ".join(filter(None, [game.event, game.broadcast_name]))):
+            continue
+        if ROUND_ITEM_RE.match(game.event) and not game.broadcast_name:
+            # Keep the playable game in the package, but do not promote an
+            # orphaned round/chapter title to a tournament summary.
+            continue
+        event_name = (
+            game.broadcast_name
+            if ROUND_ITEM_RE.match(game.event) and game.broadcast_name
+            else game.event
+        )
         mapping = mappings.get(game.tournament_id, {})
         canonical = mapping.get("canonicalEventID") or ""
+        public_name = mapping.get("chineseName") or event_name
+        if not has_chinese_text(public_name):
+            # Untranslated source titles remain available on individual game
+            # records, but must not leak back into the public event-summary UI.
+            continue
         if canonical:
             key = f"canonical:{canonical}:{game.event_stage or game.stage}"
         elif game.tournament_id:
             key = f"tnr:{game.tournament_id}"
+        elif game.broadcast_name:
+            key = f"broadcast:{normalize_key(game.broadcast_name)}"
         else:
             key = f"name:{normalize_key(game.event)}|{game.date}"
         public_source = "" if game.source.lower().startswith("chess-results") else game.source
@@ -650,7 +680,7 @@ def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
             key,
             {
                 "source": public_source,
-                "name": mapping.get("chineseName") or game.event,
+                "name": public_name,
                 "date": game.date,
                 "tournamentID": game.tournament_id,
                 "canonicalEventID": canonical or None,

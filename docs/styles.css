@@ -3,6 +3,8 @@
   --canvas: #f4f5f7;
   --panel: #ffffff;
   --panel-soft: #f8f9fb;
+  --surface: #ffffff;
+  --ink: #19212c;
   --line: #dde1e7;
   --text: #19212c;
   --muted: #667085;
@@ -1760,3 +1762,90 @@ details.event-fold > summary { cursor: pointer; list-style: none; }
 details.event-fold > summary::-webkit-details-marker { display: none; }
 details.event-fold > summary > span::after { content: " ▾"; opacity: .6; }
 details.event-fold[open] > summary > span::after { content: " ▴"; opacity: .6; }
+
+/* Follow the operating-system appearance without storing a site-specific
+   preference. Keep every primary reading surface dark so navigation between
+   search, player, event and PGN panels never flashes a white card at night. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --canvas: #101419;
+    --panel: #181e25;
+    --panel-soft: #202832;
+    --surface: #181e25;
+    --ink: #edf2f7;
+    --line: #35404d;
+    --text: #edf2f7;
+    --muted: #a8b3c2;
+    --accent: #68b5f0;
+    --accent-strong: #8bc8f5;
+    --accent-soft: #18354b;
+    --gold: #f0c96b;
+    --gold-soft: #3d3218;
+    --danger: #ff9b94;
+    --shadow: 0 16px 40px rgba(0, 0, 0, 0.34);
+  }
+
+  .topbar { background: rgba(16, 20, 25, 0.9); }
+  .search-box { background: rgba(32, 40, 50, 0.88); }
+  .search-box:focus-within { background: var(--panel); }
+  .search-box input::placeholder { color: #8f9bab; }
+  .leaderboard-card,
+  .detail-pane { background: rgba(24, 30, 37, 0.94); }
+  .leaderboard-table tr + tr { border-top-color: var(--line); }
+  .leaderboard-table tr:hover { background: rgba(104, 181, 240, 0.1); }
+  .rank-badge,
+  .stage-chip { background: #303946; }
+  .bulk-player-hit { background: #18332f; border-color: #28544d; }
+  .static-player-hit { background: #172f45; border-color: #2a506e; }
+  .pgn-package-button,
+  .event-player,
+  .viewer-select select,
+  .viewer-game-side,
+  .pgn-download-link,
+  .disambiguation-options a { color: var(--text); background: var(--panel); border-color: var(--line); }
+  .pgn-package-button { color: var(--accent-strong); }
+  .domestic-chip { color: #f0c96b; background: #3d3218; border-color: #665527; }
+  .event-pane { background: linear-gradient(150deg, rgba(24,30,37,.98), rgba(20,39,54,.94)); border-color: #2b506c; }
+  .event-facts > div { background: rgba(32,40,50,.86); border-color: #2a4a61; }
+  .event-loading,
+  .event-empty { background: rgba(24,30,37,.78); border-color: #35566d; }
+  .player-event-history { background: rgba(23,36,48,.92); border-color: #2a4a61; }
+  .player-event-row { border-top-color: rgba(104,181,240,.16); }
+  .credit-howto { background: rgba(24,53,75,.6); border-color: #35566d; }
+  .credit-chip,
+  .disambiguation-card { background: linear-gradient(145deg, #1b222a, #172b3a); border-color: #34566f; }
+  .pgn-viewer { background: #141a20; border-color: var(--line); }
+  .search-main-pane > .search-results { background: rgba(24,30,37,.98); }
+  .player-chip:hover { background: var(--panel); }
+  .player-name mark { background: #66551e; }
+  .privacy-foundation { background: #332b1c; border-color: #5e5030; }
+  .identity-status.verified,
+  .data-status.cached { color: #9be2b8; background: #183626; border-color: #2d6041; }
+  .identity-status.presentation-high { color: #a8d7fa; background: #17354b; border-color: #315c78; }
+  .identity-status.presentation-medium,
+  .identity-status.pending,
+  .data-status.compare { color: #f0cf83; background: #3b311b; border-color: #66552c; }
+  .identity-status.same-name,
+  .data-status.missing { color: #f1b3bd; background: #40242a; border-color: #70404a; }
+  .pairing-pgn.available { color: #9be2b8; background: #183626; border-color: #2d6041; }
+  .quality-clear { color: #9be2b8; }
+  .lichess-viewer-shell {
+    --c-lpv-bg: #141a20;
+    --c-lpv-bg-player: #181e25;
+    --c-lpv-bg-controls: #181e25;
+    --c-lpv-bg-movelist: #181e25;
+    --c-lpv-bg-variation: #202832;
+    --c-lpv-bg-pane: #181e25;
+    --c-lpv-side-border: #35404d;
+    --c-lpv-border: #35404d;
+    --c-lpv-font: #edf2f7;
+    --c-lpv-font-shy: #a8b3c2;
+    --c-lpv-font-bg: #35404d;
+    --c-lpv-accent: #68b5f0;
+    --c-lpv-accent-over: #101419;
+    --c-lpv-current-move: #68b5f0;
+    --c-lpv-move-hover: #18354b;
+    border-color: var(--line);
+  }
+}

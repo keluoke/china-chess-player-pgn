@@ -16,6 +16,7 @@ import pathlib
 from collections import defaultdict
 from typing import Any
 
+from build_event_catalog import TEST_NAME_RE, has_chinese_text
 from snapshot_context import snapshot_id
 from stable_json import write_json
 
@@ -81,14 +82,21 @@ def build_rows(
             if not fide_id.isdigit() or not tournament_id:
                 continue
             catalog_event = catalog.get(tournament_id, {})
+            # The public player history follows the curated event catalog.
+            # Raw player-search rows are often duplicated/truncated English
+            # source titles and may include parser tests; they remain evidence
+            # inputs but never become frontend rows on their own.
+            if not catalog_event:
+                continue
             game_count = pgn_coverage.get((fide_id, tournament_id), 0)
             event_id = clean(catalog_event.get("id"))
             name = clean(
                 catalog_event.get("chineseName")
                 or catalog_event.get("displayName")
                 or catalog_event.get("name")
-                or raw.get("tournament_name")
             ) or "未命名赛事"
+            if TEST_NAME_RE.search(name) or not has_chinese_text(name):
+                continue
             event_date = clean(catalog_event.get("date") or raw.get("end_date"))
             row = {
                 **({"id": event_id} if event_id else {}),

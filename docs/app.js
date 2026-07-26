@@ -115,6 +115,9 @@ const domesticShardLoaded = new Set();
 let domesticFullLoaded = false;
 let domesticRouting = null;
 let domesticRoutingRequest = null;
+const TEST_EVENT_NAME_RE = /\btest\b|测试|演示|\bdemo\b/i;
+const ROUND_ITEM_NAME_RE = /^\s*(round|rd\.?|game|board|tiebreak)\s*\d+\b/i;
+const CHINESE_TEXT_RE = /[\u3400-\u9fff]/;
 
 initialize();
 // Domestic entities load on demand (review §5.3): prefix shards arrive with
@@ -425,11 +428,6 @@ function initialize() {
     if (playerLink) {
       event.preventDefault();
       selectPlayer(playerLink.dataset.fide);
-    }
-    const share = event.target.closest('[data-action="share-player"]');
-    if (share) {
-      event.preventDefault();
-      shareSelectedPlayer();
     }
     const focusedPlayer = event.target.closest('[data-action="select-event-player"]');
     if (focusedPlayer) {
@@ -770,27 +768,23 @@ function renderDetail() {
       </div>
       <div class="detail-title-actions">
         ${player.sex === "F" ? `<span class="stage-chip">女</span>` : ""}
-        <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
-        <button class="action-link" type="button" data-action="share-player">分享档案</button>
         <a class="action-link" href="https://ratings.fide.com/profile/${encodeURIComponent(player.fideID)}" target="_blank" rel="noreferrer">FIDE 主页</a>
-        ${identityGroup ? `<a class="action-link" href="${escapeAttribute(identityDisputeHref(identityGroup, player))}">身份异议</a>` : ""}
-        <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.fideID)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
       </div>
     </div>
 
     ${note ? `<span class="note-pill">${escapeHTML(note)}</span>` : ""}
 
     ${identityGroup ? `<div class="note-pill">成员级证据通过硬冲突校验 · 高置信展示归组 · 含 ${identityGroup.members.length} 个可独立提出异议的国内赛事身份</div>` : ""}
-    ${playerEventHistory(detailCache.get(player.fideID) ?? player)}
-    ${staticInfo?.gameCount ? staticPlayerHitBlock(player, staticInfo) : ""}
-    ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
-    ${state.downloadStatus ? `<div class="download-status" aria-live="polite">${escapeHTML(state.downloadStatus)}</div>` : ""}
-    ${pgnViewerBlock(player, staticInfo)}
     <div class="rating-grid">
       ${ratingCard("标准棋", player.standard)}
       ${ratingCard("快棋", player.rapid)}
       ${ratingCard("超快棋", player.blitz)}
     </div>
+    ${staticInfo?.gameCount ? staticPlayerHitBlock(player, staticInfo) : ""}
+    ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
+    ${state.downloadStatus ? `<div class="download-status" aria-live="polite">${escapeHTML(state.downloadStatus)}</div>` : ""}
+    ${pgnViewerBlock(player, staticInfo)}
+    ${playerEventHistory(detailCache.get(player.fideID) ?? player)}
     ${playerCoverageStatus(player, staticInfo, bulkInfo)}
     ${sameNameRelatedBlock(player)}
   `;
@@ -836,7 +830,19 @@ function renderDomesticPlayerDetail(player) {
     });
     groupSightings.sort((a, b) => String(b.eventDate ?? "").localeCompare(String(a.eventDate ?? "")));
   }
-  const sightings = groupSightings ?? player.sightings ?? [];
+  const sightings = (groupSightings ?? player.sightings ?? [])
+    .map(sighting => {
+      const tournamentID = String(sighting.eventID ?? "").match(/(?:tnr)?(\d+)/i)?.[1] || "";
+      const projected = projectPublicEventRecord({
+        ...sighting,
+        tournamentID,
+        name: sighting.eventName || sighting.group || ""
+      });
+      return projected
+        ? { ...sighting, eventName: projected.chineseName || projected.displayName || projected.name }
+        : null;
+    })
+    .filter(Boolean);
   const publicLocation = player.publicLocation || publicLocationFromSightings(sightings);
   const stages = uniqueStrings(sightings.map(publicStageFromSighting).filter(Boolean));
   els.detailPane.innerHTML = `
@@ -848,10 +854,6 @@ function renderDomesticPlayerDetail(player) {
       </div>
       <div class="detail-title-actions">
         <span class="stage-chip domestic-chip">无 FIDE</span>
-        <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
-        <button class="action-link" type="button" data-action="share-player">分享档案</button>
-        ${group ? `<a class="action-link" href="${escapeAttribute(identityDisputeHref(group, player))}">身份异议</a>` : ""}
-        <a class="action-link" href="./contribute.html?type=privacy-request&player=${encodeURIComponent(player.domesticID ?? player.id)}&name=${encodeURIComponent(displayName(player))}">删除 / 匿名化请求</a>
       </div>
     </div>
     <div class="appearance-summary">
@@ -926,14 +928,23 @@ function renderEvent() {
       </div>`;
     return;
   }
-  const eventPlayers = (event.players ?? [])
+  const eventDetail = eventDetailCache.get(String(event.tournamentID ?? ""));
+  if (event.detailPath && !eventDetail) requestEventDetail(event);
+  const detailRoster = eventDetail && !eventDetail.error
+    ? ((eventDetail.players?.length ? eventDetail.players : eventDetail.standings) ?? [])
+    : null;
+  const rosterFideIDs = detailRoster
+    ? detailRoster.map(player => player?.fideID)
+    : (event.players ?? []);
+  const eventPlayers = [...new Set(rosterFideIDs.filter(Boolean).map(String))]
     .map(fideID => players.find(player => player.fideID === String(fideID)))
     .filter(Boolean);
   const visiblePlayers = eventPlayers.slice(0, 24);
   const extraPlayers = Math.max(0, eventPlayers.length - visiblePlayers.length);
-  const eventDetail = eventDetailCache.get(String(event.tournamentID ?? ""));
-  if (event.detailPath && !eventDetail) requestEventDetail(event);
-  const participantTotal = Number(event.participants);
+  const standingCount = eventDetail && !eventDetail.error ? Number(eventDetail.standings?.length || detailRoster?.length || 0) : null;
+  const chineseRosterCount = detailRoster
+    ? detailRoster.filter(player => String(player?.federation || "").toUpperCase() === "CHN").length
+    : null;
   const coverageLabel = completenessLabel(event, eventDetail);
   const facts = [
     ["日期", event.date],
@@ -941,7 +952,10 @@ function renderEvent() {
     ["组别", event.groupLabel],
     ["轮次", event.rounds],
     ["报名人数", event.participants],
-    ["中国棋手", event.playerCount ? `${event.playerCount} 名` : null],
+    ["最终排名人数", standingCount !== null ? `${standingCount} 名` : null],
+    ["中国棋手（名单标 CHN）", chineseRosterCount !== null ? `${chineseRosterCount} 名` : null],
+    ["已收录棋手", standingCount === null && event.playerCount ? `${event.playerCount} 名` : null],
+    ["可跳转棋手", detailRoster ? `${eventPlayers.length} 名` : null],
     ["覆盖口径", coverageLabel],
     ["已归档 PGN", event.gameCount ? `${compactNumber(event.gameCount)} 盘` : null],
     ["有棋谱棋手", event.pgnPlayerCount ? `${event.pgnPlayerCount} 名` : null]
@@ -955,7 +969,6 @@ function renderEvent() {
       <div>
         <span class="eyebrow">${dataStatusBadge(eventDataStatus(event))} · 赛事档案</span>
         <h1>${escapeHTML(event.displayName ?? event.name ?? "未命名赛事")}</h1>
-        ${event.chineseName && event.name !== event.chineseName ? `<p class="event-source-name">别名：${escapeHTML(event.name)}</p>` : ""}
       </div>
       <div class="detail-title-actions">
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
@@ -965,11 +978,16 @@ function renderEvent() {
       ${facts.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(String(value))}</strong></div>`).join("")}
     </div>
     <details class="event-roster event-fold"${foldOpen}>
-      <summary class="section-heading"><h3>${eventDetail ? "已收录 FIDE 棋手" : "参赛中国棋手"}</h3><span>${eventPlayers.length ? `${eventPlayers.length} 名可跳转` : "名单待同步"}</span></summary>
-      ${visiblePlayers.length ? `<div class="event-player-grid">${visiblePlayers.map(player => `
+      <summary class="section-heading"><h3>赛事名单中的已收录棋手</h3><span>${eventDetail && !eventDetail.error ? `${eventPlayers.length} 名可跳转` : event.detailPath ? "名单载入中" : "名单待补抓"}</span></summary>
+      ${eventDetail?.error ? `<div class="empty-state compact">名单载入失败：${escapeHTML(eventDetail.error)}</div>`
+        : visiblePlayers.length ? `<div class="event-player-grid">${visiblePlayers.map(player => `
         <button class="event-player" type="button" data-action="select-event-player" data-fide="${escapeAttribute(player.fideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}">
           <strong>${escapeHTML(displayName(player))}</strong>${presentationNameBadgeHTML(player)}<span>FIDE ${escapeHTML(player.fideID)}</span>
-        </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手。</p>` : ""}` : `<div class="empty-state compact">该赛事已有赛事记录，但棋手名单尚未同步。</div>`}
+        </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手。</p>` : ""}`
+        : detailRoster?.length ? `<div class="empty-state compact">名单已同步，共 ${detailRoster.length} 人；其中暂无可跳转到本库档案的棋手。</div>`
+        : event.detailPath && !eventDetail ? `<div class="event-loading">正在载入赛事名单…</div>`
+        : eventDetail ? `<div class="empty-state compact">赛事详情已同步但名单为空，已进入维护者本机补抓队列。</div>`
+        : `<div class="empty-state compact">赛事名单尚未收录，已进入维护者本机补抓队列。</div>`}
     </details>
     ${eventDetail ? domesticEventData(event, eventDetail) : event.detailPath ? `<div class="event-loading">正在载入逐轮成绩与最终排名…</div>` : ""}
     <p class="event-provenance">${event.canonicalEventID ? `Canonical ID：${escapeHTML(event.canonicalEventID)} · ` : ""}赛事 ID：${escapeHTML(event.tournamentID ?? event.id)}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
@@ -1257,14 +1275,18 @@ async function loadBulkStageIndex(stage) {
   if (bulkStageIndexCache.has(stage.id)) return bulkStageIndexCache.get(stage.id);
   if (bulkStageIndexRequests.has(stage.id)) return bulkStageIndexRequests.get(stage.id);
 
-  const request = fetch(stage.indexPath, { cache: "default" })
-    .then(response => {
-      if (!response.ok) throw new Error(`${stage.id} HTTP ${response.status}`);
-      return response.json();
-    })
+  const request = fetchJSON(stage.indexPath, false)
     .then(index => {
-      bulkStageIndexCache.set(stage.id, index);
-      return index;
+      const rows = Array.isArray(index) ? index : [];
+      bulkStageIndexCache.set(stage.id, rows);
+      return rows;
+    })
+    .catch(() => {
+      // youth/ is optional in static deployments. A stale cached manifest can
+      // still point at an omitted index whose SPA fallback is HTML; treat that
+      // exactly like an absent optional manifest and keep the player page usable.
+      bulkStageIndexCache.set(stage.id, []);
+      return [];
     })
     .finally(() => {
       bulkStageIndexRequests.delete(stage.id);
@@ -1335,10 +1357,22 @@ function mergedPlayerEvents(player) {
   const fideID = String(player?.fideID ?? "");
   const rows = new Map();
   const merge = event => {
-    const key = String(event?.tournamentID || event?.id || `${event?.name || ""}|${event?.date || ""}`);
+    const projected = projectPublicEventRecord(event);
+    if (!projected) return;
+    const projectedName = String(projected.chineseName || projected.displayName || projected.name || "");
+    const key = String(projected?.tournamentID || projected?.id || `${projectedName}|${projected?.date || ""}`);
     if (!key) return;
     const current = rows.get(key) ?? {};
-    rows.set(key, { ...current, ...event, gameCount: Math.max(Number(current.gameCount || 0), Number(event.gameCount || 0)) });
+    rows.set(key, {
+      ...current,
+      ...projected,
+      name: projectedName,
+      gameCount: Math.max(
+        Number(current.gameCount || 0),
+        Number(event?.gameCount || 0),
+        Number(projected?.gameCount || 0)
+      )
+    });
   };
   (participationCache.get(fideID) ?? []).forEach(merge);
 
@@ -1362,6 +1396,27 @@ function mergedPlayerEvents(player) {
   (player?.events ?? []).forEach(event => merge({ ...event, pgnStatus: Number(event.gameCount || 0) ? "available" : event.pgnStatus }));
   (staticPlayerInfo(player)?.events ?? []).forEach(event => merge({ ...event, pgnStatus: Number(event.gameCount || 0) ? "available" : event.pgnStatus }));
   return [...rows.values()].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+}
+
+function projectPublicEventRecord(event) {
+  const tournamentID = String(event?.tournamentID || "");
+  const catalogEvent = tournamentID
+    ? (eventCatalog ?? []).find(item => String(item.tournamentID || "") === tournamentID)
+    : null;
+  const projected = catalogEvent ? { ...event, ...catalogEvent } : event;
+  const projectedName = String(projected?.chineseName || projected?.displayName || projected?.name || "");
+  const allNames = [
+    projectedName,
+    projected?.name,
+    projected?.eventName,
+    ...(projected?.aliases ?? [])
+  ].filter(Boolean).join(" ");
+  if (
+    TEST_EVENT_NAME_RE.test(allNames)
+    || ROUND_ITEM_NAME_RE.test(projectedName)
+    || !CHINESE_TEXT_RE.test(projectedName)
+  ) return null;
+  return { ...projected, name: projectedName };
 }
 
 function friendlyStageLabel(stage) {
@@ -1999,26 +2054,6 @@ function goBackOrHome() {
     return;
   }
   clearSelection();
-}
-
-async function shareSelectedPlayer() {
-  const player = selectedPlayer();
-  if (!player) return;
-  const url = new URL(location.href);
-  url.search = "";
-  if (player.fideID) url.searchParams.set("fideID", player.fideID);
-  else url.searchParams.set("player", player.domesticID || player.id);
-  const rating = ratingForPlayer(player);
-  const games = Number(player.playerPgnGameCount || player.gameCount || 0);
-  const text = `${displayName(player)}的国际象棋档案${games ? `：已收录 ${games} 盘对局` : ""}${rating ? `，最新${rating.kind}等级分 ${rating.value}` : ""}`;
-  try {
-    if (navigator.share) await navigator.share({ title: `${displayName(player)} · 棋手档案`, text, url: url.href });
-    else await navigator.clipboard.writeText(`${text}\n${url.href}`);
-    state.downloadStatus = navigator.share ? "分享面板已打开。" : "档案链接已复制。";
-  } catch (error) {
-    if (error?.name !== "AbortError") state.downloadStatus = "暂时无法分享，请稍后重试。";
-  }
-  renderDetail();
 }
 
 function routeSnapshot() {
