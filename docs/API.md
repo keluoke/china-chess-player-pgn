@@ -22,7 +22,7 @@ https://china-chess-player-pgn.pages.dev
 
 ### `GET /api/v1/players.json`
 
-全量注册表(约 1.2 万人,~2MB)。每行字段:`fideID`、`displayName`、`chineseName?`、`pinyin?`、`name`、`federation`、`formerFederation?`、`transfer?`(`{type: transferred_out|transferred_in, effective?, evidence?}`)、`sex?`、`title?`、`birthYear?`、`standard?`、`rapid?`、`blitz?`、`inactive`。
+全量注册表(约 1.2 万人,~2MB)。每行字段:`fideID`、`displayName`、`chineseName?`、`pinyin?`、`name`、`federation`、`formerFederation?`、`transfer?`(`{type: transferred_out|transferred_in, effective?}`)、`sex?`、`title?`、`birthYear?`、`standard?`、`rapid?`、`blitz?`、`inactive`。
 
 转会口径:注册表收录 FIDE 现联邦 CHN 的全部棋手,加上社区覆盖表标注的已转出棋手(`transfer.type == "transferred_out"`,其 `federation` 为现联邦)。
 
@@ -64,9 +64,8 @@ GET /api/v2/rankings/official/current/{control}/{cohort}.json
 包含 `all` 与 `female`，并内嵌组内 `birthYears` 切分；为遵守部署文件数上限，
 出生年份暂不拆成独立文件。
 
-受 Cloudflare Pages 单次部署 2 万文件上限约束，v2 的棋手/赛事/搜索分片端点
-将随大文件迁对象存储（见 `docs/OBJECT_STORAGE_MIGRATION.md`）一起上线；
-在此之前请继续使用 v1 兼容端点。官方榜与未来的参考估分榜永久分轨。
+受托管平台单次部署文件数上限约束，v2 的棋手/赛事/搜索分片端点将在对象存储
+迁移后上线；在此之前请继续使用 v1 兼容端点。官方榜与未来的参考估分榜永久分轨。
 
 ## 消费示例(风格引擎)
 
@@ -83,6 +82,5 @@ curl -sO $BASE/data/pgn/by-player/fide-8622388/all.pgn
 
 API 不对所有字段作统一许可：社区原创审核数据为 CC BY 4.0，
 Lichess Broadcast 派生数据为 CC BY-SA 4.0 并须保留署名，FIDE 为事实
-注册表投影。Chess-Results 赛事数据为维护者本机采集并清洗后的事实性结构化
-投影（full-data，旧 link-only 已退役）；历史静态资料
-不因本项目声明而自动获得 CC BY 许可。详见 `LICENSE-DATA.md` 和各数据 manifest。
+注册表投影；其他历史静态资料不因本项目声明而自动获得 CC BY 许可。
+详见仓库中的 `LICENSE-DATA.md` 和各数据 manifest。

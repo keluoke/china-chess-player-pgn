@@ -20,6 +20,8 @@ import json
 import pathlib
 import re
 
+from pypinyin import lazy_pinyin
+
 from stable_json import write_json
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -28,7 +30,70 @@ OUTPUT_CORE = DATA / "search-bootstrap.json"
 OUTPUT_DOMESTIC = DATA / "search-bootstrap-domestic.json"
 SHARD_ROOT = DATA / "search" / "domestic"
 ROUTING_OUTPUT = DATA / "search" / "domestic-routing.json"
+PRESENTATION_NAMES = DATA / "identity" / "presentation-names.json"
 HANZI_BUCKETS = 64
+SURNAME_PINYIN = {
+    "单": ("shan",),
+    "曾": ("zeng",),
+    "仇": ("qiu",),
+    "解": ("xie",),
+    "查": ("zha",),
+    "覃": ("qin",),
+    "朴": ("piao",),
+    "区": ("ou",),
+    "乐": ("yue",),
+}
+
+
+def chinese_name_pinyin_aliases(value: str) -> list[str]:
+    """Derive search-only pinyin variants without changing identity facts.
+
+    The default pronunciation remains searchable. A small, explicit surname
+    table adds common family-name readings for characters whose general
+    dictionary reading differs. These values only enter derived search
+    artifacts; they are never written back to registry/manual data.
+    """
+    name = str(value or "").strip()
+    if not re.fullmatch(r"[\u4e00-\u9fff]{2,6}", name):
+        return []
+    default_parts = [part.casefold() for part in lazy_pinyin(name, strict=False) if part]
+    if len(default_parts) != len(name):
+        return []
+    variants = [" ".join(default_parts)]
+    for surname in SURNAME_PINYIN.get(name[0], ()):
+        variants.append(" ".join([surname, *default_parts[1:]]))
+    return list(dict.fromkeys(variant for variant in variants if variant))
+
+
+def derived_search_aliases(row: dict) -> list[str]:
+    existing = {
+        re.sub(r"[^a-z]", "", str(value or "").casefold())
+        for value in [row.get("pinyin"), *(row.get("aliases") or [])]
+    }
+    output = []
+    for value in [
+        row.get("displayName"),
+        row.get("chineseName"),
+        *(row.get("aliases") or []),
+    ]:
+        for alias in chinese_name_pinyin_aliases(str(value or "")):
+            normalized = re.sub(r"[^a-z]", "", alias)
+            if normalized and normalized not in existing:
+                existing.add(normalized)
+                output.append(alias)
+    return output
+
+
+def roman_search_values(row: dict) -> list[str]:
+    return [
+        str(value).strip()
+        for value in [
+            row.get("pinyin"),
+            *(row.get("aliases") or []),
+            *(row.get("searchAliases") or []),
+        ]
+        if value and re.search(r"[A-Za-z]", str(value))
+    ]
 
 
 def shard_keys(row: dict) -> list[str]:
@@ -43,9 +108,10 @@ def shard_keys(row: dict) -> list[str]:
     name = str(row.get("displayName") or row.get("chineseName") or "")
     if name and "一" <= name[0] <= "鿿":
         keys.add(f"h{ord(name[0]) % HANZI_BUCKETS:02x}")
-    pinyin = str(row.get("pinyin") or "").strip().lower()
-    if pinyin and pinyin[0].isascii() and pinyin[0].isalpha():
-        keys.add(f"p{pinyin[0]}")
+    for roman in roman_search_values(row):
+        first = roman[0].lower()
+        if first.isascii() and first.isalpha():
+            keys.add(f"p{first}")
     for alias in row.get("aliases") or []:
         alias = str(alias).strip()
         if alias and "一" <= alias[0] <= "鿿":
@@ -84,7 +150,7 @@ def routing_terms(row: dict) -> set[str]:
     ]:
         hanzi = [char for char in str(value or "") if "\u4e00" <= char <= "\u9fff"]
         terms.update(f"g:{hanzi[index]}{hanzi[index + 1]}" for index in range(len(hanzi) - 1))
-    for value in [row.get("pinyin"), *(row.get("aliases") or [])]:
+    for value in roman_search_values(row):
         tokens = re.findall(r"[a-z]+", str(value or "").casefold())
         for normalized in [*tokens, "".join(tokens)]:
             if normalized:
@@ -111,6 +177,13 @@ def main() -> int:
     registry = read(DATA / "registry" / "players.json", [])
     aggregate = {str(row.get("fideID")): row for row in read(DATA / "index" / "by-player" / "players.json", [])}
     domestic = read(ROOT / "data" / "generated" / "domestic-search-index.json", [])
+    presentation_names = {
+        str(row.get("fideID")): str(row.get("suggestedChineseName") or "")
+        for row in read(PRESENTATION_NAMES, {}).get("players", [])
+        if row.get("confidence") == "high"
+        and row.get("displayPolicy") == "default"
+        and row.get("suggestedChineseName")
+    }
 
     players = []
     for row in registry:
@@ -123,6 +196,15 @@ def main() -> int:
         aliases = compact_aliases(row)
         if aliases:
             payload["aliases"] = aliases
+        search_aliases = derived_search_aliases({
+            **row,
+            "aliases": [
+                *(row.get("aliases") or []),
+                presentation_names.get(fide_id, ""),
+            ],
+        })
+        if search_aliases:
+            payload["searchAliases"] = search_aliases
         for key in ("gameCount", "eventCount", "playerPgnPath", "playerIndexPath", "stages", "sources"):
             if games.get(key) not in (None, "", [], {}):
                 payload[key] = games[key]
@@ -156,6 +238,9 @@ def main() -> int:
         ]
         if aliases:
             payload["aliases"] = aliases
+        search_aliases = derived_search_aliases(row)
+        if search_aliases:
+            payload["searchAliases"] = search_aliases
         years = sorted({str(value) for value in (row.get("eventYears") or []) if value})
         if years:
             payload["eventYears"] = [years[0]] if len(years) == 1 else [years[0], years[-1]]
@@ -201,11 +286,8 @@ def main() -> int:
         for key in row_shards:
             shards.setdefault(key, []).append(row)
         route_shard = primary_search_shard(row)
-        pinyin = str(row.get("pinyin") or "").strip().lower()
-        roman_shard = f"p{pinyin[0]}" if pinyin and pinyin[0].isascii() and pinyin[0].isalpha() else route_shard
         for term in routing_terms(row):
-            destination = roman_shard if term.startswith("p:") else route_shard
-            routes.setdefault(term, set()).add(destination)
+            routes.setdefault(term, set()).add(route_shard)
     SHARD_ROOT.mkdir(parents=True, exist_ok=True)
     written = set()
     for key, rows in shards.items():

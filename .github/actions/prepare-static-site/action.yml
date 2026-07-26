@@ -32,11 +32,30 @@ runs:
         out="${{ inputs.output-dir }}"
         rm -rf "$out"
         rsync -a --delete \
+          --exclude '*.md' \
           --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
           --exclude 'data/bulk/youth/' \
           --exclude 'data/registry/domestic/identity-review.json' \
           --exclude 'data/search-bootstrap-domestic.json' \
           docs/ "$out"/
+
+        # Markdown is deny-by-default. Only documents explicitly listed in the
+        # shared allowlist are copied into the public artifact; reviews,
+        # maintainer runbooks and acquisition manuals remain repository-only.
+        while IFS= read -r markdown_path; do
+          [ -n "$markdown_path" ] || continue
+          case "$markdown_path" in
+            /*|*..*) echo "Invalid public Markdown allowlist entry: $markdown_path" >&2; exit 1 ;;
+            *.md) ;;
+            *) echo "Public Markdown allowlist entries must end in .md: $markdown_path" >&2; exit 1 ;;
+          esac
+          if [ ! -f "docs/$markdown_path" ]; then
+            echo "Missing allowlisted public Markdown: docs/$markdown_path" >&2
+            exit 1
+          fi
+          mkdir -p "$out/$(dirname "$markdown_path")"
+          cp "docs/$markdown_path" "$out/$markdown_path"
+        done < Scripts/public_markdown_allowlist.txt
 
         # The domestic identity review queue contains maintenance-only scores
         # and adjudication evidence. It is intentionally not a public frontend
@@ -70,4 +89,5 @@ runs:
           echo "Static site artifact contains ${file_count} files; keep it at or below ${{ inputs.max-files }} before deploy." >&2
           exit 1
         fi
+        python3 Scripts/validate_public_privacy.py --site-root "$out"
         echo "Prepared $out (${size_kib} KiB, ${file_count} files)."

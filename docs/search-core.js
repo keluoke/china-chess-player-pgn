@@ -34,6 +34,7 @@ export function searchValuesForPlayer(player) {
     player.chineseName,
     player.presentationChineseName,
     player.pinyin,
+    ...(player.searchAliases ?? []),
     ...(player.aliases ?? [])
   ].filter(Boolean).map(String);
 

@@ -56,6 +56,7 @@ const els = {
   searchHome: document.querySelector("#searchHome"),
   searchSuggestions: document.querySelector("#searchSuggestions"),
   searchForm: document.querySelector("#searchForm"),
+  searchCommand: document.querySelector("#searchCommand"),
   rankingMeta: document.querySelector("#rankingMeta"),
   leaderboards: document.querySelector(".leaderboards"),
   dashboardSection: document.querySelector("#dashboardSection"),
@@ -638,6 +639,11 @@ function renderSearch() {
   const eventSearch = normalizedQuery.length >= 2 ? searchEvents(state.query) : { items: [], total: 0, truncated: false };
   const eventMatches = eventSearch.items;
   const hasQuery = state.query.length > 0;
+  if (els.searchCommand) {
+    els.searchCommand.dataset.mode = hasQuery || Boolean(selectedPlayer()) || Boolean(state.selectedEventID)
+      ? "compact"
+      : "hero";
+  }
   if (queryReady && !eventCatalog) requestEventCatalog();
   els.searchResultsSection.hidden = !hasQuery;
   els.searchInput.setAttribute("aria-expanded", String(hasQuery));
@@ -758,7 +764,7 @@ function renderDetail() {
     <div class="detail-title">
       <div>
         <span class="eyebrow">${publicStatusBadge(player)} ${presentationNameBadgeHTML(player, { detail: true })} · 赛前情报</span>
-        <h2>${escapeHTML(displayName(player))}</h2>
+        <h1>${escapeHTML(displayName(player))}</h1>
         ${detailChineseNameLine(player)}
         <p>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(uniqueStrings([publicAgeLabel(player), stageLabelForPlayer(player, stage)]).join(" · "))}</p>
       </div>
@@ -836,7 +842,7 @@ function renderDomesticPlayerDetail(player) {
     <div class="detail-title">
       <div>
         <span class="eyebrow">${publicStatusBadge(player)} · 国内赛事参赛档案${group ? ` · <span class="identity-status pending">身份暂定 · 已聚合 ${group.members.length} 条记录</span>` : ""}</span>
-        <h2>${escapeHTML(displayName(player))}</h2>
+        <h1>${escapeHTML(displayName(player))}</h1>
         <p>[无FIDE] · ${escapeHTML(stages[0] || "年龄组待补")} · 公开赛事记录</p>
       </div>
       <div class="detail-title-actions">
@@ -946,7 +952,7 @@ function renderEvent() {
     <div class="detail-title event-title">
       <div>
         <span class="eyebrow">${dataStatusBadge(eventDataStatus(event))} · 赛事档案</span>
-        <h2>${escapeHTML(event.displayName ?? event.name ?? "未命名赛事")}</h2>
+        <h1>${escapeHTML(event.displayName ?? event.name ?? "未命名赛事")}</h1>
         ${event.chineseName && event.name !== event.chineseName ? `<p class="event-source-name">别名：${escapeHTML(event.name)}</p>` : ""}
       </div>
       <div class="detail-title-actions">

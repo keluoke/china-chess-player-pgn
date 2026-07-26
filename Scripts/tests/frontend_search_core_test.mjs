@@ -19,10 +19,12 @@ assert.match(defaultDomesticShardKey("王"), /^h[0-9a-f]{2}$/);
 const player = {
   fideID: "8603677",
   displayName: "Ding, Liren",
-  pinyin: "Ding Liren"
+  pinyin: "Ding Liren",
+  searchAliases: ["dīng lì rén"]
 };
 const values = searchValuesForPlayer(player);
 assert.ok(values.includes("dl"));
+assert.ok(values.includes("dīng lì rén"));
 player.searchIndex = values.map(normalizeSearchText);
 player.searchTokens = new Set(values.flatMap(searchTokens));
 assert.ok(searchScore(player, "dingliren", ["dingliren"], "") > 0);

@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: ./.github/actions/setup-python-deps
         with:
-          packages: pyyaml
+          packages: pyyaml pypinyin==0.55.0
 
       - name: Byte-compile all scripts
         run: python3 -m compileall -q Scripts

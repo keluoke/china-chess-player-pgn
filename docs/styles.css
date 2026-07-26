@@ -837,7 +837,7 @@ button.pairing-pgn {
   margin-bottom: 14px;
 }
 
-.detail-title h2 {
+.detail-title h1 {
   margin: 0;
   overflow-wrap: anywhere;
   font-size: clamp(26px, 3vw, 42px);
@@ -1369,6 +1369,19 @@ button.pairing-pgn {
     flex-direction: column;
   }
 
+  .detail-title {
+    flex-direction: column;
+  }
+
+  .detail-title > div:first-child,
+  .detail-title-actions {
+    width: 100%;
+  }
+
+  .detail-title-actions {
+    justify-content: flex-start;
+  }
+
   .dashboard-intro {
     align-items: flex-start;
     flex-direction: column;
@@ -1662,6 +1675,13 @@ button.pairing-pgn {
 .hero-search-box input { font-size: clamp(1rem, 2vw, 1.2rem); }
 .hero-search-form > button { min-width: 84px; padding: 0 1.25rem; color: #fff; background: var(--accent-strong); border: 0; border-radius: 15px; cursor: pointer; font-weight: 720; }
 .search-guidance { margin: 0.7rem 0 0; color: var(--muted); font-size: 0.78rem; }
+.search-command[data-mode="compact"] { padding: .7rem 1rem .85rem; }
+.search-command[data-mode="compact"] > .eyebrow,
+.search-command[data-mode="compact"] > h1,
+.search-command[data-mode="compact"] > .search-guidance { display: none; }
+.search-command[data-mode="compact"] .hero-search-form { width: min(760px, 92vw); }
+.search-command[data-mode="compact"] .hero-search-box { height: 46px; border-radius: 13px; box-shadow: 0 8px 22px rgba(21,35,52,.09); }
+.search-command[data-mode="compact"] .hero-search-form > button { min-height: 46px; border-radius: 12px; }
 .search-home { display: grid; justify-items: center; align-content: start; min-height: min(34vh, 320px); padding: 0 1rem 3rem; text-align: center; }
 .search-home p { margin: 0; color: var(--muted); line-height: 1.7; }
 .search-suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 1.2rem; }
@@ -1713,6 +1733,7 @@ button.pairing-pgn {
   .topnav { overflow-x: auto; }
   .search-workspace { padding: 12px; }
   .search-command { position: static; padding: 1.6rem 0.25rem 1rem; }
+  .search-command[data-mode="compact"] { position: sticky; padding: .55rem 0 .7rem; }
   .hero-search-form { grid-template-columns: 1fr; width: 100%; }
   .hero-search-box { height: 62px; }
   .hero-search-form > button { min-height: 46px; }

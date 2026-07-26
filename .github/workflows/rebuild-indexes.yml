@@ -43,6 +43,8 @@ jobs:
 
       - name: Set up Python
         uses: ./.github/actions/setup-python-deps
+        with:
+          packages: pypinyin==0.55.0
 
       - name: Rebuild derived indexes
         uses: ./.github/actions/rebuild-indexes

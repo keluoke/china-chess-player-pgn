@@ -5,23 +5,77 @@ import {
   resolvePlayerDisplayName
 } from "./presentation-names.js";
 
-const [data, presentationPayload] = await Promise.all([
-  fetch("./data/leaderboards.json").then(response => {
-    if (!response.ok) throw new Error(`排行榜加载失败：HTTP ${response.status}`);
-    return response.json();
-  }),
-  fetch("./data/identity/presentation-names.json")
-    .then(response => response.ok ? response.json() : null)
-    .catch(() => null)
-]);
+const EXPECTED_SCHEMA_VERSION = 2;
+const [data, presentationPayload] = await loadLeaderboardPageData();
 
+async function loadLeaderboardPageData() {
+  try {
+    const snapshotURL = new URL("./data/snapshot.json", location.href);
+    snapshotURL.searchParams.set("resolve", String(Date.now()));
+    const snapshot = await fetch(snapshotURL, { cache: "no-store" }).then(response => {
+      if (!response.ok) throw new Error(`快照版本加载失败：HTTP ${response.status}`);
+      return response.json();
+    });
+    const snapshotId = String(snapshot?.snapshotId || "").trim();
+    if (!snapshotId) throw new Error("快照版本缺失");
+    const versioned = path => {
+      const url = new URL(path, location.href);
+      url.searchParams.set("v", snapshotId);
+      return url;
+    };
+    const payloads = await Promise.all([
+      fetch(versioned("./data/leaderboards.json")).then(response => {
+        if (!response.ok) throw new Error(`排行榜加载失败：HTTP ${response.status}`);
+        return response.json();
+      }),
+      fetch(versioned("./data/identity/presentation-names.json"))
+        .then(response => response.ok ? response.json() : null)
+        .catch(() => null)
+    ]);
+    assertLeaderboardSchema(payloads[0]);
+    return payloads;
+  } catch (error) {
+    document.querySelector(".leaderboard-filters")?.setAttribute("hidden", "");
+    document.querySelector("#leaderboardTabs")?.setAttribute("hidden", "");
+    const target = document.querySelector("#leaderboardPage");
+    if (target) {
+      target.innerHTML = `<div class="empty-state">排行榜数据版本不匹配或加载失败，请刷新后重试。<small>${escapeHTML(error.message)}</small></div>`;
+    }
+    throw error;
+  }
+}
+
+function assertLeaderboardSchema(payload) {
+  const controls = payload?.controls;
+  const sexes = payload?.sexes;
+  const groups = payload?.groups;
+  if (payload?.schemaVersion !== EXPECTED_SCHEMA_VERSION
+      || !Array.isArray(controls) || !controls.length
+      || !Array.isArray(sexes) || !sexes.length
+      || !Array.isArray(groups) || !groups.length) {
+    throw new Error(`排行榜数据版本不匹配（需要 schema v${EXPECTED_SCHEMA_VERSION}）`);
+  }
+  for (const group of groups) {
+    for (const control of controls) {
+      for (const sex of sexes) {
+        const ranking = group?.rankings?.[control.id]?.[sex.id];
+        if (!ranking || !Array.isArray(ranking.players)
+            || !ranking.birthYears || Array.isArray(ranking.birthYears)) {
+          throw new Error(`排行榜维度缺失：${group.id}/${control.id}/${sex.id}`);
+        }
+      }
+    }
+  }
+}
+
+/* Presentation names are optional; leaderboard dimensions are not. */
 const presentationNames = buildPresentationNameIndex(presentationPayload);
-const groups = data.groups ?? [];
+const groups = data.groups;
 const params = new URLSearchParams(location.search);
 const state = {
   cohort: valid(params.get("cohort"), groups.map(group => group.id), "OPEN"),
-  control: valid(params.get("control"), (data.controls ?? []).map(item => item.id), "standard"),
-  sex: valid(params.get("sex"), ["all", "female"], "all"),
+  control: valid(params.get("control"), data.controls.map(item => item.id), "standard"),
+  sex: valid(params.get("sex"), data.sexes.map(item => item.id), "all"),
   birthYear: /^\d{4}$/.test(params.get("birthYear") || "") ? params.get("birthYear") : ""
 };
 
@@ -32,15 +86,8 @@ const scopeNote = document.querySelector("#leaderboardScopeNote");
 const controls = document.querySelector("#controlFilters");
 const sexes = document.querySelector("#sexFilters");
 
-controls.innerHTML = (data.controls ?? [
-  { id: "standard", label: "标准棋" },
-  { id: "rapid", label: "快棋" },
-  { id: "blitz", label: "超快棋" }
-]).map(item => filterButton("control", item.id, item.label)).join("");
-sexes.innerHTML = (data.sexes ?? [
-  { id: "all", label: "全部" },
-  { id: "female", label: "女子" }
-]).map(item => filterButton("sex", item.id, item.label)).join("");
+controls.innerHTML = data.controls.map(item => filterButton("control", item.id, item.label)).join("");
+sexes.innerHTML = data.sexes.map(item => filterButton("sex", item.id, item.label)).join("");
 
 const sections = [
   ["青少年组", ["U8", "U10", "U12", "U14", "U16", "U18", "U20"]],
@@ -139,19 +186,13 @@ function render(group) {
 
 function rankingFor(group) {
   return group?.rankings?.[state.control]?.[state.sex]
-    || (state.control === "standard" && state.sex === "all" ? {
-      totalEligible: group?.totalEligible,
-      players: group?.players,
-      birthYears: {}
-    } : { totalEligible: 0, players: [], birthYears: {} });
+    || { totalEligible: 0, players: [], birthYears: {} };
 }
 
 function rowFor(player, index) {
   applyPresentationName(player, presentationNames.get(String(player.fideID)));
   const rating = player[state.control];
-  const controlLabel = (data.controls ?? []).find(item => item.id === state.control)?.label
-    || { standard: "标准棋", rapid: "快棋", blitz: "超快棋" }[state.control]
-    || state.control;
+  const controlLabel = data.controls.find(item => item.id === state.control)?.label || state.control;
   return `<a class="leaderboard-row-link" href="./?fideID=${encodeURIComponent(player.fideID)}">
     <span class="rank-badge">${index + 1}</span>
     <span><strong>${escapeHTML(resolvePlayerDisplayName(player))}</strong>${presentationBadgeHTML(player)}<small>FIDE ${escapeHTML(player.fideID)} · ${escapeHTML(player.title || "无称号")} · ${escapeHTML(player.birthYear ? `${player.birthYear} 年出生` : "出生年待补")}</small></span>
