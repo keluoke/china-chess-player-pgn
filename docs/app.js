@@ -1,4 +1,3 @@
-import LichessPgnViewer from "./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min.js";
 import {
   applyPresentationName,
   buildPresentationNameIndex,
@@ -105,6 +104,7 @@ let presentationNameIndex = null;   // FIDE ID -> sanitized display-only name ca
 const PGN_VIEWER_CACHE_MAX_ENTRIES = 3;
 const PGN_VIEWER_CACHE_MAX_BYTES = 48 * 1024 * 1024;
 let activeLichessViewer = null;
+let lichessViewerModuleRequest = null;
 let viewerAutoplayTimer = null;
 let searchDebounceTimer = null;
 let composingSearch = false;
@@ -1786,7 +1786,22 @@ function wirePGNViewerActions(player) {
   });
 }
 
-function mountLichessViewer(player) {
+async function loadLichessViewer() {
+  if (!document.querySelector('link[data-pgn-viewer-style]')) {
+    const style = document.createElement("link");
+    style.rel = "stylesheet";
+    style.href = "./vendor/lichess-pgn-viewer/lichess-pgn-viewer.css";
+    style.dataset.pgnViewerStyle = "true";
+    document.head.append(style);
+  }
+  if (!lichessViewerModuleRequest) {
+    lichessViewerModuleRequest = import("./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min.js")
+      .then(module => module.default);
+  }
+  return lichessViewerModuleRequest;
+}
+
+async function mountLichessViewer(player) {
   const host = document.querySelector("#lichessPgnViewer");
   const cached = getCachedPGNViewerPackage(state.viewer.pgnPath);
   if (!host || !cached?.games?.length) return;
@@ -1797,6 +1812,8 @@ function mountLichessViewer(player) {
   state.viewer.orientation = orientation;
 
   try {
+    const LichessPgnViewer = await loadLichessViewer();
+    if (!host.isConnected || host !== document.querySelector("#lichessPgnViewer")) return;
     activeLichessViewer = LichessPgnViewer(host, {
       pgn: game.pgn,
       orientation,

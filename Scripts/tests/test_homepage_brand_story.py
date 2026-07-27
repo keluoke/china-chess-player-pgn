@@ -59,6 +59,15 @@ class HomepageBrandStoryTest(unittest.TestCase):
         self.assertIn("GET /api/v1/players/fide-8602980.json", story)
         self.assertIn('"standard": 2596, "gameCount": 331', story)
 
+    def test_heavy_viewer_assets_do_not_block_the_search_first_viewport(self) -> None:
+        html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        self.assertNotIn('id="searchTrust"', html)
+        self.assertNotIn('<link rel="stylesheet" href="vendor/lichess-pgn-viewer/', html)
+        self.assertNotIn('import LichessPgnViewer from', app)
+        self.assertIn('import("./vendor/lichess-pgn-viewer/lichess-pgn-viewer.min.js")', app)
+        self.assertIn('data-pgn-viewer-style', app)
+
 
 if __name__ == "__main__":
     unittest.main()
