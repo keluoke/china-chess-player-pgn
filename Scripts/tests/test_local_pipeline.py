@@ -868,6 +868,64 @@ class ApiFallbackPolicyTests(unittest.TestCase):
         self.assertFalse(publish_data_via_api.release_conflicts("base", "candidate", "candidate"))
         self.assertTrue(publish_data_via_api.release_conflicts("base", "concurrent", "candidate"))
 
+    def test_legacy_bundle_recovers_exact_baseline_from_base_commit(self) -> None:
+        import publish_data_via_api
+
+        with tempfile.TemporaryDirectory() as temp:
+            repo = pathlib.Path(temp)
+            git(repo, "init", "-q")
+            git(repo, "config", "user.email", "test@example.com")
+            git(repo, "config", "user.name", "Test")
+            target = repo / "data/generated/chess-results-event-details/tnr1.json"
+            target.parent.mkdir(parents=True)
+            target.write_text('{"old":true}\n')
+            git(repo, "add", ".")
+            git(repo, "commit", "-qm", "baseline")
+            base = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+            manifest = {
+                "schemaVersion": 1,
+                "runId": "legacy-test",
+                "command": "event-queue",
+                "baseCommit": base,
+                "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+                "files": [{
+                    "path": str(target.relative_to(repo)),
+                    "operation": "upsert",
+                    "sha256": hashlib.sha256(b'{"new":true}\n').hexdigest(),
+                    "bytes": len(b'{"new":true}\n'),
+                }],
+            }
+            files = run_manager.validate_manifest(manifest)
+            self.assertTrue(publish_data_via_api.hydrate_legacy_baseline(repo, manifest, files))
+            expected_oid = subprocess.check_output(
+                ["git", "rev-parse", f"{base}:{target.relative_to(repo)}"],
+                cwd=repo,
+                text=True,
+            ).strip()
+            self.assertEqual(files[0]["baseBlobOid"], expected_oid)
+            self.assertEqual(files[0]["baseSha256"], hashlib.sha256(b'{"old":true}\n').hexdigest())
+
+    def test_legacy_bundle_without_local_base_fails_closed(self) -> None:
+        import publish_data_via_api
+
+        manifest = {
+            "schemaVersion": 1,
+            "runId": "legacy-test",
+            "command": "event-queue",
+            "baseCommit": "a" * 40,
+            "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+            "files": [{
+                "path": "data/generated/chess-results-event-details/tnr1.json",
+                "operation": "upsert",
+                "sha256": hashlib.sha256(b"new").hexdigest(),
+                "bytes": 3,
+            }],
+        }
+        files = run_manager.validate_manifest(manifest)
+        with tempfile.TemporaryDirectory() as temp, self.assertRaises(SystemExit) as caught:
+            publish_data_via_api.hydrate_legacy_baseline(pathlib.Path(temp), manifest, files)
+        self.assertIn("API_DELIVERY_BASELINE_MISSING", str(caught.exception))
+
 
 REFRESH_SH = LOCAL / "refresh.sh"
 
@@ -926,6 +984,38 @@ class GitTransportTests(unittest.TestCase):
     def test_smart_http_200_and_auth_401_prove_the_route(self) -> None:
         self.assertEqual(self.probe_with_curl_stub("200"), 0)
         self.assertEqual(self.probe_with_curl_stub("401"), 0)
+
+    def test_macos_system_proxy_uses_supported_scutil_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            stub = pathlib.Path(temp) / "scutil"
+            stub.write_text(
+                "#!/bin/sh\n"
+                "[ \"$1\" = \"--proxy\" ] || exit 9\n"
+                "printf '%s\\n' '  HTTPSEnable : 1' '  HTTPSProxy : 127.0.0.1' '  HTTPSPort : 15236'\n"
+            )
+            stub.chmod(0o755)
+            script = (
+                f'eval "$(sed -n "/^system_proxy_candidates()/,/^}}/p" "{REFRESH_SH}")"; '
+                "system_proxy_candidates"
+            )
+            result = subprocess.run(
+                ["bash", "-c", script],
+                capture_output=True,
+                text=True,
+                env={**os.environ, "PATH": f"{temp}:{os.environ['PATH']}"},
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "http://127.0.0.1:15236")
+
+    def test_delivery_prefers_api_and_collection_keeps_pending_bundle(self) -> None:
+        source = REFRESH_SH.read_text(encoding="utf-8")
+        block = re.search(r"deliver_outbox\(\) \{(.*?)\n\}", source, re.DOTALL)
+        self.assertIsNotNone(block)
+        self.assertLess(block.group(1).index('api_deliver "$run_id"'), block.group(1).index('push_commit_with_routes "$sha"'))
+        commit_block = re.search(r"commit_prepared_release\(\) \{(.*?)\n\}", source, re.DOTALL)
+        self.assertIsNotNone(commit_block)
+        self.assertIn("DELIVERY_PENDING=true", commit_block.group(1))
+        self.assertNotIn("deliver_outbox || return 1", commit_block.group(1))
 
 
 class SharedStateProjectionTests(unittest.TestCase):

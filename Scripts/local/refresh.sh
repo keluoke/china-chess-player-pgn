@@ -95,6 +95,7 @@ ERROR_CODE=""
 ERROR_MESSAGE=""
 PUSH_SUMMARY=""
 DATA_COMMITTED=false
+DELIVERY_PENDING=false
 DELIVERED_COUNT=0
 RUN_DIR=""
 
@@ -134,7 +135,7 @@ on_exit() {
     if [ "$status" -eq 4 ] && [ "$ERROR_CODE" = "PARTIAL_FAILURE" ]; then
       detected=""
     else
-      detected="$(tail -n 120 "$RUN_LOG" 2>/dev/null | grep -Eo 'LOCAL_MAINTAINER_ACK_REQUIRED|COMPLIANCE_POLICY_BLOCKED|SOURCE_CIRCUIT_OPEN|VISIT_BUDGET_EXHAUSTED|SOURCE_BLOCKED_OR_RATE_LIMITED|SOURCE_TRUNCATED_DOWNLOAD|SOURCE_FILE_SIGNATURE_INVALID|SOURCE_UNEXPECTED_CONTENT_TYPE|SOURCE_NETWORK_FAILURE|EVENT_EMPTY|PAIRINGS_NOT_PUBLISHED|TEAM_FORMAT_UNSUPPORTED|ROUND_COUNT_UNKNOWN|PAIRING_REFS_OUTSIDE_ROSTER|PAGE_CACHE_MISS|PARSER_LAYOUT_CHANGED|VALIDATION_REGRESSION|REGISTRY_AUTHORITY_MISMATCH|NAME_CORRECTION_REGRESSION|DIRTY_RELEASE_PATH|GIT_INDEX_NOT_CLEAN|WORKTREE_CHANGED_DURING_RUN|RELEASE_HASH_MISMATCH|GIT_DNS_FAILURE|GIT_TLS_FAILURE|GIT_PROXY_FAILURE|GIT_AUTH_FAILED|GIT_REMOTE_REJECTED|GIT_CONNECT_FAILURE' | tail -1)"
+      detected="$(tail -n 120 "$RUN_LOG" 2>/dev/null | grep -Eo 'LOCAL_MAINTAINER_ACK_REQUIRED|COMPLIANCE_POLICY_BLOCKED|SOURCE_CIRCUIT_OPEN|VISIT_BUDGET_EXHAUSTED|SOURCE_BLOCKED_OR_RATE_LIMITED|SOURCE_TRUNCATED_DOWNLOAD|SOURCE_FILE_SIGNATURE_INVALID|SOURCE_UNEXPECTED_CONTENT_TYPE|SOURCE_NETWORK_FAILURE|EVENT_EMPTY|PAIRINGS_NOT_PUBLISHED|TEAM_FORMAT_UNSUPPORTED|ROUND_COUNT_UNKNOWN|PAIRING_REFS_OUTSIDE_ROSTER|PAGE_CACHE_MISS|PARSER_LAYOUT_CHANGED|VALIDATION_REGRESSION|REGISTRY_AUTHORITY_MISMATCH|NAME_CORRECTION_REGRESSION|DIRTY_RELEASE_PATH|GIT_INDEX_NOT_CLEAN|WORKTREE_CHANGED_DURING_RUN|RELEASE_HASH_MISMATCH|RELEASE_BASE_CONFLICT|API_DELIVERY_BASELINE_MISSING|GIT_DNS_FAILURE|GIT_TLS_FAILURE|GIT_PROXY_FAILURE|GIT_AUTH_FAILED|GIT_REMOTE_REJECTED|GIT_CONNECT_FAILURE|GIT_PUSH_FAILED' | tail -1)"
     fi
     [ -n "$detected" ] && ERROR_CODE="$detected"
     if [ "$DATA_COMMITTED" = "true" ]; then
@@ -224,7 +225,7 @@ github_ok() {
 
 system_proxy_candidates() {
   command -v scutil >/dev/null 2>&1 || return 0
-  scutil --proxies 2>/dev/null | awk '
+  scutil --proxy 2>/dev/null | awk '
     $1 == "HTTPSEnable" { httpsOn = $3 }
     $1 == "HTTPSProxy"  { httpsHost = $3 }
     $1 == "HTTPSPort"   { httpsPort = $3 }
@@ -310,25 +311,6 @@ classify_git_error() {
   fi
 }
 
-classify_git_error() {
-  local log="$1"
-  if printf '%s' "$log" | grep -qiE 'could not resolve host|name or service not known'; then
-    echo "GIT_DNS_FAILURE"
-  elif printf '%s' "$log" | grep -qiE 'ssl|tls|certificate'; then
-    echo "GIT_TLS_FAILURE"
-  elif printf '%s' "$log" | grep -qiE 'proxy'; then
-    echo "GIT_PROXY_FAILURE"
-  elif printf '%s' "$log" | grep -qiE 'authentication failed|permission denied|http 401|http 403|access denied'; then
-    echo "GIT_AUTH_FAILED"
-  elif printf '%s' "$log" | grep -qiE 'pre-receive hook|protected branch|remote rejected'; then
-    echo "GIT_REMOTE_REJECTED"
-  elif printf '%s' "$log" | grep -qiE 'timed out|failed to connect|connection (refused|reset)'; then
-    echo "GIT_CONNECT_FAILURE"
-  else
-    echo "GIT_PUSH_FAILED"
-  fi
-}
-
 DATA_BRANCH="local-data"
 STATE_ROOT="$(python3 -c 'import pathlib,sys; sys.path.insert(0,"Scripts"); from source_policy import local_state_root; print(local_state_root())')"
 PUSH_MARKER="$STATE_ROOT/last-local-data-push"
@@ -364,13 +346,14 @@ push_commit_with_routes() {
   return 1
 }
 
-api_fallback_deliver() {
-  # Same manifest, same hashed files: the API path reuses the outbox bundle
-  # and run_manager.validate_manifest; it is not a second policy.
+api_deliver() {
+  # Prefer the API for baseline-aware bundles. It sends only the exact
+  # manifest files, avoiding an expensive Git history walk after collection.
+  # The same validate_manifest/three-way baseline policy applies.
   local run_id="$1"
   command -v gh >/dev/null 2>&1 || return 1
   gh auth status >/dev/null 2>&1 || return 1
-  echo "Git 路线全部失败；尝试 GitHub Git Database API 兜底投递 ${run_id}。"
+  echo "优先使用 GitHub Git Database API 投递 ${run_id}。"
   py Scripts/local/publish_data_via_api.py --outbox "$run_id"
 }
 
@@ -380,11 +363,11 @@ deliver_outbox() {
   while IFS=$'\t' read -r run_id sha; do
     [ -n "$run_id" ] || continue
     echo "投递 outbox release ${run_id}（commit ${sha}）"
-    if push_commit_with_routes "$sha"; then
+    if api_deliver "$run_id"; then
+      delivered=$((delivered + 1))
+    elif push_commit_with_routes "$sha"; then
       py "$RUN_MANAGER" outbox-update --run-id "$run_id" --status pushed \
         --remote-sha "$sha" --route git >/dev/null
-      delivered=$((delivered + 1))
-    elif api_fallback_deliver "$run_id"; then
       delivered=$((delivered + 1))
     else
       py "$RUN_MANAGER" outbox-update --run-id "$run_id" --status pending \
@@ -415,7 +398,15 @@ commit_prepared_release() {
   DATA_COMMITTED=true
   if [ "$PUSH" = "true" ]; then
     state "delivering" "投递 outbox 发布包到单写者 local-data 分支"
-    deliver_outbox || return 1
+    if ! deliver_outbox; then
+      # Collection is already durable: a transport outage must not turn it
+      # into a failed scrape or force the maintainer to recapture sources.
+      DELIVERY_PENDING=true
+      DATA_COMMITTED=false
+      PUSH_SUMMARY="采集与本地提交完成；发布包处于 delivery-pending，面板可稍后重投"
+      echo "WARNING: GitHub 暂不可用；采集数据已安全保存在 outbox，任务继续按采集结果完成。" >&2
+      return 0
+    fi
     DATA_COMMITTED=false
     PUSH_SUMMARY="已发布 $changed"
   else

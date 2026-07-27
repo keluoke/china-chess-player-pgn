@@ -98,6 +98,69 @@ def release_conflicts(base_oid: str | None, current_oid: str | None, candidate_o
     return current_oid != base_oid and current_oid != candidate_oid
 
 
+def local_blob_facts(repo: pathlib.Path, commit: str, path: str) -> tuple[str | None, str | None]:
+    """Read a path's immutable Git baseline without touching the worktree."""
+    commit_check = subprocess.run(
+        ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+        cwd=repo,
+        capture_output=True,
+    )
+    if commit_check.returncode != 0:
+        raise SystemExit(
+            f"API_DELIVERY_BASELINE_MISSING: 本机缺少 legacy 发布基线 commit {commit}"
+        )
+    resolved = subprocess.run(
+        ["git", "rev-parse", "--verify", f"{commit}:{path}"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+    if resolved.returncode != 0:
+        return None, None
+    oid = resolved.stdout.strip()
+    kind = subprocess.run(
+        ["git", "cat-file", "-t", oid],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if kind != "blob":
+        raise SystemExit(f"API_DELIVERY_BASELINE_MISSING: legacy 基线路径不是普通文件：{path}")
+    content = subprocess.run(
+        ["git", "cat-file", "blob", oid],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    return oid, hashlib.sha256(content).hexdigest()
+
+
+def hydrate_legacy_baseline(
+    repo: pathlib.Path,
+    manifest: dict,
+    files: list[dict],
+) -> bool:
+    """Upgrade a legacy bundle in memory from its immutable baseCommit.
+
+    The outbox files remain untouched. Missing or inconsistent local history
+    still fails closed; remote divergence is checked later by the same
+    three-way guard used for newly generated manifests.
+    """
+    legacy = [item for item in files if "baseBlobOid" not in item and "baseSha256" not in item]
+    if not legacy:
+        return False
+    base_commit = str(manifest.get("baseCommit") or "")
+    if not re.fullmatch(r"[0-9a-f]{40,64}", base_commit):
+        raise SystemExit("API_DELIVERY_BASELINE_MISSING: legacy 发布包缺少有效 baseCommit")
+    for item in legacy:
+        oid, digest = local_blob_facts(repo, base_commit, item["path"])
+        item["baseBlobOid"] = oid
+        item["baseSha256"] = digest
+    run_manager.validate_manifest(manifest)
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--outbox", metavar="RUN_ID", help="deliver this pending outbox bundle (default: oldest)")
@@ -108,6 +171,8 @@ def main() -> int:
     entry, manifest, _delivery = load_bundle(args.outbox)
     # Fail closed on anything outside the shared machine-release policy.
     files = run_manager.validate_manifest(manifest)
+    if hydrate_legacy_baseline(ROOT, manifest, files):
+        print(f"legacy 发布包已从 baseCommit {manifest['baseCommit']} 恢复逐文件基线。", file=sys.stderr)
     run_id = str(manifest.get("runId"))
 
     repository = repository_name()
@@ -130,15 +195,7 @@ def main() -> int:
             candidate_oid = git_blob_oid_for_bytes(content)
 
         current_oid = remote_blob_oid(repository, parent, path)
-        if "baseBlobOid" not in item:
-            # A legacy bundle has no trustworthy collector baseline. It is
-            # safe through the API only when the desired state is already
-            # present; otherwise retain it in outbox for the Git transport.
-            if current_oid != candidate_oid:
-                raise SystemExit(
-                    f"API_DELIVERY_BASELINE_MISSING: legacy 发布包无法证明远端基线：{path}"
-                )
-        elif release_conflicts(item.get("baseBlobOid"), current_oid, candidate_oid):
+        if release_conflicts(item.get("baseBlobOid"), current_oid, candidate_oid):
             conflicts.append(path)
 
         item["deliveryBaseBlobOid"] = current_oid

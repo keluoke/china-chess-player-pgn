@@ -157,11 +157,11 @@ FIDE/Lichess/Chess-Results 发布前必须满足：
 5. Git 只暂存 manifest 中的文件，不再执行宽目录 `git add`；
 6. 提交后立即把发布包（manifest + 哈希文件 + delivery 状态）写入仓库外
    outbox；采集事务到此结束，不等待 GitHub；
-7. deliver 阶段按 direct → 系统代理 → GITHUB_PROXY/常见本地代理 逐路线实测
-   Git smart HTTP（检查 HTTP 状态码，502/网关页不算可用），把不可变 commit
-   SHA force-push 到单写者 `local-data`；Git 全部失败且 gh 已登录时自动落到
-   GitHub Git Database API（同一 manifest、同一哈希文件，复用
-   `run_manager.validate_manifest`，无第二套白名单）；
+7. deliver 阶段优先通过 GitHub Git Database API 投递 manifest 精确列出的文件，
+   避免采集结束后为整个 Git 历史打包；API 不可用时再按 direct → 显式代理 →
+   macOS 系统代理 → 常见本地代理逐路线实测 Git smart HTTP。两种传输复用同一
+   `run_manager.validate_manifest` 与三方基线门禁，无第二套白名单。网络或投递
+   失败只把发布包保留为 `delivery-pending`，不把已完成采集判成失败；
 8. `ingest-local-data.yml` 按触发 push 的不可变 event SHA 摄入（不重读移动的
    分支头），先用 manifest 的 `baseBlobOid` / `baseSha256` 对每个路径完成
    baseline/current/candidate 三方检查；真实并发修改以
