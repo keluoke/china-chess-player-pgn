@@ -2496,9 +2496,15 @@ body.landing {
     font-size: 0.94rem;
   }
   .story-panel {
+    grid-template-columns: minmax(0, 1fr);
     gap: 2.3rem;
     min-height: 100svh;
     padding: 5rem 1.25rem;
+  }
+  .story-panel > * {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
   }
   .story-copy h2 {
     font-size: clamp(2.25rem, 11vw, 3.5rem);

@@ -50,6 +50,7 @@ class HomepageBrandStoryTest(unittest.TestCase):
         self.assertIn("transition: none", reduced)
         self.assertIn(".landing-active .brand-story", styles)
         self.assertIn(".story-board.in-view .move-4", styles)
+        self.assertIn("grid-column: 1 / -1", styles)
 
     def test_story_copy_does_not_name_external_data_sources(self) -> None:
         html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
