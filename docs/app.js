@@ -601,16 +601,8 @@ function initializeLandingStory() {
 }
 
 function defaultSearchSuggestions() {
-  // Derive examples from the live data (top rated players that actually have
-  // games and a Chinese name) instead of a hardcoded list that can go stale.
   if (defaultSuggestionCache) return defaultSuggestionCache;
-  const names = players
-    .filter(player => player.chineseName && Number(player.gameCount || 0) > 0 && Number.isFinite(player.standard))
-    .sort((a, b) => (b.standard ?? 0) - (a.standard ?? 0))
-    .slice(0, 2)
-    .map(player => player.chineseName);
-  defaultSuggestionCache = [...names, "李成智杯"].filter(Boolean);
-  if (!names.length) defaultSuggestionCache = ["侯逸凡", "李成智杯"];
+  defaultSuggestionCache = ["李成智杯", "全国青少年锦标赛", "棋协大师赛"];
   return defaultSuggestionCache;
 }
 

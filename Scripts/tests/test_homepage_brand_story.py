@@ -60,8 +60,23 @@ class HomepageBrandStoryTest(unittest.TestCase):
         self.assertNotIn('href="./events.html"', story)
         self.assertNotIn('href="./coverage.html"', story)
         self.assertIn("已公开的对局", story)
-        self.assertIn("GET /api/v1/players/fide-8602980.json", story)
-        self.assertIn('"standard": 2596, "gameCount": 331', story)
+        self.assertIn("GET /api/v1/manifest.json", story)
+        self.assertIn('"players": "/api/v1/players.json"', story)
+        for person_example in ("侯逸凡", "Hou", "HOU", "Yifan", "8602980"):
+            self.assertNotIn(person_example, story)
+        for kicker in ("01", "02", "03", "04", "05"):
+            self.assertIn(f'<span class="story-kicker">{kicker}</span>', story)
+        for removed_label in ("01 · 问题", "02 · 回答一", "03 · 回答二", "04 · 回答三", "05 · 立场"):
+            self.assertNotIn(removed_label, story)
+        opening = story[story.index('class="story-panel story-open"'):]
+        self.assertNotIn("story-end-mark", opening)
+
+    def test_default_suggestions_are_event_queries_not_people(self) -> None:
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        suggestions = app[app.index("function defaultSearchSuggestions"):app.index("function renderSearchSuggestions")]
+        self.assertIn('["李成智杯", "全国青少年锦标赛", "棋协大师赛"]', suggestions)
+        for person_example in ("侯逸凡", "Hou", "HOU", "Yifan", "8602980"):
+            self.assertNotIn(person_example, suggestions)
 
     def test_heavy_viewer_assets_do_not_block_the_search_first_viewport(self) -> None:
         html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
