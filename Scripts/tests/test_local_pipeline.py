@@ -927,6 +927,42 @@ class SharedStateProjectionTests(unittest.TestCase):
 
 
 class ReceiptAdvanceTests(unittest.TestCase):
+    def test_child_rebuild_can_start_before_ingest_finishes(self) -> None:
+        import check_receipts
+
+        ingest_started = check_receipts.parse_time("2026-07-27T02:28:11Z")
+        rebuild = {
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-07-27T02:28:23Z",
+        }
+        self.assertIs(
+            check_receipts.successful_run_after([rebuild], ingest_started),
+            rebuild,
+        )
+        self.assertIsNone(
+            check_receipts.successful_run_after(
+                [rebuild],
+                check_receipts.parse_time("2026-07-27T02:28:27Z"),
+            )
+        )
+
+    def test_online_fetch_uses_system_curl_when_available(self) -> None:
+        import check_receipts
+
+        completed = mock.Mock(returncode=0, stdout=b"online bytes", stderr=b"")
+        with (
+            mock.patch.object(check_receipts.shutil, "which", return_value="/usr/bin/curl"),
+            mock.patch.object(check_receipts.subprocess, "run", return_value=completed) as run,
+            mock.patch.object(check_receipts.urllib.request, "urlopen") as urlopen,
+        ):
+            self.assertEqual(
+                check_receipts.fetch_online_bytes("https://example.test/data.json"),
+                b"online bytes",
+            )
+        self.assertIn("--fail", run.call_args.args[0])
+        urlopen.assert_not_called()
+
     def test_advance_stops_at_first_unconfirmed_stage(self) -> None:
         import check_receipts
 

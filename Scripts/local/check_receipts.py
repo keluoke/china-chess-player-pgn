@@ -23,6 +23,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -87,6 +88,45 @@ def successful_run_after(runs: list[dict[str, Any]], after: dt.datetime | None) 
     return None
 
 
+def fetch_online_bytes(url: str) -> bytes:
+    """Fetch through the platform trust store when curl is available.
+
+    Maintainer macOS installations frequently lack a Python certificate bundle
+    even though the system trust store is healthy. Curl uses that trust store
+    and keeps online verification deterministic; urllib remains the portable
+    fallback for minimal environments.
+    """
+    curl = shutil.which("curl")
+    if curl:
+        result = subprocess.run(
+            [
+                curl,
+                "--fail",
+                "--silent",
+                "--show-error",
+                "--location",
+                "--max-time",
+                "30",
+                "--header",
+                "Cache-Control: no-cache",
+                "--user-agent",
+                "ChinaChessPlayerPGN/ReceiptCheck",
+                url,
+            ],
+            capture_output=True,
+            timeout=35,
+        )
+        if result.returncode != 0:
+            raise RuntimeError((result.stderr or b"curl failed").decode("utf-8", "replace")[:200])
+        return result.stdout
+    request = urllib.request.Request(url, headers={
+        "User-Agent": "ChinaChessPlayerPGN/ReceiptCheck",
+        "Cache-Control": "no-cache",
+    })
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return response.read()
+
+
 def verify_online_file(manifest: dict[str, Any]) -> dict[str, Any]:
     """Fetch one released docs/ file from the live site and compare hashes.
 
@@ -99,13 +139,8 @@ def verify_online_file(manifest: dict[str, Any]) -> dict[str, Any]:
         if item.get("operation") != "upsert" or not path.startswith("docs/"):
             continue
         url = f"{SITE_URL}/{path[len('docs/'):]}"
-        request = urllib.request.Request(url, headers={
-            "User-Agent": "ChinaChessPlayerPGN/ReceiptCheck",
-            "Cache-Control": "no-cache",
-        })
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                body = response.read()
+            body = fetch_online_bytes(url)
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "url": url, "error": str(exc)[:200]}
         digest = hashlib.sha256(body).hexdigest()
@@ -149,9 +184,12 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
             "runId": ingest.get("id"), "url": ingest.get("html_url"),
             "conclusion": ingest.get("conclusion"), "createdAt": ingest.get("created_at"),
         }
-        ingest_done = parse_time(ingest.get("updated_at"))
+        # Ingest dispatches rebuild before its own post-job cleanup completes,
+        # so the child workflow can legitimately be created before ingest's
+        # updated_at timestamp. created_at is the stable lower bound.
+        ingest_started = parse_time(ingest.get("created_at"))
         rebuild = successful_run_after(
-            workflow_runs(repository, STAGE_WORKFLOWS["indexes-rebuilt"]), ingest_done
+            workflow_runs(repository, STAGE_WORKFLOWS["indexes-rebuilt"]), ingest_started
         )
         if rebuild:
             stage_results["indexes-rebuilt"] = {"ok": True}
