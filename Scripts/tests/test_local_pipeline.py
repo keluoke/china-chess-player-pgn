@@ -7,6 +7,7 @@ import json
 import io
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -343,12 +344,58 @@ class TargetedCaptureCheckpointTests(unittest.TestCase):
 
 
 class EventPgnSelectionTests(unittest.TestCase):
+    def test_event_release_boundary_excludes_cloud_rebuilt_indexes(self) -> None:
+        script = (SCRIPTS / "local" / "refresh.sh").read_text(encoding="utf-8")
+        block = re.search(r"EVENT_PATHS=\((.*?)\)\n\nrun_registry", script, re.DOTALL)
+        self.assertIsNotNone(block)
+        for fact_root in (
+            "data/generated/chess-results-event-details",
+            "data/generated/chess-results-event-pgn",
+            "docs/data/pgn/chess-results",
+        ):
+            self.assertIn(fact_root, block.group(1))
+        for derived in (
+            "person-observations.csv",
+            "person-observations.meta.json",
+            "pgn-collection-status.json",
+            "event-completeness-report.json",
+            "pgn-supplement-queue.json",
+        ):
+            self.assertNotIn(derived, block.group(1))
+
     def test_explicit_tournament_ids_do_not_expand_to_source_table(self) -> None:
         with mock.patch.object(fetch_event_pgn, "tournament_ids_from_sources", return_value=["1110353", "1111367"]):
             selected = fetch_event_pgn.selected_tournament_ids(
                 pathlib.Path("ignored.csv"), "", ["tnr87435", "87436", "87435"], 0, 0,
             )
         self.assertEqual(selected, ["87435", "87436"])
+
+    def test_deferred_status_rebuild_leaves_existing_index_untouched(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            status = pathlib.Path(temp) / "pgn-collection-status.json"
+            status.write_text('{"sentinel":"keep"}\n', encoding="utf-8")
+            argv = [
+                "fetch_event_pgn.py",
+                "--tournament-id", "999001",
+                "--defer-status-rebuild",
+            ]
+            outcome = {
+                "status": "ok",
+                "games": 1,
+                "assigned": 0,
+                "unassigned": 1,
+                "players": 0,
+                "error": "",
+            }
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(fetch_event_pgn, "COLLECTION_STATUS", status),
+                mock.patch.object(fetch_event_pgn, "load_china_fide_ids", return_value=set()),
+                mock.patch.object(fetch_event_pgn, "load_name_index", return_value={}),
+                mock.patch.object(fetch_event_pgn, "process_event", return_value=outcome),
+            ):
+                self.assertEqual(fetch_event_pgn.main(), 0)
+            self.assertEqual(status.read_text(encoding="utf-8"), '{"sentinel":"keep"}\n')
 
     def test_event_with_explicitly_missing_pgn_links_is_not_downloaded(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -395,6 +442,13 @@ class EventPgnSelectionTests(unittest.TestCase):
 
 
 class SourceRetryAccountingTests(unittest.TestCase):
+    def test_no_rebuild_event_flow_defers_pgn_status_index(self) -> None:
+        source = (SCRIPTS / "sync_chess_results_event.py").read_text(encoding="utf-8")
+        self.assertRegex(
+            source,
+            r"if args\.no_rebuild:\s+command\.append\(\"--defer-status-rebuild\"\)",
+        )
+
     def test_local_step_can_preserve_documented_partial_exit_code(self) -> None:
         completed = subprocess.CompletedProcess(["fetch"], 4)
         with mock.patch.object(sync_chess_results_event.subprocess, "run", return_value=completed):

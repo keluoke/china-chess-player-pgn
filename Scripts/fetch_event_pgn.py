@@ -378,6 +378,11 @@ def main() -> int:
         action="store_true",
         help="also archive the complete tournament PGN under data/generated/chess-results-event-pgn/",
     )
+    parser.add_argument(
+        "--defer-status-rebuild",
+        action="store_true",
+        help="do not rewrite the derived PGN status index; cloud snapshot rebuild will regenerate it",
+    )
     args = parser.parse_args()
 
     ids = selected_tournament_ids(
@@ -468,7 +473,7 @@ def main() -> int:
                     file=sys.stderr,
                 )
 
-    if not args.dry_run:
+    if not args.dry_run and not args.defer_status_rebuild:
         previous = _read_json(COLLECTION_STATUS)
         events = previous.get("events") if isinstance(previous.get("events"), dict) else {}
         attempted_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()

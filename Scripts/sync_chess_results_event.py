@@ -1488,6 +1488,8 @@ def main() -> int:
         command = [sys.executable, "-u", "Scripts/fetch_event_pgn.py", "--workers", "1", "--full-archive"]
         if args.overwrite:
             command.append("--overwrite")
+        if args.no_rebuild:
+            command.append("--defer-status-rebuild")
         for tid in complete_ids:
             command.extend(["--tournament-id", tid])
         # Exit 4 is fetch_event_pgn's documented partial outcome: event pages
