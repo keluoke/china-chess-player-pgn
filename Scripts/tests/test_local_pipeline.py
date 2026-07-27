@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import contextlib
 import hashlib
 import json
@@ -962,6 +963,29 @@ class ReceiptAdvanceTests(unittest.TestCase):
             )
         self.assertIn("--fail", run.call_args.args[0])
         urlopen.assert_not_called()
+
+    def test_non_public_release_verifies_the_deployed_snapshot(self) -> None:
+        import check_receipts
+
+        snapshot = b'{"snapshotId":"snap-verified"}\n'
+        with mock.patch.object(check_receipts, "fetch_online_bytes", return_value=snapshot):
+            result = check_receipts.verify_online_file(
+                {"files": [{"path": "data/generated/event.json", "operation": "upsert"}]},
+                fallback=("docs/data/snapshot.json", snapshot),
+            )
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["verification"], "deployed-snapshot")
+        self.assertTrue(result["url"].endswith("/data/snapshot.json"))
+
+    def test_remote_file_bytes_decodes_github_content(self) -> None:
+        import check_receipts
+
+        expected = b'{"snapshotId":"snap-verified"}\n'
+        payload = {"encoding": "base64", "content": base64.b64encode(expected).decode("ascii")}
+        with mock.patch.object(check_receipts, "gh_api", return_value=payload) as api:
+            actual = check_receipts.remote_file_bytes("owner/repo", "abc123", "docs/data/snapshot.json")
+        self.assertEqual(actual, expected)
+        self.assertIn("ref=abc123", api.call_args.args[0])
 
     def test_advance_stops_at_first_unconfirmed_stage(self) -> None:
         import check_receipts

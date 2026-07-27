@@ -17,6 +17,7 @@ retry link.
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime as dt
 import hashlib
 import json
@@ -26,6 +27,7 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -127,7 +129,20 @@ def fetch_online_bytes(url: str) -> bytes:
         return response.read()
 
 
-def verify_online_file(manifest: dict[str, Any]) -> dict[str, Any]:
+def remote_file_bytes(repository: str, ref: str, path: str) -> bytes:
+    encoded_path = urllib.parse.quote(path, safe="/")
+    encoded_ref = urllib.parse.quote(ref, safe="")
+    payload = gh_api(f"repos/{repository}/contents/{encoded_path}?ref={encoded_ref}")
+    content = str(payload.get("content") or "").replace("\n", "")
+    if payload.get("encoding") != "base64" or not content:
+        raise RuntimeError(f"远端文件内容不可用：{ref}:{path}")
+    return base64.b64decode(content)
+
+
+def verify_online_file(
+    manifest: dict[str, Any],
+    fallback: tuple[str, bytes] | None = None,
+) -> dict[str, Any]:
     """Fetch one released docs/ file from the live site and compare hashes.
 
     Cloudflare serves docs/ as the site root, so ``docs/data/x.json`` is
@@ -149,6 +164,22 @@ def verify_online_file(manifest: dict[str, Any]) -> dict[str, Any]:
             "url": url,
             "expected": item.get("sha256"),
             "actual": digest,
+        }
+    if fallback:
+        path, expected_body = fallback
+        url = f"{SITE_URL}/{path[len('docs/'):] if path.startswith('docs/') else path}"
+        try:
+            body = fetch_online_bytes(url)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "url": url, "error": str(exc)[:200]}
+        expected = hashlib.sha256(expected_body).hexdigest()
+        actual = hashlib.sha256(body).hexdigest()
+        return {
+            "ok": actual == expected,
+            "url": url,
+            "expected": expected,
+            "actual": actual,
+            "verification": "deployed-snapshot",
         }
     return {"ok": False, "error": "manifest 中没有可在线校验的 docs/ 文件"}
 
@@ -206,8 +237,20 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
                 receipts["deploy"] = {
                     "runId": deploy.get("id"), "url": deploy.get("html_url"),
                     "conclusion": deploy.get("conclusion"), "createdAt": deploy.get("created_at"),
+                    "headSHA": deploy.get("head_sha"),
                 }
-                online = verify_online_file(manifest)
+                has_public_file = any(
+                    item.get("operation") == "upsert" and str(item.get("path") or "").startswith("docs/")
+                    for item in manifest.get("files") or []
+                )
+                fallback = None
+                if not has_public_file and deploy.get("head_sha"):
+                    snapshot_path = "docs/data/snapshot.json"
+                    fallback = (
+                        snapshot_path,
+                        remote_file_bytes(repository, str(deploy["head_sha"]), snapshot_path),
+                    )
+                online = verify_online_file(manifest, fallback=fallback)
                 receipts["online"] = {**online, "checkedAt": run_manager.now()}
                 if online.get("ok"):
                     stage_results["online-verified"] = {"ok": True}
