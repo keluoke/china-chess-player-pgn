@@ -170,9 +170,10 @@ FIDE/Lichess/Chess-Results 发布前必须满足：
    main commit 的 receipt；
 9. Actions 离线重建索引和部署。
 
-push 成功不等于发布成功。`refresh.sh receipts`（deliver 成功后也会自动尝试）
-通过 gh API 读取 ingest/rebuild/deploy workflow 结论，并从线上站点回取一个
-已发布文件校验 SHA-256，把 outbox 状态沿
+push 成功不等于发布成功。为避免投递完成后被慢回执查询阻塞，`deliver` 只负责
+把发布包送达 `local-data`；`refresh.sh receipts` 独立通过 gh API 读取
+ingest/rebuild/deploy workflow 结论，并从线上站点回取一个已发布文件校验
+SHA-256，把 outbox 状态沿
 
 ```text
 pending → pushed → ingested-to-main → indexes-rebuilt → deployed → online-verified

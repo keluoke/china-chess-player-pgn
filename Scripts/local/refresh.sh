@@ -680,9 +680,6 @@ case "$command" in
     else
       deliver_outbox || fail "${LAST_PUSH_ERROR:-GIT_PUSH_FAILED}" "所有 GitHub 路线均不可用；发布包保留在 outbox，网络恢复后重试 deliver。"
       PUSH_SUMMARY="已投递 ${DELIVERED_COUNT:-0} 个发布包"
-      # Best-effort receipt sync: pushed is not published. Failures here never
-      # affect the delivery result.
-      py Scripts/local/check_receipts.py || true
     fi
     ;;
 

@@ -1012,6 +1012,7 @@ class GitTransportTests(unittest.TestCase):
         block = re.search(r"deliver_outbox\(\) \{(.*?)\n\}", source, re.DOTALL)
         self.assertIsNotNone(block)
         self.assertLess(block.group(1).index('api_deliver "$run_id"'), block.group(1).index('push_commit_with_routes "$sha"'))
+        self.assertNotIn("check_receipts.py", block.group(1))
         commit_block = re.search(r"commit_prepared_release\(\) \{(.*?)\n\}", source, re.DOTALL)
         self.assertIsNotNone(commit_block)
         self.assertIn("DELIVERY_PENDING=true", commit_block.group(1))
