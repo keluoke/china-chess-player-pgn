@@ -576,8 +576,15 @@ async function renderSearchTrustLine() {
 function initializeLandingStory() {
   const story = document.querySelector(".brand-story");
   if (!story) return;
-  const items = [...story.querySelectorAll("[data-reveal]")];
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  story.addEventListener("click", event => {
+    const trigger = event.target.closest("[data-focus-search]");
+    if (!trigger || !els.searchInput) return;
+    event.preventDefault();
+    els.searchInput.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+    requestAnimationFrame(() => els.searchInput.focus({ preventScroll: true }));
+  });
+  const items = [...story.querySelectorAll("[data-reveal]")];
   if (reducedMotion || !("IntersectionObserver" in window)) {
     items.forEach(item => item.classList.add("in-view"));
     return;

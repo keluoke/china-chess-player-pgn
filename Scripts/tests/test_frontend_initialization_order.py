@@ -102,7 +102,8 @@ class FrontendInitializationOrderTest(unittest.TestCase):
             self.assertIn('data-theme-choice="auto"', html)
             self.assertIn('data-theme-choice="light"', html)
             self.assertIn('data-theme-choice="dark"', html)
-            self.assertLess(html.index("theme.js?v=20260727-1"), html.index("styles.css?v=20260727-3"))
+            expected_styles = "styles.css?v=20260727-4" if name == "index.html" else "styles.css?v=20260727-3"
+            self.assertLess(html.index("theme.js?v=20260727-1"), html.index(expected_styles))
 
     def test_dark_search_surface_has_no_light_hero_background(self) -> None:
         styles = (ROOT / "docs" / "styles.css").read_text(encoding="utf-8")

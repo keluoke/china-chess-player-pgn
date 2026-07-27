@@ -17,6 +17,12 @@ class HomepageBrandStoryTest(unittest.TestCase):
         self.assertEqual(html.count('class="brand-story"'), 1)
         self.assertEqual(html.count('class="story-panel'), 5)
         self.assertIn('data-player-total', html)
+        self.assertIn('placeholder="输入中文名、拼音、FIDE ID，或赛事名称"', html)
+        search = html[html.index('class="search-command"'):html.index('id="searchResultsSection"')]
+        for removed in ("hero-brand-mark", 'class="eyebrow"', "search-guidance"):
+            self.assertNotIn(removed, search)
+        self.assertLess(search.index('id="searchForm"'), search.index('id="searchSuggestions"'))
+        self.assertIn("往下看，我们为什么做这件事", search)
 
     def test_brand_asset_is_reused_by_all_public_pages(self) -> None:
         for name in ("index.html", "coverage.html", "leaderboards.html", "events.html", "contribute.html"):
@@ -35,15 +41,23 @@ class HomepageBrandStoryTest(unittest.TestCase):
         self.assertIn('IntersectionObserver', app)
         self.assertIn('prefers-reduced-motion: reduce', app)
         self.assertIn('scroll-snap-type: y proximity', styles)
+        self.assertIn('data-focus-search', html := (ROOT / "docs" / "index.html").read_text(encoding="utf-8"))
+        self.assertIn('reducedMotion ? "auto" : "smooth"', app)
         reduced = styles[styles.index("@media (prefers-reduced-motion: reduce)"):]
         self.assertIn("transition: none", reduced)
         self.assertIn(".landing-active .brand-story", styles)
+        self.assertIn(".story-board.in-view .move-4", styles)
 
     def test_story_copy_does_not_name_external_data_sources(self) -> None:
         html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
         story = html[html.index('class="brand-story"'):]
         for forbidden in ("Chess-Results", "chess-results.com", "Lichess"):
             self.assertNotIn(forbidden, story)
+        self.assertNotIn('href="./events.html"', story)
+        self.assertNotIn('href="./coverage.html"', story)
+        self.assertIn("已公开的对局", story)
+        self.assertIn("GET /api/v1/players/fide-8602980.json", story)
+        self.assertIn('"standard": 2596, "gameCount": 331', story)
 
 
 if __name__ == "__main__":

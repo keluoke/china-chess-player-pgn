@@ -8,7 +8,7 @@
     <link rel="icon" href="./brand.svg" type="image/svg+xml">
     <script src="theme.js?v=20260727-1"></script>
     <link rel="stylesheet" href="vendor/lichess-pgn-viewer/lichess-pgn-viewer.css">
-    <link rel="stylesheet" href="styles.css?v=20260727-3">
+    <link rel="stylesheet" href="styles.css?v=20260727-4">
   </head>
   <body class="landing">
     <div class="app-shell">
@@ -37,26 +37,23 @@
       <main class="workspace search-workspace">
         <section class="main-pane search-main-pane" id="mainPane">
           <section class="search-command" id="searchCommand" data-mode="hero">
-            <svg class="hero-brand-mark" aria-hidden="true"><use href="./brand.svg#brand-mark"></use></svg>
-            <span class="eyebrow">China chess player archive</span>
-            <h1>查找中国国际象棋棋手</h1>
+            <h1 class="visually-hidden">中国国际象棋棋手与赛事搜索</h1>
             <form id="searchForm" class="hero-search-form" action="./" method="get" role="search">
               <label class="search-box hero-search-box">
                 <span aria-hidden="true">⌕</span>
                 <input id="searchInput" name="q" type="search" autocomplete="off"
                   role="combobox" aria-autocomplete="list" aria-expanded="false"
                   aria-controls="searchResults" aria-label="搜索棋手或赛事"
-                  placeholder="中文名 / 拼音 / FIDE ID / 赛事名">
+                  placeholder="输入中文名、拼音、FIDE ID，或赛事名称">
               </label>
               <button type="submit">搜索</button>
             </form>
-            <p class="search-guidance">支持单个汉字；补全姓名、拼音或 FIDE ID 可获得更精确的结果。</p>
+            <div class="search-suggestions" id="searchSuggestions"></div>
           </section>
           <section class="search-home" id="searchHome">
-            <div class="search-suggestions" id="searchSuggestions"></div>
             <p class="search-trust" id="searchTrust" hidden></p>
-            <a class="scroll-cue" href="#scale-story" aria-label="继续了解数据库">
-              <span>继续了解</span>
+            <a class="scroll-cue" href="#desert-story" aria-label="往下看，我们为什么做这件事">
+              <span>往下看，我们为什么做这件事</span>
               <span aria-hidden="true">↓</span>
             </a>
           </section>
@@ -79,22 +76,70 @@
     </div>
 
     <div class="brand-story" aria-label="数据库介绍">
-      <section class="story-panel story-scale" id="scale-story">
+      <section class="story-panel story-desert" id="desert-story">
         <div class="story-copy" data-reveal>
-          <span class="story-kicker">规模</span>
-          <p class="story-number" data-player-total>11,646</p>
-          <h2>名 FIDE 注册棋手，一个数据库</h2>
-          <p>中文名、拼音与 FIDE ID 均可检索；国内赛事临时档案也在持续整理、审校与连接。</p>
+          <span class="story-kicker">01 · 问题</span>
+          <h2>中国有世界冠军，<br>却没有一个像样的棋手数据库。</h2>
+          <p>棋手信息散落在不同角落；一个人有三种拼法、两个 ID；一场全国赛打完，棋谱两周后就无处可寻。我们把这叫作中国国际象棋的数据荒漠——并且决定终结它。</p>
+        </div>
+        <div class="fragment-field" aria-hidden="true" data-reveal>
+          <span class="fragment-card fragment-a">侯逸凡</span>
+          <span class="fragment-card fragment-b">Yifan H.</span>
+          <span class="fragment-card fragment-c">ID：86•••••</span>
+          <span class="fragment-card fragment-d">404</span>
+          <span class="fragment-card fragment-e">棋谱未公开</span>
+          <span class="fragment-card fragment-f">HOU, Yifan?</span>
+        </div>
+      </section>
+
+      <section class="story-panel story-identity">
+        <div class="story-copy" data-reveal>
+          <span class="story-kicker">02 · 回答一</span>
+          <h2>一名棋手，<br>只有一个身份。</h2>
+          <p>同一个人，中文名、拼音、曾用名、FIDE ID，全部归到唯一档案；每一条勘误都进机制、进断言，错误不会再回来。<strong data-player-total>11,646</strong> 名注册棋手，每个人都值得被准确记住。</p>
+          <a class="story-cta" href="#searchInput" data-focus-search>搜索一名棋手 <span aria-hidden="true">↑</span></a>
+        </div>
+        <div class="identity-stack" aria-hidden="true" data-reveal>
+          <span>Yifan H.</span>
+          <span>侯逸凡</span>
+          <span>HOU, Yifan</span>
+          <span>8602980</span>
+          <article>
+            <small>唯一棋手档案</small>
+            <strong>侯逸凡</strong>
+            <span>HOU, Yifan · 8602980</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="story-panel story-events">
+        <div class="story-copy" data-reveal>
+          <span class="story-kicker">03 · 回答二</span>
+          <h2>每一场比赛，<br>从名单到终局。</h2>
+          <p>报名名单、逐轮对阵、每一局的结果、最终排名——一场赛事的完整生命周期，收进同一条时间线。完整度逐场标注，缺什么、补到哪，公开可查。</p>
+          <a class="story-cta" href="#searchInput" data-focus-search>搜索一场赛事 <span aria-hidden="true">↑</span></a>
+        </div>
+        <div class="event-timeline" aria-hidden="true" data-reveal>
+          <div class="timeline-track"></div>
+          <span style="--step:0">名单</span>
+          <span style="--step:1">R1</span>
+          <span style="--step:2">R3</span>
+          <span style="--step:3">R5</span>
+          <span style="--step:4">R7</span>
+          <span style="--step:5">R9</span>
+          <span style="--step:6">终榜</span>
+          <strong>完整度 · 逐项可查</strong>
         </div>
       </section>
 
       <section class="story-panel story-games">
         <div class="story-copy" data-reveal>
-          <span class="story-kicker">棋谱</span>
-          <h2>每一局，<br>都能重演</h2>
-          <p>从赛事逐轮对阵到完整 PGN，已归档对局可直接在线打谱回放。</p>
+          <span class="story-kicker">04 · 回答三</span>
+          <h2>棋谱不该在两周后消失。</h2>
+          <p>已公开的对局，逐局归档成 PGN，永久可回放；打开就是棋盘，一步一步重演国家队与少年组的每一次交锋。</p>
+          <a class="story-cta" href="#searchInput" data-focus-search>打开一局棋 <span aria-hidden="true">↑</span></a>
         </div>
-        <svg class="story-board" viewBox="0 0 320 320" aria-label="国际象棋棋盘示意" role="img" data-reveal>
+        <svg class="story-board" viewBox="0 0 320 320" aria-label="四步开局走子示意" role="img" data-reveal>
           <defs>
             <pattern id="board-pattern" width="80" height="80" patternUnits="userSpaceOnUse">
               <rect width="40" height="40" fill="#f2eadb"/>
@@ -104,59 +149,48 @@
             </pattern>
           </defs>
           <rect width="320" height="320" rx="18" fill="url(#board-pattern)"/>
-          <g fill="#1f3b66" font-family="Georgia, serif" font-size="46" text-anchor="middle">
-            <text x="60" y="72">♜</text><text x="140" y="72">♝</text><text x="220" y="72">♛</text><text x="300" y="72">♚</text>
-            <text x="100" y="112">♟</text><text x="180" y="112">♟</text><text x="260" y="112">♟</text>
+          <g class="board-piece board-dark" aria-hidden="true">
+            <text class="move-origin origin-4" x="60" y="36">♞</text><text class="move-origin origin-2" x="180" y="76">♟</text>
           </g>
-          <g fill="#fffaf0" stroke="#1f3b66" stroke-width="1.4" font-family="Georgia, serif" font-size="46" text-anchor="middle">
-            <text x="60" y="272">♙</text><text x="140" y="272">♙</text><text x="220" y="272">♙</text>
-            <text x="20" y="312">♖</text><text x="100" y="312">♘</text><text x="180" y="312">♕</text><text x="260" y="312">♔</text>
+          <g class="board-piece board-light" aria-hidden="true">
+            <text class="move-origin origin-1" x="180" y="276">♙</text><text class="move-origin origin-3" x="260" y="316">♘</text>
+          </g>
+          <g class="board-piece board-dark board-moved" aria-hidden="true">
+            <text class="move move-2" x="180" y="76">♟</text>
+            <text class="move move-4" x="60" y="36">♞</text>
+          </g>
+          <g class="board-piece board-light board-moved" aria-hidden="true">
+            <text class="move move-1" x="180" y="276">♙</text>
+            <text class="move move-3" x="260" y="316">♘</text>
           </g>
         </svg>
       </section>
 
-      <section class="story-panel story-rankings">
-        <div class="story-copy" data-reveal>
-          <span class="story-kicker">排行</span>
-          <h2>全年龄组排行榜</h2>
-          <p>公开组、青少年与元老组分开呈现，标准棋、快棋和超快棋不混用分值。</p>
-          <a class="story-cta" href="./leaderboards.html">查看 FIDE 排行榜 <span aria-hidden="true">↗</span></a>
-        </div>
-        <div class="story-rank-cards" aria-hidden="true" data-reveal>
-          <article><span>公开组</span><strong>OPEN</strong><small>标准棋 · 实时榜单</small></article>
-          <article><span>青少年</span><strong>U20</strong><small>按自然年龄分组</small></article>
-          <article><span>少年组</span><strong>U12</strong><small>男女可独立筛选</small></article>
-        </div>
-      </section>
-
-      <section class="story-panel story-trust">
-        <div class="story-copy" data-reveal>
-          <span class="story-kicker">可信</span>
-          <h2>数据可信，规则透明</h2>
-          <p>注册表压住姓名与等级分；勘误进入固定机制并由 CI 断言守护，覆盖率与赛事完备性公开展示。</p>
-        </div>
-        <div class="trust-rings" aria-hidden="true" data-reveal>
-          <span>注册表<small>唯一权威</small></span>
-          <span>勘误<small>机制固化</small></span>
-          <span>完备性<small>公开口径</small></span>
-        </div>
-      </section>
-
-      <section class="story-panel story-community">
+      <section class="story-panel story-open">
         <div class="story-copy" data-reveal>
           <svg class="story-end-mark" aria-hidden="true"><use href="./brand.svg#brand-mark"></use></svg>
-          <span class="story-kicker">共建</span>
-          <h2>让每一份可靠记录，被看见</h2>
-          <p>提交赛事线索、身份勘误与联邦变更证据，共同完善这份中国国际象棋公共档案。</p>
-          <p class="story-note">赛事线索 · 身份勘误 · 联邦变更证据</p>
+          <span class="story-kicker">05 · 立场</span>
+          <h2>我们建了它，<br>然后把钥匙给你。</h2>
+          <p>数据库、排行榜、棋手档案和已归档 PGN，通过免费的只读静态 API 对外开放，无需注册或鉴权。因为公共的数据，理应属于公众。</p>
+          <pre class="api-example" tabindex="0"><code>GET /api/v1/players/fide-8602980.json
+→ { "displayName": "侯逸凡",
+    "standard": 2596, "gameCount": 331, … }</code></pre>
+          <div class="story-actions">
+            <a class="story-cta story-cta-primary" href="./API.md">API 文档 <span aria-hidden="true">↗</span></a>
+            <a class="story-cta" href="./contribute.html">贡献数据 <span aria-hidden="true">↗</span></a>
+            <a class="story-cta" href="https://github.com/keluoke/china-chess-player-pgn">GitHub <span aria-hidden="true">↗</span></a>
+          </div>
         </div>
         <footer class="story-footer">
-          <span>社区共建 · 数据展示遵循最小必要原则</span>
-          <a href="./contribute.html?type=privacy-request">删除或匿名化请求</a>
+          <span class="story-full-logo">
+            <svg aria-hidden="true"><use href="./brand.svg#brand-mark"></use></svg>
+            <strong>中国国际象棋棋手数据库</strong>
+          </span>
+          <span>代码 MIT · 数据按字段与清单分别许可</span>
         </footer>
       </section>
     </div>
 
-    <script type="module" src="app.js?v=20260727-2"></script>
+    <script type="module" src="app.js?v=20260727-3"></script>
   </body>
 </html>
