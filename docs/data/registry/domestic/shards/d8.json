@@ -1542,9 +1542,10 @@
     "pinyin": "zhang zhi rui",
     "federation": "unknown",
     "domesticEligibilityBasis": "domestic-event",
+    "sex": "M",
     "publicLocation": "温州市",
     "identityStatus": "unlinked",
-    "publicIdentityStatus": "same-name",
+    "publicIdentityStatus": "presentation-high",
     "entityType": "domestic-player",
     "aliases": [
       "domestic-13f1f42b4305",
@@ -1554,9 +1555,11 @@
     ],
     "sightingCount": 1,
     "confidence": {
-      "score": 0,
-      "level": "low",
-      "weights": {},
+      "score": 90,
+      "level": "high",
+      "weights": {
+        "presentationEvidence": 90
+      },
       "sameNameConflictCount": 2,
       "sameNameClusterSize": 3,
       "crossEventCount": 1,
@@ -1564,8 +1567,11 @@
       "reviewRequired": true,
       "machineNominationAllowed": false,
       "reasons": [
-        "同名簇共 3 条，仅允许人工区分"
-      ]
+        "同名簇共 3 条，仅允许人工区分",
+        "成员级证据通过 presentation-high-fide 展示归组"
+      ],
+      "presentationGroupID": "pg-fide-eda885c0290a",
+      "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [
       {
@@ -1576,7 +1582,11 @@
         "playerName": "张直睿",
         "chineseName": "张直睿",
         "pinyin": "zhang zhi rui",
+        "sex": "M",
         "publicLocation": "温州市",
+        "rank": "107",
+        "score": "4,5",
+        "rounds": "11",
         "playerNo": "13"
       }
     ]
