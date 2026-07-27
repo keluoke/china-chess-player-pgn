@@ -18,6 +18,9 @@ class HomepageBrandStoryTest(unittest.TestCase):
         self.assertEqual(html.count('class="story-panel'), 5)
         self.assertIn('data-player-total', html)
         self.assertIn('placeholder="输入中文名、拼音、FIDE ID，或赛事名称"', html)
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('els.searchInput.placeholder = "输入中文名、拼音、FIDE ID，或赛事名称";', app)
+        self.assertNotIn('els.searchInput.placeholder = "中文名 / 拼音 / FIDE ID / 赛事名";', app)
         search = html[html.index('class="search-command"'):html.index('id="searchResultsSection"')]
         for removed in ("hero-brand-mark", 'class="eyebrow"', "search-guidance"):
             self.assertNotIn(removed, search)

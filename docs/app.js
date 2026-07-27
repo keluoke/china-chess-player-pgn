@@ -359,7 +359,7 @@ function initialize() {
   state.selectedEventID = state.selectedFideID ? null : routedEventID;
   state.query = String(new URLSearchParams(location.search).get("q") || typedBeforeDataReady || "");
   els.searchInput.disabled = false;
-  els.searchInput.placeholder = "中文名 / 拼音 / FIDE ID / 赛事名";
+  els.searchInput.placeholder = "输入中文名、拼音、FIDE ID，或赛事名称";
   els.searchInput.value = state.query;
   els.searchInput.addEventListener("compositionstart", () => { composingSearch = true; });
   els.searchInput.addEventListener("compositionend", event => {
