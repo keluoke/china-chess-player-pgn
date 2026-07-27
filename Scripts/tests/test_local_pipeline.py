@@ -653,8 +653,13 @@ class RunManagerTests(unittest.TestCase):
             self.run_dir / "run.json",
             {"runId": "test-run", "command": "registry", "status": "running"},
         )
+        self.state_patch = mock.patch.object(
+            run_manager, "local_state_root", return_value=self.root / "state"
+        )
+        self.state_patch.start()
 
     def tearDown(self) -> None:
+        self.state_patch.stop()
         self.temp.cleanup()
 
     def test_prepare_stages_only_manifest_files(self) -> None:
