@@ -6,9 +6,9 @@
     <meta name="robots" content="noindex,nofollow">
     <title>公开赛事目录</title>
     <meta name="description" content="四类目标赛事（棋协大师赛、李成智杯、世少赛、亚少赛）的公开目录：按日期倒序，可按系列、年份、组别、名称、TNR 筛选。">
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="./brand.svg" type="image/svg+xml">
     <script src="theme.js?v=20260727-1"></script>
-    <link rel="stylesheet" href="styles.css?v=20260727-2">
+    <link rel="stylesheet" href="styles.css?v=20260727-3">
     <style>
       .events-shell{max-width:1080px;margin:0 auto;padding:24px 18px 80px}
       .events-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0}
@@ -32,7 +32,10 @@
   <body class="coverage-page">
     <main class="events-shell">
       <nav class="page-nav">
-        <a href="./">← 返回棋手搜索</a>
+        <a class="compact-brand" href="./" aria-label="返回棋手数据库首页">
+          <svg aria-hidden="true"><use href="./brand.svg#brand-mark"></use></svg>
+          <span>中国国际象棋棋手数据库</span>
+        </a>
         <div class="theme-switcher" role="group" aria-label="外观主题">
           <button type="button" data-theme-choice="auto" aria-label="跟随系统主题" title="跟随系统主题">自动</button>
           <button type="button" data-theme-choice="light" aria-label="使用浅色主题" title="浅色主题">☀</button>

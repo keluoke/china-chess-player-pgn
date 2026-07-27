@@ -119,6 +119,7 @@ const TEST_EVENT_NAME_RE = /\btest\b|测试|演示|\bdemo\b/i;
 const ROUND_ITEM_NAME_RE = /^\s*(round|rd\.?|game|board|tiebreak)\s*\d+\b/i;
 const CHINESE_TEXT_RE = /[\u3400-\u9fff]/;
 
+initializeLandingStory();
 initialize();
 // Domestic entities load on demand (review §5.3): prefix shards arrive with
 // the first matching keystroke or domestic deep link. The full monolith is
@@ -548,22 +549,48 @@ function scheduleSearch(value) {
 // U4: lightweight trust line under the search hero — how much data, how fresh.
 async function renderSearchTrustLine() {
   const target = document.querySelector("#searchTrust");
-  if (!target) return;
+  const storyTotal = document.querySelector("[data-player-total]");
+  if (!target && !storyTotal) return;
   try {
     const metrics = await fetchJSON("./data/public-metrics.json", false);
     const totals = metrics?.totals ?? {};
     const updated = String(metrics?.generatedAt || "").slice(0, 10);
+    if (storyTotal && totals.players) {
+      storyTotal.textContent = Number(totals.players).toLocaleString("zh-CN");
+    }
     const parts = [
       totals.players ? `${Number(totals.players).toLocaleString("zh-CN")} 名注册棋手` : "",
       totals.games ? `${Number(totals.games).toLocaleString("zh-CN")} 盘对局` : "",
       updated ? `更新于 ${updated}` : ""
     ].filter(Boolean);
     if (!parts.length) return;
-    target.textContent = parts.join(" · ");
-    target.hidden = false;
+    if (target) {
+      target.textContent = parts.join(" · ");
+      target.hidden = false;
+    }
   } catch (_error) {
     /* trust line is optional */
   }
+}
+
+function initializeLandingStory() {
+  const story = document.querySelector(".brand-story");
+  if (!story) return;
+  const items = [...story.querySelectorAll("[data-reveal]")];
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reducedMotion || !("IntersectionObserver" in window)) {
+    items.forEach(item => item.classList.add("in-view"));
+    return;
+  }
+  document.body.classList.add("story-ready");
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("in-view");
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.18 });
+  items.forEach(item => observer.observe(item));
 }
 
 function defaultSearchSuggestions() {
@@ -637,6 +664,10 @@ function renderSearch() {
   const eventSearch = normalizedQuery.length >= 2 ? searchEvents(state.query) : { items: [], total: 0, truncated: false };
   const eventMatches = eventSearch.items;
   const hasQuery = state.query.length > 0;
+  document.body.classList.toggle(
+    "landing-active",
+    hasQuery || Boolean(selectedPlayer()) || Boolean(state.selectedEventID)
+  );
   if (els.searchCommand) {
     els.searchCommand.dataset.mode = hasQuery || Boolean(selectedPlayer()) || Boolean(state.selectedEventID)
       ? "compact"

@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import pathlib
+import unittest
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+class HomepageBrandStoryTest(unittest.TestCase):
+    def test_search_stays_before_static_brand_story(self) -> None:
+        html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('<body class="landing">', html)
+        self.assertLess(html.index('id="searchInput"'), html.index('class="brand-story"'))
+        self.assertEqual(html.count('class="brand-story"'), 1)
+        self.assertEqual(html.count('class="story-panel'), 5)
+        self.assertIn('data-player-total', html)
+
+    def test_brand_asset_is_reused_by_all_public_pages(self) -> None:
+        for name in ("index.html", "coverage.html", "leaderboards.html", "events.html", "contribute.html"):
+            html = (ROOT / "docs" / name).read_text(encoding="utf-8")
+            self.assertIn('href="./brand.svg" type="image/svg+xml"', html)
+            self.assertIn('href="./brand.svg#brand-mark"', html)
+        svg = (ROOT / "docs" / "brand.svg").read_text(encoding="utf-8")
+        self.assertIn('id="brand-mark"', svg)
+        self.assertIn("#1f3b66", svg)
+        self.assertIn("#c9a227", svg)
+
+    def test_story_is_progressive_and_respects_motion_preferences(self) -> None:
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "docs" / "styles.css").read_text(encoding="utf-8")
+        self.assertIn("initializeLandingStory();", app)
+        self.assertIn('IntersectionObserver', app)
+        self.assertIn('prefers-reduced-motion: reduce', app)
+        self.assertIn('scroll-snap-type: y proximity', styles)
+        reduced = styles[styles.index("@media (prefers-reduced-motion: reduce)"):]
+        self.assertIn("transition: none", reduced)
+        self.assertIn(".landing-active .brand-story", styles)
+
+    def test_story_copy_does_not_name_external_data_sources(self) -> None:
+        html = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        story = html[html.index('class="brand-story"'):]
+        for forbidden in ("Chess-Results", "chess-results.com", "Lichess"):
+            self.assertNotIn(forbidden, story)
+
+
+if __name__ == "__main__":
+    unittest.main()
