@@ -1077,6 +1077,116 @@ class SharedStateProjectionTests(unittest.TestCase):
             self.assertEqual(entries[0]["status"], "complete")
 
 
+class PanelBatchResultTests(unittest.TestCase):
+    def test_result_joins_every_target_with_exact_release_and_delivery_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            run_dir = root / "runs" / "batch-1"
+            outbox = root / "outbox" / "batch-1"
+            run_dir.mkdir(parents=True)
+            outbox.mkdir(parents=True)
+            (run_dir / "result.json").write_text(json.dumps({
+                "requested": ["100001", "100002"],
+                "targets": {
+                    "100001": {"status": "complete", "players": 20},
+                    "100002": {
+                        "status": "partial", "players": 30,
+                        "errorCode": "ROUND_COUNT_UNKNOWN",
+                    },
+                },
+                "summary": {"complete": 1, "partial": 1},
+            }), encoding="utf-8")
+            (run_dir / "release-manifest.json").write_text(json.dumps({"files": [
+                {
+                    "path": "data/generated/chess-results-event-details/tnr100001.json",
+                    "operation": "upsert", "bytes": 1200,
+                },
+                {
+                    "path": "data/generated/chess-results-event-details/tnr100002.json",
+                    "operation": "upsert", "bytes": 2300,
+                },
+                {
+                    "path": "docs/data/pgn/chess-results/fide-123.pgn",
+                    "operation": "delete", "bytes": 0,
+                },
+            ]}), encoding="utf-8")
+            (outbox / "delivery.json").write_text(json.dumps({
+                "status": "ingested-to-main",
+                "route": "api",
+                "remoteSHA": "a" * 40,
+            }), encoding="utf-8")
+            state = {
+                "runDir": str(run_dir),
+                "runId": "batch-1",
+                "command": "event-queue",
+                "result": "partial",
+                "errorCode": "PARTIAL_FAILURE",
+            }
+            with (
+                mock.patch.object(local_panel, "STATE_ROOT", root),
+                mock.patch.object(local_panel, "durable_state", return_value=state),
+            ):
+                payload = local_panel.result_payload()
+            self.assertEqual(payload["summary"], {"complete": 1, "partial": 1})
+            self.assertEqual(payload["publication"]["changedFiles"], 3)
+            self.assertEqual(payload["publication"]["upserts"], 2)
+            self.assertEqual(payload["publication"]["deletes"], 1)
+            self.assertEqual(payload["publication"]["changedBytes"], 3500)
+            self.assertEqual(payload["publication"]["unattributedFiles"], 1)
+            self.assertTrue(payload["publication"]["delivered"])
+            self.assertFalse(payload["publication"]["onlineVerified"])
+            self.assertEqual(payload["targets"]["100001"]["releaseFiles"], 1)
+            self.assertEqual(payload["targets"]["100002"]["releaseBytes"], 2300)
+
+    def test_latest_event_result_survives_a_later_receipt_check(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            event_run = root / "runs" / "20260728-event"
+            receipt_run = root / "runs" / "20260728-receipt"
+            event_run.mkdir(parents=True)
+            receipt_run.mkdir(parents=True)
+            event_state = {
+                "runId": "20260728-event",
+                "runDir": str(event_run),
+                "command": "event-queue",
+                "result": "partial",
+                "errorCode": "PARTIAL_FAILURE",
+            }
+            (event_run / "run.json").write_text(json.dumps(event_state), encoding="utf-8")
+            (event_run / "result.json").write_text(json.dumps({
+                "requested": ["100001"],
+                "targets": {"100001": {"status": "partial"}},
+                "summary": {"partial": 1},
+            }), encoding="utf-8")
+            (receipt_run / "run.json").write_text(json.dumps({
+                "runId": "20260728-receipt",
+                "runDir": str(receipt_run),
+                "command": "receipts",
+                "result": "ok",
+            }), encoding="utf-8")
+            with (
+                mock.patch.object(local_panel, "STATE_ROOT", root),
+                mock.patch.object(local_panel, "durable_state", return_value={
+                    "runId": "20260728-receipt",
+                    "runDir": str(receipt_run),
+                    "command": "receipts",
+                    "result": "ok",
+                }),
+            ):
+                payload = local_panel.result_payload()
+            self.assertEqual(payload["runId"], "20260728-event")
+            self.assertEqual(payload["summary"], {"partial": 1})
+            self.assertFalse(payload["running"])
+
+    def test_partial_batch_is_a_warning_outcome_not_a_failed_release_claim(self) -> None:
+        refresh = (LOCAL / "refresh.sh").read_text(encoding="utf-8")
+        self.assertIn('result="partial"', refresh)
+        self.assertIn('partial "PARTIAL_FAILURE"', refresh)
+        self.assertIn("更新数据文件", local_panel.PAGE)
+        self.assertIn("部分完成 / 失败", local_panel.PAGE)
+        self.assertNotIn("部分赛事目标失败已隔离；成功赛事已发布", refresh)
+
+
 class ReceiptAdvanceTests(unittest.TestCase):
     def test_child_rebuild_can_start_before_ingest_finishes(self) -> None:
         import check_receipts

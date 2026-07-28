@@ -83,7 +83,7 @@ export CHINA_CHESS_MAINTAINER_LOCAL=1
 export CHESS_RESULTS_RELEASE_POLICY=full-data
 unset CHESS_RESULTS_PUBLICATION_AUTHORIZED || true
 
-BOLD=$'\033[1m'; GREEN=$'\033[32m'; RED=$'\033[31m'; CYAN=$'\033[36m'; RESET=$'\033[0m'
+BOLD=$'\033[1m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RED=$'\033[31m'; CYAN=$'\033[36m'; RESET=$'\033[0m'
 step() { printf '\n%s==> %s%s\n' "${BOLD}${CYAN}" "$*" "$RESET"; }
 
 notify_mac() {
@@ -115,6 +115,13 @@ fail() {
   exit "${3:-1}"
 }
 
+partial() {
+  ERROR_CODE="$1"
+  ERROR_MESSAGE="$2"
+  printf '%s%s: %s%s\n' "$YELLOW" "$ERROR_CODE" "$ERROR_MESSAGE" "$RESET" >&2
+  exit 4
+}
+
 on_signal() {
   ERROR_CODE="INTERRUPTED"
   ERROR_MESSAGE="任务已由用户中止；未完成的暂存运行不会发布。"
@@ -138,7 +145,10 @@ on_exit() {
       detected="$(tail -n 120 "$RUN_LOG" 2>/dev/null | grep -Eo 'LOCAL_MAINTAINER_ACK_REQUIRED|COMPLIANCE_POLICY_BLOCKED|SOURCE_CIRCUIT_OPEN|VISIT_BUDGET_EXHAUSTED|SOURCE_BLOCKED_OR_RATE_LIMITED|SOURCE_TRUNCATED_DOWNLOAD|SOURCE_FILE_SIGNATURE_INVALID|SOURCE_UNEXPECTED_CONTENT_TYPE|SOURCE_NETWORK_FAILURE|EVENT_EMPTY|PAIRINGS_NOT_PUBLISHED|TEAM_FORMAT_UNSUPPORTED|ROUND_COUNT_UNKNOWN|PAIRING_REFS_OUTSIDE_ROSTER|PAGE_CACHE_MISS|PARSER_LAYOUT_CHANGED|VALIDATION_REGRESSION|REGISTRY_AUTHORITY_MISMATCH|NAME_CORRECTION_REGRESSION|DIRTY_RELEASE_PATH|GIT_INDEX_NOT_CLEAN|WORKTREE_CHANGED_DURING_RUN|RELEASE_HASH_MISMATCH|RELEASE_BASE_CONFLICT|API_DELIVERY_BASELINE_MISSING|GIT_DNS_FAILURE|GIT_TLS_FAILURE|GIT_PROXY_FAILURE|GIT_AUTH_FAILED|GIT_REMOTE_REJECTED|GIT_CONNECT_FAILURE|GIT_PUSH_FAILED' | tail -1)"
     fi
     [ -n "$detected" ] && ERROR_CODE="$detected"
-    if [ "$DATA_COMMITTED" = "true" ]; then
+    if [ "$status" -eq 4 ] && [ "$ERROR_CODE" = "PARTIAL_FAILURE" ]; then
+      result="partial"
+      message="${ERROR_MESSAGE:-部分目标需要处理；完整目标和发布结果已保留。}"
+    elif [ "$DATA_COMMITTED" = "true" ]; then
       result="push-failed"
       ERROR_CODE="${ERROR_CODE:-GIT_PUSH_FAILED}"
       message="数据已按 manifest 提交在本地，推送失败；使用 push 重投即可。"
@@ -158,6 +168,9 @@ on_exit() {
   if [ "$status" -eq 0 ]; then
     printf '\n%s✅ 完成：%s %s%s\n' "$GREEN" "$command" "$PUSH_SUMMARY" "$RESET"
     notify_mac "完成：$command ✅"
+  elif [ "$status" -eq 4 ] && [ "$ERROR_CODE" = "PARTIAL_FAILURE" ]; then
+    printf '\n%s⚠️ 部分完成：%s%s\n' "$YELLOW" "$message" "$RESET"
+    notify_mac "部分完成：$command ⚠️"
   elif [ "$DATA_COMMITTED" = "true" ]; then
     printf '\n%s⚠️ 数据已提交本地，推送失败；稍后运行 push。%s\n' "$RED" "$RESET"
     notify_mac "数据已保存，推送失败 ⚠️"
@@ -599,7 +612,7 @@ case "$command" in
     fi
     release_event_data || fail "GIT_PUSH_FAILED" "赛事数据已按 manifest 提交本地，推送失败；使用 deliver 重投即可。"
     if [ "$event_rc" -eq 4 ]; then
-      fail "PARTIAL_FAILURE" "部分赛事目标失败已隔离；成功赛事已发布，失败原因见 capture-state 与本次日志。" 4
+      partial "PARTIAL_FAILURE" "部分目标需要处理；完整目标、保留的部分数据及实际发布结果见面板“本批结果”。"
     fi
     ;;
 

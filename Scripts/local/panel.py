@@ -62,6 +62,11 @@ STATUS_LABELS = {
     "failed": "失败",
 }
 
+DELIVERED_STATUSES = {
+    "pushed", "ingested-to-main", "indexes-rebuilt", "deployed", "online-verified",
+}
+TNR_RELEASE_PATH = re.compile(r"(?:^|/)tnr(\d{4,9})(?:[./-]|$)")
+
 
 def durable_state() -> dict:
     payload = current_payload(40000)
@@ -251,18 +256,38 @@ def recent_payload() -> dict:
     return {"entries": entries[:50]}
 
 
+def latest_command_run(command: str) -> dict:
+    runs = STATE_ROOT / "runs"
+    try:
+        entries = sorted((path for path in runs.iterdir() if path.is_dir()), reverse=True)
+    except OSError:
+        return {}
+    for path in entries:
+        payload = _read_json_file(path / "run.json")
+        if payload.get("command") == command:
+            return payload
+    return {}
+
+
 def result_payload() -> dict:
-    """Structured per-TNR outcome of the current/most recent run."""
-    state = durable_state()
+    """Structured outcome of the latest event batch, retained across follow-ups."""
+    current = durable_state()
+    state = current if current.get("command") == "event-queue" else latest_command_run("event-queue")
     run_dir = state.get("runDir") or ""
+    run_id = str(state.get("runId") or "")
     base = {
-        "running": bool(state.get("running")),
-        "runId": state.get("runId"),
+        "running": bool(
+            current.get("running")
+            and current.get("runId") == run_id
+            and current.get("command") == "event-queue"
+        ),
+        "runId": run_id,
         "command": state.get("command"),
         "result": state.get("result"),
         "errorCode": state.get("errorCode"),
         "targets": {},
         "summary": {},
+        "publication": publication_payload(pathlib.Path(run_dir) if run_dir else None, run_id),
     }
     if not run_dir:
         return base
@@ -270,11 +295,72 @@ def result_payload() -> dict:
         payload = json.loads((pathlib.Path(run_dir) / "result.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return base
-    base["targets"] = payload.get("targets") or {}
+    targets = payload.get("targets") or {}
+    changes = base["publication"].get("targetChanges") or {}
+    base["targets"] = {
+        str(tid): {
+            **(target if isinstance(target, dict) else {}),
+            "releaseFiles": int((changes.get(str(tid)) or {}).get("files") or 0),
+            "releaseBytes": int((changes.get(str(tid)) or {}).get("bytes") or 0),
+        }
+        for tid, target in targets.items()
+    }
     base["summary"] = payload.get("summary") or {}
     base["requested"] = payload.get("requested") or []
     base["statusLabels"] = STATUS_LABELS
     return base
+
+
+def _read_json_file(path: pathlib.Path) -> dict:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def publication_payload(run_dir: pathlib.Path | None, run_id: str) -> dict:
+    """Join capture output, exact changed files and outbox delivery facts."""
+    manifest = _read_json_file(run_dir / "release-manifest.json") if run_dir else {}
+    outbox_dir = STATE_ROOT / "outbox" / run_id if run_id else None
+    if not manifest and outbox_dir:
+        manifest = _read_json_file(outbox_dir / "manifest.json")
+    delivery = _read_json_file(outbox_dir / "delivery.json") if outbox_dir else {}
+    files = manifest.get("files") if isinstance(manifest.get("files"), list) else []
+    normalized_files = [item for item in files if isinstance(item, dict)]
+    target_changes: dict[str, dict[str, int]] = {}
+    upserts = deletes = changed_bytes = attributed = 0
+    for item in normalized_files:
+        operation = str(item.get("operation") or "")
+        if operation == "upsert":
+            upserts += 1
+        elif operation == "delete":
+            deletes += 1
+        size = max(0, int(item.get("bytes") or 0))
+        changed_bytes += size
+        matched = TNR_RELEASE_PATH.search(str(item.get("path") or ""))
+        if matched:
+            attributed += 1
+            current = target_changes.setdefault(matched.group(1), {"files": 0, "bytes": 0})
+            current["files"] += 1
+            current["bytes"] += size
+    status = str(delivery.get("status") or ("local-only" if manifest else "no-release"))
+    return {
+        "hasManifest": bool(manifest),
+        "changedFiles": len(normalized_files),
+        "upserts": upserts,
+        "deletes": deletes,
+        "changedBytes": changed_bytes,
+        "targetChanges": target_changes,
+        "unattributedFiles": max(0, len(normalized_files) - attributed),
+        "status": status,
+        "delivered": status in DELIVERED_STATUSES,
+        "onlineVerified": status == "online-verified",
+        "route": delivery.get("route"),
+        "remoteSHA": delivery.get("remoteSHA"),
+        "lastError": delivery.get("lastError"),
+        "receipts": delivery.get("receipts") or {},
+    }
 
 
 def progress_payload() -> dict:
@@ -474,13 +560,13 @@ textarea{width:100%;min-height:74px;border:1px solid var(--line);border-radius:9
 .small{font-size:.78rem;color:var(--muted)}
 input[type=search]{border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 10px;font-size:.85rem;min-width:200px}
 .pager{display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--muted);font-size:.82rem}
-.resultRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:6px;font-size:.85rem;flex-wrap:wrap}
+.resultRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:6px;font-size:.85rem;flex-wrap:wrap}.resultGroup{margin-top:14px;font-size:.86rem}.resultGroup>b{display:block;margin-bottom:5px}.publishLine{margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--bg);font-size:.84rem}
 </style></head><body><div class="wrap">
 <h1>维护者本地数据控制台<small>社区只提交线索、勘误和人工知识；所有网络采集均由维护者本机执行</small></h1>
-<div class="notice"><b>合规边界已启用：</b>Chess-Results 私有核验与 FIDE/Lichess 公开发布是两条独立泳道：私有抓取结果只保存在本机，永不自动进入发布流程；公开发布必须经 manifest → outbox → 云端摄入 → 重建 → 部署 → 线上验证。</div>
+<div class="notice"><b>合规边界已启用：</b>来源原始页面只保存在本机；通过完整性门禁的清洗结构化数据才进入 manifest → outbox → 云端摄入 → 重建 → 部署 → 线上验证。采集、数据变化和发布状态分别展示，只有 online-verified 才算上线。</div>
 <div class="status"><span id="dot" class="dot"></span><div style="flex:1"><b id="statusText">读取状态…</b><div id="statusMeta"></div><div id="progressList"></div></div><button id="stop" class="danger" onclick="stopJob()">中止任务</button></div>
 
-<h2>① 私有赛事抓取（Chess-Results，仅本机）</h2>
+<h2>① 赛事采集与发布（来源访问仅限本机）</h2>
 <div class="card">
 <textarea id="tnrInput" placeholder="粘贴 Chess-Results 链接或 TNR，一行一个，例如：&#10;1110333&#10;tnr1213323&#10;https://chess-results.com/tnr1156008.aspx?lan=1"></textarea>
 <div class="chips" id="tnrChips"></div>
@@ -571,20 +657,49 @@ async function startCapture(){
 }
 async function renderBatchResult(){
  const r=await(await fetch('/api/result')).json();
- if(r.command!=='event-queue'||!Object.keys(r.targets||{}).length){batchResult.style.display='none';return}
+ if(r.command!=='event-queue'||!Object.keys(r.targets||{}).length){batchResult.style.display='none';return r}
  const labels=r.statusLabels||{};
  const order={'complete':0,'partial':1,'unsupported':2,'quarantined':3,'retry-wait':4,'failed':5};
  const rows=Object.entries(r.targets).sort((a,b)=>(order[a[1].status]??9)-(order[b[1].status]??9));
- const sum=Object.entries(r.summary||{}).map(([k,v])=>`${labels[k]||k} <b>${v}</b>`).join(' · ');
+ const requested=(r.requested||[]).length||rows.length, complete=Number(r.summary?.complete||0);
+ const attention=requested-complete, pub=r.publication||{};
+ const deliveryLabels={'no-release':'没有数据变化','local-only':'已生成发布包，尚未进入 outbox','pending':'发布包待投递','pushed':'已投递到 local-data','ingested-to-main':'已合并到 main','indexes-rebuilt':'索引已重建','deployed':'已部署，待线上校验','online-verified':'线上已验证','abandoned':'发布包已放弃'};
+ const pubClass=pub.onlineVerified?'ok':pub.delivered?'':pub.hasManifest?'warn':'';
+ const pubText=deliveryLabels[pub.status]||pub.status||'未生成发布包';
+ const summary=`目标 <b>${requested}</b> · 完整成功 <b>${complete}</b> · 需处理 <b>${Math.max(0,attention)}</b> · 更新数据文件 <b>${pub.changedFiles||0}</b>${pub.changedFiles?`（${formatBytes(pub.changedBytes||0)}）`:''}`;
+ const renderRows=(items)=>items.map(([tid,t])=>{
+  const cls=t.status==='complete'?'ok':(t.status==='partial'||t.status==='unsupported'||t.status==='quarantined')?'warn':'bad';
+  const stats=t.players!=null?` · ${esc(t.players)} 人 / ${esc(t.rounds??'-')} 轮 / ${esc(t.standings??'-')} 行排名`:'';
+  const err=t.errorCode?` · <span class="chip ${cls}">${esc(t.errorCode)}${t.failedPage?' @ '+esc(t.failedPage):''}</span>`:'';
+  const change=t.releaseFiles?`<span class="chip ok">更新 ${esc(t.releaseFiles)} 文件 · ${formatBytes(t.releaseBytes||0)}</span>`:'<span class=small>无直接赛事文件变化</span>';
+  const btns=(t.status==='complete'||t.status==='partial')?`<button onclick="showPreview('${tid}')">本地预览</button>`:'';
+  return `<div class=resultRow><span class="chip ${cls}">${esc((r.statusLabels||{})[t.status]||t.status)}</span><b>tnr${esc(tid)}</b><span>${esc(t.title||'')}${stats}${err}</span>${change}${btns}<button onclick="runCmd('event-queue',['${tid}'],false)">重新抓取</button></div>`
+ }).join('');
+ const successRows=rows.filter(([,t])=>t.status==='complete');
+ const attentionRows=rows.filter(([,t])=>t.status!=='complete');
  batchResult.style.display='block';
  batchResult.innerHTML=`<div class=head><b>本批结果${r.running?'（进行中）':''}</b><span class=badge>run ${esc(r.runId||'')}</span></div>
- <div class=meta>${sum||'…'}</div>`+rows.map(([tid,t])=>{
-  const cls=t.status==='complete'?'ok':(t.status==='partial'||t.status==='unsupported'||t.status==='quarantined')?'warn':'bad';
-  const stats=t.players?` · ${esc(t.players)} 人 / ${esc(t.rounds)} 轮 / ${esc(t.standings)} 行排名`:'';
-  const err=t.errorCode?` · <span class="chip ${cls}">${esc(t.errorCode)}${t.failedPage?' @ '+esc(t.failedPage):''}</span>`:'';
-  const btns=(t.status==='complete'||t.status==='partial')?`<button onclick="showPreview('${tid}')">本地预览</button>`:'';
-  return `<div class=resultRow><span class="chip ${cls}">${esc((r.statusLabels||{})[t.status]||t.status)}</span><b>tnr${esc(tid)}</b><span>${esc(t.title||'')}${stats}${err}</span>${btns}<button onclick="runCmd('event-queue',['${tid}'],false)">重新抓取</button></div>`
- }).join('');
+ <div class=meta>${summary}</div>
+ <div class="publishLine"><span class="chip ${pubClass}">${esc(pubText)}</span> · 数据文件 ${esc(pub.changedFiles||0)}（新增/更新 ${esc(pub.upserts||0)}，删除 ${esc(pub.deletes||0)}）${pub.route?' · 路线 '+esc(pub.route):''}${pub.remoteSHA?' · remote '+esc(String(pub.remoteSHA).slice(0,12)):''}${pub.lastError?' · '+esc(pub.lastError):''}</div>
+ ${successRows.length?`<div class=resultGroup><b>完整成功（${successRows.length}）</b>${renderRows(successRows)}</div>`:''}
+ ${attentionRows.length?`<div class=resultGroup><b style="color:var(--warn)">部分完成 / 失败（${attentionRows.length}）</b>${renderRows(attentionRows)}</div>`:''}`;
+ return r;
+}
+
+function formatBytes(value){
+ const n=Number(value||0);if(n<1024)return n+' B';if(n<1024*1024)return (n/1024).toFixed(1)+' KB';return (n/1024/1024).toFixed(2)+' MB'
+}
+
+function batchStatusText(r){
+ const total=(r.requested||[]).length||Object.keys(r.targets||{}).length;
+ const complete=Number(r.summary?.complete||0), attention=Math.max(0,total-complete);
+ const label=r.running?'进行中':(r.errorCode==='PARTIAL_FAILURE'||attention>0?'部分完成':r.result==='ok'?'完成':'失败');
+ return `event-queue · ${label} · ${complete}/${total} 完整${attention?' · '+attention+' 需处理':''}`;
+}
+
+function batchPublicationText(r){
+ const p=r.publication||{}, labels={'no-release':'无数据变化','local-only':'发布包仅在本地','pending':'发布包待投递','pushed':'已投递 local-data','ingested-to-main':'已合并 main','indexes-rebuilt':'索引已重建','deployed':'已部署待校验','online-verified':'线上已验证','abandoned':'发布包已放弃'};
+ return `更新 ${p.changedFiles||0} 个数据文件${p.changedFiles?' / '+formatBytes(p.changedBytes||0):''} · ${labels[p.status]||p.status||'未生成发布包'}${p.remoteSHA?' · '+String(p.remoteSHA).slice(0,12):''}`;
 }
 
 // ---- queue ----
@@ -674,7 +789,7 @@ async function loadProgress(){
 const REMEDY={DIRTY_RELEASE_PATH:"先处理相应机器发布路径的未提交修改；工具不会代你覆盖。",FIDE_DOWNLOAD_OR_VALIDATION_FAILED:"检查 last-good 与 FIDE 直连；坏下载不会替换有效缓存。",SOURCE_CIRCUIT_OPEN:"来源已熔断，等待提示时间后重试。",VISIT_BUDGET_EXHAUSTED:"旧运行记录的兼容状态；当前采集不设本机日访问额度，可直接续抓。",PARSER_LAYOUT_CHANGED:"来源页面结构变化；私有 raw 证据已保留，更新解析器后离线重放即可。",COMPLIANCE_POLICY_BLOCKED:"此操作违反数据边界（原始 HTML 不入库 / 人工数据只进 manual、community）。",GIT_PUSH_FAILED:"发布包已留在 outbox；恢复网络或代理后点“投递发布包”。",GIT_AUTH_FAILED:"GitHub 认证失败；请重新登录 gh 或更新凭据后再投递。",GIT_INDEX_LOCK_STALE:"存在无活跃 git 进程的 .git/index.lock；确认后删除该文件。",PARTIAL_FAILURE:"混合批次：逐场结果见上方“本批结果”卡片；成功赛事已保留。",VALIDATION_REGRESSION:"数据量或身份断言异常，检查本次日志和 staging，禁止发布。",EVENT_EMPTY:"来源记录不存在（Record not found），已保存证据并隔离 7 天；请核对该 TNR 在人工登记表中的链接是否正确。",PAIRINGS_NOT_PUBLISHED:"该赛事未公开逐轮对阵；名单与最终排名已保留为 standings-only。",TEAM_FORMAT_UNSUPPORTED:"团队赛轮次页暂不支持逐台解析；名单与排名已保留，等待解析器适配。",ROUND_COUNT_UNKNOWN:"无法确定轮数；已保留名单与排名，可人工补充队列轮数元数据后续跑。",PAIRING_REFS_OUTSIDE_ROSTER:"对阵中出现名单外棋手，疑似名单分页截断；请重新抓取该赛事。",RECEIPT_CHECK_FAILED:"云端回执查询失败；检查 gh 登录与 GitHub 路线后重试。"};
 const WARN_CODES=new Set(["EVENT_EMPTY","PARTIAL_FAILURE","PAIRINGS_NOT_PUBLISHED","TEAM_FORMAT_UNSUPPORTED","ROUND_COUNT_UNKNOWN"]);
 let wasRunning=false;
-async function poll(){try{const s=await(await fetch('/api/state')).json();document.querySelectorAll('button').forEach(b=>{if(b.id!=='stop')b.disabled=!!s.running});stop.disabled=!s.running;dot.className='dot '+(s.running?'running':s.result==='ok'?'ok':s.result?(WARN_CODES.has(s.errorCode)?'warn':'bad'):'');if(s.running){statusText.textContent=`${s.command} · ${s.stage||'running'}`;statusMeta.textContent=`run ${s.runId||''} · ${s.message||''}`;loadProgress();if(s.command==='event-queue')renderBatchResult()}else if(s.command){statusText.textContent=`${s.command} · ${s.result||'finished'}${s.errorCode?' · '+s.errorCode:''}`;statusMeta.textContent=(s.message||'')+(s.errorCode&&REMEDY[s.errorCode]?' 处理建议：'+REMEDY[s.errorCode]:'');progressList.innerHTML='';if(wasRunning){loadQueue();if(s.command==='event-queue'){renderBatchResult();$('#captureMsg').textContent=''}}}else{statusText.textContent='空闲';statusMeta.textContent=''}wasRunning=!!s.running;const atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<45;if(s.log){log.textContent=s.log;if(atBottom)log.scrollTop=log.scrollHeight}}catch(e){statusText.textContent='面板连接中断'}}
+async function poll(){try{const s=await(await fetch('/api/state')).json();document.querySelectorAll('button').forEach(b=>{if(b.id!=='stop')b.disabled=!!s.running});stop.disabled=!s.running;dot.className='dot '+(s.running?'running':s.result==='ok'?'ok':s.result?(WARN_CODES.has(s.errorCode)||s.result==='partial'?'warn':'bad'):'');if(s.running){statusText.textContent=`${s.command} · ${s.stage||'running'}`;statusMeta.textContent=`run ${s.runId||''} · ${s.message||''}`;loadProgress();if(s.command==='event-queue')renderBatchResult()}else if(s.command){if(s.command==='event-queue'){const r=await renderBatchResult();statusText.textContent=batchStatusText(r);statusMeta.textContent=`run ${s.runId||''} · ${batchPublicationText(r)}${s.errorCode?' · '+s.errorCode:''}`}else{statusText.textContent=`${s.command} · ${s.result||'finished'}${s.errorCode?' · '+s.errorCode:''}`;statusMeta.textContent=(s.message||'')+(s.errorCode&&REMEDY[s.errorCode]?' 处理建议：'+REMEDY[s.errorCode]:'')}progressList.innerHTML='';if(wasRunning){loadQueue();if(s.command==='event-queue'){$('#captureMsg').textContent=''}}}else{statusText.textContent='空闲';statusMeta.textContent=''}wasRunning=!!s.running;const atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<45;if(s.log){log.textContent=s.log;if(atBottom)log.scrollTop=log.scrollHeight}}catch(e){statusText.textContent='面板连接中断'}}
 async function shutdown(){await post('/api/shutdown',{});document.body.innerHTML='<p style="padding:40px">面板已退出。正在运行的维护者任务会继续，并可在重开面板后恢复查看。</p>'}
 renderTabs();loadQueue();renderBatchResult();poll();setInterval(poll,1500);setInterval(loadQueue,10000);
 </script></body></html>"""
