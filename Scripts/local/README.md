@@ -192,7 +192,7 @@ FIDE/Lichess/Chess-Results 发布前必须满足：
 
 发布准备使用与 preflight 相同的机器路径口径，包括 Git 忽略但实际存在的孤儿
 产物；发现时一律 fail-closed，并在 `diagnostics/recovery-candidates.json` 写出
-完整候选清单。只有维护者显式执行 `recover-events -- --adopt` 才会接管，工具
+完整候选清单。只有维护者显式执行 `refresh.sh recover-events` 才会接管，工具
 不会自动删除、回滚或重新抓取。运行目录按“最近 30 个 + 每类命令至少 5 个”保留；
 本批结果同时写入对应 outbox，因此普通 run 被轮转后仍可在面板追溯。
 
