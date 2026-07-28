@@ -761,6 +761,35 @@ class RunManagerTests(unittest.TestCase):
             run_manager.validate_manifest(payload)
         self.assertEqual(caught.exception.code, "RELEASE_SOURCE_PATH_MISMATCH")
 
+    def test_current_payload_recovers_dead_delivery_process(self) -> None:
+        state_root = self.root / "state"
+        run_dir = state_root / "runs" / "dead-delivery"
+        run_dir.mkdir(parents=True)
+        log_path = run_dir / "run.log"
+        log_path.write_text(
+            "Git 路线全部失败\n"
+            "❌ GIT_PUSH_FAILED：发布包保留在 outbox。\n",
+            encoding="utf-8",
+        )
+        run_manager.atomic_json(
+            state_root / "current.json",
+            {
+                "runId": "dead-delivery",
+                "command": "deliver",
+                "status": "running",
+                "pid": 99999999,
+                "logPath": str(log_path),
+            },
+        )
+        with mock.patch.object(run_manager, "process_alive", return_value=False):
+            payload = run_manager.current_payload(4096)
+        self.assertFalse(payload["running"])
+        self.assertTrue(payload["staleState"])
+        self.assertEqual(payload["status"], "finished")
+        self.assertEqual(payload["result"], "failed")
+        self.assertEqual(payload["errorCode"], "GIT_PUSH_FAILED")
+        self.assertIn("仍在 outbox", payload["message"])
+
 
 class OutboxTests(unittest.TestCase):
     """The delivery outbox decouples collection from GitHub delivery."""
@@ -1185,6 +1214,11 @@ class PanelBatchResultTests(unittest.TestCase):
         self.assertIn("更新数据文件", local_panel.PAGE)
         self.assertIn("部分完成 / 失败", local_panel.PAGE)
         self.assertNotIn("部分赛事目标失败已隔离；成功赛事已发布", refresh)
+
+    def test_panel_disconnect_stops_running_indicator(self) -> None:
+        self.assertIn("dot.className='dot bad'", local_panel.PAGE)
+        self.assertIn("这不代表任务仍在运行", local_panel.PAGE)
+        self.assertIn("wasRunning=false", local_panel.PAGE)
 
 
 class ReceiptAdvanceTests(unittest.TestCase):

@@ -105,6 +105,15 @@ def process_alive(pid: int) -> bool:
         return True
 
 
+FINAL_ERROR_CODE_RE = re.compile(r"(?:❌\s*)?([A-Z][A-Z0-9_]{2,})(?=\s*[:：])")
+
+
+def inferred_final_error_code(log: str) -> str:
+    """Return the last structured error code emitted before an unclean exit."""
+    matches = FINAL_ERROR_CODE_RE.findall(log)
+    return matches[-1] if matches else ""
+
+
 def acquire(command: str, pid: int) -> pathlib.Path:
     root = local_state_root()
     runs = root / "runs"
@@ -1025,7 +1034,23 @@ def current_payload(tail: int) -> dict[str, Any]:
     except OSError:
         payload["log"] = ""
     pid = int(payload.get("pid") or 0)
-    payload["running"] = payload.get("status") == "running" and process_alive(pid)
+    marked_running = payload.get("status") == "running"
+    payload["running"] = marked_running and process_alive(pid)
+    if marked_running and not payload["running"]:
+        error_code = str(payload.get("errorCode") or inferred_final_error_code(payload["log"]))
+        payload["staleState"] = True
+        payload["status"] = "finished"
+        payload["result"] = payload.get("result") or "failed"
+        payload["errorCode"] = error_code or "PROCESS_EXITED_WITHOUT_FINAL_STATE"
+        if payload.get("command") == "deliver" and error_code == "GIT_PUSH_FAILED":
+            payload["message"] = (
+                "投递进程已结束；发布包仍在 outbox，网络恢复后重试 deliver。"
+            )
+        else:
+            payload["message"] = (
+                payload.get("message")
+                or "任务进程已结束但未写入最终状态；请查看本次日志。"
+            )
     return payload
 
 
