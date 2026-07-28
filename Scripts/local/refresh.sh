@@ -18,6 +18,7 @@
 #   all          Safe routine: monthly-due FIDE registry + top 3 private events.
 #   registry     Download/validate FIDE and release the registry projection.
 #   event-queue  Collect top 3 targets fully, clean, merge and release.
+#   recover-events  Adopt orphaned validated event outputs; never re-scrapes.
 #   candidates   Collect starting-rank name candidates privately for review.
 #   bulk         Mirror Lichess Broadcasts under CC BY-SA 4.0 and release.
 #   bulk-full    Same as bulk, force-refresh every selected shard.
@@ -102,15 +103,20 @@ RUN_DIR=""
 RUN_DIR="$(py "$RUN_MANAGER" acquire --command "$command" --pid "$$")" || exit $?
 RUN_LOG="$RUN_DIR/run.log"
 touch "$RUN_LOG"
-exec > >(tee -a "$RUN_LOG") 2>&1
+exec >> "$RUN_LOG" 2>&1
+
+CURRENT_STAGE="starting"
 
 state() {
+  CURRENT_STAGE="$1"
   py "$RUN_MANAGER" update --run-dir "$RUN_DIR" --stage "$1" --message "$2" >/dev/null
 }
 
 fail() {
   ERROR_CODE="$1"
   ERROR_MESSAGE="$2"
+  py "$RUN_MANAGER" error --run-dir "$RUN_DIR" --stage "$CURRENT_STAGE" \
+    --code "$ERROR_CODE" --message "$ERROR_MESSAGE" >/dev/null 2>&1 || true
   printf '%s%s: %s%s\n' "$RED" "$ERROR_CODE" "$ERROR_MESSAGE" "$RESET" >&2
   exit "${3:-1}"
 }
@@ -118,6 +124,8 @@ fail() {
 partial() {
   ERROR_CODE="$1"
   ERROR_MESSAGE="$2"
+  py "$RUN_MANAGER" error --run-dir "$RUN_DIR" --stage "$CURRENT_STAGE" \
+    --code "$ERROR_CODE" --message "$ERROR_MESSAGE" >/dev/null 2>&1 || true
   printf '%s%s: %s%s\n' "$YELLOW" "$ERROR_CODE" "$ERROR_MESSAGE" "$RESET" >&2
   exit 4
 }
@@ -125,6 +133,8 @@ partial() {
 on_signal() {
   ERROR_CODE="INTERRUPTED"
   ERROR_MESSAGE="任务已由用户中止；未完成的暂存运行不会发布。"
+  py "$RUN_MANAGER" error --run-dir "$RUN_DIR" --stage "$CURRENT_STAGE" \
+    --code "$ERROR_CODE" --message "$ERROR_MESSAGE" >/dev/null 2>&1 || true
   exit 130
 }
 trap on_signal INT TERM
@@ -136,22 +146,19 @@ on_exit() {
   result="ok"
   message="${PUSH_SUMMARY:-任务完成}"
   if [ "$status" -ne 0 ]; then
-    # Mixed batch (exit 4, PARTIAL_FAILURE): keep the aggregate code — the
-    # last underlying per-target error in the log must not masquerade as the
-    # whole batch's outcome. Per-target codes live in result.json/capture-state.
-    if [ "$status" -eq 4 ] && [ "$ERROR_CODE" = "PARTIAL_FAILURE" ]; then
-      detected=""
-    else
-      detected="$(tail -n 120 "$RUN_LOG" 2>/dev/null | grep -Eo 'LOCAL_MAINTAINER_ACK_REQUIRED|COMPLIANCE_POLICY_BLOCKED|SOURCE_CIRCUIT_OPEN|VISIT_BUDGET_EXHAUSTED|SOURCE_BLOCKED_OR_RATE_LIMITED|SOURCE_TRUNCATED_DOWNLOAD|SOURCE_FILE_SIGNATURE_INVALID|SOURCE_UNEXPECTED_CONTENT_TYPE|SOURCE_NETWORK_FAILURE|EVENT_EMPTY|PAIRINGS_NOT_PUBLISHED|TEAM_FORMAT_UNSUPPORTED|ROUND_COUNT_UNKNOWN|PAIRING_REFS_OUTSIDE_ROSTER|PAGE_CACHE_MISS|PARSER_LAYOUT_CHANGED|VALIDATION_REGRESSION|REGISTRY_AUTHORITY_MISMATCH|NAME_CORRECTION_REGRESSION|DIRTY_RELEASE_PATH|GIT_INDEX_NOT_CLEAN|WORKTREE_CHANGED_DURING_RUN|RELEASE_HASH_MISMATCH|RELEASE_BASE_CONFLICT|API_DELIVERY_BASELINE_MISSING|GIT_DNS_FAILURE|GIT_TLS_FAILURE|GIT_PROXY_FAILURE|GIT_AUTH_FAILED|GIT_REMOTE_REJECTED|GIT_CONNECT_FAILURE|GIT_PUSH_FAILED' | tail -1)"
+    structured="$(py "$RUN_MANAGER" error-get --run-dir "$RUN_DIR" --plain 2>/dev/null || true)"
+    if [ -n "$structured" ]; then
+      IFS=$'\t' read -r structured_code structured_message <<< "$structured"
+      [ -n "$structured_code" ] && ERROR_CODE="$structured_code"
+      [ -n "$structured_message" ] && ERROR_MESSAGE="$structured_message"
     fi
-    [ -n "$detected" ] && ERROR_CODE="$detected"
     if [ "$status" -eq 4 ] && [ "$ERROR_CODE" = "PARTIAL_FAILURE" ]; then
       result="partial"
       message="${ERROR_MESSAGE:-部分目标需要处理；完整目标和发布结果已保留。}"
     elif [ "$DATA_COMMITTED" = "true" ]; then
       result="push-failed"
       ERROR_CODE="${ERROR_CODE:-GIT_PUSH_FAILED}"
-      message="数据已按 manifest 提交在本地，推送失败；使用 push 重投即可。"
+      message="数据已按 manifest 提交在本地，投递失败；使用 deliver 重投即可。"
     else
       result="failed"
       ERROR_CODE="${ERROR_CODE:-UNEXPECTED_FAILURE}"
@@ -184,14 +191,18 @@ trap on_exit EXIT
 
 # --- dependencies ---------------------------------------------------------
 ensure_pymod() {
-  local mod="$1" pkg="${2:-$1}" args
+  local mod="$1" pkg="${2:-$1}" attempt label args
   python3 -c "import $mod" 2>/dev/null && return 0
   step "安装 Python 依赖：$pkg"
-  for args in "" "--break-system-packages" \
-              "-i https://pypi.tuna.tsinghua.edu.cn/simple" \
-              "-i https://pypi.tuna.tsinghua.edu.cn/simple --break-system-packages"; do
+  for attempt in \
+    "PyPI|" \
+    "清华镜像|-i https://pypi.tuna.tsinghua.edu.cn/simple"; do
+    label="${attempt%%|*}"
+    args="${attempt#*|}"
+    echo "依赖安装尝试：${label}（单次网络超时 12 秒）"
     # shellcheck disable=SC2086
-    if python3 -m pip install --user --quiet --disable-pip-version-check --default-timeout=20 $args "$pkg" 2>/dev/null \
+    if python3 -m pip install --user --quiet --disable-pip-version-check \
+       --default-timeout=12 --retries=1 $args "$pkg" 2>/dev/null \
        && python3 -c "import $mod" 2>/dev/null; then
       return 0
     fi
@@ -328,10 +339,21 @@ DATA_BRANCH="local-data"
 STATE_ROOT="$(python3 -c 'import pathlib,sys; sys.path.insert(0,"Scripts"); from source_policy import local_state_root; print(local_state_root())')"
 PUSH_MARKER="$STATE_ROOT/last-local-data-push"
 
+bundle_base_commit() {
+  python3 - "$STATE_ROOT/outbox/$1/manifest.json" <<'PY'
+import json, pathlib, sys
+try:
+    print(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")).get("baseCommit") or "")
+except Exception:
+    print("")
+PY
+}
+
 push_commit_with_routes() {
   # Push an exact, immutable commit SHA to the single-writer branch, rotating
   # to the next route on failure instead of retrying the same dead route.
-  local sha="$1" route err classification
+  local sha="$1" run_id="$2" route err classification remote_main base_commit
+  base_commit="$(bundle_base_commit "$run_id")"
   LAST_PUSH_ERROR=""
   while IFS= read -r route; do
     if ! github_ok "$route"; then
@@ -339,6 +361,12 @@ push_commit_with_routes() {
       continue
     fi
     [ -n "$route" ] && echo "GitHub 使用路线 ${route}；数据来源仍保持住宅 IP 直连。"
+    remote_main="$(xgit "$route" ls-remote origin refs/heads/main 2>/dev/null | awk 'NR==1 {print $1}')"
+    if [ -z "$base_commit" ] || [ "$remote_main" != "$base_commit" ]; then
+      LAST_PUSH_ERROR="GIT_FALLBACK_BASE_MISMATCH"
+      echo "Git 路线跳过：发布包基线 ${base_commit:-missing} 与远端 main ${remote_main:-unavailable} 不一致。" >&2
+      continue
+    fi
     if err="$(xgit "$route" push --force origin "${sha}:refs/heads/${DATA_BRANCH}" 2>&1)"; then
       printf '%s\n' "$err"
       mkdir -p "$(dirname "$PUSH_MARKER")"
@@ -359,15 +387,34 @@ push_commit_with_routes() {
   return 1
 }
 
+classify_api_delivery_error() {
+  local output="$1" code
+  code="$(printf '%s' "$output" | grep -Eo 'RELEASE_BASE_CONFLICT|RELEASE_HASH_MISMATCH|RELEASE_MANIFEST_INVALID|RELEASE_PATH_[A-Z_]+|API_DELIVERY_BLOCKED|API_DELIVERY_BASELINE_MISSING|API_DELIVERY_TREE_TRUNCATED' | tail -1)"
+  if [ -n "$code" ]; then
+    printf 'policy\t%s\n' "$code"
+  else
+    printf 'transport\tGITHUB_API_TRANSPORT_FAILED\n'
+  fi
+}
+
 api_deliver() {
   # Prefer the API for baseline-aware bundles. It sends only the exact
   # manifest files, avoiding an expensive Git history walk after collection.
   # The same validate_manifest/three-way baseline policy applies.
-  local run_id="$1"
+  local run_id="$1" output classification
+  API_DELIVERY_CLASS="transport"
+  API_DELIVERY_ERROR="GITHUB_API_UNAVAILABLE"
   command -v gh >/dev/null 2>&1 || return 1
   gh auth status >/dev/null 2>&1 || return 1
   echo "优先使用 GitHub Git Database API 投递 ${run_id}。"
-  py Scripts/local/publish_data_via_api.py --outbox "$run_id"
+  if output="$(py Scripts/local/publish_data_via_api.py --outbox "$run_id" 2>&1)"; then
+    printf '%s\n' "$output"
+    return 0
+  fi
+  printf '%s\n' "$output" >&2
+  classification="$(classify_api_delivery_error "$output")"
+  IFS=$'\t' read -r API_DELIVERY_CLASS API_DELIVERY_ERROR <<< "$classification"
+  return 1
 }
 
 deliver_outbox() {
@@ -378,16 +425,22 @@ deliver_outbox() {
     echo "投递 outbox release ${run_id}（commit ${sha}）"
     if api_deliver "$run_id"; then
       delivered=$((delivered + 1))
-    elif push_commit_with_routes "$sha"; then
+    elif [ "$API_DELIVERY_CLASS" = "transport" ] && push_commit_with_routes "$sha" "$run_id"; then
       py "$RUN_MANAGER" outbox-update --run-id "$run_id" --status pushed \
         --remote-sha "$sha" --route git >/dev/null
       delivered=$((delivered + 1))
     else
+      if [ "$API_DELIVERY_CLASS" = "policy" ]; then
+        LAST_PUSH_ERROR="$API_DELIVERY_ERROR"
+      fi
       py "$RUN_MANAGER" outbox-update --run-id "$run_id" --status pending \
-        --error "${LAST_PUSH_ERROR:-GIT_PUSH_FAILED}" >/dev/null || true
+        --error "${LAST_PUSH_ERROR:-${API_DELIVERY_ERROR:-GIT_PUSH_FAILED}}" >/dev/null || true
       failed=$((failed + 1))
       # Deterministic auth/policy failures affect every bundle equally.
-      case "$LAST_PUSH_ERROR" in GIT_AUTH_FAILED|GIT_REMOTE_REJECTED) break ;; esac
+      case "$API_DELIVERY_CLASS:${LAST_PUSH_ERROR}" in
+        policy:*|*:GIT_AUTH_FAILED|*:GIT_REMOTE_REJECTED|*:GIT_FALLBACK_BASE_MISMATCH) break
+        ;;
+      esac
     fi
   done < <(py "$RUN_MANAGER" outbox-list --status pending --plain)
   DELIVERED_COUNT="$delivered"
@@ -436,7 +489,6 @@ prepare_release() {
     shift
   done
   state "validating" "生成精确发布 manifest 并校验边界"
-  ERROR_CODE="RELEASE_VALIDATION_FAILED"
   py "$RUN_MANAGER" prepare --repo "$REPO_ROOT" --run-dir "$RUN_DIR" \
     --command "$release_command" "${args[@]}"
 }
@@ -448,7 +500,6 @@ preflight_release() {
     shift
   done
   state "preflight" "检查发布路径、暂存区、磁盘与运行锁"
-  ERROR_CODE="DIRTY_RELEASE_PATH"
   py "$RUN_MANAGER" preflight --repo "$REPO_ROOT" --run-dir "$RUN_DIR" "${args[@]}"
 }
 
@@ -485,13 +536,11 @@ run_registry() {
     cp -R data/generated/federation-snapshots/. "$staging/generated/federation-snapshots/" || return $?
   fi
   state "downloading" "下载并验证 FIDE ZIP；失败时回退 last-good"
-  ERROR_CODE="FIDE_DOWNLOAD_OR_VALIDATION_FAILED"
   py_extra Scripts/sync_chinese_players.py \
     --output-root "$staging/registry" \
     --snapshot-dir "$staging/generated/federation-snapshots" \
     --transfer-candidates "$staging/generated/transfer-candidates.json" || return $?
   state "validating" "校验 registry 权威字段、分片一致性和姓名勘误"
-  ERROR_CODE="VALIDATION_REGRESSION"
   py Scripts/validate_registry_release.py \
     --registry "$staging/registry" \
     --corrections data/community/name-corrections.csv || return $?
@@ -515,7 +564,6 @@ run_private_events() {
     --no-players --no-rebuild
   preflight_release "${EVENT_PATHS[@]}" || return $?
   state "collecting" "按队列采集 Chess-Results 全量赛事数据；本地清洗后与已发布副本比对合并"
-  ERROR_CODE="CHESS_RESULTS_COLLECTION_FAILED"
   local rc=0
   if [ "${#EXTRA[@]}" -eq 0 ]; then
     py Scripts/sync_chess_results_event.py --from-queue 3 --private-root "$RUN_DIR" \
@@ -529,10 +577,7 @@ run_private_events() {
   elif [ "$rc" -eq 4 ]; then
     PUSH_SUMMARY="赛事采集部分完成；失败目标已隔离记录，成功赛事已清洗并进入发布路径"
   else
-    # All targets failed. The collector already printed the structured code
-    # (e.g. EVENT_EMPTY) which on_exit extracts from the log; give the user a
-    # concrete pointer instead of a generic failure line.
-    ERROR_MESSAGE="全部目标失败；结构化原因、失败页面与原始证据已写入 capture-state 和本次 raw/ 目录，来源记录不存在的目标已自动隔离。"
+    ERROR_MESSAGE="赛事采集未形成可完成目标；逐场真实原因见本批结果、capture-state 与本次日志。"
   fi
   return "$rc"
 }
@@ -545,10 +590,34 @@ release_event_data() {
   commit_prepared_release "Release cleaned Chess-Results event data (local manifest)"
 }
 
+recover_event_data() {
+  local path count=0
+  recovery_args=()
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    recovery_args+=(--adopt "$path")
+    count=$((count + 1))
+  done < <(
+    py "$RUN_MANAGER" recovery-list --repo "$REPO_ROOT" \
+      --allow "${EVENT_PATHS[0]}" --allow "${EVENT_PATHS[1]}" \
+      --allow "${EVENT_PATHS[2]}" --allow "${EVENT_PATHS[3]}" --plain
+  )
+  if [ "$count" -eq 0 ]; then
+    PUSH_SUMMARY="没有需要接管的中断赛事产物"
+    return 0
+  fi
+  state "recovering" "校验并接管 ${count} 个中断机器产物；不访问任何数据源"
+  preflight_args=()
+  for path in "${EVENT_PATHS[@]}"; do preflight_args+=(--allow "$path"); done
+  py "$RUN_MANAGER" preflight --repo "$REPO_ROOT" --run-dir "$RUN_DIR" \
+    "${preflight_args[@]}" "${recovery_args[@]}" || return $?
+  release_event_data
+  PUSH_SUMMARY="已接管并收口 ${count} 个中断机器产物；发布状态见 outbox"
+}
+
 run_private_candidates() {
   ensure_pymod pypinyin
   state "collecting-private" "采集姓名候选；不会写 data/manual 或 data/community"
-  ERROR_CODE="CHESS_RESULTS_PRIVATE_COLLECTION_FAILED"
   export CHINA_CHESS_PRIVATE_EXTRACTED_ROOT="$RUN_DIR/extracted/name-candidates"
   py_extra Scripts/sync_chess_results_starting_rank_aliases.py || return $?
   PUSH_SUMMARY="姓名候选保存在 $RUN_DIR/extracted/name-candidates；等待人工审核"
@@ -563,7 +632,6 @@ run_lichess() {
   mkdir -p "$staging/bulk" || return $?
   export CHINA_CHESS_DOCS_DATA_OUTPUT="$staging"
   state "downloading" "镜像 Lichess Broadcast 分片并验证长度、Zstandard 文件签名"
-  ERROR_CODE="LICHESS_DOWNLOAD_OR_VALIDATION_FAILED"
   args=(--metadata-only --mirror --index-youth)
   [ "$force" = "true" ] && args+=(--force)
   py_extra Scripts/sync_lichess_broadcast_bulk.py "${args[@]}" || return $?
@@ -594,7 +662,6 @@ PY
 case "$command" in
   health)
     state "health-check" "执行本机、缓存、发布路径和来源连通性检查"
-    ERROR_CODE="HEALTH_CHECK_FAILED"
     py_extra Scripts/local/health_check.py
     PUSH_SUMMARY="健康检查通过"
     ;;
@@ -607,13 +674,20 @@ case "$command" in
   event-queue)
     event_rc=0
     run_private_events || event_rc=$?
-    if [ "$event_rc" -ne 0 ] && [ "$event_rc" -ne 4 ]; then
-      exit "$event_rc"
-    fi
-    release_event_data || fail "GIT_PUSH_FAILED" "赛事数据已按 manifest 提交本地，推送失败；使用 deliver 重投即可。"
+    release_event_data || fail "RELEASE_FINALIZATION_FAILED" \
+      "赛事采集结果未能收口为发布包；已完成目标仍保存在本机，请查看结构化错误后重试接管。"
     if [ "$event_rc" -eq 4 ]; then
       partial "PARTIAL_FAILURE" "部分目标需要处理；完整目标、保留的部分数据及实际发布结果见面板“本批结果”。"
+    elif [ "$event_rc" -ne 0 ]; then
+      fail "CHESS_RESULTS_COLLECTION_FAILED" \
+        "${ERROR_MESSAGE:-赛事采集未形成可完成目标；逐场原因见本批结果与 capture-state。}"
     fi
+    ;;
+
+  recover-events)
+    [ "${#EXTRA[@]}" -eq 0 ] || fail "UNSAFE_ARGUMENT_BLOCKED" "recover-events 不接受额外参数。"
+    recover_event_data || fail "RECOVERY_RELEASE_FAILED" \
+      "中断产物未能安全接管；原文件保持不变，请查看 error.json。"
     ;;
 
   candidates)
@@ -698,8 +772,8 @@ case "$command" in
 
   receipts)
     state "receipts" "查询云端 ingest/rebuild/deploy 回执并校验线上文件哈希"
-    ERROR_CODE="RECEIPT_CHECK_FAILED"
-    py_extra Scripts/local/check_receipts.py
+    py_extra Scripts/local/check_receipts.py || fail "RECEIPT_CHECK_FAILED" \
+      "部分云端回执暂不可读；已确认的阶段不会回退，稍后只重试 receipts。"
     PUSH_SUMMARY="云端回执已同步；线上验证结果见 outbox 状态"
     ;;
 

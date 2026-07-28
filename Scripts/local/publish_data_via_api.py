@@ -14,13 +14,13 @@ from __future__ import annotations
 
 import argparse
 import base64
+import concurrent.futures
 import hashlib
 import json
 import pathlib
 import re
 import subprocess
 import sys
-import urllib.parse
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parents[1]
@@ -70,28 +70,67 @@ def git_blob_oid_for_bytes(content: bytes) -> str:
     return hashlib.sha1(header + content).hexdigest()
 
 
-def remote_blob_oid(repository: str, commit: str, path: str) -> str | None:
-    encoded_path = urllib.parse.quote(path, safe="/")
-    encoded_ref = urllib.parse.quote(commit, safe="")
-    result = subprocess.run(
-        [
-            "gh",
-            "api",
-            f"repos/{repository}/contents/{encoded_path}?ref={encoded_ref}",
-            "--jq",
-            ".sha",
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=360,
-    )
-    if result.returncode == 0:
-        return result.stdout.strip() or None
-    detail = f"{result.stdout}\n{result.stderr}"
-    if "HTTP 404" in detail or "Not Found" in detail:
-        return None
-    raise SystemExit(f"API_DELIVERY_BLOCKED: 无法读取远端基线 {commit}:{path}: {detail.strip()}")
+def remote_tree_oids(repository: str, tree_sha: str) -> dict[str, str]:
+    """Read the current main tree once instead of one API call per file."""
+    payload = api(repository, "GET", f"/git/trees/{tree_sha}?recursive=1")
+    if payload.get("truncated"):
+        raise SystemExit("API_DELIVERY_TREE_TRUNCATED: GitHub 返回的递归树不完整，已停止投递。")
+    return {
+        str(item["path"]): str(item["sha"])
+        for item in payload.get("tree") or []
+        if item.get("type") == "blob" and item.get("path") and item.get("sha")
+    }
+
+
+def upload_blobs(
+    repository: str,
+    entry: pathlib.Path,
+    prepared: list[tuple[dict, bytes | None, str | None]],
+    workers: int = 4,
+) -> dict[str, str]:
+    """Upload missing blobs concurrently and checkpoint deterministic OIDs."""
+    cache_path = entry / "uploaded-blobs.json"
+    cache_payload = run_manager.read_json(cache_path)
+    cache = {
+        str(key): str(value)
+        for key, value in (cache_payload.get("blobs") or {}).items()
+        if key and value
+    }
+    pending = {
+        str(candidate_oid): content
+        for item, content, candidate_oid in prepared
+        if item.get("operation") == "upsert"
+        and content is not None
+        and candidate_oid
+        and candidate_oid not in cache
+    }
+
+    def upload(candidate_oid: str, content: bytes) -> tuple[str, str]:
+        blob = api(repository, "POST", "/git/blobs", {
+            "content": base64.b64encode(content).decode("ascii"),
+            "encoding": "base64",
+        })
+        remote_oid = str(blob.get("sha") or "")
+        if remote_oid != candidate_oid:
+            raise SystemExit(
+                f"RELEASE_HASH_MISMATCH: GitHub blob OID 与候选不一致：{candidate_oid}"
+            )
+        return candidate_oid, remote_oid
+
+    if pending:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
+            futures = {
+                executor.submit(upload, oid, content): oid
+                for oid, content in pending.items()
+            }
+            for future in concurrent.futures.as_completed(futures):
+                oid, remote_oid = future.result()
+                cache[oid] = remote_oid
+                run_manager.atomic_json(cache_path, {
+                    "schemaVersion": 1,
+                    "blobs": cache,
+                })
+    return cache
 
 
 def release_conflicts(base_oid: str | None, current_oid: str | None, candidate_oid: str | None) -> bool:
@@ -178,6 +217,7 @@ def main() -> int:
     repository = repository_name()
     parent = api(repository, "GET", f"/git/ref/heads/{args.base_branch}")["object"]["sha"]
     base_tree = api(repository, "GET", f"/git/commits/{parent}")["tree"]["sha"]
+    current_tree = remote_tree_oids(repository, base_tree)
 
     prepared: list[tuple[dict, bytes | None, str | None]] = []
     conflicts: list[str] = []
@@ -194,7 +234,7 @@ def main() -> int:
                 raise SystemExit(f"RELEASE_HASH_MISMATCH: outbox 文件与 manifest 哈希不符：{path}")
             candidate_oid = git_blob_oid_for_bytes(content)
 
-        current_oid = remote_blob_oid(repository, parent, path)
+        current_oid = current_tree.get(path)
         if release_conflicts(item.get("baseBlobOid"), current_oid, candidate_oid):
             conflicts.append(path)
 
@@ -217,18 +257,21 @@ def main() -> int:
     # Re-run the shared validator after adding the delivery baseline.
     files = run_manager.validate_manifest(manifest)
 
+    uploaded_blobs = upload_blobs(repository, entry, prepared)
     tree_entries: list[dict] = []
-    for item, content, _candidate_oid in prepared:
+    for item, content, candidate_oid in prepared:
         path = item["path"]
         if item["operation"] == "delete":
             tree_entries.append({"path": path, "mode": "100644", "type": "blob", "sha": None})
             continue
         assert content is not None
-        blob = api(repository, "POST", "/git/blobs", {
-            "content": base64.b64encode(content).decode("ascii"),
-            "encoding": "base64",
+        assert candidate_oid is not None
+        tree_entries.append({
+            "path": path,
+            "mode": "100644",
+            "type": "blob",
+            "sha": uploaded_blobs[candidate_oid],
         })
-        tree_entries.append({"path": path, "mode": "100644", "type": "blob", "sha": blob["sha"]})
     # The manifest itself rides along so cloud ingest can validate it.
     manifest_bytes = json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
     manifest_blob = api(repository, "POST", "/git/blobs", {

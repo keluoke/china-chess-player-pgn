@@ -11,6 +11,7 @@ from __future__ import annotations
 import gzip
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -381,6 +382,45 @@ class BatchIsolationTests(unittest.TestCase):
             self.assertEqual(result["targets"]["999404"]["errorCode"], "EVENT_EMPTY")
             self.assertEqual(result["summary"], {"complete": 2, "quarantined": 1})
             self.assertEqual(result["requested"], ["999001", "999404", "999002"])
+
+    def test_post_step_failure_keeps_completed_capture_and_returns_partial(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
+            temp = pathlib.Path(name)
+            run_root = temp / "run1"
+            state = temp / "capture-state.json"
+            queue = temp / "queue.json"
+            queue.write_text('{"targets":[]}')
+            argv = [
+                "sync_chess_results_event.py",
+                "999001",
+                "--private-root", str(run_root),
+                "--delay", "0",
+                "--publish",
+                "--no-players",
+                "--no-rebuild",
+            ]
+            fetcher = FakeFetcher()
+            failed = subprocess.CalledProcessError(
+                7,
+                [sys.executable, "Scripts/fetch_event_pgn.py"],
+            )
+            with (
+                mock.patch.object(sce, "CAPTURE_STATE", state),
+                mock.patch.object(sce, "EVENT_QUEUE", queue),
+                mock.patch.object(sce, "PUBLIC_OUTPUT", temp / "public-details"),
+                mock.patch.object(sce, "fetch_page_body", fetcher),
+                mock.patch.object(sce, "require_chess_results_publication"),
+                mock.patch.object(sce, "run_command", side_effect=failed),
+                mock.patch.object(sys, "argv", argv),
+            ):
+                code = sce.main()
+            self.assertEqual(code, 4)
+            capture = json.loads(state.read_text())["events"]["999001"]
+            self.assertEqual(capture["status"], "complete")
+            result = json.loads((run_root / "result.json").read_text())
+            self.assertEqual(result["targets"]["999001"]["status"], "complete")
+            self.assertEqual(result["postSteps"][0]["step"], "event-pgn")
+            self.assertEqual(result["postSteps"][0]["code"], "POST_STEP_FAILED")
 
     def test_pages_persist_before_parse_and_resume_fetches_only_missing(self) -> None:
         with tempfile.TemporaryDirectory(prefix="cc-test-") as name:

@@ -56,6 +56,12 @@ partial 目标可一键"续跑补缺页"。队列汇总栏区分：
 不再笼统标成整批 `failed`；发布状态只取 manifest 和 delivery receipt，不从
 采集退出码推断。
 
+“已抓赛事”按赛事日期列出本机已有清洗结果，并合并显示抓取状态、人数/轮次/
+排名、完整性门禁和发布阶段；支持搜索、日期/采集时间排序、发布状态筛选与分页。
+面板默认开启“自动推进发布”，它只会执行 `deliver` 和 `receipts`，不会自动访问
+任何数据源。网络型投递失败按 30 秒、120 秒、300 秒退避重试；基线冲突、manifest
+错误、路径/哈希错误和已证实的线上哈希不一致会停止自动重试并列入“需要人工处理”。
+
 ## 安全命令
 
 ```bash
@@ -94,6 +100,10 @@ bash Scripts/local/refresh.sh deliver
 
 # 同步云端回执：查询 ingest/rebuild/deploy workflow 结论并校验线上文件哈希
 bash Scripts/local/refresh.sh receipts
+
+# 显式接管中断后遗留、尚未进入 manifest 的机器产物并发布；逐文件做
+# JSON/PGN 格式检查，不自动丢弃、回滚或重抓
+bash Scripts/local/refresh.sh recover-events
 
 # 仅本地诊断，不自动提交或推送
 bash Scripts/local/refresh.sh reindex
@@ -149,6 +159,7 @@ python3 Scripts/local/identity_review.py --show <candidateID>
 runs/<run-id>/
   run.json
   run.log
+  error.json              # 结构化失败阶段、错误码、提示和证据
   raw/
   extracted/
   staging/
@@ -178,6 +189,12 @@ FIDE/Lichess/Chess-Results 发布前必须满足：
    manifest 文件清单，并在 job summary 写入 run-id / source SHA / baseline /
    main commit 的 receipt；
 9. Actions 离线重建索引和部署。
+
+发布准备使用与 preflight 相同的机器路径口径，包括 Git 忽略但实际存在的孤儿
+产物；发现时一律 fail-closed，并在 `diagnostics/recovery-candidates.json` 写出
+完整候选清单。只有维护者显式执行 `recover-events -- --adopt` 才会接管，工具
+不会自动删除、回滚或重新抓取。运行目录按“最近 30 个 + 每类命令至少 5 个”保留；
+本批结果同时写入对应 outbox，因此普通 run 被轮转后仍可在面板追溯。
 
 push 成功不等于发布成功。为避免投递完成后被慢回执查询阻塞，`deliver` 只负责
 把发布包送达 `local-data`；`refresh.sh receipts` 独立通过 gh API 读取
@@ -217,6 +234,9 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 - `GIT_AUTH_FAILED` / `GIT_REMOTE_REJECTED`：换路线无用；重新登录 gh 或检查
   远端策略。
 - `GIT_PUSH_FAILED`：发布包已留在 outbox，恢复网络后运行 `deliver`。
+- `ONLINE_HASH_MISMATCH`：云端部署完成，但线上文件实际哈希与本发布包不同；
+  通常表示该包已被更新快照取代。自动推进会停止重试，需按 run-id 核对线上快照
+  与后续发布包，不要重新抓取来源。
 
 ## 代码发布（与数据发布分离）
 

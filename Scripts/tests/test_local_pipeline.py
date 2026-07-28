@@ -727,7 +727,7 @@ class RunManagerTests(unittest.TestCase):
 
     def test_preflight_can_adopt_only_an_exact_verified_machine_output(self) -> None:
         target = self.repo / "docs/data/registry/players.json"
-        target.write_text("adopted\n")
+        target.write_text('[{"fideID":"1"}]\n')
         manifest = self.repo / run_manager.MANIFEST_PATH
         manifest.parent.mkdir(parents=True, exist_ok=True)
         manifest.write_text('{"stale":true}\n')
@@ -738,13 +738,36 @@ class RunManagerTests(unittest.TestCase):
         result = run_manager.prepare_release(self.repo, self.run_dir, "registry", ["docs/data/registry"])
         self.assertEqual([item["path"] for item in result["files"]], ["docs/data/registry/players.json"])
 
-    def test_outside_change_during_run_blocks_release(self) -> None:
+    def test_outside_change_during_run_is_diagnostic_not_a_release_blocker(self) -> None:
         run_manager.preflight(self.repo, self.run_dir, ["docs/data/registry"])
         (self.repo / "README.md").write_text("concurrent\n")
         (self.repo / "docs/data/registry/players.json").write_text("changed\n")
+        result = run_manager.prepare_release(
+            self.repo, self.run_dir, "registry", ["docs/data/registry"],
+        )
+        self.assertEqual(result["changed"], 1)
+        diagnostic = json.loads(
+            (self.run_dir / "diagnostics/outside-worktree-changes.json").read_text(),
+        )
+        self.assertEqual(diagnostic["paths"], ["README.md"])
+
+    def test_preflight_sees_ignored_orphaned_machine_outputs(self) -> None:
+        ignored_root = self.repo / "data/generated/chess-results-event-details"
+        (self.repo / ".gitignore").write_text("data/generated/chess-results-event-details/\n")
+        git(self.repo, "add", ".gitignore")
+        git(self.repo, "commit", "-qm", "ignore event details")
+        ignored_root.mkdir(parents=True)
+        orphan = ignored_root / "tnr999.json"
+        orphan.write_text('{"tournamentID":"999"}\n')
+        allow = ["data/generated/chess-results-event-details"]
         with self.assertRaises(run_manager.RunManagerError) as caught:
-            run_manager.prepare_release(self.repo, self.run_dir, "registry", ["docs/data/registry"])
-        self.assertEqual(caught.exception.code, "WORKTREE_CHANGED_DURING_RUN")
+            run_manager.preflight(self.repo, self.run_dir, allow)
+        self.assertEqual(caught.exception.code, "DIRTY_RELEASE_PATH")
+        recovery = json.loads(
+            (self.run_dir / "diagnostics/recovery-candidates.json").read_text(),
+        )
+        self.assertEqual(recovery["paths"], [str(orphan.relative_to(self.repo))])
+        self.assertEqual(run_manager.recovery_candidates(self.repo, allow), recovery["paths"])
 
     def test_source_cannot_cross_release_path_boundary(self) -> None:
         payload = {
@@ -831,11 +854,16 @@ class OutboxTests(unittest.TestCase):
         return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo, text=True).strip()
 
     def test_save_list_update_round_trip(self) -> None:
+        (self.run_dir / "result.json").write_text(
+            '{"requested":["1"],"summary":{"complete":1}}\n',
+            encoding="utf-8",
+        )
         sha = self.prepare_commit()
         saved = run_manager.outbox_save(self.repo, self.run_dir, sha)
         self.assertEqual(saved["runId"], "outbox-test-run")
         entry = pathlib.Path(saved["outbox"])
         self.assertTrue((entry / "manifest.json").is_file())
+        self.assertTrue((entry / "result.json").is_file())
         self.assertTrue((entry / "files" / "docs/data/registry/players.json").is_file())
         pending = run_manager.outbox_entries("pending")
         self.assertEqual(len(pending), 1)
@@ -896,6 +924,41 @@ class ApiFallbackPolicyTests(unittest.TestCase):
         self.assertFalse(publish_data_via_api.release_conflicts("base", "base", "candidate"))
         self.assertFalse(publish_data_via_api.release_conflicts("base", "candidate", "candidate"))
         self.assertTrue(publish_data_via_api.release_conflicts("base", "concurrent", "candidate"))
+
+    def test_api_reads_remote_tree_once(self) -> None:
+        import publish_data_via_api
+
+        payload = {
+            "truncated": False,
+            "tree": [
+                {"path": "data/a.json", "type": "blob", "sha": "a" * 40},
+                {"path": "data/sub", "type": "tree", "sha": "b" * 40},
+            ],
+        }
+        with mock.patch.object(publish_data_via_api, "api", return_value=payload) as api:
+            result = publish_data_via_api.remote_tree_oids("owner/repo", "c" * 40)
+        self.assertEqual(result, {"data/a.json": "a" * 40})
+        api.assert_called_once()
+
+    def test_api_blob_upload_checkpoint_is_reused(self) -> None:
+        import publish_data_via_api
+
+        content = b'{"ok":true}\n'
+        oid = publish_data_via_api.git_blob_oid_for_bytes(content)
+        prepared = [({
+            "path": "data/generated/chess-results-event-details/tnr1.json",
+            "operation": "upsert",
+        }, content, oid)]
+        with tempfile.TemporaryDirectory() as temp:
+            entry = pathlib.Path(temp)
+            with mock.patch.object(
+                publish_data_via_api, "api", return_value={"sha": oid},
+            ) as api:
+                first = publish_data_via_api.upload_blobs("owner/repo", entry, prepared)
+                second = publish_data_via_api.upload_blobs("owner/repo", entry, prepared)
+            self.assertEqual(first[oid], oid)
+            self.assertEqual(second[oid], oid)
+            api.assert_called_once()
 
     def test_legacy_bundle_recovers_exact_baseline_from_base_commit(self) -> None:
         import publish_data_via_api
@@ -1040,7 +1103,12 @@ class GitTransportTests(unittest.TestCase):
         source = REFRESH_SH.read_text(encoding="utf-8")
         block = re.search(r"deliver_outbox\(\) \{(.*?)\n\}", source, re.DOTALL)
         self.assertIsNotNone(block)
-        self.assertLess(block.group(1).index('api_deliver "$run_id"'), block.group(1).index('push_commit_with_routes "$sha"'))
+        self.assertLess(
+            block.group(1).index('api_deliver "$run_id"'),
+            block.group(1).index('push_commit_with_routes "$sha" "$run_id"'),
+        )
+        self.assertIn('API_DELIVERY_CLASS" = "transport"', block.group(1))
+        self.assertIn("GIT_FALLBACK_BASE_MISMATCH", source)
         self.assertNotIn("check_receipts.py", block.group(1))
         commit_block = re.search(r"commit_prepared_release\(\) \{(.*?)\n\}", source, re.DOTALL)
         self.assertIsNotNone(commit_block)
@@ -1104,6 +1172,57 @@ class SharedStateProjectionTests(unittest.TestCase):
             self.assertEqual(entries[0]["tournamentID"], "999888")
             self.assertFalse(entries[0]["inQueue"])
             self.assertEqual(entries[0]["status"], "complete")
+
+    def test_events_join_date_name_completeness_and_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            state_root = root / "state"
+            capture_state = state_root / "chess-results/capture-state.json"
+            capture_state.parent.mkdir(parents=True)
+            capture_state.write_text(json.dumps({"events": {
+                "100001": {
+                    "status": "complete", "players": 8, "rounds": 7,
+                    "standings": 8, "updatedAt": "2026-07-28T01:00:00Z",
+                },
+            }}))
+            tournaments = root / "tournaments.json"
+            tournaments.write_text(json.dumps([{
+                "tournamentID": "100001", "name": "示例赛事", "date": "2026-07-20",
+            }]))
+            completeness = root / "completeness.json"
+            completeness.write_text(json.dumps({"events": [{
+                "tournamentID": "100001", "resultsStatus": "results-complete",
+                "pgnAvailability": "not-published", "archiveStatus": "missing",
+            }]}))
+            queue = root / "queue.json"
+            queue.write_text('{"targets":[]}')
+            outbox = state_root / "outbox/release-1"
+            outbox.mkdir(parents=True)
+            (outbox / "manifest.json").write_text(json.dumps({
+                "command": "event-queue",
+                "files": [{
+                    "path": "data/generated/chess-results-event-details/tnr100001.json",
+                }],
+            }))
+            (outbox / "delivery.json").write_text(json.dumps({
+                "runId": "release-1", "status": "online-verified",
+                "createdAt": "2026-07-28T02:00:00Z",
+            }))
+            with (
+                mock.patch.object(local_panel, "STATE_ROOT", state_root),
+                mock.patch.object(local_panel, "CAPTURE_STATE_PATH", capture_state),
+                mock.patch.object(local_panel, "TOURNAMENTS_PATH", tournaments),
+                mock.patch.object(local_panel, "COMPLETENESS_PATH", completeness),
+                mock.patch.object(local_panel, "QUEUE_PATH", queue),
+                mock.patch.object(local_panel, "EVENT_DETAIL_ROOT", root / "details"),
+                mock.patch.object(run_manager, "local_state_root", return_value=state_root),
+            ):
+                payload = local_panel.events_payload()
+            event = payload["entries"][0]
+            self.assertEqual(event["name"], "示例赛事")
+            self.assertEqual(event["date"], "2026-07-20")
+            self.assertEqual(event["resultsStatus"], "results-complete")
+            self.assertEqual(event["publication"]["status"], "online-verified")
 
 
 class PanelBatchResultTests(unittest.TestCase):
@@ -1207,6 +1326,36 @@ class PanelBatchResultTests(unittest.TestCase):
             self.assertEqual(payload["summary"], {"partial": 1})
             self.assertFalse(payload["running"])
 
+    def test_event_result_survives_run_pruning_in_outbox(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            outbox = root / "outbox" / "event-release"
+            outbox.mkdir(parents=True)
+            (outbox / "manifest.json").write_text(json.dumps({
+                "command": "event-queue",
+                "files": [],
+            }))
+            (outbox / "result.json").write_text(json.dumps({
+                "requested": ["100001"],
+                "targets": {"100001": {"status": "complete"}},
+                "summary": {"complete": 1},
+            }))
+            (outbox / "delivery.json").write_text(json.dumps({
+                "runId": "event-release",
+                "status": "online-verified",
+                "createdAt": "2026-07-28T00:00:00Z",
+            }))
+            with (
+                mock.patch.object(local_panel, "STATE_ROOT", root),
+                mock.patch.object(local_panel, "durable_state", return_value={
+                    "command": "receipts", "result": "ok",
+                }),
+                mock.patch.object(run_manager, "local_state_root", return_value=root),
+            ):
+                payload = local_panel.result_payload()
+            self.assertEqual(payload["runId"], "event-release")
+            self.assertEqual(payload["summary"], {"complete": 1})
+
     def test_partial_batch_is_a_warning_outcome_not_a_failed_release_claim(self) -> None:
         refresh = (LOCAL / "refresh.sh").read_text(encoding="utf-8")
         self.assertIn('result="partial"', refresh)
@@ -1220,8 +1369,49 @@ class PanelBatchResultTests(unittest.TestCase):
         self.assertIn("这不代表任务仍在运行", local_panel.PAGE)
         self.assertIn("wasRunning=false", local_panel.PAGE)
 
+    def test_panel_automation_never_schedules_source_capture(self) -> None:
+        source = (LOCAL / "panel.py").read_text(encoding="utf-8")
+        start = source.index("def automation_monitor()")
+        end = source.index("\ndef stop_job", start)
+        monitor = source[start:end]
+        self.assertIn('"deliver" if pending else "receipts"', monitor)
+        self.assertNotIn("event-queue", monitor)
+        self.assertIn("自动推进发布", local_panel.PAGE)
+
+    def test_panel_automation_quarantines_online_hash_mismatch(self) -> None:
+        with (
+            mock.patch.object(local_panel, "_read_json_file", return_value={"enabled": True}),
+            mock.patch.object(local_panel, "outbox_entries", return_value=[{
+                "runId": "stale-online",
+                "status": "deployed",
+                "receipts": {
+                    "online": {
+                        "ok": False,
+                        "expected": "old",
+                        "actual": "new",
+                    },
+                },
+            }]),
+        ):
+            payload = local_panel.automation_payload()
+        self.assertEqual(payload["advancing"], 0)
+        self.assertEqual(payload["attention"][0]["errorCode"], "ONLINE_HASH_MISMATCH")
+
 
 class ReceiptAdvanceTests(unittest.TestCase):
+    def test_online_hash_mismatch_is_durable_and_non_retriable(self) -> None:
+        import check_receipts
+
+        self.assertEqual(
+            check_receipts.online_error_code({
+                "online": {"ok": False, "expected": "old", "actual": "new"},
+            }),
+            "ONLINE_HASH_MISMATCH",
+        )
+        self.assertIsNone(check_receipts.online_error_code({
+            "online": {"ok": False, "error": "temporary network error"},
+        }))
+
     def test_child_rebuild_can_start_before_ingest_finishes(self) -> None:
         import check_receipts
 

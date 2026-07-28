@@ -1330,6 +1330,7 @@ def main() -> int:
         "requested": list(ids),
         "targets": {},
         "summary": {},
+        "postSteps": [],
     }
 
     def record_result(tid: str, **fields: Any) -> None:
@@ -1348,6 +1349,34 @@ def main() -> int:
         if not args.dry_run:
             capture_state["updatedAt"] = now_iso()
             write_capture_state(capture_state)
+
+    def run_post_step(
+        step: str,
+        command: list[str],
+        *,
+        allowed_returncodes: tuple[int, ...] = (0,),
+    ) -> int | None:
+        """Isolate post-processing so completed captures remain releasable."""
+        try:
+            return run_command(command, allowed_returncodes=allowed_returncodes)
+        except subprocess.CalledProcessError as error:
+            failure = {
+                "step": step,
+                "code": "POST_STEP_FAILED",
+                "returnCode": error.returncode,
+                "message": f"{step} 失败（exit {error.returncode}）；已完成赛事保持 complete。",
+                "command": [str(value) for value in error.cmd],
+                "updatedAt": now_iso(),
+            }
+            result_state["postSteps"].append(failure)
+            result_state["updatedAt"] = now_iso()
+            if not args.dry_run:
+                write_private_json(result_path, result_state)
+            print(
+                f"WARNING: {failure['code']}: {failure['message']}",
+                file=sys.stderr,
+            )
+            return None
 
     stats: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
@@ -1482,8 +1511,12 @@ def main() -> int:
         ]
         for tid in complete_ids:
             command.extend(["--tournament-id", tid])
-        run_command(command)
-        run_command([sys.executable, "Scripts/sync_domestic_players.py"])
+        aliases_returncode = run_post_step("starting-rank-aliases", command)
+        if aliases_returncode is not None:
+            run_post_step(
+                "domestic-players",
+                [sys.executable, "Scripts/sync_domestic_players.py"],
+            )
     if publish and not args.dry_run and not args.no_pgn and complete_ids:
         command = [sys.executable, "-u", "Scripts/fetch_event_pgn.py", "--workers", "1", "--full-archive"]
         if args.overwrite:
@@ -1496,7 +1529,11 @@ def main() -> int:
         # may be complete while one PGN endpoint is temporarily unavailable.
         # Do not turn that into a false all-target collection failure.  Instead
         # mark only the event that still lacks an archive for normal retry.
-        pgn_returncode = run_command(command, allowed_returncodes=(0, 4))
+        pgn_returncode = run_post_step(
+            "event-pgn",
+            command,
+            allowed_returncodes=(0, 4),
+        )
         if pgn_returncode == 4:
             for tid in complete_ids:
                 archive = EVENT_PGN_ARCHIVE / f"tnr{tid}.pgn"
@@ -1518,11 +1555,16 @@ def main() -> int:
         # projections. ``complete_ids`` is a capture checkpoint, never the
         # publication gate — build_event_details refuses to run without a
         # fresh report.
-        run_command([sys.executable, "Scripts/build_static_player_pgn.py"])
-        run_command([sys.executable, "Scripts/build_completeness_report.py"])
-        run_command([sys.executable, "Scripts/build_event_details.py"])
-        run_command([sys.executable, "Scripts/build_event_catalog.py"])
-        run_command([sys.executable, "Scripts/build_dashboard.py"])
+        build_steps = [
+            ("static-player-pgn", [sys.executable, "Scripts/build_static_player_pgn.py"]),
+            ("completeness-report", [sys.executable, "Scripts/build_completeness_report.py"]),
+            ("event-details", [sys.executable, "Scripts/build_event_details.py"]),
+            ("event-catalog", [sys.executable, "Scripts/build_event_catalog.py"]),
+            ("dashboard", [sys.executable, "Scripts/build_dashboard.py"]),
+        ]
+        for step, command in build_steps:
+            if run_post_step(step, command) is None:
+                break
 
     print(json.dumps({
         "events": stats,
@@ -1534,8 +1576,13 @@ def main() -> int:
         "releasePolicy": chess_results_release_policy(),
         "privateRoot": str(private_root),
         "publicMutation": bool(publish and not args.dry_run),
+        "postSteps": result_state["postSteps"],
     }, ensure_ascii=False, indent=2))
-    partial_batch = bool(failures) or any(item.get("status") != "complete" for item in stats)
+    partial_batch = (
+        bool(failures)
+        or bool(result_state["postSteps"])
+        or any(item.get("status") != "complete" for item in stats)
+    )
     if failures and not stats:
         return 1
     if partial_batch:

@@ -198,6 +198,19 @@ def advance(delivery: dict[str, Any], stage_results: dict[str, dict[str, Any]]) 
     return status
 
 
+def online_error_code(receipts: dict[str, Any]) -> str | None:
+    """Return a durable, non-retriable code for a proved online hash mismatch."""
+    online = receipts.get("online") or {}
+    if (
+        online.get("ok") is False
+        and online.get("expected")
+        and online.get("actual")
+        and online.get("expected") != online.get("actual")
+    ):
+        return "ONLINE_HASH_MISMATCH"
+    return None
+
+
 def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
     run_id = str(delivery.get("runId"))
     remote_sha = delivery.get("remoteSHA") or delivery.get("commit")
@@ -263,8 +276,13 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
             }
 
     new_status = advance(delivery, stage_results)
-    updated = run_manager.outbox_update(run_id, new_status if new_status != delivery.get("status") else None,
-                                        None, None, None)
+    updated = run_manager.outbox_update(
+        run_id,
+        new_status if new_status != delivery.get("status") else None,
+        None,
+        None,
+        online_error_code(receipts),
+    )
     updated["receipts"] = receipts
     entry_delivery = run_manager.read_json(entry / "delivery.json")
     entry_delivery["receipts"] = receipts

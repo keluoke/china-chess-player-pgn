@@ -190,19 +190,47 @@ def finish(run_dir: pathlib.Path, code: int, result: str, error_code: str, messa
     owner = read_json(lock / "owner.json")
     if owner.get("runId") == payload.get("runId"):
         shutil.rmtree(lock, ignore_errors=True)
-    prune_runs(keep=20)
+    prune_runs()
     return payload
 
 
-def prune_runs(keep: int) -> None:
+def prune_runs(keep_per_command: int = 5, keep_recent: int = 30) -> None:
+    """Prune diagnostics without erasing a whole command's recent history."""
     runs = local_state_root() / "runs"
     if not runs.exists():
         return
     entries = sorted((path for path in runs.iterdir() if path.is_dir()), reverse=True)
-    cutoff = dt.datetime.now().timestamp() - 90 * 24 * 3600
-    for index, path in enumerate(entries):
-        if index >= max(keep, 1) or path.stat().st_mtime < cutoff:
+    retained = set(entries[:max(keep_recent, 1)])
+    buckets: dict[str, int] = {}
+    for path in entries:
+        command = str(read_json(path / "run.json").get("command") or "unknown")
+        if buckets.get(command, 0) < max(keep_per_command, 1):
+            retained.add(path)
+            buckets[command] = buckets.get(command, 0) + 1
+    for path in entries:
+        if path not in retained:
             shutil.rmtree(path, ignore_errors=True)
+
+
+def record_error(
+    run_dir: pathlib.Path,
+    stage: str,
+    code: str,
+    message: str,
+    hint: str = "",
+    evidence: str = "",
+) -> dict[str, Any]:
+    payload = {
+        "schemaVersion": 1,
+        "stage": stage or "unknown",
+        "code": code or "UNEXPECTED_FAILURE",
+        "message": message,
+        "hint": hint or None,
+        "evidence": evidence or None,
+        "recordedAt": now(),
+    }
+    atomic_json(run_dir / "error.json", payload)
+    return payload
 
 
 def git(repo: pathlib.Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[bytes]:
@@ -329,6 +357,36 @@ def ignored_machine_files(repo: pathlib.Path, allowed: list[str]) -> dict[str, d
     return result
 
 
+def machine_release_status(repo: pathlib.Path, allowed: list[str]) -> dict[str, dict[str, Any]]:
+    """One status projection for preflight and release preparation."""
+    result = worktree_status(repo)
+    result.update(ignored_machine_files(repo, allowed))
+    return result
+
+
+def validate_recovery_candidate(repo: pathlib.Path, path: str) -> None:
+    """Cheap fail-closed format checks before adopting an orphaned output."""
+    validate_release_path(path)
+    target = repo / path
+    if target.is_symlink() or not target.is_file():
+        raise RunManagerError("RECOVERY_PATH_INVALID", f"待接管路径不是普通文件：{path}")
+    if path.endswith(".json"):
+        try:
+            json.loads(target.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise RunManagerError("RECOVERY_CONTENT_INVALID", f"待接管 JSON 无效：{path}") from error
+    if path.endswith(".pgn"):
+        sample = target.read_bytes()[:4096]
+        if not sample.strip() or b"[" not in sample:
+            raise RunManagerError("RECOVERY_CONTENT_INVALID", f"待接管 PGN 无效：{path}")
+
+
+def recovery_candidates(repo: pathlib.Path, allow: list[str]) -> list[str]:
+    allowed = [*allow, MANIFEST_PATH]
+    snapshot = machine_release_status(repo, allowed)
+    return sorted(path for path in snapshot if within(path, allowed))
+
+
 def within(path: str, roots: list[str]) -> bool:
     return any(path == root.rstrip("/") or path.startswith(root.rstrip("/") + "/") for root in roots)
 
@@ -360,13 +418,21 @@ def preflight(repo: pathlib.Path, run_dir: pathlib.Path, allow: list[str], *, ad
     if staged:
         paths = [p.decode("utf-8", "replace") for p in staged.split(b"\0") if p]
         raise RunManagerError("GIT_INDEX_NOT_CLEAN", f"Git 暂存区已有内容：{', '.join(paths[:5])}")
-    baseline = worktree_status(repo)
+    baseline = machine_release_status(repo, allowed)
     dirty_owned = [path for path in baseline if within(path, allowed)]
     unknown_adopted = [path for path in adopt if path not in dirty_owned]
     if unknown_adopted:
         raise RunManagerError("RECOVERY_PATH_NOT_DIRTY", f"恢复路径不是待接管的机器输出：{', '.join(unknown_adopted[:8])}")
     dirty_not_adopted = [path for path in dirty_owned if path not in adopt]
     if dirty_not_adopted:
+        diagnostics = run_dir / "diagnostics"
+        diagnostics.mkdir(parents=True, exist_ok=True)
+        atomic_json(diagnostics / "recovery-candidates.json", {
+            "schemaVersion": 1,
+            "paths": sorted(dirty_not_adopted),
+            "message": "这些机器发布路径未进入 manifest；只能显式接管，不会自动丢弃。",
+            "recordedAt": now(),
+        })
         raise RunManagerError(
             "DIRTY_RELEASE_PATH",
             "发布归属路径已有未提交修改，请先处理后再抓取：" + ", ".join(dirty_not_adopted[:8]),
@@ -375,6 +441,7 @@ def preflight(repo: pathlib.Path, run_dir: pathlib.Path, allow: list[str], *, ad
     # creates a normal manifest for them; all unrelated user/code changes stay
     # in the baseline and therefore cannot leak into the release.
     for path in adopt:
+        validate_recovery_candidate(repo, path)
         baseline.pop(path, None)
     atomic_json(run_dir / "worktree-baseline.json", baseline)
 
@@ -389,19 +456,25 @@ def source_for_command(command: str) -> str:
 
 def prepare_release(repo: pathlib.Path, run_dir: pathlib.Path, command: str, allow: list[str]) -> dict[str, Any]:
     baseline = read_json(run_dir / "worktree-baseline.json")
-    current = worktree_status(repo)
-    current.update(ignored_machine_files(repo, allow))
+    current = machine_release_status(repo, [*allow, MANIFEST_PATH])
     allowed = [*allow, MANIFEST_PATH]
     outside_changes = [
         path for path in set(baseline) | set(current)
         if not within(path, allowed) and baseline.get(path) != current.get(path)
     ]
     if outside_changes:
-        raise RunManagerError(
-            "WORKTREE_CHANGED_DURING_RUN",
-            "运行期间出现非发布路径改动，已停止交付：" + ", ".join(sorted(outside_changes)[:8]),
-        )
-    changed = sorted(path for path in current if within(path, allow))
+        diagnostics = run_dir / "diagnostics"
+        diagnostics.mkdir(parents=True, exist_ok=True)
+        atomic_json(diagnostics / "outside-worktree-changes.json", {
+            "schemaVersion": 1,
+            "paths": sorted(outside_changes),
+            "message": "运行期间的非发布路径改动已记录，但不进入 manifest，也不阻断机器数据交付。",
+            "recordedAt": now(),
+        })
+    changed = sorted(
+        path for path in set(baseline) | set(current)
+        if within(path, allow) and baseline.get(path) != current.get(path)
+    )
     for path in changed:
         validate_release_path(path)
     if not changed:
@@ -813,7 +886,12 @@ def outbox_root() -> pathlib.Path:
     return root
 
 
-def _outbox_write_bundle(repo: pathlib.Path, commit: str, manifest: dict[str, Any]) -> pathlib.Path:
+def _outbox_write_bundle(
+    repo: pathlib.Path,
+    commit: str,
+    manifest: dict[str, Any],
+    result_path: pathlib.Path | None = None,
+) -> pathlib.Path:
     files = validate_manifest(manifest)
     run_id = str(manifest.get("runId") or "")
     if not run_id:
@@ -837,6 +915,10 @@ def _outbox_write_bundle(repo: pathlib.Path, commit: str, manifest: dict[str, An
         os.replace(tmp, target)
         os.chmod(target, 0o600)
     atomic_json(entry / "manifest.json", manifest)
+    if result_path and result_path.is_file():
+        result = read_json(result_path)
+        if result:
+            atomic_json(entry / "result.json", result)
     atomic_json(entry / "delivery.json", {
         "schemaVersion": 1,
         "runId": run_id,
@@ -857,7 +939,7 @@ def outbox_save(repo: pathlib.Path, run_dir: pathlib.Path, commit: str) -> dict[
     manifest = read_json(run_dir / "release-manifest.json")
     if not manifest:
         raise RunManagerError("RELEASE_MANIFEST_MISSING", f"本次运行没有 release manifest：{run_dir}")
-    entry = _outbox_write_bundle(repo, commit, manifest)
+    entry = _outbox_write_bundle(repo, commit, manifest, run_dir / "result.json")
     return {"outbox": str(entry), "runId": manifest.get("runId"), "commit": commit}
 
 
@@ -986,11 +1068,25 @@ def parser() -> argparse.ArgumentParser:
     finish_p.add_argument("--message", default="")
     current_p = sub.add_parser("current")
     current_p.add_argument("--tail", type=int, default=24000)
+    error_p = sub.add_parser("error")
+    error_p.add_argument("--run-dir", required=True, type=pathlib.Path)
+    error_p.add_argument("--stage", default="unknown")
+    error_p.add_argument("--code", required=True)
+    error_p.add_argument("--message", required=True)
+    error_p.add_argument("--hint", default="")
+    error_p.add_argument("--evidence", default="")
+    error_get_p = sub.add_parser("error-get")
+    error_get_p.add_argument("--run-dir", required=True, type=pathlib.Path)
+    error_get_p.add_argument("--plain", action="store_true")
     preflight_p = sub.add_parser("preflight")
     preflight_p.add_argument("--repo", required=True, type=pathlib.Path)
     preflight_p.add_argument("--run-dir", required=True, type=pathlib.Path)
     preflight_p.add_argument("--allow", action="append", default=[])
     preflight_p.add_argument("--adopt", action="append", default=[])
+    recovery_p = sub.add_parser("recovery-list")
+    recovery_p.add_argument("--repo", required=True, type=pathlib.Path)
+    recovery_p.add_argument("--allow", action="append", default=[])
+    recovery_p.add_argument("--plain", action="store_true")
     prepare_p = sub.add_parser("prepare")
     prepare_p.add_argument("--repo", required=True, type=pathlib.Path)
     prepare_p.add_argument("--run-dir", required=True, type=pathlib.Path)
@@ -1065,8 +1161,24 @@ def main() -> int:
             print(json.dumps(finish(args.run_dir, args.code, args.result, args.error_code, args.message), ensure_ascii=False))
         elif args.action == "current":
             print(json.dumps(current_payload(args.tail), ensure_ascii=False))
+        elif args.action == "error":
+            print(json.dumps(record_error(
+                args.run_dir, args.stage, args.code, args.message, args.hint, args.evidence,
+            ), ensure_ascii=False))
+        elif args.action == "error-get":
+            payload = read_json(args.run_dir / "error.json")
+            if args.plain:
+                print(f"{payload.get('code') or ''}\t{payload.get('message') or ''}")
+            else:
+                print(json.dumps(payload, ensure_ascii=False))
         elif args.action == "preflight":
             preflight(args.repo, args.run_dir, args.allow, adopt=args.adopt)
+        elif args.action == "recovery-list":
+            paths = recovery_candidates(args.repo, args.allow)
+            if args.plain:
+                print("\n".join(paths))
+            else:
+                print(json.dumps({"paths": paths, "count": len(paths)}, ensure_ascii=False))
         elif args.action == "prepare":
             print(json.dumps(prepare_release(args.repo, args.run_dir, args.command, args.allow), ensure_ascii=False))
         elif args.action == "promote":
@@ -1091,6 +1203,14 @@ def main() -> int:
             ))
         return 0
     except RunManagerError as error:
+        run_dir = getattr(args, "run_dir", None)
+        if isinstance(run_dir, pathlib.Path):
+            record_error(
+                run_dir,
+                str(read_json(run_dir / "run.json").get("stage") or args.action),
+                error.code,
+                str(error),
+            )
         print(json.dumps({"ok": False, "code": error.code, "message": str(error)}, ensure_ascii=False), file=sys.stderr)
         return 2
 

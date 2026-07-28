@@ -24,7 +24,7 @@ SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-from run_manager import current_payload, outbox_entries, process_alive  # noqa: E402
+from run_manager import atomic_json, current_payload, outbox_entries, process_alive  # noqa: E402
 from source_policy import local_state_root  # noqa: E402
 # The panel and the scheduler must share one state projection: the same
 # should_skip_target() the collector's queue selection uses decides what the
@@ -34,11 +34,15 @@ from sync_chess_results_event import PARSER_VERSION, should_skip_target  # noqa:
 
 REFRESH = SCRIPT_DIR / "refresh.sh"
 QUEUE_PATH = REPO_ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json"
+TOURNAMENTS_PATH = REPO_ROOT / "data" / "generated" / "chess-results-tournaments.json"
+COMPLETENESS_PATH = REPO_ROOT / "data" / "generated" / "event-completeness-report.json"
+EVENT_DETAIL_ROOT = REPO_ROOT / "data" / "generated" / "chess-results-event-details"
 REGISTRY_MANIFEST = REPO_ROOT / "docs" / "data" / "registry" / "manifest.json"
 BULK_MANIFEST = REPO_ROOT / "docs" / "data" / "bulk" / "manifest.json"
 STATE_ROOT = local_state_root()
 CAPTURE_STATE_PATH = STATE_ROOT / "chess-results" / "capture-state.json"
 PORT_FILE = STATE_ROOT / "panel.port"
+AUTOMATION_PATH = STATE_ROOT / "automation.json"
 PING_TOKEN = "china-chess-local-panel-v2"
 CSRF_TOKEN = secrets.token_urlsafe(24)
 SITE_URL = os.environ.get("CHINA_CHESS_SITE_URL", "https://china-chess-player-pgn.pages.dev").rstrip("/")
@@ -47,11 +51,13 @@ REFRESH_DAYS = 30
 ALLOWED_COMMANDS = {
     "health", "all", "registry", "event-queue", "candidates",
     "bulk", "bulk-full", "deliver", "push", "receipts", "reindex",
+    "recover-events",
 }
 EXTRA_TOKEN = re.compile(r"^[A-Za-z0-9_.:/=-]{1,200}$")
 TNR_TOKEN = re.compile(r"^\d{4,9}$")
 children: set[subprocess.Popen[bytes]] = set()
 children_lock = threading.Lock()
+monitor_stop = threading.Event()
 
 STATUS_LABELS = {
     "complete": "已私有抓取",
@@ -64,6 +70,17 @@ STATUS_LABELS = {
 
 DELIVERED_STATUSES = {
     "pushed", "ingested-to-main", "indexes-rebuilt", "deployed", "online-verified",
+}
+HUMAN_REQUIRED_DELIVERY_ERRORS = {
+    "RELEASE_BASE_CONFLICT",
+    "RELEASE_HASH_MISMATCH",
+    "RELEASE_MANIFEST_INVALID",
+    "RELEASE_PATH_INVALID",
+    "API_DELIVERY_BLOCKED",
+    "API_DELIVERY_BASELINE_MISSING",
+    "API_DELIVERY_TREE_TRUNCATED",
+    "GIT_FALLBACK_BASE_MISMATCH",
+    "ONLINE_HASH_MISMATCH",
 }
 TNR_RELEASE_PATH = re.compile(r"(?:^|/)tnr(\d{4,9})(?:[./-]|$)")
 
@@ -92,14 +109,27 @@ def start_job(cmd: str, extra: list[str]) -> tuple[bool, str]:
         argv.extend(["--", *extra])
     env = dict(os.environ)
     env.update(PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8")
-    proc = subprocess.Popen(
-        argv,
-        cwd=REPO_ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-        env=env,
-    )
+    launcher_log = STATE_ROOT / "launcher.log"
+    launcher_log.parent.mkdir(parents=True, exist_ok=True)
+    with launcher_log.open("ab", buffering=0) as output:
+        proc = subprocess.Popen(
+            argv,
+            cwd=REPO_ROOT,
+            stdout=output,
+            stderr=output,
+            start_new_session=True,
+            env=env,
+        )
+    try:
+        return_code = proc.wait(timeout=0.2)
+    except subprocess.TimeoutExpired:
+        return_code = None
+    if return_code not in {None, 0}:
+        try:
+            detail = launcher_log.read_text(encoding="utf-8", errors="replace")[-600:].strip()
+        except OSError:
+            detail = ""
+        return False, detail or f"任务启动失败（exit {return_code}）"
     with children_lock:
         children.add(proc)
 
@@ -110,6 +140,106 @@ def start_job(cmd: str, extra: list[str]) -> tuple[bool, str]:
 
     threading.Thread(target=reap, daemon=True).start()
     return True, "已启动；运行状态、日志和锁会在面板重启后继续保留"
+
+
+def automation_payload() -> dict:
+    payload = _read_json_file(AUTOMATION_PATH)
+    entries = outbox_entries()
+
+    def attention_code(item: dict) -> str | None:
+        code = item.get("lastError")
+        if code in HUMAN_REQUIRED_DELIVERY_ERRORS:
+            return str(code)
+        online = (item.get("receipts") or {}).get("online") or {}
+        if (
+            online.get("ok") is False
+            and online.get("expected")
+            and online.get("actual")
+            and online.get("expected") != online.get("actual")
+        ):
+            return "ONLINE_HASH_MISMATCH"
+        return None
+
+    attention = [
+        {
+            "runId": item.get("runId"),
+            "status": item.get("status"),
+            "errorCode": attention_code(item),
+        }
+        for item in entries
+        if attention_code(item)
+    ]
+    attention_ids = {str(item.get("runId")) for item in attention}
+    return {
+        "enabled": payload.get("enabled", True),
+        "lastAction": payload.get("lastAction"),
+        "lastActionAt": payload.get("lastActionAt"),
+        "nextCheckAt": payload.get("nextCheckAt"),
+        "attention": attention,
+        "pending": sum(1 for item in entries if item.get("status") == "pending"),
+        "advancing": sum(
+            1 for item in entries
+            if item.get("status") in {
+                "pushed", "ingested-to-main", "indexes-rebuilt", "deployed",
+            }
+            and str(item.get("runId")) not in attention_ids
+        ),
+    }
+
+
+def set_automation(enabled: bool, **fields: object) -> dict:
+    payload = _read_json_file(AUTOMATION_PATH)
+    payload.update({"schemaVersion": 1, "enabled": bool(enabled), **fields})
+    atomic_json(AUTOMATION_PATH, payload)
+    return automation_payload()
+
+
+def automation_monitor() -> None:
+    """Advance outbox delivery/receipts only; never starts a source capture."""
+    backoff = [30, 120, 300]
+    index = 0
+    while not monitor_stop.wait(backoff[index]):
+        config = automation_payload()
+        if not config.get("enabled") or durable_state().get("running"):
+            continue
+        entries = outbox_entries()
+        pending = [
+            item for item in entries
+            if item.get("status") == "pending"
+            and item.get("lastError") not in HUMAN_REQUIRED_DELIVERY_ERRORS
+        ]
+        advancing = [
+            item for item in entries
+            if item.get("status") in {
+                "pushed", "ingested-to-main", "indexes-rebuilt", "deployed",
+            }
+            and item.get("lastError") not in HUMAN_REQUIRED_DELIVERY_ERRORS
+            and not (
+                ((item.get("receipts") or {}).get("online") or {}).get("ok") is False
+                and ((item.get("receipts") or {}).get("online") or {}).get("expected")
+                and ((item.get("receipts") or {}).get("online") or {}).get("actual")
+                and (
+                    ((item.get("receipts") or {}).get("online") or {}).get("expected")
+                    != ((item.get("receipts") or {}).get("online") or {}).get("actual")
+                )
+            )
+        ]
+        command = "deliver" if pending else "receipts" if advancing else ""
+        if not command:
+            index = 0
+            continue
+        ok, _message = start_job(command, [])
+        if ok:
+            delay = backoff[min(index + 1, len(backoff) - 1)]
+            set_automation(
+                True,
+                lastAction=command,
+                lastActionAt=dt.datetime.now(dt.timezone.utc).isoformat(),
+                nextCheckAt=(
+                    dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=delay)
+                ).isoformat(),
+            )
+            index = min(index + 1, len(backoff) - 1)
 
 
 def stop_job() -> tuple[bool, str]:
@@ -269,10 +399,43 @@ def latest_command_run(command: str) -> dict:
     return {}
 
 
+def latest_outbox_result() -> tuple[dict, dict]:
+    try:
+        entries = sorted(
+            outbox_entries(),
+            key=lambda item: str(item.get("createdAt") or ""),
+            reverse=True,
+        )
+    except Exception:  # noqa: BLE001
+        return {}, {}
+    for delivery in entries:
+        entry = pathlib.Path(str(delivery.get("path") or ""))
+        manifest = _read_json_file(entry / "manifest.json")
+        result = _read_json_file(entry / "result.json")
+        if manifest.get("command") == "event-queue" and result:
+            return {
+                "runId": delivery.get("runId"),
+                "runDir": "",
+                "command": "event-queue",
+                "result": "partial" if any(
+                    key != "complete" and value
+                    for key, value in (result.get("summary") or {}).items()
+                ) else "ok",
+                "errorCode": "PARTIAL_FAILURE" if any(
+                    key != "complete" and value
+                    for key, value in (result.get("summary") or {}).items()
+                ) else None,
+            }, result
+    return {}, {}
+
+
 def result_payload() -> dict:
     """Structured outcome of the latest event batch, retained across follow-ups."""
     current = durable_state()
     state = current if current.get("command") == "event-queue" else latest_command_run("event-queue")
+    retained_result: dict = {}
+    if not state:
+        state, retained_result = latest_outbox_result()
     run_dir = state.get("runDir") or ""
     run_id = str(state.get("runId") or "")
     base = {
@@ -289,11 +452,12 @@ def result_payload() -> dict:
         "summary": {},
         "publication": publication_payload(pathlib.Path(run_dir) if run_dir else None, run_id),
     }
-    if not run_dir:
-        return base
-    try:
-        payload = json.loads((pathlib.Path(run_dir) / "result.json").read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    payload = retained_result
+    if run_dir:
+        payload = _read_json_file(pathlib.Path(run_dir) / "result.json")
+    if not payload and run_id:
+        payload = _read_json_file(STATE_ROOT / "outbox" / run_id / "result.json")
+    if not payload:
         return base
     targets = payload.get("targets") or {}
     changes = base["publication"].get("targetChanges") or {}
@@ -390,6 +554,9 @@ def preview_payload(tnr: str) -> dict:
     root = capture.get("runPrivateRoot")
     extracted = pathlib.Path(root) / "extracted" / "chess-results-event-details" / f"tnr{tnr}.json" if root else None
     if not extracted or not extracted.is_file():
+        published = EVENT_DETAIL_ROOT / f"tnr{tnr}.json"
+        extracted = published if published.is_file() else None
+    if not extracted:
         return {"ok": False, "message": "找不到本地解析结果文件", "capture": capture}
     try:
         payload = json.loads(extracted.read_text(encoding="utf-8"))
@@ -419,6 +586,84 @@ def preview_payload(tnr: str) -> dict:
         "evidence": payload.get("evidence"),
         "privateRoot": root,
     }
+
+
+def events_payload() -> dict:
+    """Join local capture, catalogue, completeness and delivery state by TNR."""
+    try:
+        raw_value = json.loads(TOURNAMENTS_PATH.read_text(encoding="utf-8"))
+        tournaments = raw_value if isinstance(raw_value, list) else []
+    except (OSError, json.JSONDecodeError):
+        tournaments = []
+    tournament_map = {
+        str(item.get("tournamentID") or ""): item
+        for item in tournaments
+        if isinstance(item, dict) and item.get("tournamentID")
+    }
+    queue = _read_json_file(QUEUE_PATH)
+    queue_map = {
+        str(item.get("tournamentID") or ""): item
+        for item in (queue.get("targets") or [])
+        if isinstance(item, dict) and item.get("tournamentID")
+    }
+    completeness = _read_json_file(COMPLETENESS_PATH)
+    completeness_map = {
+        str(item.get("tournamentID") or ""): item
+        for item in (completeness.get("events") or [])
+        if isinstance(item, dict) and item.get("tournamentID")
+    }
+    publication: dict[str, dict] = {}
+    try:
+        deliveries = sorted(
+            outbox_entries(),
+            key=lambda item: str(item.get("createdAt") or ""),
+        )
+    except Exception:  # noqa: BLE001
+        deliveries = []
+    for delivery in deliveries:
+        manifest = _read_json_file(pathlib.Path(str(delivery.get("path") or "")) / "manifest.json")
+        for item in manifest.get("files") or []:
+            matched = TNR_RELEASE_PATH.search(str(item.get("path") or ""))
+            if matched:
+                publication[matched.group(1)] = {
+                    "status": delivery.get("status"),
+                    "runId": delivery.get("runId"),
+                    "lastError": delivery.get("lastError"),
+                }
+
+    entries = []
+    for tid, raw in load_captures().items():
+        capture = normalize_capture(raw)
+        if not capture:
+            continue
+        tournament = tournament_map.get(tid) or {}
+        queued = queue_map.get(tid) or {}
+        complete = completeness_map.get(tid) or {}
+        detail = _read_json_file(EVENT_DETAIL_ROOT / f"tnr{tid}.json")
+        status = str(capture.get("status") or "complete")
+        entries.append({
+            "tournamentID": tid,
+            "name": queued.get("eventName") or tournament.get("name") or detail.get("sourceName") or f"tnr{tid}",
+            "date": tournament.get("date"),
+            "year": str(tournament.get("date") or "")[:4] or None,
+            "category": queued.get("series") or queued.get("policy"),
+            "status": status,
+            "statusLabel": STATUS_LABELS.get(status, status),
+            "errorCode": capture.get("errorCode"),
+            "players": capture.get("players") or len(detail.get("players") or []),
+            "rounds": capture.get("rounds") or len(detail.get("rounds") or []),
+            "standings": capture.get("standings") or len(detail.get("standings") or []),
+            "capturedAt": capture.get("updatedAt") or capture.get("capturedAt"),
+            "resultsStatus": complete.get("resultsStatus"),
+            "pgnAvailability": complete.get("pgnAvailability"),
+            "archiveStatus": complete.get("archiveStatus"),
+            "publication": publication.get(tid) or {"status": "not-packaged"},
+        })
+    entries.sort(
+        key=lambda item: (str(item.get("date") or ""), str(item.get("capturedAt") or "")),
+        reverse=True,
+    )
+    return {"entries": entries, "count": len(entries)}
 
 
 def manifest_age_days(path: pathlib.Path) -> int | None:
@@ -497,12 +742,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(queue_payload())
         elif parsed.path == "/api/recent":
             self.send_json(recent_payload())
+        elif parsed.path == "/api/events":
+            self.send_json(events_payload())
         elif parsed.path == "/api/result":
             self.send_json(result_payload())
         elif parsed.path == "/api/progress":
             self.send_json(progress_payload())
         elif parsed.path == "/api/outbox":
             self.send_json(publish_payload())
+        elif parsed.path == "/api/automation":
+            self.send_json(automation_payload())
         elif parsed.path == "/api/preview":
             query = urllib.parse.parse_qs(parsed.query)
             self.send_json(preview_payload((query.get("tnr") or [""])[0]))
@@ -538,6 +787,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/stop":
             ok, message = stop_job()
             self.send_json({"ok": ok, "message": message}, 200 if ok else 409)
+        elif self.path == "/api/automation":
+            self.send_json(set_automation(bool(body.get("enabled"))))
         elif self.path == "/api/shutdown":
             self.send_json({"ok": True, "message": "面板已退出；运行中的采集任务不受影响"})
             threading.Thread(target=self.server.shutdown, daemon=True).start()
@@ -558,19 +809,21 @@ textarea{width:100%;min-height:74px;border:1px solid var(--line);border-radius:9
 #previewBox{display:none;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:14px}
 #batchResult{display:none;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:14px}
 .small{font-size:.78rem;color:var(--muted)}
-input[type=search]{border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 10px;font-size:.85rem;min-width:200px}
+input[type=search],select{border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 10px;font-size:.85rem;min-width:160px}
 .pager{display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--muted);font-size:.82rem}
 .resultRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:6px;font-size:.85rem;flex-wrap:wrap}.resultGroup{margin-top:14px;font-size:.86rem}.resultGroup>b{display:block;margin-bottom:5px}.publishLine{margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--bg);font-size:.84rem}
 </style></head><body><div class="wrap">
 <h1>维护者本地数据控制台<small>社区只提交线索、勘误和人工知识；所有网络采集均由维护者本机执行</small></h1>
 <div class="notice"><b>合规边界已启用：</b>来源原始页面只保存在本机；通过完整性门禁的清洗结构化数据才进入 manifest → outbox → 云端摄入 → 重建 → 部署 → 线上验证。采集、数据变化和发布状态分别展示，只有 online-verified 才算上线。</div>
 <div class="status"><span id="dot" class="dot"></span><div style="flex:1"><b id="statusText">读取状态…</b><div id="statusMeta"></div><div id="progressList"></div></div><button id="stop" class="danger" onclick="stopJob()">中止任务</button></div>
+<div class="notice"><label><input type="checkbox" id="autoAdvance" onchange="toggleAutomation()"> <b>自动推进发布</b></label><span id="automationMeta" class="meta">只处理 outbox 投递与云端回执；不会自动抓取任何来源。</span></div>
 
 <h2>① 赛事采集与发布（来源访问仅限本机）</h2>
 <div class="card">
 <textarea id="tnrInput" placeholder="粘贴 Chess-Results 链接或 TNR，一行一个，例如：&#10;1110333&#10;tnr1213323&#10;https://chess-results.com/tnr1156008.aspx?lan=1"></textarea>
 <div class="chips" id="tnrChips"></div>
 <div class="actions"><button class="primary" id="captureBtn" onclick="startCapture()">开始采集</button><span id="captureMsg" class="small"></span></div>
+<div class="actions"><button onclick="runCmd('recover-events',[],false)">接管中断产物并发布</button><span class="small">只接管通过路径/JSON/PGN 格式校验的机器产物；不会回抓，也不会自动丢弃文件。</span></div>
 </div>
 <div id="batchResult"></div>
 <div id="previewBox"></div>
@@ -585,8 +838,14 @@ input[type=search]{border:1px solid var(--line);border-radius:8px;background:var
 <table><thead><tr><th>赛事</th><th>tnr</th><th>优先级</th><th>状态</th><th>动作</th></tr></thead><tbody id="queue"></tbody></table>
 <div class="pager"><button onclick="qPage=Math.max(0,qPage-1);renderQueue()">上一页</button><span id="pageInfo"></span><button onclick="qPage++;renderQueue()">下一页</button></div>
 
-<h3>最近抓取（含队列外指定赛事）</h3>
-<table><thead><tr><th>tnr</th><th>状态</th><th>人数/轮次</th><th>时间</th><th>来源</th><th>动作</th></tr></thead><tbody id="recent"></tbody></table>
+<h3>已抓赛事</h3>
+<div class="actions">
+<input type="search" id="eventSearch" placeholder="搜索赛事名 / TNR…" oninput="ePage=0;renderEvents()">
+<select id="eventSort" onchange="ePage=0;renderEvents()"><option value="date">赛事日期倒序</option><option value="captured">抓取时间倒序</option></select>
+<select id="eventPublication" onchange="ePage=0;renderEvents()"><option value="all">全部发布状态</option><option value="online-verified">线上已验证</option><option value="pending">待投递</option><option value="attention">需处理</option></select>
+</div>
+<table><thead><tr><th>日期 / 赛事</th><th>状态</th><th>完整度</th><th>发布</th><th>抓取时间</th><th>动作</th></tr></thead><tbody id="recent"></tbody></table>
+<div class="pager"><button onclick="ePage=Math.max(0,ePage-1);renderEvents()">上一页</button><span id="eventPageInfo"></span><button onclick="ePage++;renderEvents()">下一页</button></div>
 
 <h2>② 公开发布中心（FIDE / Lichess → local-data → 线上）</h2>
 <div class="summary" id="publishInfo"></div>
@@ -622,6 +881,8 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function post(path,body){return fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Panel-Token":TOKEN},body:JSON.stringify(body)}).then(r=>r.json())}
 async function runCmd(cmd,extra,full){if(full&&!confirm("全量刷新会消耗大量流量，确认继续？"))return;const r=await post('/api/run',{cmd,extra});if(!r.ok)alert(r.message);setTimeout(poll,400)}
 async function stopJob(){if(!confirm("中止当前任务？已抓页面与检查点会保留，续跑只补缺页。"))return;const r=await post('/api/stop',{});alert(r.message)}
+async function loadAutomation(){const a=await(await fetch('/api/automation')).json();$('#autoAdvance').checked=!!a.enabled;$('#automationMeta').textContent=`只处理 outbox/回执，不访问数据源 · 待投递 ${a.pending||0} · 推进中 ${a.advancing||0}${(a.attention||[]).length?' · 需要你处理 '+a.attention.length:''}${a.lastAction?' · 最近 '+a.lastAction:''}`}
+async function toggleAutomation(){const a=await post('/api/automation',{enabled:$('#autoAdvance').checked});$('#automationMeta').textContent=a.enabled?'自动推进已开启；不会自动抓取。':'自动推进已暂停。'}
 function queueTop(n){runCmd('event-queue',['--from-queue',String(n)],false);watchRun('队列前 '+n+' 个')}
 
 // ---- capture box ----
@@ -737,15 +998,27 @@ function renderQueue(){
   return `<tr><td>${esc(t.eventName)}</td><td>${esc(t.tournamentID)}</td><td>${esc(t.priorityScore)}</td><td>${st}</td><td>${act}</td></tr>`
  }).join('')||'<tr><td colspan=5>该筛选下没有目标</td></tr>';
 }
-async function loadQueue(){qData=await(await fetch('/api/queue')).json();renderQueue();loadRecent();loadOutbox()}
+async function loadQueue(){qData=await(await fetch('/api/queue')).json();renderQueue();loadEvents();loadOutbox();loadAutomation()}
 
-// ---- recent captures ----
-async function loadRecent(){
- const r=await(await fetch('/api/recent')).json();
- recentBody.innerHTML=(r.entries||[]).slice(0,15).map(e=>{
+// ---- captured events ----
+let eData={entries:[]},ePage=0;const EVENT_PAGE_SIZE=50;
+async function loadEvents(){eData=await(await fetch('/api/events')).json();renderEvents()}
+function renderEvents(){
+ const term=($('#eventSearch').value||'').trim().toLowerCase();
+ const publication=$('#eventPublication').value, sort=$('#eventSort').value;
+ let rows=(eData.entries||[]).filter(e=>!term||e.tournamentID.includes(term)||(e.name||'').toLowerCase().includes(term));
+ if(publication==='attention')rows=rows.filter(e=>e.status!=='complete'||!['online-verified','not-packaged'].includes(e.publication?.status));
+ else if(publication!=='all')rows=rows.filter(e=>e.publication?.status===publication);
+ rows.sort((a,b)=>String(sort==='captured'?b.capturedAt:b.date||'').localeCompare(String(sort==='captured'?a.capturedAt:a.date||'')));
+ const pages=Math.max(1,Math.ceil(rows.length/EVENT_PAGE_SIZE));ePage=Math.min(ePage,pages-1);
+ $('#eventPageInfo').textContent=`第 ${ePage+1}/${pages} 页 · 共 ${rows.length} 项`;
+ recentBody.innerHTML=rows.slice(ePage*EVENT_PAGE_SIZE,(ePage+1)*EVENT_PAGE_SIZE).map(e=>{
   const cls=e.status==='complete'?'ok':(e.status==='partial'||e.status==='unsupported'||e.status==='quarantined')?'warn':'bad';
+  const pub=e.publication||{},pubCls=pub.status==='online-verified'?'ok':pub.status==='pending'?'warn':'';
+  const pubLabels={'not-packaged':'尚无发布包','pending':'发布包待投递','pushed':'已投递','ingested-to-main':'已合并 main','indexes-rebuilt':'索引已重建','deployed':'已部署待校验','online-verified':'线上已验证'};
+  const completeness=[e.resultsStatus,e.pgnAvailability,e.archiveStatus].filter(Boolean).map(esc).join('<br>')||'-';
   const btns=(e.status==='complete'||e.status==='partial')?`<button onclick="showPreview('${e.tournamentID}')">预览</button> `:'';
-  return `<tr><td>tnr${esc(e.tournamentID)}</td><td><span class="chip ${cls}">${esc(e.statusLabel)}</span>${e.errorCode?`<span class=meta> ${esc(e.errorCode)}</span>`:''}</td><td>${esc(e.players??'-')} 人 / ${esc(e.rounds??'-')} 轮</td><td>${esc(String(e.updatedAt||'').slice(0,16))}</td><td>${e.inQueue?'队列':'指定'}</td><td>${btns}<button onclick="runCmd('event-queue',['${e.tournamentID}'],false)">重新抓取</button></td></tr>`
+  return `<tr><td>${esc(e.date||'日期未知')}<br><b>${esc(e.name)}</b><br><span class=meta>tnr${esc(e.tournamentID)} · ${esc(e.players??'-')} 人 / ${esc(e.rounds??'-')} 轮 / ${esc(e.standings??'-')} 行排名</span></td><td><span class="chip ${cls}">${esc(e.statusLabel)}</span>${e.errorCode?`<br><span class=meta>${esc(e.errorCode)}</span>`:''}</td><td>${completeness}</td><td><span class="chip ${pubCls}">${esc(pubLabels[pub.status]||pub.status||'-')}</span></td><td>${esc(String(e.capturedAt||'').slice(0,16))}</td><td>${btns}<button onclick="runCmd('event-queue',['${e.tournamentID}'],false)">重新抓取</button>${pub.status==='pending'?` <button onclick="runCmd('deliver',[],false)">投递</button>`:''}</td></tr>`
  }).join('')||'<tr><td colspan=6>尚无抓取记录</td></tr>';
 }
 
@@ -825,11 +1098,13 @@ def main() -> int:
     print(f"维护者本地数据控制台：{url}")
     if "--no-browser" not in sys.argv:
         threading.Timer(0.4, lambda: webbrowser.open(url)).start()
+    threading.Thread(target=automation_monitor, daemon=True).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        monitor_stop.set()
         PORT_FILE.unlink(missing_ok=True)
     return 0
 
