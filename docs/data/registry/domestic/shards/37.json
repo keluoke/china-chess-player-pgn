@@ -2544,7 +2544,7 @@
     "sex": "F",
     "publicLocation": "本溪市",
     "identityStatus": "unlinked",
-    "publicIdentityStatus": "same-name",
+    "publicIdentityStatus": "presentation-high",
     "entityType": "domestic-player",
     "aliases": [
       "domestic-6fd47c6b2924",
@@ -2554,9 +2554,11 @@
     ],
     "sightingCount": 1,
     "confidence": {
-      "score": 0,
-      "level": "low",
-      "weights": {},
+      "score": 90,
+      "level": "high",
+      "weights": {
+        "presentationEvidence": 90
+      },
       "sameNameConflictCount": 6,
       "sameNameClusterSize": 7,
       "crossEventCount": 1,
@@ -2564,8 +2566,11 @@
       "reviewRequired": true,
       "machineNominationAllowed": false,
       "reasons": [
-        "同名簇共 7 条，仅允许人工区分"
-      ]
+        "同名簇共 7 条，仅允许人工区分",
+        "成员级证据通过 presentation-high 展示归组"
+      ],
+      "presentationGroupID": "pg-7ded7b9d1edd",
+      "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [
       {

@@ -268,7 +268,7 @@
     "sex": "F",
     "publicLocation": "珠海市",
     "identityStatus": "unlinked",
-    "publicIdentityStatus": "same-name",
+    "publicIdentityStatus": "presentation-high",
     "entityType": "domestic-player",
     "aliases": [
       "domestic-c1a8730fc60a",
@@ -278,9 +278,11 @@
     ],
     "sightingCount": 1,
     "confidence": {
-      "score": 0,
-      "level": "low",
-      "weights": {},
+      "score": 90,
+      "level": "high",
+      "weights": {
+        "presentationEvidence": 90
+      },
       "sameNameConflictCount": 4,
       "sameNameClusterSize": 5,
       "crossEventCount": 1,
@@ -288,8 +290,11 @@
       "reviewRequired": true,
       "machineNominationAllowed": false,
       "reasons": [
-        "同名簇共 5 条，仅允许人工区分"
-      ]
+        "同名簇共 5 条，仅允许人工区分",
+        "成员级证据通过 presentation-high 展示归组"
+      ],
+      "presentationGroupID": "pg-4c916dc049cf",
+      "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [
       {

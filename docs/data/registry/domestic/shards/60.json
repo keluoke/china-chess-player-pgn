@@ -4305,7 +4305,7 @@
     "sex": "F",
     "publicLocation": "湖南",
     "identityStatus": "unlinked",
-    "publicIdentityStatus": "same-name",
+    "publicIdentityStatus": "presentation-high",
     "entityType": "domestic-player",
     "aliases": [
       "domestic-76fe148f33b2",
@@ -4315,9 +4315,11 @@
     ],
     "sightingCount": 1,
     "confidence": {
-      "score": 0,
-      "level": "low",
-      "weights": {},
+      "score": 90,
+      "level": "high",
+      "weights": {
+        "presentationEvidence": 90
+      },
       "sameNameConflictCount": 5,
       "sameNameClusterSize": 6,
       "crossEventCount": 1,
@@ -4325,8 +4327,11 @@
       "reviewRequired": true,
       "machineNominationAllowed": false,
       "reasons": [
-        "同名簇共 6 条，仅允许人工区分"
-      ]
+        "同名簇共 6 条，仅允许人工区分",
+        "成员级证据通过 presentation-high 展示归组"
+      ],
+      "presentationGroupID": "pg-1d327f2a2404",
+      "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [
       {

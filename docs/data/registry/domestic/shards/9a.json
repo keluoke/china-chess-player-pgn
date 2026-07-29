@@ -304,8 +304,9 @@
     "pinyin": "dai xin yan",
     "federation": "unknown",
     "domesticEligibilityBasis": "domestic-event",
+    "sex": "F",
     "identityStatus": "unlinked",
-    "publicIdentityStatus": "same-name",
+    "publicIdentityStatus": "presentation-high",
     "entityType": "domestic-player",
     "aliases": [
       "domestic-fe2607cf33e3",
@@ -315,9 +316,11 @@
     ],
     "sightingCount": 1,
     "confidence": {
-      "score": 0,
-      "level": "low",
-      "weights": {},
+      "score": 90,
+      "level": "high",
+      "weights": {
+        "presentationEvidence": 90
+      },
       "sameNameConflictCount": 2,
       "sameNameClusterSize": 3,
       "crossEventCount": 1,
@@ -325,18 +328,26 @@
       "reviewRequired": true,
       "machineNominationAllowed": false,
       "reasons": [
-        "同名簇共 3 条，仅允许人工区分"
-      ]
+        "同名簇共 3 条，仅允许人工区分",
+        "成员级证据通过 presentation-high-fide 展示归组"
+      ],
+      "presentationGroupID": "pg-fide-a02800a690c3",
+      "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [
       {
         "sightingID": "sighting-cr-start-bbd8e752a767928f",
         "eventID": "chess-results-tnr872572",
         "eventName": "2023年全国国际象棋棋协大师赛（西安站） 女子一级棋士组",
+        "eventDate": "2023",
         "group": "2023年全国国际象棋棋协大师赛（西安站） 女子一级棋士组 S0",
         "playerName": "代欣艳",
         "chineseName": "代欣艳",
         "pinyin": "dai xin yan",
+        "sex": "F",
+        "rank": "23",
+        "score": "5,5",
+        "rounds": "9",
         "playerNo": "92"
       }
     ]
@@ -5488,7 +5499,7 @@
         "同名簇共 6 条，仅允许人工区分",
         "成员级证据通过 presentation-high-fide 展示归组"
       ],
-      "presentationGroupID": "pg-fide-6dc3367e8a12",
+      "presentationGroupID": "pg-fide-db0063035b76",
       "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [

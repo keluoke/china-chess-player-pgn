@@ -1899,7 +1899,7 @@
     "domesticEligibilityBasis": "domestic-event",
     "sex": "F",
     "identityStatus": "unlinked",
-    "publicIdentityStatus": "same-name",
+    "publicIdentityStatus": "presentation-high",
     "entityType": "domestic-player",
     "aliases": [
       "domestic-f0172ffa04f3",
@@ -1909,9 +1909,11 @@
     ],
     "sightingCount": 1,
     "confidence": {
-      "score": 0,
-      "level": "low",
-      "weights": {},
+      "score": 90,
+      "level": "high",
+      "weights": {
+        "presentationEvidence": 90
+      },
       "sameNameConflictCount": 1,
       "sameNameClusterSize": 2,
       "crossEventCount": 1,
@@ -1919,8 +1921,11 @@
       "reviewRequired": true,
       "machineNominationAllowed": true,
       "reasons": [
-        "单条赛事观察，等待更多可区分证据"
-      ]
+        "单条赛事观察，等待更多可区分证据",
+        "成员级证据通过 presentation-high 展示归组"
+      ],
+      "presentationGroupID": "pg-798eb6013547",
+      "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [
       {

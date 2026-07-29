@@ -665,9 +665,10 @@
     "pinyin": "liu pei yao",
     "federation": "unknown",
     "domesticEligibilityBasis": "domestic-event",
+    "sex": "F",
     "publicLocation": "珠海市",
     "identityStatus": "unlinked",
-    "publicIdentityStatus": "same-name",
+    "publicIdentityStatus": "presentation-high",
     "entityType": "domestic-player",
     "aliases": [
       "domestic-a9dbf57fdb38",
@@ -677,9 +678,11 @@
     ],
     "sightingCount": 1,
     "confidence": {
-      "score": 0,
-      "level": "low",
-      "weights": {},
+      "score": 90,
+      "level": "high",
+      "weights": {
+        "presentationEvidence": 90
+      },
       "sameNameConflictCount": 4,
       "sameNameClusterSize": 5,
       "crossEventCount": 1,
@@ -687,19 +690,27 @@
       "reviewRequired": true,
       "machineNominationAllowed": false,
       "reasons": [
-        "同名簇共 5 条，仅允许人工区分"
-      ]
+        "同名簇共 5 条，仅允许人工区分",
+        "成员级证据通过 presentation-high 展示归组"
+      ],
+      "presentationGroupID": "pg-4c916dc049cf",
+      "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [
       {
         "sightingID": "sighting-cr-start-93ec1959670ff7e1",
         "eventID": "chess-results-tnr872572",
         "eventName": "2023年全国国际象棋棋协大师赛（西安站） 女子一级棋士组",
+        "eventDate": "2023",
         "group": "2023年全国国际象棋棋协大师赛（西安站） 女子一级棋士组 S0",
         "playerName": "刘沛瑶",
         "chineseName": "刘沛瑶",
         "pinyin": "liu pei yao",
+        "sex": "F",
         "publicLocation": "珠海市",
+        "rank": "8",
+        "score": "6",
+        "rounds": "9",
         "playerNo": "19"
       }
     ]
@@ -1183,7 +1194,7 @@
         "同名簇共 13 条，仅允许人工区分",
         "成员级证据通过 presentation-high-fide 展示归组"
       ],
-      "presentationGroupID": "pg-fide-5aff3967ca69",
+      "presentationGroupID": "pg-fide-df5ac53e0b67",
       "presentationRuleVersion": "identity-presentation-v4"
     },
     "sightings": [
