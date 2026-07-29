@@ -49,6 +49,12 @@ chips；采集中逐场显示页面进度与缓存命中；成功后可打开只
 partial 目标可一键"续跑补缺页"。队列汇总栏区分：
 历史公开完成、新私有完成、待抓、部分（可续跑）、等待重试、已隔离、需解析器。
 
+“按棋手发现最近赛事”使用 FIDE ID 查询最近参赛记录。留空时按“最久未检查优先”
+轮询 10 名中国棋手，每人最多取最近 5 个 TNR；也可显式输入一个或多个 FIDE ID。
+查询原始响应、棋手 ID 与发现关系只写仓库外私有区，候选 TNR 合并进待抓池，但
+不会自动抓赛事详情或发布。`data/community/tournament-target-overrides.csv` 是
+误目标门禁：聚合名单、重复入口和确认不应抓取的 TNR 会在调度前被压制。
+
 每次 `event-queue` 结束后，“本批结果”固定保留最近一批的完整清单，即使随后
 执行 `deliver`、`receipts` 或健康检查也不会被覆盖。它分别展示完整成功与
 部分/失败目标、逐场人数/轮次/排名、逐场直接更新文件数、整批文件数/字节数，
@@ -75,6 +81,10 @@ bash Scripts/local/refresh.sh all
 
 # FIDE：唯一临时下载 -> ZIP/语义/人数/分片/勘误校验 -> 原子晋升
 bash Scripts/local/refresh.sh registry
+
+# 只发现候选 TNR；不抓赛事详情、不生成发布包。留空轮询下一批 10 名棋手。
+bash Scripts/local/refresh.sh discover-events
+bash Scripts/local/refresh.sh discover-events -- 8600000 8600001
 
 # Chess-Results：全量抓取（raw 只写仓库外私有区）→ 本地清洗 → 与已发布副本
 # 比对合并（一致跳过，冲突以本地清洗数据为准）→ manifest 发布；逐页原子落盘，

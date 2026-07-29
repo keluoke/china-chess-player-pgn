@@ -18,6 +18,7 @@
 #   all          Safe routine: monthly-due FIDE registry + top 3 private events.
 #   registry     Download/validate FIDE and release the registry projection.
 #   event-queue  Collect top 3 targets fully, clean, merge and release.
+#   discover-events  Find recent tournament IDs via bounded FIDE-ID searches.
 #   recover-events  Adopt orphaned validated event outputs; never re-scrapes.
 #   candidates   Collect starting-rank name candidates privately for review.
 #   bulk         Mirror Lichess Broadcasts under CC BY-SA 4.0 and release.
@@ -682,6 +683,19 @@ case "$command" in
       fail "CHESS_RESULTS_COLLECTION_FAILED" \
         "${ERROR_MESSAGE:-赛事采集未形成可完成目标；逐场原因见本批结果与 capture-state。}"
     fi
+    ;;
+
+  discover-events)
+    reject_extra_flags --private-root --max-players --latest-per-player --delay
+    state "discovering-events" "按 FIDE ID 查询最近参赛记录；只更新本机 TNR 候选池"
+    discovery_rc=0
+    py_extra Scripts/local/discover_player_events.py --private-root "$RUN_DIR" || discovery_rc=$?
+    if [ "$discovery_rc" -eq 4 ]; then
+      partial "PARTIAL_FAILURE" "部分棋手查询失败；成功发现的 TNR 已保留在本机待抓池。"
+    elif [ "$discovery_rc" -ne 0 ]; then
+      fail "EVENT_DISCOVERY_FAILED" "赛事发现未完成；未触发赛事详情抓取或发布。"
+    fi
+    PUSH_SUMMARY="赛事发现完成；候选 TNR 已进入本机待抓池，尚未抓取或发布"
     ;;
 
   recover-events)

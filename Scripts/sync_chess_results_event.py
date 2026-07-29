@@ -32,6 +32,7 @@ from typing import Any, Callable
 
 from apply_aliases_to_registry import sanitize_person_name
 from fetch_event_pgn import EVENT_PGN_ARCHIVE, source_explicitly_omits_pgn
+from event_targeting import DISCOVERY_POOL
 from source_http import SourceHTTPError, fetch_bytes
 from source_policy import (
     chess_results_release_policy,
@@ -1115,10 +1116,11 @@ def should_skip_target(entry: dict[str, Any], refresh_days: int) -> str:
 def queue_targets(limit: int, refresh_days: int) -> list[str]:
     if not EVENT_QUEUE.exists():
         raise SystemExit("赛事线索队列不存在；请先在社区/人工数据变更后离线重建队列。")
-    payload = json.loads(EVENT_QUEUE.read_text(encoding="utf-8"))
+    from event_targeting import merged_target_items
+
     capture_state = load_capture_state().get("events") or {}
     targets = []
-    for item in payload.get("targets", []):
+    for item in merged_target_items(queue_path=EVENT_QUEUE, pool_path=DISCOVERY_POOL):
         if item.get("nextAction") not in {"capture-event", "refresh-snapshot"}:
             continue
         tournament = clean(item.get("tournamentID"))
@@ -1132,12 +1134,10 @@ def queue_targets(limit: int, refresh_days: int) -> list[str]:
 
 
 def queue_rounds_metadata() -> dict[str, int]:
-    try:
-        payload = json.loads(EVENT_QUEUE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    from event_targeting import merged_target_items
+
     result: dict[str, int] = {}
-    for item in payload.get("targets", []):
+    for item in merged_target_items(queue_path=EVENT_QUEUE, pool_path=DISCOVERY_POOL):
         tournament = clean(item.get("tournamentID"))
         rounds = item.get("capturedRounds") or item.get("rounds") or 0
         if tournament and isinstance(rounds, int) and rounds > 0:

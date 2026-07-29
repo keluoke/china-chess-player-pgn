@@ -87,6 +87,30 @@ def check_federation_overrides() -> None:
                 err(path, i, f"evidence_url missing or domain not allow-listed: {ev!r}")
 
 
+def check_tournament_target_overrides() -> None:
+    path = REPO_ROOT / "data" / "community" / "tournament-target-overrides.csv"
+    if not path.exists():
+        return
+    seen: set[str] = set()
+    allowed = {"include", "exclude", "aggregate", "duplicate", "deferred"}
+    with path.open("r", encoding="utf-8-sig", newline="") as fh:
+        for i, row in enumerate(csv.DictReader(fh), start=2):
+            tournament_id = (row.get("tournament_id") or "").strip()
+            action = (row.get("action") or "").strip().lower()
+            if not re.fullmatch(r"\d{4,9}", tournament_id):
+                err(path, i, f"invalid tournament_id {tournament_id!r}")
+            if tournament_id in seen:
+                err(path, i, f"duplicate tournament_id {tournament_id}")
+            seen.add(tournament_id)
+            if action not in allowed:
+                err(path, i, f"action must be one of {sorted(allowed)}, got {action!r}")
+            if not (row.get("reason") or "").strip():
+                err(path, i, "reason is required")
+            evidence = (row.get("evidence_url") or "").strip()
+            if evidence and not url_ok(evidence):
+                err(path, i, f"evidence_url domain not allow-listed: {evidence!r}")
+
+
 def check_player_aliases() -> None:
     path = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
     if not path.exists():
@@ -357,6 +381,7 @@ def check_generated_untouched_note() -> None:
 
 def main() -> int:
     check_federation_overrides()
+    check_tournament_target_overrides()
     check_player_aliases()
     check_sightings()
     check_domestic_source_catalog()

@@ -39,6 +39,8 @@ import sync_lichess_broadcast_bulk  # noqa: E402
 import targeted_series_capture as targeted_capture  # noqa: E402
 import targeted_capture_panel as targeted_panel  # noqa: E402
 import import_event_list  # noqa: E402
+import discover_player_events  # noqa: E402
+import event_targeting  # noqa: E402
 from sync_chinese_players import (  # noqa: E402
     RegistryPlayer,
     validate_fide_archive,
@@ -1142,6 +1144,8 @@ class SharedStateProjectionTests(unittest.TestCase):
                 mock.patch.object(local_panel, "CAPTURE_STATE_PATH", state_path),
                 mock.patch.object(sync_chess_results_event, "EVENT_QUEUE", queue_path),
                 mock.patch.object(sync_chess_results_event, "CAPTURE_STATE", state_path),
+                mock.patch.object(sync_chess_results_event, "DISCOVERY_POOL", root / "pool.json"),
+                mock.patch.object(local_panel, "DISCOVERY_POOL", root / "pool.json"),
             ):
                 panel_view = local_panel.queue_payload()
                 scheduler = sync_chess_results_event.queue_targets(10, local_panel.REFRESH_DAYS)
@@ -1167,6 +1171,7 @@ class SharedStateProjectionTests(unittest.TestCase):
             with (
                 mock.patch.object(local_panel, "QUEUE_PATH", queue_path),
                 mock.patch.object(local_panel, "CAPTURE_STATE_PATH", state_path),
+                mock.patch.object(local_panel, "DISCOVERY_POOL", root / "pool.json"),
             ):
                 entries = local_panel.recent_payload()["entries"]
             self.assertEqual(entries[0]["tournamentID"], "999888")
@@ -1975,8 +1980,58 @@ class PrivateCaptureQueueTests(unittest.TestCase):
             with (
                 mock.patch.object(sync_chess_results_event, "EVENT_QUEUE", queue_path),
                 mock.patch.object(sync_chess_results_event, "CAPTURE_STATE", state_path),
+                mock.patch.object(sync_chess_results_event, "DISCOVERY_POOL", root / "pool.json"),
             ):
                 self.assertEqual(sync_chess_results_event.queue_targets(10, 30), ["234567"])
+
+    def test_player_search_discovery_merges_recent_tnrs_in_private_pool(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            pool_path = root / "event-discovery-pool.json"
+            state_path = root / "player-state.json"
+
+            def fake_search(fide_id: str, sink: list[str] | None) -> list[dict]:
+                if sink is not None:
+                    sink.append(f"<html>private {fide_id}</html>")
+                return [
+                    {"tnrid": "888888", "tournament": "Recent Event", "end_date": "2026-07-20", "rounds": "9", "participants": "80"},
+                    {"tnrid": "1375162", "tournament": "Aggregate", "end_date": "2026-07-19", "rounds": "", "participants": "758"},
+                ]
+
+            result = discover_player_events.discover(
+                ["8600000", "8600001"],
+                private_root=root / "run",
+                latest_per_player=5,
+                delay=0,
+                search=fake_search,
+                pool_path=pool_path,
+                state_path=state_path,
+            )
+            pool = json.loads(pool_path.read_text(encoding="utf-8"))
+            self.assertEqual(result["candidateTNRs"], ["888888"])
+            self.assertEqual(pool["candidates"]["888888"]["fideIDs"], ["8600000", "8600001"])
+            self.assertEqual(pool["candidates"]["1375162"]["status"], "suppressed")
+            self.assertTrue((root / "run/raw/chess-results/player-search/fide8600000.html.gz").exists())
+
+    def test_reviewed_monitor_state_wins_over_private_discovery(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            queue_path = root / "queue.json"
+            pool_path = root / "pool.json"
+            queue_path.write_text(json.dumps({"targets": [{
+                "tournamentID": "888888", "eventName": "Reviewed", "nextAction": "monitor",
+                "priorityScore": 10,
+            }]}), encoding="utf-8")
+            pool_path.write_text(json.dumps({"candidates": {"888888": {
+                "tournamentID": "888888", "eventName": "Raw", "nextAction": "capture-event",
+                "priorityScore": 210, "status": "pending", "discoveredBy": ["fide-player-search"],
+            }}}), encoding="utf-8")
+            target = event_targeting.merged_target_items(
+                queue_path=queue_path, pool_path=pool_path,
+            )[0]
+            self.assertEqual(target["eventName"], "Reviewed")
+            self.assertEqual(target["nextAction"], "monitor")
+            self.assertIn("fide-player-search", target["discoveredBy"])
 
     def test_panel_reports_private_capture_checkpoint(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

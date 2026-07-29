@@ -90,7 +90,9 @@
 6. 禁止手改 data/generated；人工修正只进 data/manual 或 data/community。registry 是
    姓名和等级分唯一权威；姓名勘误写 name-corrections.csv，转会写 federation-overrides.csv。
 7. 旧 refresh 命令已退役，不得调用（在文档中只能作为"已退役"提及）。来源健康检查
-   使用 `refresh.sh health`；私有赛事采集使用 `refresh.sh event-queue -- <tnr-or-url>`；
+   使用 `refresh.sh health`；按 FIDE ID 发现最近赛事使用 `refresh.sh discover-events`
+   （只写仓库外私有候选池，不抓赛事详情、不发布）；私有赛事采集使用
+   `refresh.sh event-queue -- <tnr-or-url>`；
    发布重投使用 `refresh.sh deliver`（`push` 是其兼容别名）。
 8. push 成功不等于发布成功；必须确认云端 ingest、rebuild、deploy 的 receipt。任一
    云端阶段失败只重试该阶段，不回抓来源。

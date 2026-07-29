@@ -40,7 +40,9 @@ FIDE ID 作离线真值，输出聚合指标
 
 ## 需求驱动的赛事整取
 
-`Scripts/build_domestic_event_queue.py` 把既有 starting-rank 目标、大师赛五组目录、`domestic-source-catalog.csv` 和人工确认的 `data-demand-gaps.csv` 合成维护者队列。排序固定为李成智杯 > 棋协大师赛 > 省级青少年赛，并叠加查询需求热度和缺失源页快照的优先分。
+`Scripts/build_domestic_event_queue.py` 把既有 starting-rank 目标、大师赛五组目录、`domestic-source-catalog.csv`、公开目录缺详情回路和人工确认的 `data-demand-gaps.csv` 合成维护者队列。每个目标保留 `discoveredBy`、`priorityBreakdown` 和 `priorityReasons`，因此面板能解释它从哪里来、为何排在这里；只有需求记录的 TNR 也会进入队列，不再只给既有目标加分。
+
+维护者还可运行 `Scripts/local/refresh.sh discover-events`：系统从注册表按最久未检查优先选择 10 个 FIDE ID，查询每人最近 5 场赛事并把新 TNR 写入仓库外私有候选池；也可在命令后显式给出 FIDE ID。该步骤只做发现，不抓赛事详情、不生成 release。私有候选与审核队列在调度时去重合并。聚合名单、重复入口或误目标必须写入 `data/community/tournament-target-overrides.csv`，`aggregate`、`duplicate`、`exclude` 会在来源访问前硬压制。
 
 本地住宅网络运行 `Scripts/local/refresh.sh event-queue`，默认整取队首 3 项
 赛事，单次上限 10 项。starting rank、standings、逐轮页面及解析结果全部

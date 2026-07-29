@@ -26,6 +26,7 @@ sys.path.insert(0, str(SCRIPT_DIR.parent))
 
 from run_manager import atomic_json, current_payload, outbox_entries, process_alive  # noqa: E402
 from source_policy import local_state_root  # noqa: E402
+from event_targeting import DISCOVERY_POOL, localized_event_names, merged_target_items  # noqa: E402
 # The panel and the scheduler must share one state projection: the same
 # should_skip_target() the collector's queue selection uses decides what the
 # panel shows as "可立即抓取", so the displayed pending count always equals
@@ -49,7 +50,7 @@ SITE_URL = os.environ.get("CHINA_CHESS_SITE_URL", "https://china-chess-player-pg
 REFRESH_DAYS = 30
 
 ALLOWED_COMMANDS = {
-    "health", "all", "registry", "event-queue", "candidates",
+    "health", "all", "registry", "event-queue", "discover-events", "candidates",
     "bulk", "bulk-full", "deliver", "push", "receipts", "reindex",
     "recover-events",
 }
@@ -104,6 +105,8 @@ def start_job(cmd: str, extra: list[str]) -> tuple[bool, str]:
         return False, f"命令未列入维护者本地白名单：{cmd}"
     if len(extra) > 20 or any(not EXTRA_TOKEN.fullmatch(token) for token in extra):
         return False, "参数数量过多或包含不安全字符"
+    if cmd == "discover-events" and any(not re.fullmatch(r"\d{5,10}", token) for token in extra):
+        return False, "赛事发现只接受 5-10 位 FIDE ID；留空则轮询下一批 10 名棋手"
     argv = ["bash", str(REFRESH), cmd]
     if extra:
         argv.extend(["--", *extra])
@@ -283,7 +286,7 @@ def queue_payload() -> dict:
         "pending": 0, "quarantined": 0, "needsParser": 0, "retryWait": 0,
         "schedulable": 0,
     }
-    for item in payload.get("targets") or []:
+    for item in merged_target_items(queue_path=QUEUE_PATH, pool_path=DISCOVERY_POOL):
         tid = re.sub(r"\D", "", str(item.get("tournamentID") or ""))
         if not tid:
             continue
@@ -324,6 +327,8 @@ def queue_payload() -> dict:
             "eventName": str(item.get("eventName") or f"tnr{tid}")[:180],
             "category": str(item.get("category") or "国内赛事")[:80],
             "priorityScore": item.get("priorityScore"),
+            "priorityReasons": item.get("priorityReasons") or item.get("discoveredBy") or [],
+            "privateDiscovery": bool(item.get("privateDiscovery")),
             "nextAction": next_action,
             "status": status,
             "statusLabel": label,
@@ -461,9 +466,12 @@ def result_payload() -> dict:
         return base
     targets = payload.get("targets") or {}
     changes = base["publication"].get("targetChanges") or {}
+    names = localized_event_names()
     base["targets"] = {
         str(tid): {
             **(target if isinstance(target, dict) else {}),
+            "sourceTitle": (target if isinstance(target, dict) else {}).get("title"),
+            "title": names.get(str(tid)) or (target if isinstance(target, dict) else {}).get("title"),
             "releaseFiles": int((changes.get(str(tid)) or {}).get("files") or 0),
             "releaseBytes": int((changes.get(str(tid)) or {}).get("bytes") or 0),
         }
@@ -600,6 +608,7 @@ def events_payload() -> dict:
         for item in tournaments
         if isinstance(item, dict) and item.get("tournamentID")
     }
+    names = localized_event_names()
     queue = _read_json_file(QUEUE_PATH)
     queue_map = {
         str(item.get("tournamentID") or ""): item
@@ -643,7 +652,7 @@ def events_payload() -> dict:
         status = str(capture.get("status") or "complete")
         entries.append({
             "tournamentID": tid,
-            "name": queued.get("eventName") or tournament.get("name") or detail.get("sourceName") or f"tnr{tid}",
+            "name": names.get(tid) or queued.get("eventName") or tournament.get("name") or detail.get("sourceName") or f"tnr{tid}",
             "date": tournament.get("date"),
             "year": str(tournament.get("date") or "")[:4] or None,
             "category": queued.get("series") or queued.get("policy"),
@@ -829,6 +838,12 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
 <div id="previewBox"></div>
 
 <h3>目标队列</h3>
+<div class="card">
+<div class="head"><b>按棋手发现最近赛事</b><span class="badge">仅本机候选池</span></div>
+<div class="desc">用 FIDE ID 查询棋手最近参加的赛事，把新 TNR 加入待抓池。只发现赛事，不抓详情、不发布；留空会轮询最久未检查的 10 名中国棋手。</div>
+<input type="search" id="fideDiscoveryInput" placeholder="可选：输入 FIDE ID，多个用空格分隔">
+<div class="actions"><button onclick="discoverEvents()">发现赛事</button><span class="small">每名最多取最近 5 场；聚合页、重复页等人工压制目标不会入队。</span></div>
+</div>
 <div class="summary" id="queueSummary"></div>
 <div class="actions">
 <button onclick="queueTop(1)">采集下一个</button><button onclick="queueTop(3)">采集下 3 个</button><button onclick="queueTop(10)">采集下 10 个</button>
@@ -884,6 +899,12 @@ async function stopJob(){if(!confirm("中止当前任务？已抓页面与检查
 async function loadAutomation(){const a=await(await fetch('/api/automation')).json();$('#autoAdvance').checked=!!a.enabled;$('#automationMeta').textContent=`只处理 outbox/回执，不访问数据源 · 待投递 ${a.pending||0} · 推进中 ${a.advancing||0}${(a.attention||[]).length?' · 需要你处理 '+a.attention.length:''}${a.lastAction?' · 最近 '+a.lastAction:''}`}
 async function toggleAutomation(){const a=await post('/api/automation',{enabled:$('#autoAdvance').checked});$('#automationMeta').textContent=a.enabled?'自动推进已开启；不会自动抓取。':'自动推进已暂停。'}
 function queueTop(n){runCmd('event-queue',['--from-queue',String(n)],false);watchRun('队列前 '+n+' 个')}
+function discoverEvents(){
+ const raw=($('#fideDiscoveryInput').value||'').trim();
+ const ids=raw?raw.split(/[\s,;]+/).filter(Boolean):[];
+ if(ids.some(v=>!/^\d{5,10}$/.test(v))){alert('FIDE ID 必须是 5-10 位数字');return}
+ runCmd('discover-events',ids,false);
+}
 
 // ---- capture box ----
 function parseTnrs(){
@@ -995,7 +1016,8 @@ function renderQueue(){
   const act=t.status==='partial'?`<button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">续跑补缺页</button>`
     :t.status==='privately-captured'?`<button onclick="showPreview('${t.tournamentID}')">本地预览</button> <button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">重新抓取</button>`
     :`<button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">采集</button>`;
-  return `<tr><td>${esc(t.eventName)}</td><td>${esc(t.tournamentID)}</td><td>${esc(t.priorityScore)}</td><td>${st}</td><td>${act}</td></tr>`
+  const why=(t.priorityReasons||[]).join(' · ');
+  return `<tr><td>${esc(t.eventName)}${t.privateDiscovery?'<br><span class=meta>棋手参赛记录发现</span>':''}</td><td>${esc(t.tournamentID)}</td><td>${esc(t.priorityScore)}${why?`<br><span class=meta>${esc(why)}</span>`:''}</td><td>${st}</td><td>${act}</td></tr>`
  }).join('')||'<tr><td colspan=5>该筛选下没有目标</td></tr>';
 }
 async function loadQueue(){qData=await(await fetch('/api/queue')).json();renderQueue();loadEvents();loadOutbox();loadAutomation()}

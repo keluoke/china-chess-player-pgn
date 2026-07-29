@@ -18,7 +18,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 
 # Keep in sync with the refresh.sh command router.
 SAFE_COMMANDS = {
-    "health", "all", "registry", "event-queue", "candidates",
+    "health", "all", "registry", "event-queue", "discover-events", "candidates",
     "bulk", "bulk-full", "deliver", "push", "redeliver", "receipts", "reindex",
     "recover-events", "help",
 }

@@ -14,6 +14,7 @@ import pathlib
 import re
 from typing import Any
 
+from event_targeting import SUPPRESS_ACTIONS, target_overrides
 from stable_json import write_json
 
 
@@ -105,6 +106,11 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
         if not tournament_id:
             return
         current = targets.setdefault(tournament_id, {"tournamentID": tournament_id, "source": "Chess-Results"})
+        discovered_by = values.pop("discoveredBy", [])
+        sources = current.setdefault("discoveredBy", [])
+        for source in discovered_by:
+            if source and source not in sources:
+                sources.append(source)
         for key, value in values.items():
             if value not in (None, "", [], {}):
                 current[key] = value
@@ -112,7 +118,7 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
     for row in rows(STARTING_RANK):
         tournament_id = tnr(row.get("tournament_id") or row.get("url"))
         category, priority = category_priority(row.get("category", ""), row.get("notes", ""))
-        upsert(tournament_id, sourceURL=row.get("url"), eventName=row.get("notes"), category=category, basePriority=priority)
+        upsert(tournament_id, sourceURL=row.get("url"), eventName=row.get("notes"), category=category, basePriority=priority, discoveredBy=["manual-starting-rank"])
 
     for row in rows(MASTER_GROUPS):
         tournament_id = tnr(row.get("tournament_id"))
@@ -125,6 +131,7 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
             sectionID=row.get("section_id"),
             basePriority=200,
             refreshTier="daily-during-event",
+            discoveredBy=["community-master-group"],
         )
 
     for row in rows(SOURCE_CATALOG):
@@ -145,6 +152,7 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
             redistributable=row.get("redistributable"),
             basePriority=manual_priority,
             refreshTier=row.get("refresh_tier"),
+            discoveredBy=["manual-source-catalog"],
         )
 
     # Close the public projection loop offline: a catalogued TNR without a
@@ -172,22 +180,51 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
             basePriority=public_gap_priorities.get(event.get("series"), 150),
             refreshTier="until-results-complete",
             publicDetailMissing=True,
+            discoveredBy=["public-detail-gap"],
         )
 
     demand_by_tnr, demand_rows = demand_index()
+    for gap in demand_rows:
+        tournament_id = gap.get("tournamentID")
+        if tournament_id:
+            upsert(
+                tournament_id,
+                eventName=gap.get("displayQuery"),
+                category="user-demand",
+                basePriority=120,
+                refreshTier="until-results-complete",
+                discoveredBy=["user-demand"],
+            )
+    overrides = target_overrides()
     result: list[dict[str, Any]] = []
+    suppressed: list[dict[str, Any]] = []
     for tournament_id, target in targets.items():
+        override = overrides.get(tournament_id) or {}
+        if override.get("action") in SUPPRESS_ACTIONS:
+            suppressed.append({
+                "tournamentID": tournament_id,
+                "action": override.get("action"),
+                "reason": override.get("reason"),
+                "canonicalEventID": override.get("canonical_event_id") or None,
+            })
+            continue
+        if override.get("chinese_name"):
+            target["sourceEventName"] = target.get("eventName")
+            target["eventName"] = override["chinese_name"]
         state = detail_state(tournament_id)
         demand_count = demand_by_tnr.get(tournament_id, 0)
         needs_snapshot = not state.get("snapshotAudited")
         target.update(state)
         target["demandCount"] = demand_count
-        target["priorityScore"] = (
-            int(target.get("basePriority") or 0)
-            + demand_count * 20
-            + (75 if target.get("publicDetailMissing") else 0)
-            + (35 if needs_snapshot else 0)
-        )
+        breakdown = {
+            "base": int(target.get("basePriority") or 0),
+            "demand": demand_count * 20,
+            "publicDetailGap": 75 if target.get("publicDetailMissing") else 0,
+            "snapshotGap": 35 if needs_snapshot else 0,
+        }
+        target["priorityBreakdown"] = breakdown
+        target["priorityScore"] = sum(breakdown.values())
+        target["priorityReasons"] = [key for key, value in breakdown.items() if value]
         target["nextAction"] = (
             "capture-event"
             if state["ingestionStatus"] in {"registered", "roster-missing"} or target.get("publicDetailMissing")
@@ -213,8 +250,10 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
             "rosterMissing": sum(item["ingestionStatus"] == "roster-missing" for item in result),
             "publicDetailMissing": sum(bool(item.get("publicDetailMissing")) for item in result),
             "snapshotAudited": sum(bool(item.get("snapshotAudited")) for item in result),
+            "suppressed": len(suppressed),
         },
         "targets": result,
+        "suppressed": suppressed,
     }
     demand_queue = {
         "schemaVersion": 1,
