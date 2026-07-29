@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+import struct
 import unittest
 
 
@@ -102,8 +103,30 @@ class FrontendInitializationOrderTest(unittest.TestCase):
             self.assertIn('data-theme-choice="auto"', html)
             self.assertIn('data-theme-choice="light"', html)
             self.assertIn('data-theme-choice="dark"', html)
-            expected_styles = "styles.css?v=20260727-6" if name == "index.html" else "styles.css?v=20260727-3"
-            self.assertLess(html.index("theme.js?v=20260727-1"), html.index(expected_styles))
+            self.assertLess(html.index("theme.js?v=20260727-1"), html.index("styles.css?v=20260729-1"))
+
+    def test_brand_and_search_hero_use_theme_appropriate_logos(self) -> None:
+        index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        styles = (ROOT / "docs" / "styles.css").read_text(encoding="utf-8")
+        header = index[index.index('class="topbar"'):index.index("</header>")]
+        hero = index[index.index('class="search-command"'):index.index('id="searchResultsSection"')]
+        for section in (header, hero):
+            self.assertIn('src="assets/4chess-logo-black.png"', section)
+            self.assertIn('src="assets/4chess-logo-white.png"', section)
+        self.assertIn('class="theme-logo brand-logo"', header)
+        self.assertIn('class="theme-logo hero-logo"', hero)
+        self.assertIn(':root[data-theme="dark"] .theme-logo .logo-on-light { display: none; }', styles)
+        self.assertIn(':root[data-theme="dark"] .theme-logo .logo-on-dark { display: block; }', styles)
+        self.assertIn('.search-command[data-mode="compact"] > .hero-logo,', styles)
+
+        expected_dimensions = {
+            "4chess-logo-black.png": (442, 95),
+            "4chess-logo-white.png": (289, 61),
+        }
+        for name, expected in expected_dimensions.items():
+            payload = (ROOT / "docs" / "assets" / name).read_bytes()
+            self.assertEqual(payload[:8], b"\x89PNG\r\n\x1a\n")
+            self.assertEqual(struct.unpack(">II", payload[16:24]), expected)
 
     def test_dark_search_surface_has_no_light_hero_background(self) -> None:
         styles = (ROOT / "docs" / "styles.css").read_text(encoding="utf-8")

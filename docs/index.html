@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>中国国际象棋棋手数据库</title>
     <meta name="description" content="社区共建的中国国际象棋棋手数据库:全年龄组 FIDE 排行榜、棋手查询与对局 PGN。">
-    <link rel="icon" href="./brand.svg" type="image/svg+xml">
+    <link rel="icon" href="./assets/4chess-logo-black.png" type="image/png" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="./assets/4chess-logo-white.png" type="image/png" media="(prefers-color-scheme: dark)">
     <script src="theme.js?v=20260727-1"></script>
-    <link rel="stylesheet" href="styles.css?v=20260727-6">
+    <link rel="stylesheet" href="styles.css?v=20260729-1">
   </head>
   <body class="landing">
     <div class="app-shell">
       <header class="topbar">
-        <a class="brand" href="./" aria-label="首页">
-          <svg class="brand-mark" aria-hidden="true"><use href="./brand.svg#brand-mark"></use></svg>
-          <span>
-            <strong>中国国际象棋棋手数据库</strong>
-            <small>社区共建 · 全年龄组数据库</small>
+        <a class="brand" href="./" aria-label="4CHESS 中国国际象棋棋手数据库首页">
+          <span class="theme-logo brand-logo" aria-hidden="true">
+            <img class="logo-on-light" src="assets/4chess-logo-black.png" width="442" height="95" alt="">
+            <img class="logo-on-dark" src="assets/4chess-logo-white.png" width="289" height="61" alt="">
           </span>
         </a>
 
@@ -37,6 +37,10 @@
         <section class="main-pane search-main-pane" id="mainPane">
           <section class="search-command" id="searchCommand" data-mode="hero">
             <h1 class="visually-hidden">中国国际象棋棋手与赛事搜索</h1>
+            <span class="theme-logo hero-logo" role="img" aria-label="4CHESS">
+              <img class="logo-on-light" src="assets/4chess-logo-black.png" width="442" height="95" alt="">
+              <img class="logo-on-dark" src="assets/4chess-logo-white.png" width="289" height="61" alt="">
+            </span>
             <form id="searchForm" class="hero-search-form" action="./" method="get" role="search">
               <label class="search-box hero-search-box">
                 <span aria-hidden="true">⌕</span>
@@ -179,9 +183,8 @@
           </div>
         </div>
         <footer class="story-footer">
-          <span class="story-full-logo">
-            <svg aria-hidden="true"><use href="./brand.svg#brand-mark"></use></svg>
-            <strong>中国国际象棋棋手数据库</strong>
+          <span class="story-full-logo" role="img" aria-label="4CHESS">
+            <img src="assets/4chess-logo-white.png" width="289" height="61" alt="">
           </span>
           <span>代码 MIT · 数据按字段与清单分别许可</span>
         </footer>

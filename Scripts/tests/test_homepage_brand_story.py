@@ -24,18 +24,20 @@ class HomepageBrandStoryTest(unittest.TestCase):
         search = html[html.index('class="search-command"'):html.index('id="searchResultsSection"')]
         for removed in ("hero-brand-mark", 'class="eyebrow"', "search-guidance"):
             self.assertNotIn(removed, search)
+        self.assertIn('class="theme-logo hero-logo"', search)
+        self.assertLess(search.index('class="theme-logo hero-logo"'), search.index('id="searchForm"'))
         self.assertLess(search.index('id="searchForm"'), search.index('id="searchSuggestions"'))
         self.assertIn("往下看，我们为什么做这件事", search)
 
-    def test_brand_asset_is_reused_by_all_public_pages(self) -> None:
+    def test_theme_appropriate_brand_assets_are_reused_by_all_public_pages(self) -> None:
         for name in ("index.html", "coverage.html", "leaderboards.html", "events.html", "contribute.html"):
             html = (ROOT / "docs" / name).read_text(encoding="utf-8")
-            self.assertIn('href="./brand.svg" type="image/svg+xml"', html)
-            self.assertIn('href="./brand.svg#brand-mark"', html)
-        svg = (ROOT / "docs" / "brand.svg").read_text(encoding="utf-8")
-        self.assertIn('id="brand-mark"', svg)
-        self.assertIn("#1f3b66", svg)
-        self.assertIn("#c9a227", svg)
+            self.assertIn('href="./assets/4chess-logo-black.png"', html)
+            self.assertIn('href="./assets/4chess-logo-white.png"', html)
+            self.assertIn('src="assets/4chess-logo-black.png"', html)
+            self.assertIn('src="assets/4chess-logo-white.png"', html)
+            self.assertNotIn("brand.svg", html)
+        self.assertFalse((ROOT / "docs" / "brand.svg").exists())
 
     def test_story_is_progressive_and_respects_motion_preferences(self) -> None:
         app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
