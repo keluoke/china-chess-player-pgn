@@ -122,6 +122,8 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         expected_dimensions = {
             "4chess-logo-black.png": (442, 95),
             "4chess-logo-white.png": (289, 61),
+            "4chess-favicon-black.png": (512, 512),
+            "4chess-favicon-white.png": (512, 512),
         }
         for name, expected in expected_dimensions.items():
             payload = (ROOT / "docs" / "assets" / name).read_bytes()
