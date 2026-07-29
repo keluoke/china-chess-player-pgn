@@ -56,6 +56,32 @@ class StructuredFieldTests(unittest.TestCase):
         self.assertEqual(row["year"], "2025")
         self.assertEqual(row["station"], "杭州站")
 
+    def test_master_title_supplies_explicit_station_and_open_group(self) -> None:
+        event = {
+            "id": "chess-results:1437536", "tournamentID": "1437536",
+            "date": "2026-06-21", "chineseName": None,
+            "name": "2026 National CCA Master Tournament - Open (Yancheng Station)",
+            "level": "event",
+        }
+        row = bec.public_event(event, "chess-association-master", {})
+        self.assertEqual(row["station"], "盐城站")
+        self.assertEqual(row["groupLabel"], "棋协大师组")
+        self.assertEqual(row["level"], "OPEN")
+        self.assertEqual(row["displayName"], "2026年全国国际象棋棋协大师赛（盐城站）棋协大师组")
+
+    def test_master_title_does_not_invent_an_unstated_group(self) -> None:
+        event = {
+            "id": "chess-results:1313397", "tournamentID": "1313397",
+            "date": "2025-12-01", "chineseName": None,
+            "name": "2025 National Amateur Chess Master Tournament Hefei Station",
+            "level": "event",
+        }
+        row = bec.public_event(event, "chess-association-master", {})
+        self.assertEqual(row["station"], "合肥站")
+        self.assertIsNone(row["groupLabel"])
+        self.assertIsNone(row["level"])
+        self.assertEqual(row["displayName"], "2025年全国国际象棋棋协大师赛（合肥站）")
+
     def test_lichengzhi_group_parse(self) -> None:
         label, sex, age = bec.parse_chinese_group("2025年全国国际象棋青少年锦标赛（个人）暨第30届李成智杯 U12男子组")
         self.assertEqual((label, sex, age), ("U12男子组", "M", "U12"))
@@ -116,6 +142,16 @@ class PublicFilterTests(unittest.TestCase):
         # Near-future events in season are fine; mapped undated events are fine.
         self.assertIsNone(bec.excluded_from_public({"name": "Real Open", "date": "2026-07-24"}, today))
         self.assertIsNone(bec.excluded_from_public({"name": "Real", "date": "", "chineseName": "某某赛"}, today))
+
+    def test_unresolved_master_station_is_isolated(self) -> None:
+        events = [{
+            "id": "chess-results:1", "tournamentID": "1", "date": "2026-07-01",
+            "name": "2026 National CCA Master Tournament - Open (Unknown Station)",
+            "level": "event",
+        }]
+        rows, excluded = bec.public_catalog(events, {}, today="2026-07-30")
+        self.assertEqual(rows, [])
+        self.assertEqual(excluded[0]["reason"], "master-station-missing")
 
 
 class TruncatedNameRepairTests(unittest.TestCase):

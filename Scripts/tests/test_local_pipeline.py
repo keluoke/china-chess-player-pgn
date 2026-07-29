@@ -2047,6 +2047,7 @@ class PrivateCaptureQueueTests(unittest.TestCase):
             with (
                 mock.patch.object(local_panel, "QUEUE_PATH", queue_path),
                 mock.patch.object(local_panel, "CAPTURE_STATE_PATH", state_path),
+                mock.patch.object(local_panel, "DISCOVERY_POOL", root / "missing-pool.json"),
             ):
                 target = local_panel.queue_payload()["targets"][0]
             self.assertEqual(target["status"], "privately-captured")

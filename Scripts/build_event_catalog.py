@@ -60,6 +60,31 @@ MASTER_GROUP_LABELS = {
     "WOMEN_LEVEL_1": "女子一级棋士组",
 }
 
+MASTER_STATION_TRANSLATIONS = {
+    "anji": "安吉站",
+    "beijing": "北京站",
+    "bengbu": "蚌埠站",
+    "chengmai": "澄迈站",
+    "chongqing": "重庆站",
+    "dongtai": "东台站",
+    "hefei": "合肥站",
+    "hangzhou": "杭州站",
+    "huhhot": "呼和浩特站",
+    "jian": "吉安站",
+    "liaocheng": "聊城站",
+    "nanning": "南宁站",
+    "panjin": "盘锦站",
+    "qingdao": "青岛站",
+    "qinhuangdao": "秦皇岛站",
+    "qiqihar": "齐齐哈尔站",
+    "shanwei": "汕尾站",
+    "shaoxing": "绍兴站",
+    "shenzhen": "深圳站",
+    "xian": "西安站",
+    "yancheng": "盐城站",
+    "zhuhai": "珠海站",
+}
+
 TEST_NAME_RE = re.compile(r"\btest\b|测试|演示|\bdemo\b", re.IGNORECASE)
 WORLD_YOUTH_RE = re.compile(r"world\s+(youth|cadets?)", re.IGNORECASE)
 ASIAN_YOUTH_RE = re.compile(r"asian\s+(youth|schools?|junior)", re.IGNORECASE)
@@ -439,6 +464,36 @@ def has_chinese_text(value: Any) -> bool:
     return bool(re.search(r"[\u3400-\u9fff]", clean(value)))
 
 
+def parse_master_title_hints(event: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Extract only explicit station/group facts from reviewed or source titles.
+
+    Romanised stations are translated through an allowlist. Unknown stations
+    remain unresolved so the public-catalog gate can isolate them for review
+    instead of publishing another generic same-year title.
+    """
+    title = " ".join(filter(None, [
+        event.get("chineseName"), event.get("name"), event.get("displayName"),
+        *(event.get("aliases") or []),
+    ]))
+    station = None
+    chinese_station = re.search(r"（([^（）]{1,20}?站)(?:[·）])", title)
+    if chinese_station:
+        station = clean(chinese_station.group(1))
+    if not station:
+        english_station = re.search(r"\b([A-Za-z][A-Za-z' -]{1,40}?)\s+Station\b", title, re.IGNORECASE)
+        if english_station:
+            station_key = re.sub(r"[^a-z]", "", english_station.group(1).lower())
+            station = next((
+                translated for key, translated in MASTER_STATION_TRANSLATIONS.items()
+                if station_key.endswith(key)
+            ), None)
+
+    group_label = next((label for label in MASTER_GROUP_LABELS.values() if label in title), None)
+    if not group_label and re.search(r"\bOpen\b", title, re.IGNORECASE):
+        group_label = MASTER_GROUP_LABELS["OPEN"]
+    return station, group_label
+
+
 def localized_public_name(
     event: dict[str, Any],
     series: str,
@@ -492,8 +547,12 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
     edition = None
 
     if series == "chess-association-master":
+        title_station, title_group = parse_master_title_hints(event)
+        station = station or title_station
         code = clean(master_group.get("group_code"))
-        group_label = MASTER_GROUP_LABELS.get(code)
+        group_label = MASTER_GROUP_LABELS.get(code) or title_group
+        if not level and group_label == MASTER_GROUP_LABELS["OPEN"]:
+            level = "OPEN"
         sex = clean(master_group.get("sex")) or None
     elif series == "lichengzhi-cup":
         chinese = event.get("chineseName") or ""
@@ -575,6 +634,9 @@ def public_catalog(events: list[dict[str, Any]], master_groups: dict[str, dict[s
         projected = public_event(event, series, master_groups.get(clean(event.get("tournamentID")), {}))
         if projected is None:
             excluded.append({"tournamentID": event.get("tournamentID"), "id": event.get("id"), "reason": "missing-structured-fields"})
+            continue
+        if series == "chess-association-master" and not projected.get("station"):
+            excluded.append({"tournamentID": event.get("tournamentID"), "id": event.get("id"), "reason": "master-station-missing"})
             continue
         rows_by_tournament[projected["tournamentID"]].append(projected)
     rows = [merge_public_event_rows(group) for group in rows_by_tournament.values()]
