@@ -37,6 +37,7 @@ runs:
           --exclude 'data/bulk/youth/' \
           --exclude 'data/registry/domestic/identity-review.json' \
           --exclude 'data/search-bootstrap-domestic.json' \
+          --exclude 'data/index/player-participation/' \
           docs/ "$out"/
 
         # Markdown is deny-by-default. Only documents explicitly listed in the
@@ -63,6 +64,10 @@ runs:
         # Domestic search is served from Hanzi, pinyin, and stable-ID shards;
         # the 6 MiB monolith remains in the repository as an offline/legacy
         # fallback but is redundant in a deployment containing those shards.
+        # The participation projection is an optional frontend enhancement
+        # (app.js treats its manifest as optional). Keep it in the repository
+        # snapshot, but omit its 256 buckets from Pages until the object-store
+        # migration removes the hosting platform's 20,000-file ceiling.
 
         # Bulk youth stage packs are secondary downloads: the per-player packs
         # carry the same games. Exclude the whole optional directory, including

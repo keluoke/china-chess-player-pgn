@@ -93,6 +93,7 @@ class PublicNavigationTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("--exclude '*.md'", action)
+        self.assertIn("--exclude 'data/index/player-participation/'", action)
         self.assertIn("Scripts/public_markdown_allowlist.txt", action)
         self.assertIn("validate_public_privacy.py --site-root", action)
         allowlist = public_privacy.public_markdown_allowlist()
