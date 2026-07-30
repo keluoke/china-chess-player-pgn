@@ -38,6 +38,9 @@ runs:
           --exclude 'data/registry/domestic/identity-review.json' \
           --exclude 'data/search-bootstrap-domestic.json' \
           --exclude 'data/index/player-participation/' \
+          --exclude 'data/index/manifest.json' \
+          --exclude 'data/index/players.json' \
+          --exclude 'data/index/players/' \
           docs/ "$out"/
 
         # Markdown is deny-by-default. Only documents explicitly listed in the
@@ -68,6 +71,10 @@ runs:
         # (app.js treats its manifest as optional). Keep it in the repository
         # snapshot, but omit its 256 buckets from Pages until the object-store
         # migration removes the hosting platform's 20,000-file ceiling.
+        # The legacy per-source player index is superseded on the live site by
+        # search-bootstrap.json plus data/index/by-player/. Its manifest is
+        # optional in app.js, so omit all three legacy paths from Pages while
+        # retaining them in the repository snapshot for offline consumers.
 
         # Bulk youth stage packs are secondary downloads: the per-player packs
         # carry the same games. Exclude the whole optional directory, including

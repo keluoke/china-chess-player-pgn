@@ -70,10 +70,13 @@ docs/data/pgn/by-player/fide-8657238/U12.pgn
 
 - `index.html` + `app.js` + CSS
 - 首屏加载 `search-bootstrap.json`（国内实体分片后台补载）
-- 搜索加载 `index/players.json`
-- 棋手看板加载 `index/players/fide-*.json`
+- 棋手看板按需加载 `index/by-player/fide-*.json`
 - 赛事看板按需加载 `index/public-events.json`（策展公共目录；完整审计目录已移出公共树），通过 URL 参数 `?event=chess-results:<tnrID>` 直达
 - PGN 优先读取 `pgn/by-player/` 聚合包
+
+仓库仍生成 `index/manifest.json`、`index/players.json` 与
+`index/players/fide-*.json` 供离线兼容；线上 Pages 包为遵守 20,000 文件上限
+不包含这组已被 `search-bootstrap.json` + `index/by-player/` 取代的旧索引。
 
 ## 同步脚本
 
