@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
-  "snapshotId": "20260730T170344Z-3617e6ec",
-  "generatedAt": "2026-07-30T17:05:50+00:00",
+  "snapshotId": "20260730T175000Z-7f2e4db0",
+  "generatedAt": "2026-07-30T17:52:11+00:00",
   "producerVersion": "build-release-snapshot-v3",
   "inputs": [
     {
@@ -28,14 +28,14 @@
       "path": "data/generated/person-observations.meta.json",
       "present": true,
       "bytes": 589,
-      "sha256": "974250e5ccae216dc2388febf3d2b592c8493cc5003f8ba0aec81003699b139d",
+      "sha256": "ebc7d8a5949c5f819095e0b55d33d6df84fe75735ff2743d70b6e28e81ca6994",
       "schemaVersion": 2
     },
     {
       "path": "data/generated/event-completeness-report.json",
       "present": true,
       "bytes": 2320599,
-      "sha256": "975078d8785219f19df8a2e52943cdd73642e0d11aecf6bbfbf8470da53e5be0",
+      "sha256": "79822dd47cf3ec8f4be4d9d8b4f69b1175c81704937b3d9ba7395d222513b8a7",
       "schemaVersion": 2,
       "eventCount": 1002
     },
@@ -53,7 +53,7 @@
       "path": "data/generated/pgn-collection-status.json",
       "present": true,
       "bytes": 221430,
-      "sha256": "2662282d4c669b3b9e37751d484dd68172299cfe72858266616024611034aee1",
+      "sha256": "61855fcfaf4de26314fe095059816fbbaacd2fbeee6ba4dece7bab6b71296cdf",
       "schemaVersion": 1,
       "eventCount": 1002
     },
@@ -87,7 +87,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/apply_aliases_to_registry.py",
       "status": "built",
-      "seconds": 0.4
+      "seconds": 0.5
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_release.py --registry docs/data/registry --corrections data/community/name-corrections.csv",
@@ -102,17 +102,17 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_static_player_pgn.py",
       "status": "built",
-      "seconds": 55.7
+      "seconds": 56.8
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_pgn_collection_status.py",
       "status": "built",
-      "seconds": 1.7
+      "seconds": 1.8
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_completeness_report.py",
       "status": "built",
-      "seconds": 11.3
+      "seconds": 11.8
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_event_details.py",
@@ -127,12 +127,12 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_domestic_players.py",
       "status": "built",
-      "seconds": 16.7
+      "seconds": 17.0
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_identity_clustering.py",
       "status": "built",
-      "seconds": 3.3
+      "seconds": 3.5
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_domestic_progressions.py",
@@ -142,7 +142,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_event_catalog.py",
       "status": "built",
-      "seconds": 0.7
+      "seconds": 0.9
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_player_participation.py",
@@ -162,17 +162,17 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_data_quality_audit.py",
       "status": "built",
-      "seconds": 1.7
+      "seconds": 1.8
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/reconcile_pgn_sources.py --write-audit",
       "status": "built",
-      "seconds": 1.2
+      "seconds": 1.3
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_search_bootstrap.py",
       "status": "built",
-      "seconds": 5.3
+      "seconds": 5.6
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_public_metrics.py",
@@ -187,7 +187,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_api.py",
       "status": "built",
-      "seconds": 1.1
+      "seconds": 1.7
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_changelog.py",
@@ -202,7 +202,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_authority.py",
       "status": "built",
-      "seconds": 2.0
+      "seconds": 2.1
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_metrics.py",
@@ -212,12 +212,12 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_privacy.py",
       "status": "built",
-      "seconds": 8.9
+      "seconds": 9.2
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_snapshot_consistency.py",
       "status": "built",
-      "seconds": 0.5
+      "seconds": 0.6
     }
   ]
 }
