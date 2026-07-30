@@ -20,7 +20,7 @@ document.querySelector("#coverageUpdated").textContent = `更新于 ${formatTime
 
 const recentEvents = dashboard?.recentEvents ?? [];
 document.querySelector("#recentEventsMeta").textContent = recentEvents.length ? `最近 ${recentEvents.length} 项` : "";
-document.querySelector("#coverageRecentEvents").innerHTML = recentEvents.length ? recentEvents.map(event => `<a class="recent-event" href="./?event=${encodeURIComponent(event.id)}"><div><strong>${escapeHTML(event.displayName || event.name || "未命名赛事")}</strong><span>${escapeHTML([event.date, event.seriesLabel || "", event.playerCount ? `${event.playerCount} 位中国棋手` : "", event.gameCount ? `${event.gameCount} 盘` : "", event.detailStatus === "published" ? "完整赛果" : ""].filter(Boolean).join(" · "))}</span></div></a>`).join("") : empty("暂无四类目标赛事更新");
+document.querySelector("#coverageRecentEvents").innerHTML = recentEvents.length ? recentEvents.map(event => `<a class="recent-event" href="./?event=${encodeURIComponent(event.tournamentID || event.id)}"><div><strong>${escapeHTML(event.displayName || event.name || "未命名赛事")}</strong><span>${escapeHTML([event.date, event.seriesLabel || "", event.playerCount ? `${event.playerCount} 位中国棋手` : "", event.gameCount ? `${event.gameCount} 盘` : "", event.detailStatus === "published" ? "完整赛果" : ""].filter(Boolean).join(" · "))}</span></div></a>`).join("") : empty("暂无四类目标赛事更新");
 
 const changes = (changelog?.entries ?? []).slice(0, 8);
 document.querySelector("#coverageChangelogMeta").textContent = changes.length ? `最近 ${changes.length} 次` : "";
@@ -37,7 +37,7 @@ document.querySelector("#stageCoverage").innerHTML = Object.entries(coverage?.st
 
 const queueTotals = eventQueue?.totals ?? {};
 document.querySelector("#eventQueue").innerHTML = `
-  <div class="mini-stat-row"><span><strong>${format(queueTotals.registered || 0)}</strong>待整取</span><span><strong>${format(queueTotals.captured || 0)}</strong>已抓取</span><span><strong>${format(queueTotals.snapshotAudited || 0)}</strong>已核验快照</span></div>
+  <div class="mini-stat-row"><span><strong>${format(queueTotals.registered || 0)}</strong>待入库</span><span><strong>${format(queueTotals.captured || 0)}</strong>已入库</span><span><strong>${format(queueTotals.snapshotAudited || 0)}</strong>已核验快照</span></div>
   <p class="coverage-note">具体目标与优先级在维护者工作台处理，公共页面只显示进度总量。</p>`;
 
 const qualityTotals = quality?.totals ?? {};
@@ -50,7 +50,7 @@ const funnelTotals = funnel?.totals ?? {};
 document.querySelector("#contributionFunnel").innerHTML = funnel ? `
   <div class="funnel-grid">
     ${funnelStep("工具下载", funnelTotals.toolDownloads)}
-    ${funnelStep("抓取成功", funnelTotals.successfulCaptures)}
+    ${funnelStep("入库成功", funnelTotals.successfulCaptures)}
     ${funnelStep("贡献 PR", funnelTotals.pullRequests)}
     ${funnelStep("审核入库", funnelTotals.ingested)}
     ${funnelStep("网页 Issue", funnelTotals.webIssues)}

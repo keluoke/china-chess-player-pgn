@@ -78,8 +78,10 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         renderer = app[app.index("function renderEvent()"):app.index("function eventViewerPlayer")]
         self.assertIn("eventDetail.players", renderer)
         self.assertIn("名单已同步", renderer)
-        self.assertIn("维护者本机补抓队列", renderer)
+        self.assertIn("已列入补录计划", renderer)
+        self.assertIn("未单独发布完整名单", renderer)
         self.assertNotIn("该赛事已有赛事记录，但棋手名单尚未同步", renderer)
+        self.assertIn('["日期", eventDateLabel(event)]', renderer)
         self.assertIn("中国棋手（名单标 CHN）", renderer)
 
     def test_styles_follow_system_dark_mode(self) -> None:

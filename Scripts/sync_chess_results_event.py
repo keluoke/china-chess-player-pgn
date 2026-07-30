@@ -53,7 +53,7 @@ USER_AGENT = "ChinaChessPlayerPGN/EventDetailSync"
 # Bumping the version releases affected targets for one evidence-backed retry;
 # cached starting-rank pages are replayed locally before any missing page is
 # requested.
-PARSER_VERSION = "chess-results-v5"
+PARSER_VERSION = "chess-results-v6"
 QUARANTINE_DAYS = 7
 STRUCTURE_QUARANTINE_THRESHOLD = 2
 
@@ -110,6 +110,7 @@ class TableParser(HTMLParser):
         self.tables: list[list[list[Cell]]] = []
         self.h2s: list[str] = []
         self.links: list[str] = []
+        self.text_parts: list[str] = []
         self._table: list[list[Cell]] | None = None
         self._row: list[Cell] | None = None
         self._cell_text: list[str] | None = None
@@ -153,6 +154,8 @@ class TableParser(HTMLParser):
             self._h2 = None
 
     def handle_data(self, data: str) -> None:
+        if clean(data):
+            self.text_parts.append(data)
         if self._cell_text is not None:
             self._cell_text.append(data)
         if self._h2 is not None:
@@ -163,6 +166,45 @@ def parse_html(body: str, base_url: str) -> TableParser:
     parser = TableParser(base_url)
     parser.feed(body)
     return parser
+
+
+DATE_TOKEN = r"(?:20\d{2}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}[./-]20\d{2})"
+
+
+def normalize_event_date(value: str) -> str:
+    numbers = [int(part) for part in re.split(r"[./-]", clean(value))]
+    if len(numbers) != 3:
+        return ""
+    if numbers[0] >= 1900:
+        year, month, day = numbers
+    else:
+        day, month, year = numbers
+    try:
+        return dt.date(year, month, day).isoformat()
+    except ValueError:
+        return ""
+
+
+def extract_event_dates(*parsers: TableParser) -> tuple[str, str]:
+    """Extract only explicitly labelled event dates, never upload timestamps."""
+    text = clean(" ".join(part for parser in parsers for part in parser.text_parts))
+    range_match = re.search(
+        rf"(?:tournament\s+dates?|event\s+dates?|赛事日期|比赛日期)\s*[:：]?\s*"
+        rf"({DATE_TOKEN})\s*(?:to|until|[-–—至])\s*({DATE_TOKEN})",
+        text,
+        re.IGNORECASE,
+    )
+    if range_match:
+        return normalize_event_date(range_match.group(1)), normalize_event_date(range_match.group(2))
+
+    def labelled(labels: str) -> str:
+        match = re.search(rf"(?:{labels})\s*[:：]?\s*({DATE_TOKEN})", text, re.IGNORECASE)
+        return normalize_event_date(match.group(1)) if match else ""
+
+    date_begin = labelled(r"start\s+date|date\s+begin|begin|beginn|开始日期")
+    date_end = labelled(r"end\s+date|date\s+end|ende|结束日期")
+    single = labelled(r"tournament\s+date|event\s+date|赛事日期|比赛日期")
+    return date_begin or single, date_end or single
 
 
 def page_url(tournament_id: str, art: int, round_no: int | None) -> str:
@@ -897,6 +939,7 @@ class EventCollector:
             else players_page.h2s[0] if players_page.h2s
             else f"tnr{self.tid}"
         )
+        date_begin, date_end = extract_event_dates(players_page, standings_page)
 
         # 3. rounds: heading + page links + queue metadata cross-validation.
         rounds, round_candidates = discover_rounds(
@@ -993,6 +1036,8 @@ class EventCollector:
             "source": "Chess-Results",
             "tournamentID": self.tid,
             "sourceName": self.title,
+            "dateBegin": date_begin or None,
+            "dateEnd": date_end or None,
             "sourceRefs": [{"source": "Chess-Results", "tournamentID": self.tid, "url": standings_url}],
             "coverageScope": "domestic-full",
             "format": event_format,

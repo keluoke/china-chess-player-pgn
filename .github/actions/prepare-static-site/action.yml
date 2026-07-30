@@ -18,9 +18,13 @@ inputs:
     required: false
     default: "870400"
   max-files:
-    description: Reject the deploy if the artifact exceeds the hosting file-count limit.
+    description: Reject the deploy before the artifact reaches the hosting file-count limit.
     required: false
-    default: "20000"
+    default: "19000"
+  warn-files:
+    description: Warn when the deploy artifact crosses the operational file-count budget.
+    required: false
+    default: "16000"
 
 runs:
   using: composite
@@ -97,6 +101,9 @@ runs:
           exit 1
         fi
         file_count="$(find "$out" -type f | wc -l | tr -d ' ')"
+        if [ "$file_count" -gt ${{ inputs.warn-files }} ]; then
+          echo "::warning::Static site artifact contains ${file_count} files; object-storage migration is required before further growth."
+        fi
         if [ "$file_count" -gt ${{ inputs.max-files }} ]; then
           echo "Static site artifact contains ${file_count} files; keep it at or below ${{ inputs.max-files }} before deploy." >&2
           exit 1

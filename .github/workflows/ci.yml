@@ -43,7 +43,9 @@ jobs:
         run: bash -n Scripts/local/refresh.sh
 
       - name: Validate community-maintained data
-        run: python3 Scripts/validate_community_data.py
+        run: |
+          python3 Scripts/validate_community_data.py
+          python3 Scripts/validate_master_group_labels.py
 
       - name: Validate identity clustering against embedded FIDE truth
         run: python3 Scripts/validate_identity_clustering.py --check-only

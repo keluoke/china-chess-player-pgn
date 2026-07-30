@@ -99,11 +99,29 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn("--exclude 'data/index/players/'", action)
         self.assertIn("Scripts/public_markdown_allowlist.txt", action)
         self.assertIn("validate_public_privacy.py --site-root", action)
+        self.assertIn('default: "16000"', action)
+        self.assertIn('default: "19000"', action)
         allowlist = public_privacy.public_markdown_allowlist()
         self.assertEqual(allowlist, ("API.md", "PUBLIC_METRICS.md"))
         for relative in allowlist:
             text = (ROOT / "docs" / relative).read_text(encoding="utf-8")
             self.assertEqual(public_privacy.markdown_offenses(text), [])
+
+    def test_public_copy_and_event_urls_are_source_neutral(self) -> None:
+        html_files = sorted((ROOT / "docs").glob("*.html"))
+        js_files = sorted((ROOT / "docs").glob("*.js"))
+        for path in [*html_files, *js_files]:
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("抓取", text, str(path))
+        for path in html_files:
+            self.assertNotIn("chess-results", path.read_text(encoding="utf-8").lower(), str(path))
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        events = (ROOT / "docs" / "events.js").read_text(encoding="utf-8")
+        self.assertIn("function eventRouteID(value)", app)
+        self.assertIn("window.history.replaceState(window.history.state", app)
+        self.assertIn("encodeURIComponent(eventRouteID(event))", app)
+        self.assertNotIn("encodeURIComponent(event.id)", app)
+        self.assertIn("const routeID = e.tournamentID || e.id", events)
 
     def test_privacy_gate_rejects_unallowlisted_markdown_in_site_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

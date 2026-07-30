@@ -6,10 +6,9 @@ Two catalogs come out of this script:
 - ``events.json``: the full internal catalog (every recorded participation,
   Lichess broadcast fragments included). This is evidence/audit surface only —
   product pages must not read it.
-- ``public-events.json``: the curated public catalog. Only the four target
-  series are admitted (棋协大师赛 / 李成智杯 / 世少赛 / 亚少赛), every entry
-  carries structured fields (series/year/station/groupLabel/sex/ageGroup/
-  level/tournamentID/date) and a display name that includes the group.
+- ``public-events.json``: the public lookup catalog. The four target series
+  retain their structured classification, while every published event detail
+  and event-level PGN archive receives a neutral, deep-linkable record.
 
 Community-maintained Chinese names live in
 ``data/community/tournament-name-mappings.csv`` and are only *read* here.
@@ -44,12 +43,16 @@ EVENT_QUEUE = REPO_ROOT / "data" / "generated" / "audit" / "domestic-event-queue
 MAPPINGS = REPO_ROOT / "data" / "community" / "tournament-name-mappings.csv"
 MASTER_GROUPS = REPO_ROOT / "data" / "community" / "master-tournament-groups.csv"
 
-# The public catalog admits exactly these four series.
+# The first four series remain the curated product groups. ``other`` closes
+# the published-detail/catalog gap; ``archive`` exposes event-level PGN
+# history without promoting round/chapter fragments to tournaments.
 SERIES_LABELS = {
     "chess-association-master": "全国国际象棋棋协大师赛",
     "lichengzhi-cup": "全国国际象棋青少年锦标赛（个人）暨李成智杯",
     "world-youth": "世界青少年国际象棋锦标赛",
     "asian-youth": "亚洲青少年国际象棋锦标赛",
+    "other": "其他已收录赛事",
+    "archive": "棋谱归档赛事",
 }
 
 MASTER_GROUP_LABELS = {
@@ -92,6 +95,10 @@ NATIONAL_MASTER_RE = re.compile(
     r"\bnational\s+(?:amateur\s+chess|cca)\s+master\s+tourn",
     re.IGNORECASE,
 )
+NATIONAL_MASTER_ZH_RE = re.compile(r"全国国际象棋棋协大师赛")
+LICHENGZHI_ZH_RE = re.compile(r"李成智杯")
+WORLD_YOUTH_ZH_RE = re.compile(r"世界青少年")
+ASIAN_YOUTH_ZH_RE = re.compile(r"亚洲青少年")
 GROUP_TOKEN_RE = re.compile(r"\(?\b(open\s+)?([UGB])\s?(\d{1,2})\b\)?", re.IGNORECASE)
 EDITION_RE = re.compile(r"\b(\d{1,3})(?:st|nd|rd|th)\b", re.IGNORECASE)
 RAPID_RE = re.compile(r"\brapid\b|快棋", re.IGNORECASE)
@@ -108,17 +115,25 @@ def clean(value: Any) -> str:
     return " ".join(str(value or "").split()).strip()
 
 
-def event_id(source: str, tournament_id: str, name: str, date: str) -> str:
-    """Return a stable key even for non-Chess-Results PGN sources."""
+def event_id(
+    source: str,
+    tournament_id: str,
+    name: str,
+    date: str,
+    canonical_event_id: str = "",
+) -> str:
+    """Return a stable internal key and a neutral key for non-TNR events."""
     source_key = source.lower().replace(" ", "-")
     if tournament_id:
         return f"{source_key}:{tournament_id}"
+    if canonical_event_id:
+        return canonical_event_id
     # The source/name/date combination is a fallback for providers without a
     # tournament ID. Use a digest instead of a raw string prefix: many Lichess
     # events share the same provider prefix, so a truncated hex encoding would
     # silently collide.
     seed = hashlib.sha256("|".join([source, name, date]).encode("utf-8")).hexdigest()[:16]
-    return f"{source_key}:{seed}"
+    return f"ev-{seed}"
 
 
 def load_mappings() -> dict[tuple[str, str], dict[str, str]]:
@@ -150,10 +165,25 @@ def load_master_groups() -> dict[str, dict[str, str]]:
     return result
 
 
+def verified_master_group(master_group: dict[str, str]) -> dict[str, str]:
+    """Only reviewed group labels may override an explicit event title."""
+    status = clean(master_group.get("evidence_status")).lower()
+    if status in {"verified", "page-verified", "manually-verified"}:
+        return master_group
+    return {}
+
+
 def static_event_stats() -> dict[tuple[str, str], dict[str, Any]]:
     """Collect actual archived PGN coverage from per-player static indexes."""
     result: dict[tuple[str, str], dict[str, Any]] = defaultdict(
-        lambda: {"players": set(), "pgnCount": 0, "gameCount": 0, "names": set(), "dates": set()}
+        lambda: {
+            "players": set(),
+            "pgnCount": 0,
+            "gameCount": 0,
+            "names": set(),
+            "dates": set(),
+            "canonicalEventIDs": set(),
+        }
     )
     for path in sorted(BY_PLAYER.glob("fide-*.json")):
         detail = read_json(path, {})
@@ -171,6 +201,8 @@ def static_event_stats() -> dict[tuple[str, str], dict[str, Any]]:
                 row["names"].add(clean(event["name"]))
             if clean(event.get("date")):
                 row["dates"].add(clean(event["date"]))
+            if clean(event.get("canonicalEventID")):
+                row["canonicalEventIDs"].add(clean(event["canonicalEventID"]))
     return result
 
 
@@ -237,11 +269,12 @@ def build_upstream_event(
     chinese_name = mapping.get("chineseName", "")
     canonical_event_id = mapping.get("canonicalEventID", "")
     source_date = clean(upstream.get("date"))
+    detail_date = clean(detail.get("dateEnd") or detail.get("dateBegin"))
     # When PGN is available, its EventDate is a direct record of the played
     # event and is more useful than a player-search row that may represent a
     # later rating/listing date.
     archived_dates = sorted(stats.get("dates", set()), reverse=True)
-    date = archived_dates[0] if archived_dates else source_date
+    date = archived_dates[0] if archived_dates else detail_date or source_date
     players = sorted({clean(fid) for fid in upstream.get("players", []) if clean(fid)})
     players.extend(sorted(stats.get("players", set()) - set(players)))
     event = {
@@ -334,16 +367,67 @@ def build_mapping_only_event(
     return event
 
 
+def build_detail_only_event(
+    tournament_id: str,
+    detail: dict[str, Any],
+    mapping: dict[str, str],
+    master_group: dict[str, str],
+) -> dict[str, Any]:
+    """Create the catalog row promised by a published event-detail manifest."""
+    display_name = clean(mapping.get("chineseName") or detail.get("displayName")) or f"赛事 {tournament_id}"
+    date = clean(detail.get("dateEnd") or detail.get("dateBegin"))
+    year_match = re.search(r"(20\d{2})", " ".join([
+        display_name,
+        clean(mapping.get("canonicalEventID")),
+        clean(master_group.get("year")),
+    ]))
+    return {
+        "id": event_id("Chess-Results", tournament_id, display_name, date),
+        "source": "Chess-Results",
+        "tournamentID": tournament_id,
+        "canonicalEventID": mapping.get("canonicalEventID") or None,
+        "name": display_name,
+        "chineseName": mapping.get("chineseName") or None,
+        "displayName": display_name,
+        "date": date or None,
+        "dateBegin": clean(detail.get("dateBegin")) or None,
+        "dateEnd": clean(detail.get("dateEnd")) or None,
+        "year": year_match.group(1) if year_match else None,
+        "rounds": detail.get("roundCount") or None,
+        "participants": detail.get("standingCount") or None,
+        "players": [],
+        "playerCount": 0,
+        "pgnPlayerCount": 0,
+        "pgnCount": 0,
+        "gameCount": 0,
+        "detailPath": detail.get("path"),
+        "standingCount": detail.get("standingCount"),
+        "coverageScope": "domestic-full",
+        "sectionID": master_group.get("section_id") or None,
+        "groupCode": master_group.get("group_code") or None,
+        "station": master_group.get("station") or None,
+        "level": "event",
+        **({"roundsPendingVerification": True} if detail.get("roundsPendingVerification") else {}),
+        **({"pgnAvailability": detail.get("pgnAvailability")} if detail.get("pgnAvailability") else {}),
+        **({"pgnSourceStatus": detail.get("pgnSourceStatus")} if detail.get("pgnSourceStatus") else {}),
+        **({"eventComplete": True} if detail.get("eventComplete") else {}),
+        **({"playableComplete": True} if detail.get("playableComplete") else {}),
+    }
+
+
 def build_pgn_only_event(source_key: str, key_id: str, stats: dict[str, Any]) -> dict[str, Any]:
     """Pure assembly of an event known only from PGN archives."""
     name = sorted(stats["names"])[0] if stats["names"] else "未命名赛事"
     date = sorted(stats["dates"], reverse=True)[0] if stats["dates"] else ""
     source = "Chess-Results" if source_key == "chess-results" else source_key.title()
     tournament_id = "" if key_id.startswith("name:") else key_id
+    canonical_event_id = sorted(stats.get("canonicalEventIDs", set()))[0] if stats.get("canonicalEventIDs") else ""
+    is_lichess = source.lower().startswith("lichess")
     return {
-        "id": event_id(source, tournament_id, name, date),
+        "id": event_id(source, tournament_id, name, date, canonical_event_id),
         "source": source,
         "tournamentID": tournament_id or None,
+        "canonicalEventID": canonical_event_id or None,
         "name": name,
         "chineseName": None,
         "displayName": name,
@@ -358,6 +442,11 @@ def build_pgn_only_event(source_key: str, key_id: str, stats: dict[str, Any]) ->
         "pgnCount": int(stats["pgnCount"]),
         "gameCount": int(stats["gameCount"]),
         "level": classify_level(source, name, int(stats["gameCount"]), len(stats["players"])),
+        **({
+            "attribution": "Lichess Broadcasts",
+            "license": "CC BY-SA 4.0",
+            "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+        } if is_lichess else {}),
     }
 
 
@@ -383,7 +472,7 @@ def build_catalog() -> list[dict[str, Any]]:
         events[key] = build_upstream_event(
             upstream,
             mappings.get(key, {}),
-            master_groups.get(tournament_id, {}),
+            verified_master_group(master_groups.get(tournament_id, {})),
             details.get(tournament_id, {}),
             coverage.pop(key, {}),
         )
@@ -399,8 +488,21 @@ def build_catalog() -> list[dict[str, Any]]:
             source_key,
             tournament_id,
             mapping,
-            master_groups.get(tournament_id, {}),
+            verified_master_group(master_groups.get(tournament_id, {})),
             details.get(tournament_id, {}),
+        )
+
+    # A published detail is itself sufficient catalog evidence. Queue-direct
+    # captures do not necessarily appear in player-search rows or mappings.
+    for tournament_id, detail in details.items():
+        key = ("chess-results", tournament_id)
+        if key in events:
+            continue
+        events[key] = build_detail_only_event(
+            tournament_id,
+            detail,
+            mappings.get(key, {}),
+            verified_master_group(master_groups.get(tournament_id, {})),
         )
 
     # Preserve event data sourced exclusively from PGN archives (for example
@@ -423,12 +525,22 @@ def classify_series(event: dict[str, Any]) -> str | None:
     haystack = " ".join(filter(None, [
         event.get("name"), event.get("displayName"), *(event.get("aliases") or []),
     ]))
+    if LICHENGZHI_ZH_RE.search(haystack):
+        return "lichengzhi-cup"
+    if WORLD_YOUTH_ZH_RE.search(haystack):
+        return "world-youth"
+    if ASIAN_YOUTH_ZH_RE.search(haystack):
+        return "asian-youth"
     if WORLD_YOUTH_RE.search(haystack):
         return "world-youth"
     if ASIAN_YOUTH_RE.search(haystack):
         return "asian-youth"
-    if NATIONAL_MASTER_RE.search(haystack):
+    if NATIONAL_MASTER_RE.search(haystack) or NATIONAL_MASTER_ZH_RE.search(haystack):
         return "chess-association-master"
+    if event.get("detailPath"):
+        return "other"
+    if clean(event.get("source")).lower().startswith(("lichess", "static pgn")):
+        return "archive"
     return None
 
 
@@ -489,6 +601,12 @@ def parse_master_title_hints(event: dict[str, Any]) -> tuple[str | None, str | N
             ), None)
 
     group_label = next((label for label in MASTER_GROUP_LABELS.values() if label in title), None)
+    if not group_label:
+        explicit_group = re.search(
+            r"(?:男子|女子)候补(?:棋协)?大师组|(?:男子|女子)一级棋士(?:[ABC])?组|公开组",
+            title,
+        )
+        group_label = clean(explicit_group.group(0)) if explicit_group else None
     if not group_label and re.search(r"\bOpen\b", title, re.IGNORECASE):
         group_label = MASTER_GROUP_LABELS["OPEN"]
     return station, group_label
@@ -530,7 +648,8 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
     established (those are reported by the audit, never silently admitted).
     """
     tournament_id = clean(event.get("tournamentID"))
-    if not tournament_id:
+    stable_id = clean(event.get("id"))
+    if not tournament_id and not stable_id:
         return None
     date = event.get("date")
     year = (date or "")[:4] or clean(master_group.get("year")) or (str(event.get("year") or ""))[:4]
@@ -539,6 +658,12 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         match = re.search(r"(\d{4})", canonical)
         year = match.group(1) if match else ""
     if not year:
+        names = " ".join(filter(None, [
+            event.get("name"), event.get("displayName"), *(event.get("aliases") or []),
+        ]))
+        match = re.search(r"\b(19|20)\d{2}\b", names)
+        year = match.group(0) if match else ""
+    if not year and series not in {"other", "archive"}:
         return None
 
     station = clean(master_group.get("station")) or None
@@ -557,22 +682,27 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
     elif series == "lichengzhi-cup":
         chinese = event.get("chineseName") or ""
         group_label, sex, age_group = parse_chinese_group(chinese)
-    else:  # world-youth / asian-youth
+    elif series in {"world-youth", "asian-youth"}:
         haystack = " ".join(filter(None, [event.get("name"), *(event.get("aliases") or [])]))
         group_label, sex, age_group = parse_group_token(haystack)
         edition_match = EDITION_RE.search(haystack)
         edition = f"第{edition_match.group(1)}届" if edition_match else None
-    display_name = localized_public_name(
-        event,
-        series,
-        year,
-        edition=edition,
-        station=station,
-        group_label=group_label,
-    )
+    if series in {"other", "archive"}:
+        display_name = clean(event.get("chineseName") or event.get("displayName") or event.get("name"))
+        if not group_label:
+            group_label, sex, age_group = parse_chinese_group(display_name)
+    else:
+        display_name = localized_public_name(
+            event,
+            series,
+            year,
+            edition=edition,
+            station=station,
+            group_label=group_label,
+        )
 
     return {
-        "id": event.get("id"),
+        "id": stable_id,
         "series": series,
         "seriesLabel": SERIES_LABELS[series],
         "year": year,
@@ -582,7 +712,7 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         "sex": sex,
         "ageGroup": age_group,
         "level": level,
-        "tournamentID": tournament_id,
+        "tournamentID": tournament_id or None,
         "date": date,
         "displayName": display_name,
         "name": event.get("name") or None,
@@ -600,6 +730,10 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         "eventComplete": event.get("eventComplete") or None,
         "playableComplete": event.get("playableComplete") or None,
         "canonicalEventID": event.get("canonicalEventID"),
+        "nameTranslationPending": not has_chinese_text(display_name) or None,
+        "attribution": event.get("attribution"),
+        "license": event.get("license"),
+        "licenseURL": event.get("licenseURL"),
     }
 
 
@@ -611,7 +745,13 @@ def excluded_from_public(event: dict[str, Any], today: str) -> str | None:
     date = event.get("date") or ""
     if date and date > (dt.date.fromisoformat(today) + dt.timedelta(days=200)).isoformat():
         return "implausible-future-date"
-    if not date and not event.get("chineseName") and not event.get("canonicalEventID"):
+    if (
+        not date
+        and not event.get("chineseName")
+        and not event.get("canonicalEventID")
+        and not event.get("detailPath")
+        and not re.search(r"\b(19|20)\d{2}\b", name)
+    ):
         return "undated-and-unmapped"
     return None
 
@@ -619,7 +759,7 @@ def excluded_from_public(event: dict[str, Any], today: str) -> str | None:
 def public_catalog(events: list[dict[str, Any]], master_groups: dict[str, dict[str, str]],
                    today: str | None = None) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     today = today or dt.date.today().isoformat()
-    rows_by_tournament: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    rows_by_event: dict[str, list[dict[str, Any]]] = defaultdict(list)
     excluded: list[dict[str, Any]] = []
     for event in events:
         if (event.get("level") or "event") != "event":
@@ -631,15 +771,26 @@ def public_catalog(events: list[dict[str, Any]], master_groups: dict[str, dict[s
         if reason:
             excluded.append({"tournamentID": event.get("tournamentID"), "id": event.get("id"), "reason": reason})
             continue
-        projected = public_event(event, series, master_groups.get(clean(event.get("tournamentID")), {}))
+        projected = public_event(
+            event,
+            series,
+            verified_master_group(master_groups.get(clean(event.get("tournamentID")), {})),
+        )
         if projected is None:
             excluded.append({"tournamentID": event.get("tournamentID"), "id": event.get("id"), "reason": "missing-structured-fields"})
             continue
         if series == "chess-association-master" and not projected.get("station"):
-            excluded.append({"tournamentID": event.get("tournamentID"), "id": event.get("id"), "reason": "master-station-missing"})
-            continue
-        rows_by_tournament[projected["tournamentID"]].append(projected)
-    rows = [merge_public_event_rows(group) for group in rows_by_tournament.values()]
+            # Keep the deep link promised by a published detail, but do not
+            # invent a generic master-series title when the station is still
+            # unverified.
+            if event.get("detailPath"):
+                projected = public_event(event, "other", {})
+            else:
+                excluded.append({"tournamentID": event.get("tournamentID"), "id": event.get("id"), "reason": "master-station-missing"})
+                continue
+        grouping_key = clean(projected.get("tournamentID")) or clean(projected.get("id"))
+        rows_by_event[grouping_key].append(projected)
+    rows = [merge_public_event_rows(group) for group in rows_by_event.values()]
     rows.sort(key=lambda item: (item.get("date") or "", item.get("id") or ""), reverse=True)
     return rows, excluded
 

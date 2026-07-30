@@ -22,4 +22,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-python-deps
       - name: Validate community data files
-        run: python3 Scripts/validate_community_data.py
+        run: |
+          python3 Scripts/validate_community_data.py
+          python3 Scripts/validate_master_group_labels.py

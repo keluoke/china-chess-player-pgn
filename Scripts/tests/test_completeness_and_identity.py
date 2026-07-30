@@ -309,6 +309,38 @@ class SnapshotConsistencyTest(unittest.TestCase):
              mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
             self.assertEqual(vsc.main(), 0)
 
+    def test_published_event_missing_from_catalog_fails(self):
+        tmp, root, docs = self._docs_tree(["snap-A", "snap-A"])
+        details = docs / "data" / "index" / "event-details"
+        details.mkdir()
+        (details / "manifest.json").write_text(json.dumps({
+            "snapshotId": "snap-A",
+            "events": [{"tournamentID": "1437533"}],
+        }))
+        (docs / "data" / "index" / "public-events.json").write_text(json.dumps({
+            "snapshotId": "snap-A",
+            "events": [],
+        }))
+        with tmp, mock.patch.object(vsc, "ROOT", root), mock.patch.object(vsc, "DOCS", docs), \
+             mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
+            self.assertEqual(vsc.main(), 1)
+
+    def test_every_published_event_in_catalog_passes(self):
+        tmp, root, docs = self._docs_tree(["snap-A", "snap-A"])
+        details = docs / "data" / "index" / "event-details"
+        details.mkdir()
+        (details / "manifest.json").write_text(json.dumps({
+            "snapshotId": "snap-A",
+            "events": [{"tournamentID": "1437533"}],
+        }))
+        (docs / "data" / "index" / "public-events.json").write_text(json.dumps({
+            "snapshotId": "snap-A",
+            "events": [{"id": "event:1437533", "tournamentID": "1437533"}],
+        }))
+        with tmp, mock.patch.object(vsc, "ROOT", root), mock.patch.object(vsc, "DOCS", docs), \
+             mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
+            self.assertEqual(vsc.main(), 0)
+
     def test_failed_snapshot_gate_restores_previous_snapshot_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
             snapshot = pathlib.Path(directory) / "snapshot.json"

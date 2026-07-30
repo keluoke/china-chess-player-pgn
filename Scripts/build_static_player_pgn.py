@@ -21,7 +21,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from build_event_catalog import ROUND_ITEM_RE, TEST_NAME_RE, has_chinese_text
+from build_event_catalog import ROUND_ITEM_RE, TEST_NAME_RE, event_id, has_chinese_text
 from snapshot_context import stamp
 from stable_json import write_json as write_stable_json
 
@@ -663,10 +663,6 @@ def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
         mapping = mappings.get(game.tournament_id, {})
         canonical = mapping.get("canonicalEventID") or ""
         public_name = mapping.get("chineseName") or event_name
-        if not has_chinese_text(public_name):
-            # Untranslated source titles remain available on individual game
-            # records, but must not leak back into the public event-summary UI.
-            continue
         if canonical:
             key = f"canonical:{canonical}:{game.event_stage or game.stage}"
         elif game.tournament_id:
@@ -676,9 +672,17 @@ def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
         else:
             key = f"name:{normalize_key(game.event)}|{game.date}"
         public_source = "" if game.source.lower().startswith("chess-results") else game.source
+        stable_id = event_id(
+            game.source,
+            game.tournament_id,
+            public_name,
+            game.date,
+            canonical,
+        )
         event = events.setdefault(
             key,
             {
+                "id": stable_id,
                 "source": public_source,
                 "name": public_name,
                 "date": game.date,
@@ -689,6 +693,7 @@ def event_summaries(games: list[PlayerGame]) -> list[dict[str, Any]]:
                 "eventStage": game.event_stage,
                 "gameCount": 0,
                 "results": {},
+                "nameTranslationPending": not has_chinese_text(public_name),
             },
         )
         if not event.get("date") and game.date:

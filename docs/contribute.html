@@ -30,12 +30,12 @@
         <span class="eyebrow">Community data desk</span>
         <h1>网页贡献向导</h1>
         <p>无需安装 Python。填写你知道的部分，授权 GitHub 后向导会直接创建数据 Issue；不用复制 JSON，也不用切换到微信。</p>
-        <p class="tool-download-note">请只提交目标链接和你人工知道的信息；不要运行抓取器或上传 HTML、PGN、解析表。维护者会把有效目标加入本地私有采集队列。</p>
+        <p class="tool-download-note">请只提交目标链接和你人工知道的信息；不要运行自动采集工具或上传 HTML、PGN、解析表。维护者会把有效目标加入本地私有补录计划。</p>
       </header>
 
       <form id="contributionForm" class="contribution-form">
         <label><span>贡献类型</span><select name="type" required>
-          <option value="event-tnr">补充 Chess-Results 赛事</option>
+          <option value="event-tnr">补充赛事来源链接</option>
           <option value="player-correction">棋手资料勘误</option>
           <option value="domestic-sighting">无 FIDE 棋手参赛记录</option>
           <option value="identity-clue">疑似同一人身份线索</option>
@@ -56,7 +56,7 @@
           </div>
           <label class="consent-row"><input name="dispute_whole_group" type="checkbox"><span>整组撤销（将当前组内所有记录两两拆分待审）</span></label>
         </fieldset>
-        <label><span>赛事 tnr 或 Chess-Results 链接</span><input name="event_ref" inputmode="url" placeholder="例如：tnr759985 或完整链接"></label>
+        <label><span>赛事编号或来源页链接</span><input name="event_ref" inputmode="url" placeholder="例如：759985 或完整来源页链接"></label>
         <label><span>待补数据关键词</span><input name="data_query" placeholder="未命中的姓名、拼音、FIDE ID 或赛事"></label>
         <label><span>赛事中文名 / 参赛组别</span><input name="event_name" placeholder="例如：2023 全国棋协大师赛南京站 · 女子一级组"></label>
         <label><span>证据链接</span><input name="evidence_url" inputmode="url" placeholder="成绩页、报名表或官方公告链接"></label>
@@ -65,7 +65,7 @@
           <label><span>贡献者昵称（可选）</span><input name="nickname" placeholder="用于鸣谢"></label>
           <label><span>联系方式（可选，不公开）</span><input name="contact" placeholder="便于维护者核对"></label>
         </div>
-        <label class="consent-row"><input name="public_evidence" type="checkbox" required><span>我确认内容是目标线索或人工知识，不包含自动抓取产物；并同意维护者核验。</span></label>
+        <label class="consent-row"><input name="public_evidence" type="checkbox" required><span>我确认内容是目标线索或人工知识，不包含自动采集产物；并同意维护者核验。</span></label>
         <div class="contribution-actions">
           <button class="primary-button" type="submit">授权 GitHub 并提交</button>
           <button id="resetContribution" class="secondary-button" type="reset">清空</button>

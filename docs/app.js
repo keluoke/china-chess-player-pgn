@@ -95,6 +95,8 @@ let presentationGroups = null;      // groupID -> group (display-only aggregatio
 let presentationMemberIndex = null; // domesticID -> group
 const eventDetailCache = new Map();
 const eventDetailRequests = new Map();
+const directEventCache = new Map();
+const directEventRequests = new Map();
 const domesticDetailCache = new Map();
 const domesticShardRequests = new Map();
 const participationCache = new Map();
@@ -684,9 +686,9 @@ function renderSearch() {
     <section class="search-result-group">
       <div class="search-result-group-title"><h3>赛事</h3><span>${eventSearch.truncated ? `显示 ${eventMatches.length} / ${eventSearch.total} 项` : `${eventSearch.total} 项`}</span></div>
       <div class="event-search-list">${eventMatches.map(event => `
-        <a class="result-button event-search-result" href="?event=${encodeURIComponent(event.id)}" data-event-id="${escapeAttribute(event.id)}">
+        <a class="result-button event-search-result" href="?event=${encodeURIComponent(eventRouteID(event))}" data-event-id="${escapeAttribute(eventRouteID(event))}">
           <div class="player-name">${highlightMatch(event.displayName ?? event.chineseName ?? event.name ?? "未命名赛事", state.query)}</div>
-          <div class="player-meta">${escapeHTML([event.date || "日期待补", event.groupLabel || "", event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : "", event.seriesLabel || ""].filter(Boolean).join(" · "))}</div>
+          <div class="player-meta">${escapeHTML([eventDateLabel(event), event.groupLabel || "", event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : "", event.seriesLabel || ""].filter(Boolean).join(" · "))}</div>
         </a>`).join("")}</div>
       ${eventSearch.truncated ? `<p class="search-limit-note">赛事结果仅显示前 ${eventMatches.length} 条（共 ${eventSearch.total} 条），请补充年份、站点或组别缩小范围。</p>` : ""}
     </section>` : "";
@@ -948,12 +950,19 @@ function renderEvent() {
     requestEventCatalog();
     return;
   }
-  const event = findCatalogEvent(eventID);
+  const directEvent = directEventCache.get(eventTournamentID(eventID));
+  const event = findCatalogEvent(eventID) || (directEvent?.missing ? null : directEvent);
   if (!event) {
+    const tournamentID = eventTournamentID(eventID);
+    if (tournamentID && !directEventCache.has(tournamentID)) {
+      els.eventPane.innerHTML = `<div class="event-loading">正在直接载入赛事档案…</div>`;
+      requestDirectEvent(tournamentID);
+      return;
+    }
     els.eventPane.innerHTML = `
       <div class="event-empty">
         <h2>未找到赛事</h2>
-        <p>该链接对应的赛事已不存在，或本地赛事目录仍在更新。</p>
+        <p>该链接暂时没有可公开的赛事档案。</p>
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
       </div>`;
     return;
@@ -977,7 +986,7 @@ function renderEvent() {
     : null;
   const coverageLabel = completenessLabel(event, eventDetail);
   const facts = [
-    ["日期", event.date],
+    ["日期", eventDateLabel(event)],
     ["系列", event.seriesLabel],
     ["组别", event.groupLabel],
     ["轮次", event.rounds],
@@ -989,6 +998,8 @@ function renderEvent() {
     ["覆盖口径", coverageLabel],
     ["已归档 PGN", event.gameCount ? `${compactNumber(event.gameCount)} 盘` : null],
     ["有棋谱棋手", event.pgnPlayerCount ? `${event.pgnPlayerCount} 名` : null]
+    ,["署名", event.attribution]
+    ,["许可", event.license]
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
   // Long roster / per-round sections fold by default on narrow (mobile)
   // screens; the overview stays always visible.
@@ -1008,7 +1019,7 @@ function renderEvent() {
       ${facts.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(String(value))}</strong></div>`).join("")}
     </div>
     <details class="event-roster event-fold"${foldOpen}>
-      <summary class="section-heading"><h3>赛事名单中的已收录棋手</h3><span>${eventDetail && !eventDetail.error ? `${eventPlayers.length} 名可跳转` : event.detailPath ? "名单载入中" : "名单待补抓"}</span></summary>
+      <summary class="section-heading"><h3>赛事名单中的已收录棋手</h3><span>${eventDetail && !eventDetail.error ? `${eventPlayers.length} 名可跳转` : event.detailPath ? "名单载入中" : "名单暂未入库"}</span></summary>
       ${eventDetail?.error ? `<div class="empty-state compact">名单载入失败：${escapeHTML(eventDetail.error)}</div>`
         : visiblePlayers.length ? `<div class="event-player-grid">${visiblePlayers.map(player => `
         <button class="event-player" type="button" data-action="select-event-player" data-fide="${escapeAttribute(player.fideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}">
@@ -1016,11 +1027,13 @@ function renderEvent() {
         </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手。</p>` : ""}`
         : detailRoster?.length ? `<div class="empty-state compact">名单已同步，共 ${detailRoster.length} 人；其中暂无可跳转到本库档案的棋手。</div>`
         : event.detailPath && !eventDetail ? `<div class="event-loading">正在载入赛事名单…</div>`
-        : eventDetail ? `<div class="empty-state compact">赛事详情已同步但名单为空，已进入维护者本机补抓队列。</div>`
-        : `<div class="empty-state compact">赛事名单尚未收录，已进入维护者本机补抓队列。</div>`}
+        : eventDetail ? `<div class="empty-state compact">赛事详情已同步但名单为空，已列入补录计划。</div>`
+        : event.series === "archive"
+        ? `<div class="empty-state compact">该赛事当前提供棋谱归档，未单独发布完整名单。</div>`
+        : `<div class="empty-state compact">赛事名单尚未收录，已列入补录计划。</div>`}
     </details>
     ${eventDetail ? domesticEventData(event, eventDetail) : event.detailPath ? `<div class="event-loading">正在载入逐轮成绩与最终排名…</div>` : ""}
-    <p class="event-provenance">${event.canonicalEventID ? `Canonical ID：${escapeHTML(event.canonicalEventID)} · ` : ""}赛事 ID：${escapeHTML(event.tournamentID ?? event.id)}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
+    <p class="event-provenance">档案编号：${escapeHTML(event.tournamentID ?? event.id)}${event.nameTranslationPending ? " · 名称待译" : ""}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
   `;
   const viewerPlayer = eventViewerPlayer(event);
   if (state.viewer.visible && state.viewer.fideID === viewerPlayer.fideID && state.viewer.pgnPath) {
@@ -1032,7 +1045,7 @@ function renderEvent() {
 
 function eventViewerPlayer(event) {
   return {
-    fideID: `event-${event?.tournamentID ?? "unknown"}`,
+    fideID: `event-${event?.tournamentID ?? event?.id ?? "unknown"}`,
     displayName: event?.displayName ?? event?.name ?? "赛事",
     name: event?.displayName ?? event?.name ?? "赛事"
   };
@@ -1044,14 +1057,50 @@ function requestEventDetail(event) {
   const request = fetchJSON(`./${event.detailPath}`, true)
     .then(detail => {
       eventDetailCache.set(tournamentID, detail);
-      if (state.selectedEventID === event.id) renderEvent();
+      if (sameEventID(state.selectedEventID, event)) renderEvent();
     })
     .catch(error => {
       eventDetailCache.set(tournamentID, { error: error.message, standings: [], rounds: [] });
-      if (state.selectedEventID === event.id) renderEvent();
+      if (sameEventID(state.selectedEventID, event)) renderEvent();
     })
     .finally(() => eventDetailRequests.delete(tournamentID));
   eventDetailRequests.set(tournamentID, request);
+}
+
+function requestDirectEvent(tournamentID) {
+  if (!tournamentID || directEventRequests.has(tournamentID)) return;
+  const detailPath = `data/index/event-details/tnr${tournamentID}.json`;
+  const request = fetchJSON(`./${detailPath}`, false)
+    .then(detail => {
+      if (!detail) {
+        directEventCache.set(tournamentID, { missing: true });
+        return;
+      }
+      eventDetailCache.set(tournamentID, detail);
+      const displayName = detail.displayName || detail.title || `赛事 ${tournamentID}`;
+      const year = String(displayName).match(/\b(19|20)\d{2}\b/)?.[0] || "";
+      directEventCache.set(tournamentID, {
+        id: `event:${tournamentID}`,
+        tournamentID,
+        displayName,
+        name: detail.title || displayName,
+        year,
+        date: detail.dateEnd || detail.dateBegin || "",
+        rounds: detail.roundCount || detail.rounds?.length || "",
+        participants: detail.standings?.length || detail.players?.length || "",
+        playerCount: detail.players?.length || 0,
+        detailPath,
+        detailStatus: "published",
+        series: "other",
+        seriesLabel: "其他已收录赛事"
+      });
+    })
+    .catch(() => directEventCache.set(tournamentID, { missing: true }))
+    .finally(() => {
+      directEventRequests.delete(tournamentID);
+      if (eventTournamentID(state.selectedEventID) === tournamentID) renderEvent();
+    });
+  directEventRequests.set(tournamentID, request);
 }
 
 function domesticEventData(event, detail) {
@@ -1092,7 +1141,7 @@ function pairingRow(event, round, pairing) {
   const missingReason = pairing.hasPGN === false
     ? "来源未公开棋谱"
     : pairing.hasPGN
-    ? "待抓取"
+    ? "暂未入库"
     : "无棋谱信息";
   const pgnAction = localGame?.pgnPath
     ? `<button type="button" class="pairing-pgn available" data-action="open-event-pgn" data-pgn-path="${escapeAttribute(localGame.pgnPath)}" data-round="${escapeAttribute(round)}" data-board="${escapeAttribute(pairing.board || localGame.board || "")}">● 本库 PGN</button>`
@@ -1130,7 +1179,11 @@ function requestEventCatalog() {
 }
 
 function findCatalogEvent(eventID) {
-  return (eventCatalog ?? []).find(item => item.id === eventID);
+  const tournamentID = eventTournamentID(eventID);
+  return (eventCatalog ?? []).find(item =>
+    item.id === eventID
+    || (tournamentID && String(item.tournamentID || "") === tournamentID)
+  );
 }
 
 function selectedPlayer() {
@@ -1368,8 +1421,8 @@ function playerEventHistory(player) {
       ? `${compactNumber(event.gameCount)} 盘棋谱`
       : event.resultStatus === "scheduled" ? "报名/名单记录 · 尚未完赛"
       : event.resultStatus === "recorded" ? "赛果已收录 · 暂无棋谱" : "查看赛事";
-    return `<button type="button" class="player-event-row" ${eventID ? `data-action="select-event" data-event-id="${escapeAttribute(eventID)}"` : "disabled"}>
-      <span><strong>${escapeHTML(name)}</strong><small>${escapeHTML([event.date || "日期待补", event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : ""].filter(Boolean).join(" · "))}</small></span>
+    return `<button type="button" class="player-event-row" ${eventID ? `data-action="select-event" data-event-id="${escapeAttribute(eventRouteID(event))}"` : "disabled"}>
+      <span><strong>${escapeHTML(name)}${event.nameTranslationPending ? "（名称待译）" : ""}</strong><small>${escapeHTML([eventDateLabel(event), event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : ""].filter(Boolean).join(" · "))}</small></span>
       <em>${event.rank && event.rank !== "-" ? `<b>第 ${escapeHTML(String(event.rank))} 名</b>` : ""}${escapeHTML(status)}</em>
     </button>`;
   };
@@ -1432,7 +1485,7 @@ function projectPublicEventRecord(event) {
   const tournamentID = String(event?.tournamentID || "");
   const catalogEvent = tournamentID
     ? (eventCatalog ?? []).find(item => String(item.tournamentID || "") === tournamentID)
-    : null;
+    : (eventCatalog ?? []).find(item => item.id && item.id === event?.id);
   const projected = catalogEvent ? { ...event, ...catalogEvent } : event;
   const projectedName = String(projected?.chineseName || projected?.displayName || projected?.name || "");
   const allNames = [
@@ -1444,9 +1497,13 @@ function projectPublicEventRecord(event) {
   if (
     TEST_EVENT_NAME_RE.test(allNames)
     || ROUND_ITEM_NAME_RE.test(projectedName)
-    || !CHINESE_TEXT_RE.test(projectedName)
   ) return null;
-  return { ...projected, name: projectedName };
+  return {
+    ...projected,
+    id: projected?.id || event?.id || "",
+    name: projectedName,
+    nameTranslationPending: projected?.nameTranslationPending || !CHINESE_TEXT_RE.test(projectedName)
+  };
 }
 
 function friendlyStageLabel(stage) {
@@ -2025,9 +2082,44 @@ function initialSelectedPlayerID() {
   return String(params.get("fideID") || params.get("fide") || "").replace(/\D/g, "");
 }
 
+function eventTournamentID(value) {
+  if (value && typeof value === "object" && value.tournamentID) {
+    return String(value.tournamentID).replace(/\D/g, "");
+  }
+  const raw = String(value || "").trim();
+  if (/^\d{4,}$/.test(raw)) return raw;
+  return raw.match(/(?:chess-results(?:-tnr|:)|\btnr)(\d{4,})/i)?.[1] || "";
+}
+
+function eventRouteID(value) {
+  const tournamentID = eventTournamentID(value);
+  if (tournamentID) return tournamentID;
+  if (value && typeof value === "object") return String(value.id || "");
+  return String(value || "").trim();
+}
+
+function sameEventID(value, event) {
+  return eventRouteID(value) === eventRouteID(event);
+}
+
+function eventDateLabel(event) {
+  if (event?.date) return String(event.date);
+  const year = String(event?.year || "")
+    || String(event?.displayName || event?.name || "").match(/\b(19|20)\d{2}\b/)?.[0]
+    || "";
+  return year ? `${year} 年` : "";
+}
+
 function initialSelectedEventID() {
   const params = new URLSearchParams(window.location.search);
-  return String(params.get("event") || "");
+  const raw = String(params.get("event") || "");
+  const normalized = eventRouteID(raw);
+  if (normalized && normalized !== raw && window.history?.replaceState) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("event", normalized);
+    window.history.replaceState(window.history.state, "", url);
+  }
+  return normalized;
 }
 
 function initialEventFocus() {
@@ -2035,7 +2127,7 @@ function initialEventFocus() {
   const tournamentID = String(params.get("eventFocus") || "").replace(/\D/g, "");
   if (!tournamentID) return null;
   return {
-    eventID: `chess-results:${tournamentID}`,
+    eventID: tournamentID,
     tournamentID,
     round: String(params.get("round") || "").replace(/[^0-9.]/g, "")
   };
@@ -2048,7 +2140,7 @@ function updateRoute({ fideID = null, playerID = null, eventID = null, eventFocu
   else url.searchParams.delete("fideID");
   if (playerID) url.searchParams.set("player", playerID);
   else url.searchParams.delete("player");
-  if (eventID) url.searchParams.set("event", eventID);
+  if (eventID) url.searchParams.set("event", eventRouteID(eventID));
   else url.searchParams.delete("event");
   if (eventFocus?.tournamentID) {
     url.searchParams.set("eventFocus", eventFocus.tournamentID);
@@ -2064,18 +2156,19 @@ function updateRoute({ fideID = null, playerID = null, eventID = null, eventFocu
 }
 
 function selectEvent(eventID) {
-  if (!eventID) return;
+  const routedEventID = eventRouteID(eventID);
+  if (!routedEventID) return;
   history.replaceState(routeSnapshot(), "", location.href);
   rememberSearch(state.query);
   state.query = "";
   if (els.searchInput) els.searchInput.value = "";
   resetPGNViewer(null);
   state.selectedFideID = null;
-  state.selectedEventID = eventID;
+  state.selectedEventID = routedEventID;
   state.selectedEventRound = null;
   state.eventFocus = null;
   state.downloadStatus = "";
-  updateRoute({ eventID }, "push");
+  updateRoute({ eventID: routedEventID }, "push");
   renderSearch();
   renderDetail();
   renderEvent();
@@ -2362,7 +2455,7 @@ function dataStatusBadge(status) {
     "partial-live": "部分直播台棋谱",
     "results-only": "赛果完整 · 无公开棋谱",
     "pgn-pending": "棋谱待匹配",
-    "pgn-failed": "公开棋谱抓取失败",
+    "pgn-failed": "公开棋谱暂缺",
     cached: "已归档棋谱",
     unverified: "覆盖待核验",
   };
@@ -2376,7 +2469,7 @@ function completenessLabel(event, eventDetail) {
   const resultsOK = completeness.resultsStatus === "results-complete" || Boolean(event?.detailPath);
   if (completeness.playableComplete || event?.playableComplete) return "赛果完整 · 全台棋谱";
   if (completeness.eventComplete || event?.eventComplete) return "赛果完整 · 本地归档完整";
-  if (["fetch-failed", "empty-response"].includes(sourceStatus)) return "赛果完整 · 公开棋谱抓取失败，待补";
+  if (["fetch-failed", "empty-response"].includes(sourceStatus)) return "赛果完整 · 公开棋谱暂缺，待补录";
   if (resultsOK && availability === "not-published") return "赛果完整 · 来源未公开棋谱";
   if (resultsOK && availability === "advertised-partial") return "赛果完整 · 部分直播台棋谱";
   if (resultsOK && availability === "advertised-full") return "赛果完整 · 棋谱待匹配";

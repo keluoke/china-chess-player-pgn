@@ -61,6 +61,23 @@ class TnrNormalizationTests(unittest.TestCase):
 
 
 class ParserMatrixTests(unittest.TestCase):
+    def test_explicit_event_date_range_is_parsed_without_using_last_update(self) -> None:
+        page = sce.parse_html(
+            """
+            <div>Tournament dates: 01.07.2026 - 09.07.2026</div>
+            <p>Last update 10.07.2026 08:30:00</p>
+            """,
+            "https://chess-results.com/tnr999001.aspx",
+        )
+        self.assertEqual(sce.extract_event_dates(page), ("2026-07-01", "2026-07-09"))
+
+    def test_last_update_alone_is_not_treated_as_event_date(self) -> None:
+        page = sce.parse_html(
+            "<p>Last update 10.07.2026 08:30:00</p>",
+            "https://chess-results.com/tnr999001.aspx",
+        )
+        self.assertEqual(sce.extract_event_dates(page), ("", ""))
+
     def test_individual_starting_rank(self) -> None:
         players = sce.parse_players(parse("starting_rank_individual.html"))
         self.assertEqual(len(players), 4)

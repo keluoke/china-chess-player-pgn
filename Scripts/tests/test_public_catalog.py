@@ -14,6 +14,7 @@ import build_event_catalog as bec  # noqa: E402
 import build_event_details as bed  # noqa: E402
 import build_player_participation as bpp  # noqa: E402
 import build_static_player_pgn as bsp  # noqa: E402
+import validate_master_group_labels as vmgl  # noqa: E402
 
 
 class SeriesClassificationTests(unittest.TestCase):
@@ -97,6 +98,43 @@ class StructuredFieldTests(unittest.TestCase):
     def test_missing_structured_fields_are_rejected_not_downgraded(self) -> None:
         self.assertIsNone(bec.public_event({"id": "x", "tournamentID": ""}, "world-youth", {}))
         self.assertIsNone(bec.public_event({"id": "x", "tournamentID": "1", "date": None}, "world-youth", {}))
+
+    def test_published_detail_without_crawler_row_gets_a_catalog_record(self) -> None:
+        event = bec.build_detail_only_event(
+            "1437533",
+            {
+                "path": "data/index/event-details/tnr1437533.json",
+                "displayName": "2026年全国国际象棋棋协大师赛（盐城站）男子一级棋士B组",
+                "roundCount": 9,
+                "standingCount": 146,
+            },
+            {},
+            {},
+        )
+        self.assertEqual(bec.classify_series(event), "chess-association-master")
+        row = bec.public_event(event, "chess-association-master", {})
+        self.assertEqual(row["tournamentID"], "1437533")
+        self.assertEqual(row["detailStatus"], "published")
+        self.assertEqual(row["year"], "2026")
+
+    def test_event_level_lichess_archive_has_neutral_id_and_pending_translation(self) -> None:
+        event = bec.build_pgn_only_event(
+            "lichess broadcasts",
+            "name:Untranslated Invitational|2026-07-01",
+            {
+                "names": {"Untranslated Invitational"},
+                "dates": {"2026-07-01"},
+                "players": {"8600001"},
+                "pgnCount": 1,
+                "gameCount": 7,
+                "canonicalEventIDs": set(),
+            },
+        )
+        self.assertRegex(event["id"], r"^ev-[0-9a-f]{16}$")
+        self.assertEqual(bec.classify_series(event), "archive")
+        row = bec.public_event(event, "archive", {})
+        self.assertTrue(row["nameTranslationPending"])
+        self.assertEqual(row["license"], "CC BY-SA 4.0")
 
     def test_english_source_title_gets_a_chinese_public_title(self) -> None:
         event = {
@@ -259,9 +297,38 @@ class PlayerProjectionTests(unittest.TestCase):
             source="Lichess Broadcasts",
         ))
         rows = bsp.event_summaries(games)
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["gameCount"], 2)
-        self.assertNotRegex(rows[0]["name"], bec.ROUND_ITEM_RE)
+        self.assertEqual(len(rows), 2)
+        translated = next(row for row in rows if "世界青少年" in row["name"])
+        untranslated = next(row for row in rows if row["name"] == "Untranslated English Open")
+        self.assertEqual(translated["gameCount"], 2)
+        self.assertNotRegex(translated["name"], bec.ROUND_ITEM_RE)
+        self.assertRegex(untranslated["id"], r"^ev-[0-9a-f]{16}$")
+        self.assertTrue(untranslated["nameTranslationPending"])
+
+
+class MasterGroupValidationTests(unittest.TestCase):
+    def test_mismatch_fails_and_isolated_target_is_allowed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            groups = root / "groups.csv"
+            details = root / "details"
+            details.mkdir()
+            groups.write_text(
+                "tournament_id,group_code,evidence_status\n"
+                "1,OPEN,source-list-needs-page-verify\n"
+                "2,WOMEN_LEVEL_1,source-target-mismatch\n",
+                encoding="utf-8",
+            )
+            (details / "tnr1.json").write_text(
+                '{"sourceName":"示例赛事 女子一级棋士组"}', encoding="utf-8"
+            )
+            (details / "tnr2.json").write_text(
+                '{"sourceName":"Unrelated Open"}', encoding="utf-8"
+            )
+            result = vmgl.validate(groups, details)
+        self.assertFalse(result["ok"])
+        self.assertEqual(len(result["failures"]), 1)
+        self.assertEqual(result["isolated"], 1)
 
 
 if __name__ == "__main__":

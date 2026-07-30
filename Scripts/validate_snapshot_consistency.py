@@ -58,6 +58,29 @@ def collect() -> dict[str, str]:
     return found
 
 
+def event_catalog_gaps() -> list[str]:
+    detail_manifest = DOCS / "data/index/event-details/manifest.json"
+    public_catalog = DOCS / "data/index/public-events.json"
+    if not detail_manifest.is_file() or not public_catalog.is_file():
+        return []
+    try:
+        details = json.loads(detail_manifest.read_text(encoding="utf-8"))
+        public = json.loads(public_catalog.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        return [f"<unreadable event catalog: {error}>"]
+    published = {
+        str(item.get("tournamentID") or "").strip()
+        for item in details.get("events", [])
+        if str(item.get("tournamentID") or "").strip()
+    }
+    cataloged = {
+        str(item.get("tournamentID") or "").strip()
+        for item in public.get("events", [])
+        if str(item.get("tournamentID") or "").strip()
+    }
+    return sorted(published - cataloged, key=lambda value: (len(value), value))
+
+
 def main() -> int:
     expected = os.environ.get("SNAPSHOT_ID", "").strip()
     found = collect()
@@ -76,6 +99,15 @@ def main() -> int:
         print(f"  expected: {reference or '<none>'}", file=sys.stderr)
         for path, sid in sorted(mismatched.items()):
             print(f"  - {path}: {sid}", file=sys.stderr)
+        return 1
+    gaps = event_catalog_gaps()
+    if gaps:
+        print(
+            "SNAPSHOT CONSISTENCY FAILED — published event details missing from public catalog:",
+            file=sys.stderr,
+        )
+        for tournament_id in gaps[:30]:
+            print(f"  - tnr{tournament_id}", file=sys.stderr)
         return 1
     print(json.dumps({"ok": True, "snapshotId": reference, "manifests": len(found)}, ensure_ascii=False))
     return 0

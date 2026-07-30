@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex,nofollow">
     <title>公开赛事目录</title>
-    <meta name="description" content="四类目标赛事（棋协大师赛、李成智杯、世少赛、亚少赛）的公开目录：按日期倒序，可按系列、年份、组别、名称、TNR 筛选。">
+    <meta name="description" content="已收录赛事与棋谱归档的公开目录：按日期倒序，可按系列、年份、组别、名称、赛事编号筛选。">
     <link rel="icon" href="./assets/4chess-favicon-black.png" type="image/png" media="(prefers-color-scheme: light)">
     <link rel="icon" href="./assets/4chess-favicon-white.png" type="image/png" media="(prefers-color-scheme: dark)">
     <script src="theme.js?v=20260727-1"></script>
@@ -48,13 +48,13 @@
       <header class="coverage-head">
         <span class="eyebrow">Public event catalog</span>
         <h1>公开赛事目录</h1>
-        <p>只收录四类目标赛事：全国国际象棋棋协大师赛、李成智杯、世界青少年锦标赛、亚洲青少年锦标赛。按赛事日期倒序；「完整赛果」表示已发布最终排名与逐轮对阵。</p>
+        <p>收录已发布赛果与棋谱归档赛事；全国棋协大师赛、李成智杯、世少赛和亚少赛保留独立系列分类。「完整赛果」表示已发布最终排名与逐轮对阵。</p>
       </header>
 
       <div class="events-tabs" id="timeTabs">
         <button data-tab="past" class="active">已结束</button>
         <button data-tab="future">未来赛事</button>
-        <button data-tab="unknown">日期待补</button>
+        <button data-tab="unknown">日期未记录</button>
       </div>
 
       <div class="events-toolbar">
@@ -64,7 +64,7 @@
         </select>
         <select id="seriesFilter"><option value="">全部系列</option></select>
         <select id="yearFilter"><option value="">全部年份</option></select>
-        <input type="search" id="searchBox" placeholder="搜索名称 / 组别 / TNR…">
+        <input type="search" id="searchBox" placeholder="搜索名称 / 组别 / 赛事编号…">
         <span class="events-count" id="countInfo"></span>
       </div>
 
@@ -80,6 +80,6 @@
       </div>
     </main>
 
-    <script type="module" src="./events.js"></script>
+    <script type="module" src="./events.js?v=20260731-1"></script>
   </body>
 </html>

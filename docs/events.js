@@ -51,13 +51,14 @@
     state.page = Math.min(state.page, pages - 1);
     const slice = rows.slice(state.page * PAGE_SIZE, (state.page + 1) * PAGE_SIZE);
     $("#eventsBody").innerHTML = slice.map((e) => {
-      const link = `./?event=${encodeURIComponent(e.id)}`;
-      const tags = (e.tournamentID ? `<span class="tag">tnr${esc(e.tournamentID)}</span>` : "") +
+      const routeID = e.tournamentID || e.id;
+      const link = `./?event=${encodeURIComponent(routeID)}`;
+      const tags = (e.tournamentID ? `<span class="tag">编号 ${esc(e.tournamentID)}</span>` : "") +
         (e.roundsPendingVerification ? '<span class="tag pending">逐轮待核验</span>' : "");
       const detail = e.detailStatus === "published"
         ? '<span class="tag full">完整赛果</span>'
         : '<span class="tag">元数据</span>';
-      return `<tr><td>${esc(e.date || (e.year ? e.year + " 年" : "待补"))}</td><td><a href="${link}">${esc(e.displayName || e.name || e.id)}</a>${tags}</td><td>${esc(seriesLabels[e.series] || e.series)}</td><td>${esc(e.groupLabel || "-")}</td><td>${esc(e.participants || e.playerCount || "-")}</td><td>${esc(e.rounds || "-")}</td><td>${detail}</td></tr>`;
+      return `<tr><td>${esc(e.date || (e.year ? e.year + " 年" : "未记录"))}</td><td><a href="${link}">${esc(e.displayName || e.name || e.id)}${e.nameTranslationPending ? "（名称待译）" : ""}</a>${tags}</td><td>${esc(seriesLabels[e.series] || e.series)}</td><td>${esc(e.groupLabel || "-")}</td><td>${esc(e.participants || e.playerCount || "-")}</td><td>${esc(e.rounds || "-")}</td><td>${detail}</td></tr>`;
     }).join("") || '<tr><td colspan="7">该筛选下没有赛事</td></tr>';
     $("#countInfo").textContent = `共 ${rows.length} 场`;
     $("#pageInfo").textContent = `第 ${state.page + 1} / ${pages} 页`;

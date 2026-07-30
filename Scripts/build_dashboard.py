@@ -108,11 +108,23 @@ def recent_events(limit: int = 8) -> list[dict]:
     payload = read_json(DOCS_DATA / "index" / "public-events.json", {}) or {}
     events = payload.get("events") or []
     today = dt.date.today().isoformat()
-    dated = [e for e in events if e.get("date") and str(e.get("date")) <= today]
+    target_series = {
+        "chess-association-master",
+        "lichengzhi-cup",
+        "world-youth",
+        "asian-youth",
+    }
+    dated = [
+        e for e in events
+        if e.get("series") in target_series
+        and e.get("date")
+        and str(e.get("date")) <= today
+    ]
     dated.sort(key=lambda e: str(e.get("date")), reverse=True)
     return [
         {
             "id": e.get("id"),
+            "tournamentID": e.get("tournamentID"),
             "displayName": e.get("displayName") or e.get("chineseName") or e.get("name"),
             "name": e.get("name"),
             "chineseName": e.get("chineseName"),
