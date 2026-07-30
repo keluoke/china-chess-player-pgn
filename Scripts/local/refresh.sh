@@ -171,8 +171,28 @@ on_exit() {
     # must not leave that stale failure code in the monitoring API.
     ERROR_CODE=""
   fi
-  py "$RUN_MANAGER" finish --run-dir "$RUN_DIR" --code "$status" \
-    --result "$result" --error-code "$ERROR_CODE" --message "$message" >/dev/null 2>&1
+  finish_error="$RUN_DIR/diagnostics/final-state-error.log"
+  finish_ok=false
+  finish_attempt=1
+  while [ "$finish_attempt" -le 3 ]; do
+    if py "$RUN_MANAGER" finish --run-dir "$RUN_DIR" --code "$status" \
+      --result "$result" --error-code "$ERROR_CODE" --message "$message" \
+      >/dev/null 2>>"$finish_error"; then
+      finish_ok=true
+      break
+    fi
+    finish_attempt=$((finish_attempt + 1))
+  done
+  if [ "$finish_ok" != "true" ]; then
+    status=5
+    ERROR_CODE="FINAL_STATE_WRITE_FAILED"
+    if [ "$command" = "discover-events" ] && [ -s "$RUN_DIR/result.json" ]; then
+      message="赛事发现结果已保留；仅运行状态收尾异常，无需重新查询来源。"
+    else
+      message="任务进程已结束，但最终运行状态连续 3 次写入失败；请查看 diagnostics/final-state-error.log。"
+    fi
+    printf '\n%s%s：%s%s\n' "$YELLOW" "$ERROR_CODE" "$message" "$RESET" >&2
+  fi
   if [ "$status" -eq 0 ]; then
     printf '\n%s✅ 完成：%s %s%s\n' "$GREEN" "$command" "$PUSH_SUMMARY" "$RESET"
     notify_mac "完成：$command ✅"

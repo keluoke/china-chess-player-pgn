@@ -1136,17 +1136,63 @@ def current_payload(tail: int) -> dict[str, Any]:
         error_code = str(payload.get("errorCode") or inferred_final_error_code(payload["log"]))
         payload["staleState"] = True
         payload["status"] = "finished"
-        payload["result"] = payload.get("result") or "failed"
-        payload["errorCode"] = error_code or "PROCESS_EXITED_WITHOUT_FINAL_STATE"
-        if payload.get("command") == "deliver" and error_code == "GIT_PUSH_FAILED":
+        discovery_result = {}
+        if payload.get("command") == "discover-events":
+            run_dir = pathlib.Path(str(payload.get("runDir") or ""))
+            discovery_result = read_json(run_dir / "result.json") if str(run_dir) not in {"", "."} else {}
+            if (
+                discovery_result.get("command") != "discover-events"
+                or discovery_result.get("status") not in {"ok", "partial", "failed"}
+            ):
+                discovery_result = {}
+        if discovery_result.get("status") == "ok":
+            players = int(discovery_result.get("playersChecked") or 0)
+            candidates = int(discovery_result.get("candidatesFound") or 0)
+            payload["result"] = "result-preserved"
+            payload["errorCode"] = "FINAL_STATE_WRITE_FAILED"
+            payload["resultPreserved"] = True
+            payload["discoveryResult"] = discovery_result
             payload["message"] = (
-                "投递进程已结束；发布包仍在 outbox，网络恢复后重试 deliver。"
+                f"赛事发现结果已保留：检查 {players} 名棋手，发现 {candidates} 个候选赛事；"
+                "仅运行状态收尾异常，无需重新查询来源。"
+            )
+        elif discovery_result.get("status") == "partial":
+            players = int(discovery_result.get("playersChecked") or 0)
+            candidates = int(discovery_result.get("candidatesFound") or 0)
+            failures = len(discovery_result.get("failures") or [])
+            payload["result"] = "partial"
+            payload["errorCode"] = "PARTIAL_FAILURE"
+            payload["resultPreserved"] = True
+            payload["stateFinalizationFailed"] = True
+            payload["discoveryResult"] = discovery_result
+            payload["message"] = (
+                f"赛事发现部分完成：检查 {players} 名棋手，发现 {candidates} 个候选赛事，"
+                f"{failures} 名查询失败；结果已保留，且运行状态收尾异常。"
+            )
+        elif discovery_result.get("status") == "failed":
+            players = int(discovery_result.get("playersChecked") or 0)
+            failures = len(discovery_result.get("failures") or [])
+            payload["result"] = "failed"
+            payload["errorCode"] = "EVENT_DISCOVERY_FAILED"
+            payload["resultPreserved"] = True
+            payload["stateFinalizationFailed"] = True
+            payload["discoveryResult"] = discovery_result
+            payload["message"] = (
+                f"赛事发现未形成候选：检查 {players} 名棋手，{failures} 名查询失败；"
+                "失败明细已保留，且运行状态收尾异常。"
             )
         else:
-            payload["message"] = (
-                payload.get("message")
-                or "任务进程已结束但未写入最终状态；请查看本次日志。"
-            )
+            payload["result"] = payload.get("result") or "failed"
+            payload["errorCode"] = error_code or "PROCESS_EXITED_WITHOUT_FINAL_STATE"
+            if payload.get("command") == "deliver" and error_code == "GIT_PUSH_FAILED":
+                payload["message"] = (
+                    "投递进程已结束；发布包仍在 outbox，网络恢复后重试 deliver。"
+                )
+            else:
+                payload["message"] = (
+                    payload.get("message")
+                    or "任务进程已结束但未写入最终状态；请查看本次日志。"
+                )
     return payload
 
 

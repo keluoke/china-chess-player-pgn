@@ -8,6 +8,7 @@ import io
 import os
 import pathlib
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -815,6 +816,44 @@ class RunManagerTests(unittest.TestCase):
         self.assertEqual(payload["errorCode"], "GIT_PUSH_FAILED")
         self.assertIn("仍在 outbox", payload["message"])
 
+    def test_current_payload_recovers_completed_discovery_result(self) -> None:
+        state_root = self.root / "state"
+        run_dir = state_root / "runs" / "dead-discovery"
+        run_dir.mkdir(parents=True)
+        log_path = run_dir / "run.log"
+        log_path.write_text("候选池已更新\n", encoding="utf-8")
+        run_manager.atomic_json(
+            run_dir / "result.json",
+            {
+                "schemaVersion": 1,
+                "command": "discover-events",
+                "status": "ok",
+                "playersChecked": 10,
+                "candidatesFound": 27,
+                "candidateTNRs": ["100001"],
+                "failures": [],
+                "poolSize": 32,
+            },
+        )
+        run_manager.atomic_json(
+            state_root / "current.json",
+            {
+                "runId": "dead-discovery",
+                "runDir": str(run_dir),
+                "command": "discover-events",
+                "status": "running",
+                "pid": 99999999,
+                "logPath": str(log_path),
+            },
+        )
+        with mock.patch.object(run_manager, "process_alive", return_value=False):
+            payload = run_manager.current_payload(4096)
+        self.assertFalse(payload["running"])
+        self.assertEqual(payload["result"], "result-preserved")
+        self.assertEqual(payload["errorCode"], "FINAL_STATE_WRITE_FAILED")
+        self.assertTrue(payload["resultPreserved"])
+        self.assertIn("检查 10 名棋手，发现 27 个候选赛事", payload["message"])
+
 
 class OutboxTests(unittest.TestCase):
     """The delivery outbox decouples collection from GitHub delivery."""
@@ -1022,6 +1061,92 @@ class ApiFallbackPolicyTests(unittest.TestCase):
 
 
 REFRESH_SH = LOCAL / "refresh.sh"
+
+
+class DiscoverEventsEntrypointTests(unittest.TestCase):
+    def python_wrapper(self, root: pathlib.Path) -> pathlib.Path:
+        wrapper = root / "bin" / "python3"
+        wrapper.parent.mkdir()
+        real_python = shlex.quote(sys.executable)
+        wrapper.write_text(
+            "#!/bin/sh\n"
+            f"real_python={real_python}\n"
+            '[ "$1" = "-u" ] && shift\n'
+            'script="$1"\n'
+            'if [ "${script##*/}" = "discover_player_events.py" ]; then\n'
+            "  shift\n"
+            '  private_root=""\n'
+            '  while [ "$#" -gt 0 ]; do\n'
+            '    if [ "$1" = "--private-root" ]; then private_root="$2"; break; fi\n'
+            "    shift\n"
+            "  done\n"
+            '  "$real_python" -c \'import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); '
+            'p.mkdir(parents=True,exist_ok=True); '
+            'p.joinpath("result.json").write_text(json.dumps({'
+            '"schemaVersion":1,"command":"discover-events","status":"ok",'
+            '"playersChecked":1,"candidatesFound":2,"candidateTNRs":["100001","100002"],'
+            '"failures":[],"poolSize":2,"completedAt":"2026-07-31T00:00:00+00:00"}),'
+            'encoding="utf-8")\' "$private_root"\n'
+            '  printf \'{"playersChecked":1,"candidatesFound":2,"failures":[]}\\n\'\n'
+            "  exit 0\n"
+            "fi\n"
+            'if [ "${script##*/}" = "run_manager.py" ] && [ "$2" = "finish" ] '
+            '&& [ "${FAIL_FINAL_STATE:-}" = "1" ]; then\n'
+            '  echo "simulated final-state write failure" >&2\n'
+            "  exit 73\n"
+            "fi\n"
+            'exec "$real_python" -u "$@"\n',
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        return wrapper
+
+    def run_discovery(self, root: pathlib.Path, *, fail_final_state: bool = False) -> subprocess.CompletedProcess:
+        wrapper = self.python_wrapper(root)
+        state_root = root / "state"
+        env = {
+            **os.environ,
+            "PATH": f"{wrapper.parent}:{os.environ['PATH']}",
+            "CHINA_CHESS_LOCAL_ROOT": str(state_root),
+            "FAIL_FINAL_STATE": "1" if fail_final_state else "0",
+        }
+        return subprocess.run(
+            ["bash", str(REFRESH_SH), "discover-events", "--", "8600000"],
+            cwd=SCRIPTS.parent,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_refresh_discovery_finishes_with_durable_ok_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            completed = self.run_discovery(root)
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            current = json.loads((root / "state/current.json").read_text(encoding="utf-8"))
+            self.assertEqual(current["status"], "finished")
+            self.assertEqual(current["result"], "ok")
+            self.assertFalse((root / "state/active.lock").exists())
+
+    def test_refresh_discovery_retries_final_state_and_reports_preserved_result(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            completed = self.run_discovery(root, fail_final_state=True)
+            self.assertEqual(completed.returncode, 5)
+            state_root = root / "state"
+            current = json.loads((state_root / "current.json").read_text(encoding="utf-8"))
+            run_dir = pathlib.Path(current["runDir"])
+            diagnostics = (run_dir / "diagnostics/final-state-error.log").read_text(encoding="utf-8")
+            self.assertEqual(diagnostics.count("simulated final-state write failure"), 3)
+            with (
+                mock.patch.object(run_manager, "local_state_root", return_value=state_root),
+                mock.patch.object(run_manager, "process_alive", return_value=False),
+            ):
+                payload = run_manager.current_payload(4096)
+            self.assertEqual(payload["result"], "result-preserved")
+            self.assertEqual(payload["errorCode"], "FINAL_STATE_WRITE_FAILED")
+            self.assertIn("无需重新查询来源", payload["message"])
+            self.assertIn("FINAL_STATE_WRITE_FAILED", (run_dir / "run.log").read_text(encoding="utf-8"))
 
 
 def bash_snippet(script: str, env: dict[str, str] | None = None) -> str:
@@ -2012,6 +2137,35 @@ class PrivateCaptureQueueTests(unittest.TestCase):
             self.assertEqual(pool["candidates"]["888888"]["fideIDs"], ["8600000", "8600001"])
             self.assertEqual(pool["candidates"]["1375162"]["status"], "suppressed")
             self.assertTrue((root / "run/raw/chess-results/player-search/fide8600000.html.gz").exists())
+
+    def test_discovery_entrypoint_persists_machine_readable_result_before_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            run_dir = pathlib.Path(temp) / "run"
+            expected = {
+                "playersChecked": 1,
+                "candidatesFound": 2,
+                "candidateTNRs": ["100001", "100002"],
+                "failures": [],
+                "poolSize": 2,
+            }
+            argv = [
+                "discover_player_events.py",
+                "8600000",
+                "--private-root",
+                str(run_dir),
+                "--delay",
+                "0",
+            ]
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.object(discover_player_events, "discover", return_value=expected.copy()),
+            ):
+                self.assertEqual(discover_player_events.main(), 0)
+            result = json.loads((run_dir / "result.json").read_text(encoding="utf-8"))
+            self.assertEqual(result["command"], "discover-events")
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(result["candidatesFound"], 2)
+            self.assertTrue(result["completedAt"])
 
     def test_reviewed_monitor_state_wins_over_private_discovery(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

@@ -169,6 +169,17 @@ def main() -> int:
         latest_per_player=args.latest_per_player,
         delay=max(0.0, min(args.delay, 5.0)),
     )
+    result["schemaVersion"] = 1
+    result["command"] = "discover-events"
+    result["status"] = (
+        "partial"
+        if result["failures"] and result["candidatesFound"]
+        else "failed"
+        if result["failures"]
+        else "ok"
+    )
+    result["completedAt"] = now_iso()
+    atomic_json(args.private_root / "result.json", result)
     print(json.dumps(result, ensure_ascii=False))
     return 4 if result["failures"] and result["candidatesFound"] else 1 if result["failures"] else 0
 

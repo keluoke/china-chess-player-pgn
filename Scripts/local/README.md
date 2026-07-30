@@ -230,6 +230,10 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 - `SOURCE_CIRCUIT_OPEN`：连续失败后熔断，等待后再试。
 - `VISIT_BUDGET_EXHAUSTED`：兼容旧运行记录的状态码；当前采集不设置本机日访问额度。
 - `PARTIAL_FAILURE`：批次部分目标失败并已隔离；成功赛事已保留。
+- `FINAL_STATE_WRITE_FAILED`：任务主体已结束，但最终运行状态连续三次写入失败。
+  对 `discover-events`，若本次 `result.json` 已完整落盘，面板会明确显示检查人数和
+  候选数；候选池已更新，不要重新访问来源。下次任务会自动清理陈旧锁；若重复
+  出现，检查本次 `diagnostics/final-state-error.log`。
 - `PARSER_LAYOUT_CHANGED`：来源页面不再符合解析器预期；raw 证据已保留，更新
   解析器后 `--replay` 离线重放。
 - `PAIRING_REFS_MISSING`：普通对局方无法按编号或名单内唯一姓名回查；该赛事
