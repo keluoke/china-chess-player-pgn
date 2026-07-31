@@ -527,7 +527,10 @@ def prepare_release(repo: pathlib.Path, run_dir: pathlib.Path, command: str, all
         # Release manifests have already validated the exact path, so force-add
         # only this explicit manifest entry rather than broadening the stage.
         git(repo, "add", "-f", "-A", "--", item["path"])
-    git(repo, "add", "--", MANIFEST_PATH)
+    # A dedicated collector worktree may sparsely include only the receipt
+    # subtree. The tracked release manifest still has to enter the exact stage
+    # even when its generated-data parent is sparse-excluded.
+    git(repo, "add", "-f", "--sparse", "--", MANIFEST_PATH)
     staged = [
         value.decode("utf-8", "surrogateescape")
         for value in git(repo, "diff", "--cached", "--name-only", "-z").stdout.split(b"\0")
