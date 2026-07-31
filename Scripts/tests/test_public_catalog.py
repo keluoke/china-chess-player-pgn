@@ -320,6 +320,9 @@ class PlayerProjectionTests(unittest.TestCase):
 
 
 class MasterGroupValidationTests(unittest.TestCase):
+    def test_women_master_group_is_not_collapsed_into_open(self) -> None:
+        self.assertEqual(vmgl.title_group_code("女子棋协大师组"), "WOMEN_OPEN")
+
     def test_mismatch_fails_and_isolated_target_is_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)

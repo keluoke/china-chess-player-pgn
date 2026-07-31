@@ -22,6 +22,7 @@ GROUP_PATTERNS = (
     ("MEN_CANDIDATE", re.compile(r"男子候补(?:棋协)?大师组", re.IGNORECASE)),
     ("WOMEN_LEVEL_1", re.compile(r"女子一级棋士(?:[ABC])?组", re.IGNORECASE)),
     ("MEN_LEVEL_1", re.compile(r"男子一级棋士(?:[ABC])?组", re.IGNORECASE)),
+    ("WOMEN_OPEN", re.compile(r"女子(?:棋协)?大师组", re.IGNORECASE)),
     ("OPEN", re.compile(r"棋协大师组|公开组|\bOpen\b", re.IGNORECASE)),
 )
 
