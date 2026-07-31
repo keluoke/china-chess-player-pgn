@@ -1109,7 +1109,10 @@ class EventQueueEntrypointTests(unittest.TestCase):
 
             state_root = root / "state"
             process = subprocess.run(
-                ["bash", str(local / "refresh.sh"), "event-queue", "--no-push", "--", "999001"],
+                [
+                    "bash", str(local / "refresh.sh"), "event-queue", "--no-push", "--",
+                    "--from-queue", "10",
+                ],
                 cwd=repo,
                 env={
                     **os.environ,
@@ -1127,7 +1130,8 @@ class EventQueueEntrypointTests(unittest.TestCase):
             state = json.loads((runs[0] / "run.json").read_text(encoding="utf-8"))
             error = json.loads((runs[0] / "error.json").read_text(encoding="utf-8"))
             self.assertEqual(state["errorCode"], "DIRTY_RELEASE_PATH")
-            self.assertEqual(state["requested"], ["999001"])
+            self.assertEqual(state["requestArguments"], ["--from-queue", "10"])
+            self.assertEqual(state["requested"], [])
             self.assertEqual(error["code"], "DIRTY_RELEASE_PATH")
             self.assertFalse((runs[0] / "release-manifest.json").exists())
             self.assertFalse((state_root / "outbox").exists())

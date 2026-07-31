@@ -106,7 +106,9 @@ RUN_DIR=""
 acquire_args=(--command "$command" --pid "$$")
 if [ "$command" = "event-queue" ]; then
   for token in "${EXTRA[@]}"; do
-    acquire_args+=(--request-argument "$token")
+    # Use argparse's --option=value form so queue flags such as --from-queue
+    # are persisted as values instead of being reinterpreted as acquire flags.
+    acquire_args+=(--request-argument="$token")
   done
 fi
 RUN_DIR="$(py "$RUN_MANAGER" acquire "${acquire_args[@]}")" || exit $?
