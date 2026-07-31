@@ -14,6 +14,7 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 GROUPS = ROOT / "data" / "community" / "master-tournament-groups.csv"
 DETAILS = ROOT / "data" / "generated" / "chess-results-event-details"
+MAPPINGS = ROOT / "data" / "community" / "tournament-name-mappings.csv"
 
 ISOLATED_STATUSES = {"source-target-mismatch", "source-page-record-not-found"}
 GROUP_PATTERNS = (
@@ -33,9 +34,25 @@ def title_group_code(title: str) -> str:
     return next((code for code, pattern in GROUP_PATTERNS if pattern.search(title or "")), "")
 
 
-def validate(groups_path: pathlib.Path = GROUPS, details_root: pathlib.Path = DETAILS) -> dict[str, Any]:
+def load_mapping_groups(path: pathlib.Path | None) -> dict[str, str]:
+    if path is None or not path.is_file():
+        return {}
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        return {
+            clean(row.get("tournament_id")): title_group_code(clean(row.get("chinese_name")))
+            for row in csv.DictReader(handle)
+            if clean(row.get("tournament_id"))
+        }
+
+
+def validate(
+    groups_path: pathlib.Path = GROUPS,
+    details_root: pathlib.Path = DETAILS,
+    mappings_path: pathlib.Path | None = None,
+) -> dict[str, Any]:
     failures: list[str] = []
     checked = matched = unresolved = isolated = 0
+    mapping_groups = load_mapping_groups(mappings_path)
     with groups_path.open("r", encoding="utf-8-sig", newline="") as handle:
         for line_number, row in enumerate(csv.DictReader(handle), start=2):
             tournament_id = clean(row.get("tournament_id"))
@@ -55,6 +72,13 @@ def validate(groups_path: pathlib.Path = GROUPS, details_root: pathlib.Path = DE
 
             if status in ISOLATED_STATUSES:
                 isolated += 1
+                continue
+            mapped = mapping_groups.get(tournament_id, "")
+            if mapped and mapped != expected:
+                failures.append(
+                    f"line {line_number} tnr{tournament_id}: group_code={expected}, "
+                    f"name mapping implies {mapped}"
+                )
                 continue
             if actual and actual != expected:
                 failures.append(
@@ -82,7 +106,7 @@ def validate(groups_path: pathlib.Path = GROUPS, details_root: pathlib.Path = DE
 
 
 def main() -> int:
-    result = validate()
+    result = validate(mappings_path=MAPPINGS)
     if result["failures"]:
         print("MASTER GROUP LABEL VALIDATION FAILED:", file=sys.stderr)
         for failure in result["failures"][:30]:

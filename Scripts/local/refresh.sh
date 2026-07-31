@@ -20,6 +20,7 @@
 #   event-queue  Collect top 3 targets fully, clean, merge and release.
 #   discover-events  Find recent tournament IDs via bounded FIDE-ID searches.
 #   recover-events  Adopt orphaned validated event outputs; never re-scrapes.
+#   storage-migrate  Upload/verify the current static PGN tree in R2 and release its receipt.
 #   candidates   Collect starting-rank name candidates privately for review.
 #   bulk         Mirror Lichess Broadcasts under CC BY-SA 4.0 and release.
 #   bulk-full    Same as bulk, force-refresh every selected shard.
@@ -573,6 +574,36 @@ run_registry() {
   prepare_release registry "${REGISTRY_PATHS[@]}" || return $?
 }
 
+R2_PGN_RECEIPT="data/generated/r2-object-receipts/events--chess-results.json"
+
+run_r2_migration() {
+  [ "${#EXTRA[@]}" -eq 0 ] || fail "UNSAFE_ARGUMENT_BLOCKED" "storage-migrate 不接受额外参数。"
+  preflight_release "$R2_PGN_RECEIPT" || return $?
+  ensure_pymod boto3
+  local source_root="${R2_PGN_SOURCE_ROOT:-$REPO_ROOT/docs/data/pgn}"
+  local secrets_file="${R2_SECRETS_FILE:-$REPO_ROOT/.secrets.local}"
+  [ -d "$source_root" ] || fail "R2_SOURCE_MISSING" "R2 PGN 源目录不存在：$source_root"
+  [ -f "$secrets_file" ] || fail "R2_SECRETS_MISSING" "R2 凭据文件不存在：$secrets_file"
+  state "uploading-r2" "并行上传全量静态 PGN，逐对象回读 SHA-256"
+  py Scripts/local/upload_bulk_to_r2.py \
+    --prefix data/pgn \
+    --source-root "$source_root" \
+    --secrets "$secrets_file" \
+    --receipt-path "$REPO_ROOT/$R2_PGN_RECEIPT" \
+    --receipt-field playerObjects \
+    --workers "${R2_UPLOAD_WORKERS:-24}" || return $?
+  state "verifying-r2" "全量 HEAD 校验 R2 对象元数据与本地 SHA-256"
+  py Scripts/local/upload_bulk_to_r2.py \
+    --prefix data/pgn \
+    --source-root "$source_root" \
+    --secrets "$secrets_file" \
+    --receipt-path "$REPO_ROOT/$R2_PGN_RECEIPT" \
+    --receipt-field playerObjects \
+    --workers "${R2_UPLOAD_WORKERS:-24}" \
+    --verify || return $?
+  prepare_release storage-migrate "$R2_PGN_RECEIPT" || return $?
+}
+
 run_private_events() {
   # Full-data collection: capture completely, clean locally, compare-merge
   # with the published copy and write only changed events into the release
@@ -722,6 +753,12 @@ case "$command" in
     [ "${#EXTRA[@]}" -eq 0 ] || fail "UNSAFE_ARGUMENT_BLOCKED" "recover-events 不接受额外参数。"
     recover_event_data || fail "RECOVERY_RELEASE_FAILED" \
       "中断产物未能安全接管；原文件保持不变，请查看 error.json。"
+    ;;
+
+  storage-migrate)
+    run_r2_migration
+    commit_prepared_release "Release verified R2 PGN migration receipt" \
+      || fail "GIT_PUSH_FAILED" "R2 迁移回执提交成功，但推送失败。"
     ;;
 
   candidates)

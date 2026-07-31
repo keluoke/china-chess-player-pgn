@@ -20,7 +20,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 SAFE_COMMANDS = {
     "health", "all", "registry", "event-queue", "discover-events", "candidates",
     "bulk", "bulk-full", "deliver", "push", "redeliver", "receipts", "reindex",
-    "recover-events", "help",
+    "recover-events", "storage-migrate", "help",
 }
 RETIRED_COMMANDS = {
     "crawl", "crawl-full", "pgn", "pgn-full", "events", "events-full",

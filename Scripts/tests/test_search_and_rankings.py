@@ -97,6 +97,10 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn("--exclude 'data/index/manifest.json'", action)
         self.assertIn("--exclude 'data/index/players.json'", action)
         self.assertIn("--exclude 'data/index/players/'", action)
+        self.assertIn('[ -d "$out/data/index/by-player-buckets" ]', action)
+        self.assertIn("find \"$out/data/index/by-player\"", action)
+        self.assertIn('[ -d "$out/api/v1/player-buckets" ]', action)
+        self.assertIn("find \"$out/api/v1/players\"", action)
         self.assertIn("Scripts/public_markdown_allowlist.txt", action)
         self.assertIn("validate_public_privacy.py --site-root", action)
         self.assertIn('default: "16000"', action)
@@ -122,6 +126,26 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn("encodeURIComponent(eventRouteID(event))", app)
         self.assertNotIn("encodeURIComponent(event.id)", app)
         self.assertIn("const routeID = e.tournamentID || e.id", events)
+
+    def test_player_buckets_and_r2_fallback_are_wired_for_the_browser(self) -> None:
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        worker = (
+            ROOT / "functions" / "api" / "v1" / "players" / "[[path]].js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('playerBucketPattern', app)
+        self.assertIn('item?.publicURL || item?.pgnPath', app)
+        self.assertIn('fallbackPgnPath', app)
+        self.assertIn('% 256', worker)
+        self.assertIn('/api/v1/player-buckets/', worker)
+
+    def test_r2_cors_policy_allows_production_read_origins_only(self) -> None:
+        policy = (
+            ROOT / "Scripts" / "local" / "r2-cors.json"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"https://4chess.cc"', policy)
+        self.assertIn('"GET"', policy)
+        self.assertIn('"HEAD"', policy)
+        self.assertNotIn('"PUT"', policy)
 
     def test_privacy_gate_rejects_unallowlisted_markdown_in_site_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

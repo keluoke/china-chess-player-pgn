@@ -1,11 +1,13 @@
 # ADR:大体积数据迁移至对象存储(R2)
 
-- 状态:第一阶段已实施(2026-07-18)——78 个 Lichess Broadcast 分片
+- 状态:第二阶段实施中(2026-07-31)——78 个 Lichess Broadcast 分片
   (~640 MB)已上传 R2 桶 `chess-data`,经自定义域
   `https://data.chessdb.aigclabs.cc` 公开分发;bulk manifest v2 携带
   `objectStorageBase` 与逐分片 `publicURL`。上传工具:
   `Scripts/local/upload_bulk_to_r2.py`(凭据在维护者本机 `.secrets.local`,
-  不入库)。下一阶段:全赛事 PGN 归档、by-player 大包、api/v1/players 分片。
+  不入库)。全量 `docs/data/pgn/` 已进入同桶 `data/pgn/` 前缀的校验迁移；
+  `index/players`、`index/by-player` 与 `api/v1/players` 已按 FIDE ID 模 256 合桶。过渡快照
+  前端优先读 R2 的 `publicURL`，失败回落 Pages 的 `pgnPath`。
 - 日期:2026-07-13(提议)/ 2026-07-18(第一阶段实施)
 - 背景问题:静态 Git/Pages 架构即将触顶
 
@@ -24,7 +26,7 @@
 | `docs/data/bulk/`(Lichess 分片,836 MB) | 大 | **迁 R2** |
 | `docs/data/pgn/`(481 MB,由 by-player 聚合层服务前端) | 大 | **迁 R2** |
 | 历史 Chess-Results 快照 | 遗留 git 体积 | **迁维护者私有归档后从 git 移除**；不得上传公开 R2，也不公开对象路径清单 |
-| `docs/api/v1/players/`(逐棋手分片,文件数大户) | 文件多 | 第二阶段迁 R2 或合并分片 |
+| `docs/api/v1/players/`(逐棋手分片,文件数大户) | 文件多 | 256 桶 + Pages Function 保持旧 URL |
 
 选 R2 的理由:与 Pages 同属 Cloudflare,同域路由零 CORS 问题;出站流量免费;S3 兼容 API 便于脚本上传;免费额度(10 GB)足够起步。
 
@@ -34,7 +36,15 @@ API v1 的契约是**路径由 manifest 给出**,消费者不硬编码。实施�
 
 1. R2 桶绑定自定义域或经 Pages 路由(`/data/pgn/*` → R2),**现有 URL 原样保留**;
 2. 每个 manifest/packages 条目已带 `sha256`,迁移前后校验一致;
-3. 过渡期 Pages 与 R2 双写一个版本周期,比对访问日志无 404 后再删 Pages 侧副本。
+3. 过渡期 Pages 与 R2 双写一个版本周期，浏览器优先 R2、失败自动回落 Pages；
+   全量对象校验和线上抽样均通过后，下一快照才删除 Pages 侧 PGN 副本。
+
+逐棋手 JSON 的桶规则固定为 `int(fideID) % 256` 的两位小写十六进制。仓库仍
+保留逐棋手文件作为离线兼容输入；部署包排除这些文件，只发布
+`data/index/player-buckets/<bucket>.json`、
+`data/index/by-player-buckets/<bucket>.json` 与
+`api/v1/player-buckets/<bucket>.json`。旧 API URL 由 Pages Function 查桶返回，
+因此外部调用方无需迁移。
 
 ## 实施步骤(半天)
 

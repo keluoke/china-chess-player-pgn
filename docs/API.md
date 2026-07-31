@@ -1,6 +1,7 @@
 # 静态数据 API v1
 
-面向外部项目(风格引擎、统计分析、App 等)的只读数据接口。所有端点是构建期生成的静态文件,由 Cloudflare Pages 提供,自带 `Access-Control-Allow-Origin: *`,无运行时、无鉴权、无频率限制(请善用缓存)。
+面向外部项目(风格引擎、统计分析、App 等)的只读数据接口。响应由构建期静态
+桶与轻量兼容路由提供，自带 `Access-Control-Allow-Origin: *`，无鉴权（请善用缓存）。
 
 Base URL:
 
@@ -38,6 +39,9 @@ https://china-chess-player-pgn.pages.dev
 
 单棋手详情(**仅对有对局数据的棋手生成**；数量以 manifest 的 `withGameData` 为准)。含注册表元数据 + `gameCount`/`eventCount` + `events[]`(赛事历史)+ `packages[]`(PGN 分段包)。
 
+该 URL 保持不变；部署内部按 `int(fideID) % 256` 合并到
+`/api/v1/player-buckets/{bucket}.json`，由边缘兼容路由返回单棋手对象。
+
 ### PGN 下载
 
 `packages[].pgnPath` 给出绝对路径,规则:
@@ -48,7 +52,8 @@ https://china-chess-player-pgn.pages.dev
 /data/pgn/by-player/fide-{fideID}/adult.pgn    成年期(19+)对局
 ```
 
-每个包附 `sha256`,增量同步时对比即可跳过未变化的包。
+每个包附 `sha256`。`publicURL` 是 R2 主读取地址，`pgnPath` 是过渡期 Pages
+回退地址；客户端应优先 `publicURL`，失败时回退 `pgnPath`。
 
 ## API v2（预览）
 

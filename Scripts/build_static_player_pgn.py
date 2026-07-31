@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from build_event_catalog import ROUND_ITEM_RE, TEST_NAME_RE, event_id, has_chinese_text
-from snapshot_context import stamp
+from snapshot_context import snapshot_id, stamp
 from stable_json import write_json as write_stable_json
 
 
@@ -30,10 +30,13 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_DATA = REPO_ROOT / "docs" / "data"
 STATIC_INDEX_ROOT = DOCS_DATA / "index"
 STATIC_PLAYER_ROOT = STATIC_INDEX_ROOT / "players"
+STATIC_PLAYER_BUCKET_ROOT = STATIC_INDEX_ROOT / "player-buckets"
 REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
 BULK_YOUTH_MANIFEST = DOCS_DATA / "bulk" / "youth" / "manifest.json"
 OUTPUT_INDEX_ROOT = STATIC_INDEX_ROOT / "by-player"
+OUTPUT_BUCKET_ROOT = STATIC_INDEX_ROOT / "by-player-buckets"
 OUTPUT_PGN_ROOT = DOCS_DATA / "pgn" / "by-player"
+R2_PUBLIC_BASE = "https://data.chessdb.aigclabs.cc"
 SCHEMA_VERSION = 1
 
 
@@ -230,6 +233,7 @@ def finalize_from_details() -> dict[str, Any]:
             "eventCount": totals.get("events", 0),
             "packageCount": totals.get("packages", len(packages)),
             "playerPgnPath": all_package.get("pgnPath"),
+            "playerPgnPublicURL": all_package.get("publicURL"),
             "playerPgnGameCount": all_package.get("gameCount"),
             "playerIndexPath": public_data_path(detail_path),
             "stages": totals.get("stages") or {},
@@ -258,6 +262,10 @@ def finalize_from_details() -> dict[str, Any]:
         },
         "sources": public_sources(sources),
     })
+    write_player_detail_buckets()
+    manifest["storage"]["playerBucketRoot"] = "data/index/by-player-buckets"
+    manifest["storage"]["playerBucketPattern"] = "data/index/by-player-buckets/<bucket>.json"
+    manifest["storage"]["bucketRule"] = "integer FIDE ID modulo 256, lower-case hex"
     write_json(OUTPUT_INDEX_ROOT / "manifest.json", manifest)
     write_json(OUTPUT_INDEX_ROOT / "players.json", player_summaries)
     return manifest
@@ -268,8 +276,14 @@ def ingest_static_event_pgns(
     profiles: dict[str, PlayerProfile],
 ) -> int:
     total = 0
-    for player_file in sorted(STATIC_PLAYER_ROOT.glob("fide-*.json")):
-        detail = read_json(player_file)
+    details: list[dict[str, Any]] = []
+    bucket_files = sorted(STATIC_PLAYER_BUCKET_ROOT.glob("*.json"))
+    if bucket_files:
+        for bucket_file in bucket_files:
+            details.extend((read_json(bucket_file).get("players") or {}).values())
+    else:
+        details = [read_json(path) for path in sorted(STATIC_PLAYER_ROOT.glob("fide-*.json"))]
+    for detail in details:
         fide_id = clean(detail.get("fideID"))
         if not fide_id:
             continue
@@ -511,6 +525,7 @@ def write_outputs(
             "eventCount": len(event_payloads),
             "packageCount": len(packages),
             "playerPgnPath": all_package["pgnPath"],
+            "playerPgnPublicURL": all_package["publicURL"],
             "playerPgnGameCount": all_package["gameCount"],
             "playerIndexPath": public_data_path(detail_path),
             "stages": stage_counts,
@@ -526,6 +541,9 @@ def write_outputs(
             "playerIndexRoot": "data/index/by-player",
             "playerPgnPattern": "data/pgn/by-player/fide-<fideID>/<package>.pgn",
             "playerIndexPattern": "data/index/by-player/fide-<fideID>.json",
+            "playerBucketRoot": "data/index/by-player-buckets",
+            "playerBucketPattern": "data/index/by-player-buckets/<bucket>.json",
+            "bucketRule": "integer FIDE ID modulo 256, lower-case hex",
         },
         "totals": {
             "players": len(player_summaries),
@@ -537,6 +555,7 @@ def write_outputs(
     })
 
     if not dry_run and write_aggregates:
+        write_player_detail_buckets()
         write_json(OUTPUT_INDEX_ROOT / "manifest.json", manifest)
         write_json(OUTPUT_INDEX_ROOT / "players.json", player_summaries)
     return manifest
@@ -582,6 +601,7 @@ def build_package(
         "id": package_id,
         "label": label,
         "pgnPath": public_data_path(target),
+        "publicURL": f"{R2_PUBLIC_BASE}/{public_data_path(target)}",
         "gameCount": len(games),
         "pgnBytes": byte_count,
         "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
@@ -914,8 +934,35 @@ def role_for_profile(profile: PlayerProfile, headers: dict[str, str]) -> str:
 
 
 def ensure_output_roots() -> None:
-    for root in [OUTPUT_INDEX_ROOT, OUTPUT_PGN_ROOT]:
+    for root in [OUTPUT_INDEX_ROOT, OUTPUT_BUCKET_ROOT, OUTPUT_PGN_ROOT]:
         root.mkdir(parents=True, exist_ok=True)
+
+
+def player_bucket(fide_id: str) -> str:
+    return f"{int(fide_id) % 256:02x}"
+
+
+def write_player_detail_buckets() -> None:
+    buckets: dict[str, dict[str, Any]] = {}
+    for detail_path in sorted(OUTPUT_INDEX_ROOT.glob("fide-*.json")):
+        detail = read_json(detail_path)
+        fide_id = clean((detail.get("player") or {}).get("fideID"))
+        if not fide_id.isdigit():
+            continue
+        buckets.setdefault(player_bucket(fide_id), {})[fide_id] = detail
+    OUTPUT_BUCKET_ROOT.mkdir(parents=True, exist_ok=True)
+    expected: set[pathlib.Path] = set()
+    for bucket, players in sorted(buckets.items()):
+        path = OUTPUT_BUCKET_ROOT / f"{bucket}.json"
+        expected.add(path)
+        write_json(path, {
+            "schemaVersion": SCHEMA_VERSION,
+            "snapshotId": snapshot_id(),
+            "players": players,
+        })
+    for path in OUTPUT_BUCKET_ROOT.glob("*.json"):
+        if path not in expected:
+            path.unlink()
 
 
 def prune_stale_outputs(buckets: dict[str, PlayerBucket]) -> None:

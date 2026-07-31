@@ -27,6 +27,7 @@ const state = {
   viewer: {
     fideID: "",
     pgnPath: "",
+    fallbackPgnPath: "",
     packageId: "",
     packageLabel: "",
     packageGameCount: 0,
@@ -1254,13 +1255,38 @@ function requestPlayerParticipation(player) {
 
 function requestStaticPlayerDetail(player) {
   const fideID = String(player?.fideID ?? "");
-  if (!fideID || !player.playerIndexPath || staticPlayerCache.has(fideID) || staticPlayerRequests.has(fideID)) return;
+  if (!fideID || staticPlayerCache.has(fideID)) return;
+  const bucket = participationBucket(fideID);
+  const bucketPattern = data.byPlayerManifest?.storage?.playerBucketPattern;
+  const bucketPath = bucketPattern ? bucketPattern.replace("<bucket>", bucket) : "";
+  if (!bucketPath && !player.playerIndexPath) return;
+  const requestKey = bucketPath || fideID;
+  if (staticPlayerRequests.has(requestKey)) return;
 
-  const request = fetch(player.playerIndexPath, { cache: "default" })
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    })
+  const request = (bucketPath
+    ? fetch(bucketPath, { cache: "default" })
+        .then(response => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .then(payload => {
+          Object.entries(payload?.players ?? {}).forEach(([id, detail]) => {
+            staticPlayerCache.set(String(id), detail);
+          });
+          if (!staticPlayerCache.has(fideID)) throw new Error("桶内没有该棋手");
+          return staticPlayerCache.get(fideID);
+        })
+        .catch(() => {
+          if (!player.playerIndexPath) throw new Error("逐棋手索引不可用");
+          return fetch(player.playerIndexPath, { cache: "default" }).then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          });
+        })
+    : fetch(player.playerIndexPath, { cache: "default" }).then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      }))
     .then(detail => {
       staticPlayerCache.set(fideID, detail);
       if (state.selectedFideID === fideID) renderDetail();
@@ -1270,10 +1296,10 @@ function requestStaticPlayerDetail(player) {
       if (state.selectedFideID === fideID) renderDetail();
     })
     .finally(() => {
-      staticPlayerRequests.delete(fideID);
+      staticPlayerRequests.delete(requestKey);
     });
 
-  staticPlayerRequests.set(fideID, request);
+  staticPlayerRequests.set(requestKey, request);
 }
 
 function staticPlayerInfo(player) {
@@ -1286,6 +1312,7 @@ function staticPlayerInfo(player) {
       eventCount: detail.totals?.events ?? detail.events?.length ?? 0,
       packageCount: detail.totals?.packages ?? detail.packages?.length ?? 0,
       pgnPath: allPackage?.pgnPath,
+      publicURL: allPackage?.publicURL,
       packages: detail.packages ?? [],
       events: detail.events ?? [],
       games: detail.games ?? [],
@@ -1304,6 +1331,7 @@ function staticPlayerInfo(player) {
           id: "all",
           label: "全部棋局 PGN",
           pgnPath: player.playerPgnPath,
+          publicURL: player.playerPgnPublicURL,
           gameCount: Number(player.playerPgnGameCount ?? player.gameCount ?? 0),
           stages: player.stages ?? {},
           sources: player.sources ?? []
@@ -1392,9 +1420,8 @@ function staticPlayerHitBlock(player, info) {
     .map(([stage, count]) => `${stage} ${count} 盘`)
     .join(" · ");
   const packageButtons = pgnPackages(info)
-    .filter(item => item.pgnPath)
     .map(item => `
-      <button class="pgn-package-button" type="button" data-pgn-path="${escapeAttribute(item.pgnPath)}" aria-pressed="${isActiveViewerPackage(player, item)}">
+      <button class="pgn-package-button" type="button" data-pgn-path="${escapeAttribute(packagePgnPath(item))}" aria-pressed="${isActiveViewerPackage(player, item)}">
         <strong>${escapeHTML(packageDisplayLabel(item))}</strong>
         <span>${compactNumber(item.gameCount)} 盘</span>
       </button>
@@ -1512,7 +1539,11 @@ function friendlyStageLabel(stage) {
 }
 
 function pgnPackages(info) {
-  return (info?.packages ?? []).filter(item => item.pgnPath);
+  return (info?.packages ?? []).filter(item => packagePgnPath(item));
+}
+
+function packagePgnPath(item) {
+  return item?.publicURL || item?.pgnPath || "";
 }
 
 function packageDisplayLabel(item) {
@@ -1529,7 +1560,7 @@ function packageShortLabel(item) {
 function isActiveViewerPackage(player, item) {
   return state.viewer.visible
     && state.viewer.fideID === String(player.fideID)
-    && state.viewer.pgnPath === item.pgnPath;
+    && state.viewer.pgnPath === packagePgnPath(item);
 }
 
 function requestPGNViewer(player, info) {
@@ -1570,11 +1601,15 @@ function requestPGNViewer(player, info) {
 
   state.viewer.status = "loading";
   state.viewer.error = "";
-  const request = fetch(pgnPath, { cache: "default" })
-    .then(response => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.text();
-    })
+  const fallbackPgnPath = info?.fallbackPgnPath || "";
+  const fetchText = path => fetch(path, { cache: "default" }).then(response => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.text();
+  });
+  const request = fetchText(pgnPath)
+    .catch(primaryError => fallbackPgnPath && fallbackPgnPath !== pgnPath
+      ? fetchText(fallbackPgnPath)
+      : Promise.reject(primaryError))
     .then(text => {
       const games = splitPGNGames(text).map((rawPGN, index) => {
         const pgn = repairPGNText(rawPGN);
@@ -1807,7 +1842,7 @@ function gamePlayerLine(headers, side) {
 }
 
 function selectedViewerPackage(info) {
-  return pgnPackages(info).find(item => item.pgnPath === state.viewer.pgnPath) ?? null;
+  return pgnPackages(info).find(item => packagePgnPath(item) === state.viewer.pgnPath) ?? null;
 }
 
 function packageCollectionLabel(item) {
@@ -1968,7 +2003,7 @@ function wireDetailActions(player, staticInfo) {
   const packages = pgnPackages(staticInfo);
   document.querySelectorAll("[data-pgn-path]").forEach(button => {
     button.addEventListener("click", () => {
-      const item = packages.find(pkg => pkg.pgnPath === button.dataset.pgnPath);
+      const item = packages.find(pkg => packagePgnPath(pkg) === button.dataset.pgnPath);
       if (item) selectPGNPackage(player, item);
     });
   });
@@ -1979,7 +2014,8 @@ function selectPGNPackage(player, item) {
   activeLichessViewer = null;
   state.viewer = {
     fideID: String(player.fideID),
-    pgnPath: item.pgnPath,
+    pgnPath: packagePgnPath(item),
+    fallbackPgnPath: item.publicURL ? item.pgnPath : "",
     packageId: item.id ?? "",
     packageLabel: packageShortLabel(item),
     packageGameCount: Number(item.gameCount ?? 0),

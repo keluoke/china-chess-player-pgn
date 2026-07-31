@@ -1,0 +1,23 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://4chess.cc",
+          "https://www.4chess.cc",
+          "https://china-chess-player-pgn.pages.dev"
+        ],
+        "methods": [
+          "GET",
+          "HEAD"
+        ]
+      },
+      "exposeHeaders": [
+        "ETag",
+        "Content-Length",
+        "Content-Type"
+      ],
+      "maxAgeSeconds": 86400
+    }
+  ]
+}

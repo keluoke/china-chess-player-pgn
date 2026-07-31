@@ -71,6 +71,20 @@ runs:
         # Domestic search is served from Hanzi, pinyin, and stable-ID shards;
         # the 6 MiB monolith remains in the repository as an offline/legacy
         # fallback but is redundant in a deployment containing those shards.
+        # Per-player by-player/API JSON is now packed into 256 deterministic
+        # buckets. The frontend reads by-player buckets directly, while a
+        # Pages Function preserves the legacy /api/v1/players/fide-*.json
+        # contract from the API buckets.
+        # Cut over only when the corresponding bucket set exists in this
+        # exact snapshot. This keeps a code-only deploy compatible until the
+        # separate rebuild workflow publishes the first bucketed snapshot.
+        if [ -d "$out/data/index/by-player-buckets" ]; then
+          find "$out/data/index/by-player" -maxdepth 1 -type f -name 'fide-*.json' -delete
+        fi
+        if [ -d "$out/api/v1/player-buckets" ]; then
+          find "$out/api/v1/players" -type f -delete 2>/dev/null || true
+          rmdir "$out/api/v1/players" 2>/dev/null || true
+        fi
         # The participation projection is an optional frontend enhancement
         # (app.js treats its manifest as optional). Keep it in the repository
         # snapshot, but omit its 256 buckets from Pages until the object-store

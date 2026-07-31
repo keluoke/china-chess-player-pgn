@@ -93,14 +93,20 @@ def compact_player(p: dict) -> dict:
     return {k: v for k, v in out.items() if v is not None}
 
 
+def player_bucket(fide_id: str) -> str:
+    return f"{int(fide_id) % 256:02x}"
+
+
 def main() -> int:
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     players = read_json(REGISTRY_PLAYERS)
     public_metrics = canonical_public_metrics()
     API_ROOT.mkdir(parents=True, exist_ok=True)
     player_api_root = API_ROOT / "players"
+    player_bucket_root = API_ROOT / "player-buckets"
     player_api_root.mkdir(parents=True, exist_ok=True)
     expected_files: set[pathlib.Path] = set()
+    player_buckets: dict[str, dict[str, dict]] = {}
 
     def emit(path: pathlib.Path, data) -> None:
         write_json(path, data)
@@ -138,6 +144,7 @@ def main() -> int:
                 "id": pkg.get("id"),
                 "gameCount": pkg.get("gameCount"),
                 "pgnPath": "/" + str(pkg.get("pgnPath", "")).lstrip("/"),
+                "publicURL": pkg.get("publicURL"),
                 "sha256": pkg.get("sha256"),
                 "stages": pkg.get("stages"),
             })
@@ -165,7 +172,15 @@ def main() -> int:
             "events": events,
         }
         emit(player_api_root / f"fide-{fide_id}.json", payload)
+        player_buckets.setdefault(player_bucket(fide_id), {})[fide_id] = payload
         detailed += 1
+
+    for bucket, bucket_players in sorted(player_buckets.items()):
+        emit(player_bucket_root / f"{bucket}.json", {
+            "schemaVersion": 1,
+            "snapshotId": snapshot_id(),
+            "players": bucket_players,
+        })
 
     expected_detailed = public_metrics["totals"]["playersWithGames"]
     if detailed != expected_detailed:
@@ -239,6 +254,8 @@ def main() -> int:
             "search": "/api/v1/search.json",
             "leaderboards": "/api/v1/leaderboards.json",
             "player": "/api/v1/players/fide-{fideID}.json (only players with game data)",
+            "playerBucket": "/api/v1/player-buckets/{bucket}.json",
+            "playerBucketRule": "integer FIDE ID modulo 256, lower-case hex",
             "pgn": "/data/pgn/by-player/fide-{fideID}/{all|U8..U18|adult}.pgn (paths listed per player in packages[])",
         },
         "license": LICENSE_BLOCK,

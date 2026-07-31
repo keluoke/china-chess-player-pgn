@@ -205,7 +205,10 @@ def main() -> int:
         })
         if search_aliases:
             payload["searchAliases"] = search_aliases
-        for key in ("gameCount", "eventCount", "playerPgnPath", "playerIndexPath", "stages", "sources"):
+        for key in (
+            "gameCount", "eventCount", "playerPgnPath", "playerPgnPublicURL",
+            "playerIndexPath", "stages", "sources",
+        ):
             if games.get(key) not in (None, "", [], {}):
                 payload[key] = games[key]
         players.append(payload)

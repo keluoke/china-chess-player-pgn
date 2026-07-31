@@ -451,6 +451,8 @@ def source_for_command(command: str) -> str:
         return "fide"
     if command in {"bulk", "bulk-full"}:
         return "lichess"
+    if command == "storage-migrate":
+        return "object-storage"
     return "chess-results"
 
 

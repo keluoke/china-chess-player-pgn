@@ -43,6 +43,7 @@ DOCS_DATA = REPO_ROOT / "docs" / "data"
 STATIC_PGN_ROOT = DOCS_DATA / "pgn"
 INDEX_ROOT = DOCS_DATA / "index"
 PLAYER_INDEX_ROOT = INDEX_ROOT / "players"
+PLAYER_BUCKET_ROOT = INDEX_ROOT / "player-buckets"
 LEADERBOARD_JSON = REPO_ROOT / "data" / "generated" / "youth-leaderboards.json"
 REGISTRY_PLAYERS_JSON = DOCS_DATA / "registry" / "players.json"
 USER_AGENT = "ChinaChessPlayerPGNStaticSync/1.0"
@@ -182,12 +183,27 @@ def main() -> int:
 def ensure_dirs() -> None:
     STATIC_PGN_ROOT.mkdir(parents=True, exist_ok=True)
     PLAYER_INDEX_ROOT.mkdir(parents=True, exist_ok=True)
+    PLAYER_BUCKET_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+def player_bucket(fide_id: str) -> str:
+    return f"{int(fide_id) % 256:02x}"
+
+
+def iter_player_details() -> list[dict[str, Any]]:
+    bucket_files = sorted(PLAYER_BUCKET_ROOT.glob("*.json"))
+    if bucket_files:
+        details: list[dict[str, Any]] = []
+        for bucket_file in bucket_files:
+            payload = read_json(bucket_file)
+            details.extend((payload.get("players") or {}).values())
+        return details
+    return [read_json(path) for path in sorted(PLAYER_INDEX_ROOT.glob("fide-*.json"))]
 
 
 def records_from_static_indexes() -> list[EventRecord]:
     records: list[EventRecord] = []
-    for player_file in sorted(PLAYER_INDEX_ROOT.glob("fide-*.json")):
-        data = read_json(player_file)
+    for data in iter_player_details():
         for event in data.get("events", []):
             records.append(
                 EventRecord(
@@ -364,6 +380,7 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
         by_event.setdefault(f"{slug(record.source)}:{record.tournament_id}", []).append(record)
 
     player_summaries = []
+    player_details: dict[str, dict[str, Any]] = {}
     for fide_id, player_records in sorted(by_player.items()):
         profile = player_profile(player_records)
         pgn_records = [record for record in player_records if has_static_pgn(record)]
@@ -392,8 +409,25 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
             "generatedAt": generated_at,
             "events": [event_payload(record) for record in sorted(player_records, key=lambda item: item.end_date or "", reverse=True)],
         }
+        player_details[fide_id] = detail
         if not dry_run:
             write_json(PLAYER_INDEX_ROOT / f"fide-{fide_id}.json", detail)
+
+    if not dry_run:
+        buckets: dict[str, dict[str, dict[str, Any]]] = {}
+        for fide_id, detail in player_details.items():
+            buckets.setdefault(player_bucket(fide_id), {})[fide_id] = detail
+        expected_buckets: set[pathlib.Path] = set()
+        for bucket, players in sorted(buckets.items()):
+            path = PLAYER_BUCKET_ROOT / f"{bucket}.json"
+            expected_buckets.add(path)
+            write_json(path, stamp({
+                "schemaVersion": 1,
+                "players": players,
+            }))
+        for stale in PLAYER_BUCKET_ROOT.glob("*.json"):
+            if stale not in expected_buckets:
+                stale.unlink()
 
     pgn_records = [record for record in records if has_static_pgn(record)]
     manifest = stamp({
@@ -402,6 +436,9 @@ def write_indexes(records: list[EventRecord], stats: SyncStats, dry_run: bool) -
         "storage": {
             "pgnRoot": "data/pgn",
             "playerIndexRoot": "data/index/players",
+            "playerBucketRoot": "data/index/player-buckets",
+            "playerBucketPattern": "data/index/player-buckets/<bucket>.json",
+            "bucketRule": "integer FIDE ID modulo 256, lower-case hex",
             "pathPattern": "data/pgn/<source>/<eventKey>/fide-<fideID>-<eventKey>.pgn",
         },
         "totals": {

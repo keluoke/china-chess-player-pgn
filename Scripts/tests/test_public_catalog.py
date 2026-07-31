@@ -70,6 +70,19 @@ class StructuredFieldTests(unittest.TestCase):
         self.assertEqual(row["level"], "OPEN")
         self.assertEqual(row["displayName"], "2026年全国国际象棋棋协大师赛（盐城站）棋协大师组")
 
+    def test_verified_master_group_replaces_stale_reviewed_suffix(self) -> None:
+        self.assertEqual(
+            bec.localized_public_name(
+                {
+                    "chineseName": "2025年全国国际象棋棋协大师赛（上海站·青浦杯）男子一级棋士组",
+                },
+                "chess-association-master",
+                "2025",
+                group_label="棋协大师组",
+            ),
+            "2025年全国国际象棋棋协大师赛（上海站·青浦杯）棋协大师组",
+        )
+
     def test_master_title_does_not_invent_an_unstated_group(self) -> None:
         event = {
             "id": "chess-results:1313397", "tournamentID": "1313397",
@@ -329,6 +342,31 @@ class MasterGroupValidationTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(len(result["failures"]), 1)
         self.assertEqual(result["isolated"], 1)
+
+    def test_name_mapping_must_agree_with_verified_group_table(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            groups = root / "groups.csv"
+            mappings = root / "mappings.csv"
+            details = root / "details"
+            details.mkdir()
+            groups.write_text(
+                "tournament_id,group_code,evidence_status\n"
+                "1227491,OPEN,manually-verified\n",
+                encoding="utf-8",
+            )
+            mappings.write_text(
+                "tournament_id,chinese_name\n"
+                "1227491,2025年示例赛事男子一级棋士组\n",
+                encoding="utf-8",
+            )
+            (details / "tnr1227491.json").write_text(
+                '{"sourceName":"2025 National Amateur Chess Master Tournament"}',
+                encoding="utf-8",
+            )
+            result = vmgl.validate(groups, details, mappings)
+        self.assertFalse(result["ok"])
+        self.assertIn("name mapping implies MEN_LEVEL_1", result["failures"][0])
 
 
 if __name__ == "__main__":

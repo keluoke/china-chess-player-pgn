@@ -111,6 +111,15 @@ bash Scripts/local/refresh.sh deliver
 # 同步云端回执：查询 ingest/rebuild/deploy workflow 结论并校验线上文件哈希
 bash Scripts/local/refresh.sh receipts
 
+# 将当前静态 PGN 树递归上传到 R2，逐对象校验 SHA-256，并只通过
+# local-data 发布合并回执；不访问任何赛事来源。默认源为 docs/data/pgn，
+# 可由维护者设置 R2_PGN_SOURCE_ROOT 指向同一 main 快照的干净代码工作区。
+bash Scripts/local/refresh.sh storage-migrate
+
+# 首次浏览器切流前用已登录的 Wrangler 配置桶级 CORS；策略文件可评审，
+# S3 对象写入密钥不需要也不应承担桶配置权限。
+npx wrangler r2 bucket cors set chess-data --file Scripts/local/r2-cors.json
+
 # 显式接管中断后遗留、尚未进入 manifest 的机器产物并发布；逐文件做
 # JSON/PGN 格式检查，不自动丢弃、回滚或重抓
 bash Scripts/local/refresh.sh recover-events

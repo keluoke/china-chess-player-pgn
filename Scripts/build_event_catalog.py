@@ -625,6 +625,17 @@ def localized_public_name(
     reviewed = clean(event.get("chineseName"))
     if has_chinese_text(reviewed):
         if group_label and group_label not in reviewed:
+            # The reviewed name and the structural group table are maintained
+            # separately.  If an old reviewed title still contains a different
+            # master-group suffix, replace it with the verified structural
+            # label instead of publishing two contradictory groups.
+            master_suffix = re.compile(
+                r"(?:男子|女子)候补(?:棋协)?大师组|"
+                r"(?:男子|女子)一级棋士(?:[ABC])?组|"
+                r"棋协大师组|公开组"
+            )
+            if series == "chess-association-master" and master_suffix.search(reviewed):
+                return master_suffix.sub(group_label, reviewed)
             return f"{reviewed}（{group_label}）"
         return reviewed
 

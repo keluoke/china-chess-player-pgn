@@ -51,12 +51,23 @@ def load_pgn_coverage(root: pathlib.Path) -> dict[tuple[str, str], int]:
     coverage: dict[tuple[str, str], int] = {}
     if not root.is_dir():
         return coverage
-    for path in root.glob("fide-*.json"):
+    payloads: list[tuple[dict[str, Any], str]] = []
+    bucket_root = root.parent / "player-buckets"
+    bucket_files = sorted(bucket_root.glob("*.json")) if bucket_root.is_dir() else []
+    for path in bucket_files:
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
+            bucket = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        fide_id = clean(payload.get("fideID")) or path.stem.removeprefix("fide-")
+        payloads.extend((payload, fide_id) for fide_id, payload in (bucket.get("players") or {}).items())
+    if not bucket_files:
+        for path in root.glob("fide-*.json"):
+            try:
+                payloads.append((json.loads(path.read_text(encoding="utf-8")), path.stem.removeprefix("fide-")))
+            except (OSError, json.JSONDecodeError):
+                continue
+    for payload, fallback_id in payloads:
+        fide_id = clean(payload.get("fideID")) or fallback_id
         for event in payload.get("events", []) or []:
             tournament_id = clean(event.get("tournamentID"))
             if not tournament_id:
