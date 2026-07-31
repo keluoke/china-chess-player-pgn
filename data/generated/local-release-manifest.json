@@ -1,145 +1,24 @@
 {
   "schemaVersion": 1,
-  "runId": "20260731-002006-933342e6",
-  "command": "event-queue",
-  "createdAt": "2026-07-30T16:30:52+00:00",
-  "baseCommit": "26dfc978eac407dcaf628c1b6492f37eb1f52c38",
+  "runId": "20260731-110153-ed944226",
+  "command": "storage-migrate",
+  "createdAt": "2026-07-31T03:07:46+00:00",
+  "baseCommit": "7b8e74a9596ea22c3d29a48b805617f49bbad033",
   "source": {
-    "source": "Chess-Results",
-    "releasePolicy": "full-data",
-    "sourceURL": "https://chess-results.com/"
+    "source": "R2 Object Storage",
+    "releasePolicy": "verified-public-object-replication"
   },
   "files": [
     {
-      "path": "data/generated/chess-results-event-details/tnr1171604.json",
+      "path": "data/generated/r2-object-receipts/events--chess-results.json",
       "operation": "upsert",
-      "sha256": "e3de9a961672a6bc5533f57a744742df5fb7700f848c9f35882fc685785d55ee",
-      "bytes": 206242,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr1223248.json",
-      "operation": "upsert",
-      "sha256": "7bf4eb9b6fc7cf6a4bb845fd5380c114787ea93c45bc8846aef53c444419eb25",
-      "bytes": 59674,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr1223748.json",
-      "operation": "upsert",
-      "sha256": "de68abc4392fad55507dc5a611efad176d07497a0dd9fa46b8d8bee2dcaaaedf",
-      "bytes": 802007,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr1229686.json",
-      "operation": "upsert",
-      "sha256": "f7f57965c10e03b3fa3480a66de751692e876a961920873b07192defa0cde0c3",
-      "bytes": 323566,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr1246323.json",
-      "operation": "upsert",
-      "sha256": "6b9f7d0834f54c789d45abdb2114c9c39f90048db4475087170bd52a923a04a2",
-      "bytes": 214676,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr1399876.json",
-      "operation": "upsert",
-      "sha256": "91222d80e291e020164ee985f8b84cdea895b9122292b943c991ede6c707fe79",
-      "bytes": 48976,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr1425972.json",
-      "operation": "upsert",
-      "sha256": "a7392a8554680418fd2bcc29077081acd433f1dcb853bd3a0375e46f1471e4ef",
-      "bytes": 53342,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr58153.json",
-      "operation": "upsert",
-      "sha256": "96f821fe029962082df3bda917965412b58bfea008a797ba0c85cb98223e7a72",
-      "bytes": 216363,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr724008.json",
-      "operation": "upsert",
-      "sha256": "c77aa68c707b3e1d65ff36b69868109ef382ef2638d32a42b41944e2222c2a06",
-      "bytes": 306487,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-details/tnr767690.json",
-      "operation": "upsert",
-      "sha256": "3b6b9b71fe2725023588e47eb419e9e9a2f792ec47ac1bc6da211388ce147a29",
-      "bytes": 290944,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-pgn/tnr1171604.pgn",
-      "operation": "upsert",
-      "sha256": "639e77200f1c871536170bc12312e9a93af298b39cf7d6c36bb5bdfbcaa89bf5",
-      "bytes": 115273,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "data/generated/chess-results-event-pgn/tnr58153.pgn",
-      "operation": "upsert",
-      "sha256": "33cb1c3c303564239b2fdbf2d39e8ca0d722089e7c166ff725085792f90ab8be",
-      "bytes": 213695,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
-    },
-    {
-      "path": "docs/data/pgn/chess-results/tnr58153/fide-15400565-58153.pgn",
-      "operation": "upsert",
-      "sha256": "8c743340f11cbe9e1440dcebaf18b4d5eb0d1a1f22a1eb2928b1556b02e4bc83",
-      "bytes": 4321,
-      "baseBlobOid": null,
-      "baseSha256": null,
-      "deliveryBaseBlobOid": null,
-      "deliveryBaseSha256": null
+      "sha256": "82d92db083314280174d4b3832ecb36170db8bb09e4f46c4968b9a2862fff173",
+      "bytes": 3326187,
+      "baseBlobOid": "393e2957a0684ab68dad39b0be9370e96eb5dd0b",
+      "baseSha256": "5b530debec5b132921a9a409df9b6e06e001b958ee06458554febd983bee144f",
+      "deliveryBaseBlobOid": "393e2957a0684ab68dad39b0be9370e96eb5dd0b",
+      "deliveryBaseSha256": "5b530debec5b132921a9a409df9b6e06e001b958ee06458554febd983bee144f"
     }
   ],
-  "deliveryBaseCommit": "912144e008c8abb9facef34edac1cf3be28a1b7a"
+  "deliveryBaseCommit": "f51cb0118768f07a0e864c78333f113eec3ee658"
 }
