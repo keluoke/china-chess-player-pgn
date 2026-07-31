@@ -1,9 +1,12 @@
 {
  "schemaVersion": 1,
- "generatedAt": "2026-07-30T16:57:01+00:00",
+ "generatedAt": "2026-07-31T02:42:04+00:00",
  "storage": {
   "pgnRoot": "data/pgn",
   "playerIndexRoot": "data/index/players",
+  "playerBucketRoot": "data/index/player-buckets",
+  "playerBucketPattern": "data/index/player-buckets/<bucket>.json",
+  "bucketRule": "integer FIDE ID modulo 256, lower-case hex",
   "pathPattern": "data/pgn/<source>/<eventKey>/fide-<fideID>-<eventKey>.pgn"
  },
  "totals": {
@@ -14,7 +17,7 @@
   "bytes": 30589150
  },
  "sources": [],
- "snapshotId": "20260730T175000Z-7f2e4db0",
+ "snapshotId": "20260731T024203Z-1ae84ebc",
  "sourceTotals": {
   "players": 2000,
   "events": 807,
