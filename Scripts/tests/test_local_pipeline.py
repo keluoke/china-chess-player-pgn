@@ -9,6 +9,7 @@ import os
 import pathlib
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -728,6 +729,29 @@ class RunManagerTests(unittest.TestCase):
             run_manager.preflight(self.repo, self.run_dir, ["docs/data/registry"])
         self.assertEqual(caught.exception.code, "DIRTY_RELEASE_PATH")
 
+    def test_prepare_release_requires_a_successful_preflight_baseline(self) -> None:
+        target = self.repo / "docs/data/registry/players.json"
+        target.write_text('[{"fideID":"2"}]\n')
+        with self.assertRaises(run_manager.RunManagerError) as caught:
+            run_manager.prepare_release(
+                self.repo, self.run_dir, "registry", ["docs/data/registry"],
+            )
+        self.assertEqual(caught.exception.code, "RELEASE_BASELINE_MISSING")
+        self.assertFalse((self.repo / run_manager.MANIFEST_PATH).exists())
+        staged = subprocess.check_output(
+            ["git", "diff", "--cached", "--name-only"], cwd=self.repo, text=True,
+        )
+        self.assertEqual(staged, "")
+
+    def test_explicit_event_targets_are_durable_but_queue_count_is_not_a_tnr(self) -> None:
+        self.assertEqual(
+            run_manager.requested_event_targets([
+                "999001", "tnr999002", "https://chess-results.com/tnr999003.aspx?lan=33",
+                "--from-queue", "10", "999001",
+            ]),
+            ["999001", "999002", "999003"],
+        )
+
     def test_preflight_can_adopt_only_an_exact_verified_machine_output(self) -> None:
         target = self.repo / "docs/data/registry/players.json"
         target.write_text('[{"fideID":"1"}]\n')
@@ -1063,6 +1087,60 @@ class ApiFallbackPolicyTests(unittest.TestCase):
 REFRESH_SH = LOCAL / "refresh.sh"
 
 
+class EventQueueEntrypointTests(unittest.TestCase):
+    def test_dirty_preflight_never_collects_commits_or_creates_outbox(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            repo = root / "repo"
+            local = repo / "Scripts/local"
+            local.mkdir(parents=True)
+            shutil.copy2(REFRESH_SH, local / "refresh.sh")
+            shutil.copy2(LOCAL / "run_manager.py", local / "run_manager.py")
+            shutil.copy2(SCRIPTS / "source_policy.py", repo / "Scripts/source_policy.py")
+            receipt = repo / "data/generated/r2-object-receipts/events--chess-results.json"
+            receipt.parent.mkdir(parents=True)
+            receipt.write_text('{"verifiedAt":"base"}\n', encoding="utf-8")
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "user.name", "test")
+            git(repo, "config", "user.email", "test@example.com")
+            git(repo, "add", ".")
+            git(repo, "commit", "-qm", "base")
+            receipt.write_text('{"verifiedAt":"orphaned"}\n', encoding="utf-8")
+
+            state_root = root / "state"
+            process = subprocess.run(
+                ["bash", str(local / "refresh.sh"), "event-queue", "--no-push", "--", "999001"],
+                cwd=repo,
+                env={
+                    **os.environ,
+                    "CHINA_CHESS_LOCAL_ROOT": str(state_root),
+                    "CHINA_CHESS_DISABLE_NOTIFICATIONS": "1",
+                },
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            self.assertNotEqual(process.returncode, 0)
+            runs = sorted((state_root / "runs").iterdir())
+            self.assertEqual(len(runs), 1)
+            state = json.loads((runs[0] / "run.json").read_text(encoding="utf-8"))
+            error = json.loads((runs[0] / "error.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["errorCode"], "DIRTY_RELEASE_PATH")
+            self.assertEqual(state["requested"], ["999001"])
+            self.assertEqual(error["code"], "DIRTY_RELEASE_PATH")
+            self.assertFalse((runs[0] / "release-manifest.json").exists())
+            self.assertFalse((state_root / "outbox").exists())
+            self.assertEqual(
+                subprocess.check_output(
+                    ["git", "rev-list", "--count", "HEAD"], cwd=repo, text=True,
+                ).strip(),
+                "1",
+            )
+            self.assertEqual(receipt.read_text(encoding="utf-8"), '{"verifiedAt":"orphaned"}\n')
+            self.assertNotIn("CHESS_RESULTS_COLLECTION_FAILED", process.stderr + process.stdout)
+
+
 class DiscoverEventsEntrypointTests(unittest.TestCase):
     def python_wrapper(self, root: pathlib.Path) -> pathlib.Path:
         wrapper = root / "bin" / "python3"
@@ -1356,6 +1434,32 @@ class SharedStateProjectionTests(unittest.TestCase):
 
 
 class PanelBatchResultTests(unittest.TestCase):
+    def test_preflight_failure_retains_requested_targets_without_result_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            run_dir = root / "runs" / "preflight-failed"
+            run_dir.mkdir(parents=True)
+            state = {
+                "runDir": str(run_dir),
+                "runId": "preflight-failed",
+                "command": "event-queue",
+                "result": "failed",
+                "stage": "preflight",
+                "errorCode": "DIRTY_RELEASE_PATH",
+                "requested": ["100001", "100002"],
+                "requestArguments": ["100001", "100002"],
+            }
+            with (
+                mock.patch.object(local_panel, "STATE_ROOT", root),
+                mock.patch.object(local_panel, "durable_state", return_value=state),
+            ):
+                payload = local_panel.result_payload()
+            self.assertEqual(payload["requested"], ["100001", "100002"])
+            self.assertEqual(payload["targets"], {})
+            self.assertEqual(payload["stage"], "preflight")
+            self.assertEqual(payload["publication"]["status"], "no-release")
+            self.assertIn("r.result==='failed'?'失败'", local_panel.PAGE)
+
     def test_result_joins_every_target_with_exact_release_and_delivery_counts(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)

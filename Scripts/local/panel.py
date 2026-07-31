@@ -453,8 +453,12 @@ def result_payload() -> dict:
         "command": state.get("command"),
         "result": state.get("result"),
         "errorCode": state.get("errorCode"),
+        "stage": state.get("stage"),
         "targets": {},
         "summary": {},
+        "requested": state.get("requested") or [],
+        "requestArguments": state.get("requestArguments") or [],
+        "statusLabels": STATUS_LABELS,
         "publication": publication_payload(pathlib.Path(run_dir) if run_dir else None, run_id),
     }
     payload = retained_result
@@ -478,7 +482,7 @@ def result_payload() -> dict:
         for tid, target in targets.items()
     }
     base["summary"] = payload.get("summary") or {}
-    base["requested"] = payload.get("requested") or []
+    base["requested"] = payload.get("requested") or base["requested"]
     base["statusLabels"] = STATUS_LABELS
     return base
 
@@ -975,7 +979,12 @@ function formatBytes(value){
 function batchStatusText(r){
  const total=(r.requested||[]).length||Object.keys(r.targets||{}).length;
  const complete=Number(r.summary?.complete||0), attention=Math.max(0,total-complete);
- const label=r.running?'进行中':(r.errorCode==='PARTIAL_FAILURE'||attention>0?'部分完成':r.result==='ok'?'完成':'失败');
+ if(!total){
+  if(r.running)return 'event-queue · 准备中 · 尚未选择目标';
+  if(r.result&&r.result!=='ok')return 'event-queue · 失败 · 抓取未开始';
+  return 'event-queue · 完成 · 本批无目标';
+ }
+ const label=r.running?'进行中':r.result==='failed'?'失败':(r.errorCode==='PARTIAL_FAILURE'||attention>0?'部分完成':r.result==='ok'?'完成':'失败');
  return `event-queue · ${label} · ${complete}/${total} 完整${attention?' · '+attention+' 需处理':''}`;
 }
 
@@ -1082,9 +1091,44 @@ async function loadProgress(){
  }catch(e){progressList.innerHTML=''}
 }
 const REMEDY={DIRTY_RELEASE_PATH:"先处理相应机器发布路径的未提交修改；工具不会代你覆盖。",FIDE_DOWNLOAD_OR_VALIDATION_FAILED:"检查 last-good 与 FIDE 直连；坏下载不会替换有效缓存。",SOURCE_CIRCUIT_OPEN:"来源已熔断，等待提示时间后重试。",VISIT_BUDGET_EXHAUSTED:"旧运行记录的兼容状态；当前采集不设本机日访问额度，可直接续抓。",PARSER_LAYOUT_CHANGED:"来源页面结构变化；私有 raw 证据已保留，更新解析器后离线重放即可。",COMPLIANCE_POLICY_BLOCKED:"此操作违反数据边界（原始 HTML 不入库 / 人工数据只进 manual、community）。",GIT_PUSH_FAILED:"发布包已留在 outbox；恢复网络或代理后点“投递发布包”。",GIT_AUTH_FAILED:"GitHub 认证失败；请重新登录 gh 或更新凭据后再投递。",GIT_INDEX_LOCK_STALE:"存在无活跃 git 进程的 .git/index.lock；确认后删除该文件。",PARTIAL_FAILURE:"混合批次：逐场结果见上方“本批结果”卡片；成功赛事已保留。",FINAL_STATE_WRITE_FAILED:"发现结果已经写入本机候选池，不要重新访问来源；下次任务会自动清理陈旧锁。若反复出现，请查看本次 diagnostics/final-state-error.log。",VALIDATION_REGRESSION:"数据量或身份断言异常，检查本次日志和 staging，禁止发布。",EVENT_EMPTY:"来源记录不存在（Record not found），已保存证据并隔离 7 天；请核对该 TNR 在人工登记表中的链接是否正确。",PAIRINGS_NOT_PUBLISHED:"该赛事未公开逐轮对阵；名单与排名已保留为 standings-only。",TEAM_FORMAT_UNSUPPORTED:"团队赛轮次页暂不支持逐台解析；名单与排名已保留，等待解析器适配。",ROUND_COUNT_UNKNOWN:"无法确定轮数；已保留名单与排名，可人工补充队列轮数元数据后续跑。",PAIRING_REFS_OUTSIDE_ROSTER:"对阵中出现名单外棋手，疑似名单分页截断；请重新抓取该赛事。",RECEIPT_CHECK_FAILED:"云端回执查询失败；检查 gh 登录与 GitHub 路线后重试。"};
+REMEDY.DIRTY_RELEASE_PATH="本次未访问数据源、未生成发布包；请先使用“接管中断赛事产物”收口已校验的机器文件。";
+REMEDY.RELEASE_BASELINE_MISSING="发布预检没有成功，系统已禁止打包；无需投递或重新抓取。";
+REMEDY.RELEASE_BASELINE_INVALID="发布预检基线损坏，系统已禁止打包；无需投递或重新抓取。";
 const WARN_CODES=new Set(["EVENT_EMPTY","PARTIAL_FAILURE","FINAL_STATE_WRITE_FAILED","PAIRINGS_NOT_PUBLISHED","TEAM_FORMAT_UNSUPPORTED","ROUND_COUNT_UNKNOWN"]);
 let wasRunning=false;
-async function poll(){try{const s=await(await fetch('/api/state')).json();document.querySelectorAll('button').forEach(b=>{if(b.id!=='stop')b.disabled=!!s.running});stop.disabled=!s.running;dot.className='dot '+(s.running?'running':s.result==='ok'?'ok':s.result?(WARN_CODES.has(s.errorCode)||s.result==='partial'?'warn':'bad'):'');if(s.running){statusText.textContent=`${s.command} · ${s.stage||'running'}`;statusMeta.textContent=`run ${s.runId||''} · ${s.message||''}`;loadProgress();if(s.command==='event-queue')renderBatchResult()}else if(s.command){if(s.command==='event-queue'){const r=await renderBatchResult();statusText.textContent=batchStatusText(r);statusMeta.textContent=`run ${s.runId||''} · ${batchPublicationText(r)}${s.errorCode?' · '+s.errorCode:''}`}else{statusText.textContent=`${s.command} · ${s.result||'finished'}${s.errorCode?' · '+s.errorCode:''}`;statusMeta.textContent=(s.message||'')+(s.errorCode&&REMEDY[s.errorCode]?' 处理建议：'+REMEDY[s.errorCode]:'');renderBatchResult()}progressList.innerHTML='';if(wasRunning){loadQueue();if(s.command==='event-queue'){$('#captureMsg').textContent=''}}}else{statusText.textContent='空闲';statusMeta.textContent=''}wasRunning=!!s.running;const atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<45;if(s.log){log.textContent=s.log;if(atBottom)log.scrollTop=log.scrollHeight}}catch(e){document.querySelectorAll('button').forEach(b=>b.disabled=true);stop.disabled=true;dot.className='dot bad';statusText.textContent='面板连接中断';statusMeta.textContent='本机面板服务不可达；这不代表任务仍在运行。请重新打开面板确认。';progressList.innerHTML='';wasRunning=false}}
+async function poll(){
+ try{
+  const s=await(await fetch('/api/state')).json();
+  document.querySelectorAll('button').forEach(b=>{if(b.id!=='stop')b.disabled=!!s.running});
+  stop.disabled=!s.running;
+  dot.className='dot '+(s.running?'running':s.result==='ok'?'ok':s.result?(WARN_CODES.has(s.errorCode)||s.result==='partial'?'warn':'bad'):'');
+  if(s.running){
+   statusText.textContent=`${s.command} · ${s.stage||'running'}`;
+   statusMeta.textContent=`run ${s.runId||''} · ${s.message||''}`;
+   loadProgress();if(s.command==='event-queue')renderBatchResult();
+  }else if(s.command){
+   if(s.command==='event-queue'){
+    const r=await renderBatchResult();
+    statusText.textContent=batchStatusText(r);
+    const remedy=s.errorCode&&REMEDY[s.errorCode]?' · 处理建议：'+REMEDY[s.errorCode]:'';
+    statusMeta.textContent=`run ${s.runId||''} · ${batchPublicationText(r)}${s.errorCode?' · '+s.errorCode:''}${s.message?' · '+s.message:''}${remedy}`;
+   }else{
+    statusText.textContent=`${s.command} · ${s.result||'finished'}${s.errorCode?' · '+s.errorCode:''}`;
+    statusMeta.textContent=(s.message||'')+(s.errorCode&&REMEDY[s.errorCode]?' 处理建议：'+REMEDY[s.errorCode]:'');
+    renderBatchResult();
+   }
+   progressList.innerHTML='';
+   if(wasRunning){loadQueue();if(s.command==='event-queue'){$('#captureMsg').textContent=''}}
+  }else{statusText.textContent='空闲';statusMeta.textContent=''}
+  wasRunning=!!s.running;
+  const atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<45;
+  if(s.log){log.textContent=s.log;if(atBottom)log.scrollTop=log.scrollHeight}
+ }catch(e){
+  document.querySelectorAll('button').forEach(b=>b.disabled=true);stop.disabled=true;dot.className='dot bad';
+  statusText.textContent='面板连接中断';statusMeta.textContent='本机面板服务不可达；这不代表任务仍在运行。请重新打开面板确认。';
+  progressList.innerHTML='';wasRunning=false;
+ }
+}
 async function shutdown(){await post('/api/shutdown',{});document.body.innerHTML='<p style="padding:40px">面板已退出。正在运行的维护者任务会继续，并可在重开面板后恢复查看。</p>'}
 renderTabs();loadQueue();renderBatchResult();poll();setInterval(poll,1500);setInterval(loadQueue,10000);
 </script></body></html>"""

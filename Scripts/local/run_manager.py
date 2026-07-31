@@ -114,7 +114,29 @@ def inferred_final_error_code(log: str) -> str:
     return matches[-1] if matches else ""
 
 
-def acquire(command: str, pid: int) -> pathlib.Path:
+def requested_event_targets(arguments: list[str] | None) -> list[str]:
+    """Extract explicit TNRs for durable preflight/error reporting.
+
+    Queue selectors such as ``--from-queue 10`` deliberately do not become a
+    fake tournament ID. The collector's result.json remains authoritative
+    once target selection has actually run.
+    """
+    requested: list[str] = []
+    for token in arguments or []:
+        value = str(token).strip()
+        direct = re.fullmatch(r"(?:tnr)?(\d{5,10})", value, re.IGNORECASE)
+        linked = re.search(r"(?:^|/)tnr(\d{5,10})\.aspx(?:[?#]|$)", value, re.IGNORECASE)
+        matched = direct or linked
+        if matched and matched.group(1) not in requested:
+            requested.append(matched.group(1))
+    return requested
+
+
+def acquire(
+    command: str,
+    pid: int,
+    request_arguments: list[str] | None = None,
+) -> pathlib.Path:
     root = local_state_root()
     runs = root / "runs"
     lock = root / "active.lock"
@@ -157,6 +179,8 @@ def acquire(command: str, pid: int) -> pathlib.Path:
         "logPath": str(run_dir / "run.log"),
         "privateRoot": str(run_dir / "raw"),
         "releaseManifest": None,
+        "requestArguments": list(request_arguments or []) if command == "event-queue" else [],
+        "requested": requested_event_targets(request_arguments) if command == "event-queue" else [],
     }
     atomic_json(run_dir / "run.json", payload)
     atomic_json(root / "current.json", payload)
@@ -457,7 +481,24 @@ def source_for_command(command: str) -> str:
 
 
 def prepare_release(repo: pathlib.Path, run_dir: pathlib.Path, command: str, allow: list[str]) -> dict[str, Any]:
-    baseline = read_json(run_dir / "worktree-baseline.json")
+    baseline_path = run_dir / "worktree-baseline.json"
+    if not baseline_path.is_file():
+        raise RunManagerError(
+            "RELEASE_BASELINE_MISSING",
+            "本次运行没有通过发布预检，禁止把现有工作树改动包装为发布包。",
+        )
+    try:
+        baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise RunManagerError(
+            "RELEASE_BASELINE_INVALID",
+            "本次运行的发布基线损坏，禁止继续生成发布包。",
+        ) from error
+    if not isinstance(baseline, dict):
+        raise RunManagerError(
+            "RELEASE_BASELINE_INVALID",
+            "本次运行的发布基线格式无效，禁止继续生成发布包。",
+        )
     current = machine_release_status(repo, [*allow, MANIFEST_PATH])
     allowed = [*allow, MANIFEST_PATH]
     outside_changes = [
@@ -1069,6 +1110,7 @@ def parser() -> argparse.ArgumentParser:
     acquire_p = sub.add_parser("acquire")
     acquire_p.add_argument("--command", required=True)
     acquire_p.add_argument("--pid", required=True, type=int)
+    acquire_p.add_argument("--request-argument", action="append", default=[])
     update_p = sub.add_parser("update")
     update_p.add_argument("--run-dir", required=True, type=pathlib.Path)
     update_p.add_argument("--stage")
@@ -1214,7 +1256,7 @@ def main() -> int:
     args = parser().parse_args()
     try:
         if args.action == "acquire":
-            print(acquire(args.command, args.pid))
+            print(acquire(args.command, args.pid, args.request_argument))
         elif args.action == "update":
             print(json.dumps(update(args.run_dir, stage=args.stage, message=args.message, errorCode=args.error_code), ensure_ascii=False))
         elif args.action == "finish":

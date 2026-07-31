@@ -146,6 +146,11 @@ python3 Scripts/local/identity_review.py --show <candidateID>
   页面通过缓存复用，重复请求 = 0。
 - **单目标隔离**：一个赛事失败不会终止批次；失败被记录进 capture-state 后
   继续下一个目标，批处理以退出码 4 表示部分成功（`PARTIAL_FAILURE`）。
+- **预检先于抓取与发布**：预检失败时不会访问来源、不会调用发布收尾、不会生成
+  manifest/outbox。发布器还会独立要求本次运行存在有效的
+  `worktree-baseline.json`，因此旧机器文件不能被误包装成新批次。
+- **请求可追溯**：显式输入的 TNR 在任务创建时即写入 `run.json`；即使预检失败、
+  尚无 `result.json`，面板也会显示原计划目标数和“抓取未开始”，不再显示 `0/0`。
 - **错误细分**：`EVENT_EMPTY`（空赛事，隔离 7 天）、`PAIRINGS_NOT_PUBLISHED`
   （无逐轮公开，允许 standings-only partial）、`TEAM_FORMAT_UNSUPPORTED`
   （团队赛轮次页）、`PARSER_LAYOUT_CHANGED`（真实布局回归，需更新解析器）、
@@ -234,7 +239,10 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 
 ## 常见错误码
 
-- `DIRTY_RELEASE_PATH`：机器发布路径已有未提交修改，工具不会覆盖。
+- `DIRTY_RELEASE_PATH`：机器发布路径已有未提交修改；本次不会访问来源或生成发布包。
+  已校验的中断机器产物应使用 `recover-events` 接管，不能靠重新抓取消除。
+- `RELEASE_BASELINE_MISSING` / `RELEASE_BASELINE_INVALID`：本次预检基线缺失或损坏，
+  发布器已拒绝生成 manifest/outbox；先修复运行环境，无需投递或重新抓取。
 - `FIDE_DOWNLOAD_OR_VALIDATION_FAILED`：新文件无效；有效 last-good 不会被替换。
 - `SOURCE_CIRCUIT_OPEN`：连续失败后熔断，等待后再试。
 - `VISIT_BUDGET_EXHAUSTED`：兼容旧运行记录的状态码；当前采集不设置本机日访问额度。

@@ -90,6 +90,7 @@ BOLD=$'\033[1m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RED=$'\033[31m'; CYAN=$'
 step() { printf '\n%s==> %s%s\n' "${BOLD}${CYAN}" "$*" "$RESET"; }
 
 notify_mac() {
+  [ "${CHINA_CHESS_DISABLE_NOTIFICATIONS:-}" = "1" ] && return 0
   command -v osascript >/dev/null 2>&1 || return 0
   osascript -e "display notification \"$1\" with title \"棋手数据刷新\"" >/dev/null 2>&1 || true
 }
@@ -102,7 +103,13 @@ DELIVERY_PENDING=false
 DELIVERED_COUNT=0
 RUN_DIR=""
 
-RUN_DIR="$(py "$RUN_MANAGER" acquire --command "$command" --pid "$$")" || exit $?
+acquire_args=(--command "$command" --pid "$$")
+if [ "$command" = "event-queue" ]; then
+  for token in "${EXTRA[@]}"; do
+    acquire_args+=(--request-argument "$token")
+  done
+fi
+RUN_DIR="$(py "$RUN_MANAGER" acquire "${acquire_args[@]}")" || exit $?
 RUN_LOG="$RUN_DIR/run.log"
 touch "$RUN_LOG"
 exec >> "$RUN_LOG" 2>&1
@@ -726,13 +733,21 @@ case "$command" in
   event-queue)
     event_rc=0
     run_private_events || event_rc=$?
+    if [ "$event_rc" -ne 0 ] && [ "$event_rc" -ne 4 ]; then
+      # Preflight errors already wrote a precise structured error. Exit before
+      # finalization so a missing baseline can never turn an older machine
+      # output into this run's manifest. Collector failures without a
+      # structured error retain the batch-level fallback.
+      if [ -s "$RUN_DIR/error.json" ]; then
+        exit "$event_rc"
+      fi
+      fail "CHESS_RESULTS_COLLECTION_FAILED" \
+        "${ERROR_MESSAGE:-赛事采集未形成可完成目标；逐场原因见本批结果与 capture-state。}"
+    fi
     release_event_data || fail "RELEASE_FINALIZATION_FAILED" \
       "赛事采集结果未能收口为发布包；已完成目标仍保存在本机，请查看结构化错误后重试接管。"
     if [ "$event_rc" -eq 4 ]; then
       partial "PARTIAL_FAILURE" "部分目标需要处理；完整目标、保留的部分数据及实际发布结果见面板“本批结果”。"
-    elif [ "$event_rc" -ne 0 ]; then
-      fail "CHESS_RESULTS_COLLECTION_FAILED" \
-        "${ERROR_MESSAGE:-赛事采集未形成可完成目标；逐场原因见本批结果与 capture-state。}"
     fi
     ;;
 
