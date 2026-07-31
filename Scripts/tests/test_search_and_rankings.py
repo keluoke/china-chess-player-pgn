@@ -138,6 +138,12 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn('% 256', worker)
         self.assertIn('/api/v1/player-buckets/', worker)
 
+    def test_snapshot_json_is_revalidated_after_deploy(self) -> None:
+        app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
+        index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        self.assertIn('fetch(path, { cache: "no-cache" })', app)
+        self.assertIn('app.js?v=20260731-2', index)
+
     def test_r2_cors_policy_allows_production_read_origins_only(self) -> None:
         policy = (
             ROOT / "Scripts" / "local" / "r2-cors.json"

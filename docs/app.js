@@ -331,7 +331,9 @@ function annotatePresentationGroup(player) {
 }
 
 async function fetchJSON(path, required) {
-  const response = await fetch(path, { cache: "default" });
+  // Public indexes are replaced in place on every snapshot. Revalidate them
+  // so a returning browser cannot keep rendering a stale catalog after deploy.
+  const response = await fetch(path, { cache: "no-cache" });
   if (!response.ok) {
     if (!required && response.status === 404) return null;
     throw new Error(`${path} HTTP ${response.status}`);
