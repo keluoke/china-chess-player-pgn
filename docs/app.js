@@ -1243,12 +1243,15 @@ function requestStaticPlayerDetail(player) {
   const bucket = participationBucket(fideID);
   const bucketPattern = data.byPlayerManifest?.storage?.playerBucketPattern;
   const bucketPath = bucketPattern ? bucketPattern.replace("<bucket>", bucket) : "";
+  const versionedBucketPath = bucketPath && data.snapshotId
+    ? `${bucketPath}${bucketPath.includes("?") ? "&" : "?"}v=${encodeURIComponent(data.snapshotId)}`
+    : bucketPath;
   if (!bucketPath && !player.playerIndexPath) return;
-  const requestKey = bucketPath || fideID;
+  const requestKey = versionedBucketPath || fideID;
   if (staticPlayerRequests.has(requestKey)) return;
 
-  const request = (bucketPath
-    ? fetch(bucketPath, { cache: "default" })
+  const request = (versionedBucketPath
+    ? fetch(versionedBucketPath, { cache: "default" })
         .then(response => {
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           return response.json();

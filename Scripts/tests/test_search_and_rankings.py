@@ -134,6 +134,7 @@ class PublicNavigationTests(unittest.TestCase):
             ROOT / "functions" / "api" / "v1" / "players" / "[[path]].js"
         ).read_text(encoding="utf-8")
         self.assertIn('playerBucketPattern', app)
+        self.assertIn('v=${encodeURIComponent(data.snapshotId)}', app)
         self.assertIn('item?.publicURL || item?.pgnPath', app)
         self.assertIn('fallbackPgnPath', app)
         self.assertNotIn('data/bulk/youth/manifest.json', app)
@@ -155,7 +156,7 @@ class PublicNavigationTests(unittest.TestCase):
         app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
         index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
         self.assertIn('fetch(path, { cache: "no-cache" })', app)
-        self.assertIn('app.js?v=20260801-1', index)
+        self.assertIn('app.js?v=20260801-2', index)
 
     def test_r2_cors_policy_allows_production_read_origins_only(self) -> None:
         policy = (
