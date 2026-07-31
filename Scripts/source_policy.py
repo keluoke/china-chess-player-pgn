@@ -94,4 +94,9 @@ def source_release_metadata(source: str) -> dict[str, str]:
             "releasePolicy": chess_results_release_policy(),
             "sourceURL": "https://chess-results.com/",
         }
+    if normalized == "object-storage":
+        return {
+            "source": "R2 Object Storage",
+            "releasePolicy": "verified-public-object-replication",
+        }
     return {"source": source, "releasePolicy": "review-required"}

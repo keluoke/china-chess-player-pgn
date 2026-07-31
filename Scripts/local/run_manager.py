@@ -627,7 +627,9 @@ def validate_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
             "COMPLIANCE_POLICY_BLOCKED",
             "Chess-Results link-only 发布包不合法：清洗后的结构化数据才允许进入 manifest。",
         )
-    if source_name not in {"FIDE Rating List", "Lichess Broadcasts", "Chess-Results"}:
+    if source_name not in {
+        "FIDE Rating List", "Lichess Broadcasts", "Chess-Results", "R2 Object Storage",
+    }:
         raise RunManagerError("RELEASE_SOURCE_UNSUPPORTED", f"机器发布不支持来源：{source_name or '?'}")
     if source_name == "FIDE Rating List" and source.get("releasePolicy") != "factual-registry-projection":
         raise RunManagerError("RELEASE_SOURCE_METADATA_INVALID", "FIDE 发布缺少事实注册表投影声明。")
@@ -637,6 +639,13 @@ def validate_manifest(payload: dict[str, Any]) -> list[dict[str, Any]]:
         or not source.get("attributionURL")
     ):
         raise RunManagerError("RELEASE_LICENSE_MISSING", "Lichess 发布缺少 CC BY-SA 4.0 许可或署名信息。")
+    if source_name == "R2 Object Storage" and (
+        source.get("releasePolicy") != "verified-public-object-replication"
+    ):
+        raise RunManagerError(
+            "RELEASE_SOURCE_METADATA_INVALID",
+            "R2 发布回执缺少已验证公开对象复制声明。",
+        )
     files: list[dict[str, Any]] = []
     seen: set[str] = set()
     base_commit = payload.get("baseCommit")
