@@ -84,10 +84,6 @@ const detailCache = new Map();
 const detailRequests = new Map();
 const staticPlayerCache = new Map();
 const staticPlayerRequests = new Map();
-const bulkStageIndexCache = new Map();
-const bulkStageIndexRequests = new Map();
-const bulkPlayerCache = new Map();
-const bulkPlayerRequests = new Map();
 const pgnViewerCache = new Map();
 const pgnViewerRequests = new Map();
 let eventCatalog = null;
@@ -135,23 +131,13 @@ async function loadData() {
   try {
     const bootstrap = await fetchJSON("./data/search-bootstrap.json", true);
     const optional = path => fetchJSON(path, false).catch(() => null);
-    const [manifest, registryManifest, bulkManifest, bulkYouthManifest, byPlayerManifest, domesticManifest, participationManifest] = await Promise.all([
-      optional("./data/index/manifest.json"),
-      optional("./data/registry/manifest.json"),
-      optional("./data/bulk/manifest.json"),
-      optional("./data/bulk/youth/manifest.json"),
+    const [byPlayerManifest, participationManifest] = await Promise.all([
       optional("./data/index/by-player/manifest.json"),
-      optional("./data/registry/domestic/manifest.json"),
       optional("./data/index/player-participation/manifest.json")
     ]);
     return {
       ...bootstrap,
-      manifest,
-      registryManifest,
-      bulkManifest,
-      bulkYouthManifest,
       byPlayerManifest,
-      domesticManifest,
       participationManifest,
       players: bootstrap.players ?? []
     };
@@ -786,9 +772,6 @@ function renderDetail() {
   const note = stage ? liChengzhiNote(player, stage.id) : null;
   const staticInfo = staticPlayerInfo(player);
   if (staticInfo) ensureFocusedEventViewer(player, staticInfo);
-  const staticGames = staticInfo?.gameCount ?? 0;
-  if (!staticGames) requestBulkPlayerDetail(player);
-  const bulkInfo = bulkPlayerCache.get(String(player.fideID));
   if (state.viewer.visible && state.viewer.fideID === String(player.fideID) && state.viewer.pgnPath) {
     requestPGNViewer(player, state.viewer);
   }
@@ -816,11 +799,10 @@ function renderDetail() {
       ${ratingCard("超快棋", player.blitz)}
     </div>
     ${staticInfo?.gameCount ? staticPlayerHitBlock(player, staticInfo) : ""}
-    ${!staticInfo?.gameCount && bulkInfo?.totalGames ? bulkPlayerHitBlock(bulkInfo) : ""}
     ${state.downloadStatus ? `<div class="download-status" aria-live="polite">${escapeHTML(state.downloadStatus)}</div>` : ""}
     ${pgnViewerBlock(player, staticInfo)}
     ${playerEventHistory(detailCache.get(player.fideID) ?? player)}
-    ${playerCoverageStatus(player, staticInfo, bulkInfo)}
+    ${playerCoverageStatus(player, staticInfo)}
     ${sameNameRelatedBlock(player)}
   `;
 
@@ -1348,75 +1330,6 @@ function staticPlayerInfo(player) {
   return null;
 }
 
-function requestBulkPlayerDetail(player) {
-  const fideID = String(player?.fideID ?? "");
-  const manifest = data.bulkYouthManifest;
-  if (!fideID || !manifest?.stages?.length || bulkPlayerCache.has(fideID) || bulkPlayerRequests.has(fideID)) return;
-
-  const request = Promise.all(manifest.stages.map(async stage => {
-    const index = await loadBulkStageIndex(stage);
-    const games = index.filter(game => String(game.fideID) === fideID);
-    return {
-      id: stage.id,
-      games,
-      count: games.length,
-      pgnPath: stage.pgnPath,
-      indexPath: stage.indexPath
-    };
-  }))
-    .then(stageHits => {
-      const hits = stageHits.filter(stage => stage.count > 0);
-      bulkPlayerCache.set(fideID, {
-        fideID,
-        totalGames: hits.reduce((sum, stage) => sum + stage.count, 0),
-        stages: hits
-      });
-      if (state.selectedFideID === fideID) renderDetail();
-    })
-    .catch(error => {
-      state.downloadStatus = `bulk 青少年索引加载失败：${error.message}`;
-      if (state.selectedFideID === fideID) renderDetail();
-    })
-    .finally(() => {
-      bulkPlayerRequests.delete(fideID);
-    });
-
-  bulkPlayerRequests.set(fideID, request);
-}
-
-async function loadBulkStageIndex(stage) {
-  if (bulkStageIndexCache.has(stage.id)) return bulkStageIndexCache.get(stage.id);
-  if (bulkStageIndexRequests.has(stage.id)) return bulkStageIndexRequests.get(stage.id);
-
-  const request = fetchJSON(stage.indexPath, false)
-    .then(index => {
-      const rows = Array.isArray(index) ? index : [];
-      bulkStageIndexCache.set(stage.id, rows);
-      return rows;
-    })
-    .catch(() => {
-      // youth/ is optional in static deployments. A stale cached manifest can
-      // still point at an omitted index whose SPA fallback is HTML; treat that
-      // exactly like an absent optional manifest and keep the player page usable.
-      bulkStageIndexCache.set(stage.id, []);
-      return [];
-    })
-    .finally(() => {
-      bulkStageIndexRequests.delete(stage.id);
-    });
-  bulkStageIndexRequests.set(stage.id, request);
-  return request;
-}
-
-function bulkPlayerHitBlock(info) {
-  return `
-    <div class="bulk-player-hit">
-      <strong>已收录 ${compactNumber(info.totalGames)} 盘青少年赛事对局</strong>
-      <span>${escapeHTML(info.stages.map(stage => `${friendlyStageLabel(stage.id)} ${stage.count} 盘`).join(" · "))}</span>
-    </div>
-  `;
-}
-
 function staticPlayerHitBlock(player, info) {
   const stageLine = Object.entries(info.stages ?? {})
     .map(([stage, count]) => `${stage} ${count} 盘`)
@@ -1533,11 +1446,6 @@ function projectPublicEventRecord(event) {
     name: projectedName,
     nameTranslationPending: projected?.nameTranslationPending || !CHINESE_TEXT_RE.test(projectedName)
   };
-}
-
-function friendlyStageLabel(stage) {
-  const match = String(stage || "").match(/^U(\d+)$/i);
-  return match ? `${match[1]} 岁组` : String(stage || "");
 }
 
 function pgnPackages(info) {
@@ -2515,8 +2423,8 @@ function completenessLabel(event, eventDetail) {
   return "仅展示已收录中国棋手";
 }
 
-function playerCoverageStatus(player, staticInfo, bulkInfo) {
-  const games = Number(staticInfo?.gameCount ?? bulkInfo?.totalGames ?? player.gameCount ?? 0);
+function playerCoverageStatus(player, staticInfo) {
+  const games = Number(staticInfo?.gameCount ?? player.gameCount ?? 0);
   const status = games > 0 ? "cached" : Number(player.eventCount ?? 0) > 0 ? "compare" : "missing";
   const message = status === "cached"
     ? `本库已缓存 ${games} 盘可复盘棋局。`

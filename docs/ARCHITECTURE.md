@@ -2,7 +2,7 @@
 
 ## 目标
 
-逐步形成中国国际象棋棋手、赛事和 PGN 的静态资料库，通过 GitHub Pages 提供网页查询。
+逐步形成中国国际象棋棋手、赛事和 PGN 的静态资料库，通过 Cloudflare Pages + R2 提供网页查询。
 
 核心原则：
 
@@ -72,11 +72,12 @@ docs/data/pgn/by-player/fide-8657238/U12.pgn
 - 首屏加载 `search-bootstrap.json`（国内实体分片后台补载）
 - 棋手看板按需加载 `index/by-player-buckets/<bucket>.json`（FIDE ID 模 256）
 - 赛事看板按需加载 `index/public-events.json`；四类重点赛事保留独立分类，已发布详情与事件级棋谱归档也必须有中性目录记录。公开 URL 使用 `?event=<赛事编号>`，旧格式仅作兼容并自动改写
-- PGN 优先读取 R2 `data/pgn/by-player/` 聚合包，过渡期回落 Pages 同路径
+- PGN 优先读取带内容哈希版本参数的 R2 `data/pgn/by-player/` 聚合包；Pages
+  部署包不再重复携带 PGN，历史同路径由 Pages Function 代理到 R2
 
 仓库仍生成 `index/manifest.json`、`index/players.json` 与
 `index/players/fide-*.json` 供离线兼容；线上 Pages 包为遵守平台 20,000 文件上限
-不包含这组旧索引，也不包含 `index/by-player/fide-*.json` 和
+不包含这组旧索引、`data/pgn/`，也不包含 `index/by-player/fide-*.json` 和
 `api/v1/players/fide-*.json`。后两者分别由 256 桶和兼容函数服务。
 装配超过 16,000 文件会告警，超过 19,000 文件直接拒绝发布，为对象存储迁移
 保留硬余量。

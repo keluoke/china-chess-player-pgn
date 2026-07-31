@@ -146,6 +146,10 @@ class GovernanceLanguageTests(unittest.TestCase):
         self.assertIn("!/data/generated/", helper)
         self.assertIn("!/docs/data/", helper)
         self.assertIn("!/docs/api/", helper)
+        self.assertIn("merge-base --is-ancestor origin/main main", helper)
+        self.assertIn("main_ahead=", helper)
+        self.assertIn("main_behind=", helper)
+        self.assertIn("shallow 边界", local_readme)
 
 
 if __name__ == "__main__":

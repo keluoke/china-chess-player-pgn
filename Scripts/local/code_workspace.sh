@@ -89,8 +89,8 @@ case "$command" in
     ;;
   sync)
     require_code_workspace
-    if [ -n "$(git -C "$CODE_ROOT" status --porcelain)" ]; then
-      echo "code workspace is dirty; commit or stash before sync" >&2
+    if ! git -C "$CODE_ROOT" diff --quiet || ! git -C "$CODE_ROOT" diff --cached --quiet; then
+      echo "code workspace has tracked changes; commit or stash before sync" >&2
       exit 3
     fi
     configure_workspace
@@ -104,6 +104,10 @@ case "$command" in
     printf 'role=%s\n' "$(git -C "$CODE_ROOT" config --get chessdb.workspaceRole || true)"
     printf 'branch=%s\n' "$(git -C "$CODE_ROOT" branch --show-current)"
     printf 'proxy=%s\n' "$(git -C "$CODE_ROOT" config --get http.proxy || true)"
+    if git -C "$CODE_ROOT" show-ref --verify --quiet refs/remotes/origin/main; then
+      read -r ahead behind <<<"$(git -C "$CODE_ROOT" rev-list --left-right --count main...origin/main)"
+      printf 'main_ahead=%s\nmain_behind=%s\n' "$ahead" "$behind"
+    fi
     du -sh "$CODE_ROOT/.git" "$CODE_ROOT"
     git -C "$CODE_ROOT" status --short --branch
     ;;
@@ -111,6 +115,15 @@ case "$command" in
     require_code_workspace
     if [ "$(git -C "$CODE_ROOT" branch --show-current)" != "main" ]; then
       echo "ordinary code publication must push main" >&2
+      exit 3
+    fi
+    if ! git -C "$CODE_ROOT" diff --quiet || ! git -C "$CODE_ROOT" diff --cached --quiet; then
+      echo "code workspace has uncommitted tracked changes" >&2
+      exit 3
+    fi
+    github_git -C "$CODE_ROOT" fetch --prune origin main
+    if ! git -C "$CODE_ROOT" merge-base --is-ancestor origin/main main; then
+      echo "local main is behind or diverged from origin/main; run code_workspace.sh sync first" >&2
       exit 3
     fi
     github_git -C "$CODE_ROOT" push origin main

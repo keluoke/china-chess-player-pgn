@@ -1,13 +1,15 @@
 # ADR:大体积数据迁移至对象存储(R2)
 
-- 状态:第二阶段实施中(2026-07-31)——78 个 Lichess Broadcast 分片
+- 状态:第二阶段完成(2026-08-01)——78 个 Lichess Broadcast 分片
   (~640 MB)已上传 R2 桶 `chess-data`,经自定义域
   `https://data.chessdb.aigclabs.cc` 公开分发;bulk manifest v2 携带
   `objectStorageBase` 与逐分片 `publicURL`。上传工具:
   `Scripts/local/upload_bulk_to_r2.py`(凭据在维护者本机 `.secrets.local`,
-  不入库)。全量 `docs/data/pgn/` 已进入同桶 `data/pgn/` 前缀的校验迁移；
-  `index/players`、`index/by-player` 与 `api/v1/players` 已按 FIDE ID 模 256 合桶。过渡快照
-  前端优先读 R2 的 `publicURL`，失败回落 Pages 的 `pgnPath`。
+  不入库)。全量 `docs/data/pgn/` 的 11,209 个对象已进入同桶 `data/pgn/`
+  前缀并逐对象通过 SHA-256 校验；Pages 部署包不再携带 PGN 副本，历史
+  `/data/pgn/*` URL 由 Pages Function 透明代理到 R2；
+  `index/players`、`index/by-player` 与 `api/v1/players` 已按 FIDE ID 模 256 合桶。
+  前端优先读带内容哈希版本参数的 R2 `publicURL`，旧 `pgnPath` 由代理兼容。
 - 日期:2026-07-13(提议)/ 2026-07-18(第一阶段实施)
 - 背景问题:静态 Git/Pages 架构即将触顶
 

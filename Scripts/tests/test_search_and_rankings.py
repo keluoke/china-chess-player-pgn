@@ -97,6 +97,7 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn("--exclude 'data/index/manifest.json'", action)
         self.assertIn("--exclude 'data/index/players.json'", action)
         self.assertIn("--exclude 'data/index/players/'", action)
+        self.assertIn("--exclude 'data/pgn/'", action)
         self.assertIn('[ -d "$out/data/index/by-player-buckets" ]', action)
         self.assertIn("find \"$out/data/index/by-player\"", action)
         self.assertIn('[ -d "$out/api/v1/player-buckets" ]', action)
@@ -135,14 +136,26 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn('playerBucketPattern', app)
         self.assertIn('item?.publicURL || item?.pgnPath', app)
         self.assertIn('fallbackPgnPath', app)
+        self.assertNotIn('data/bulk/youth/manifest.json', app)
         self.assertIn('% 256', worker)
         self.assertIn('/api/v1/player-buckets/', worker)
+        pgn_proxy = (
+            ROOT / "functions" / "data" / "pgn" / "[[path]].js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("SAFE_PGN_PATH", pgn_proxy)
+        self.assertIn("https://data.chessdb.aigclabs.cc", pgn_proxy)
+        self.assertIn("onRequestHead", pgn_proxy)
+
+        builder = (ROOT / "Scripts" / "build_static_player_pgn.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('?sha={content_sha256[:16]}', builder)
 
     def test_snapshot_json_is_revalidated_after_deploy(self) -> None:
         app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
         index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
         self.assertIn('fetch(path, { cache: "no-cache" })', app)
-        self.assertIn('app.js?v=20260731-2', index)
+        self.assertIn('app.js?v=20260801-1', index)
 
     def test_r2_cors_policy_allows_production_read_origins_only(self) -> None:
         policy = (

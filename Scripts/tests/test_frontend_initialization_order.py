@@ -65,13 +65,11 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         self.assertLess(fide_detail.index('ratingCard("标准棋"'), fide_detail.index("staticPlayerHitBlock"))
         self.assertLess(fide_detail.index("staticPlayerHitBlock"), fide_detail.index("playerEventHistory"))
 
-    def test_optional_bulk_indexes_degrade_without_json_errors(self) -> None:
+    def test_excluded_bulk_youth_indexes_are_not_requested(self) -> None:
         app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
-        loader = app[app.index("async function loadBulkStageIndex"):app.index("function bulkPlayerHitBlock")]
-        self.assertIn("fetchJSON(stage.indexPath, false)", loader)
-        self.assertIn(".catch(() => {", loader)
-        self.assertIn("return [];", loader)
-        self.assertNotIn("response.json()", loader)
+        self.assertNotIn("data/bulk/youth/manifest.json", app)
+        self.assertNotIn("loadBulkStageIndex", app)
+        self.assertNotIn("bulkPlayerHitBlock", app)
 
     def test_event_roster_uses_detail_fide_ids_and_distinct_empty_states(self) -> None:
         app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")

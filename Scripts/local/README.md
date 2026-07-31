@@ -286,7 +286,7 @@ bash Scripts/local/code_workspace.sh init
 # 查看角色、分支、代理、体积和 Git 状态
 bash Scripts/local/code_workspace.sh status
 
-# 工作树干净时同步远端 main
+# 没有未提交的 tracked 改动时同步远端 main（未跟踪实验文件不会阻断）
 bash Scripts/local/code_workspace.sh sync
 
 # 提交后推送 main
@@ -306,6 +306,13 @@ python3 Scripts/local/publish_code_via_api.py --help
 “永不 pull/rebase”只约束采集工作区：它继续保留本地采集提交与仓库外 outbox，
 绝不能为追赶云端 `main` 而 pull/rebase/重 clone。代码工作区则以远端 `main` 为
 基线，可通过上述 `sync` 做 fetch + fast-forward。
+
+采集工作区的本地提交链用于生成 release/outbox，并且仓库是浅/部分克隆；因此在
+那里运行普通 `git status` 可能显示很大的 ahead/behind 数字。这个数字既包含本地
+机器发布提交，也受 shallow 边界影响，**不是代码 main 的同步状态**，禁止用
+pull/rebase 去“修平”。代码是否与仓库同节奏只以代码工作区为准：每次开始先
+`code_workspace.sh sync`，始终在 `main` 提交；`push` 会先 fetch 并拒绝落后或
+分叉的 main。`local-data` 只保留为机器发布传送分支，不用于普通开发。
 
 本机的系统代理工具只对浏览器生效，终端不会自动继承。任何手工终端 GitHub
 访问都必须显式设置代理（脚本同时设置大小写变量）：

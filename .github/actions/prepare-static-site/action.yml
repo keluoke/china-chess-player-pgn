@@ -39,6 +39,7 @@ runs:
           --exclude '*.md' \
           --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
           --exclude 'data/bulk/youth/' \
+          --exclude 'data/pgn/' \
           --exclude 'data/registry/domestic/identity-review.json' \
           --exclude 'data/search-bootstrap-domestic.json' \
           --exclude 'data/index/player-participation/' \
@@ -94,6 +95,11 @@ runs:
         # optional in app.js, so omit all three legacy paths from Pages while
         # retaining them in the repository snapshot for offline consumers.
 
+        # All public PGNs have been checksum-verified in R2. The browser uses
+        # versioned R2 publicURL values, while functions/data/pgn/[[path]].js
+        # preserves the historical /data/pgn/* contract for old consumers.
+        # Keeping the duplicate tree in Pages would add more than 11,000 files.
+        #
         # Bulk youth stage packs are secondary downloads: the per-player packs
         # carry the same games. Exclude the whole optional directory, including
         # its manifest, so the frontend falls back cleanly instead of publishing

@@ -597,14 +597,15 @@ def build_package(
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
     byte_count = len(text.encode("utf-8"))
+    content_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
     return {
         "id": package_id,
         "label": label,
         "pgnPath": public_data_path(target),
-        "publicURL": f"{R2_PUBLIC_BASE}/{public_data_path(target)}",
+        "publicURL": f"{R2_PUBLIC_BASE}/{public_data_path(target)}?sha={content_sha256[:16]}",
         "gameCount": len(games),
         "pgnBytes": byte_count,
-        "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "sha256": content_sha256,
         "stages": stage_game_counts(games),
         "sources": public_sources({game.source for game in games}),
     }
