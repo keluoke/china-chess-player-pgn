@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT / "Scripts"))
 import build_master_series_summary as summary  # noqa: E402
 
 
-def event(tournament_id, year, name, *, detail="published", station=None, group=None):
+def event(tournament_id, year, name, *, detail="published", station=None, group=None, canonical=None):
     return {
         "id": f"chess-results:{tournament_id}",
         "series": "chess-association-master",
@@ -17,6 +17,7 @@ def event(tournament_id, year, name, *, detail="published", station=None, group=
         "station": station,
         "groupLabel": group,
         "tournamentID": str(tournament_id),
+        "canonicalEventID": canonical,
         "date": f"{year}-07-01",
         "name": name,
         "detailStatus": detail,
@@ -73,6 +74,24 @@ class MasterSeriesSummaryTests(unittest.TestCase):
         self.assertTrue(row["groupLabelPending"])
         self.assertEqual(row["pgnStatus"], "partial")
         self.assertEqual(row["allBoardCoveragePercent"], 10.0)
+
+    def test_station_aliases_and_canonical_ids_prevent_double_counting(self):
+        public = {"events": [
+            event(11, 2025, "Master", station="吉安站", canonical="master-jian"),
+            event(12, 2025, "Master", station="江西吉安站"),
+            event(13, 2025, "Master", station="上海站", canonical="master-shanghai"),
+            event(14, 2025, "Master", station="上海站·青浦杯", canonical="master-shanghai"),
+        ]}
+        completeness = {"events": [report(item, "not-published") for item in (11, 12, 13, 14)]}
+
+        payload = summary.build_summary(public, completeness)
+        year_2025 = next(row for row in payload["years"] if row["year"] == 2025)
+
+        self.assertEqual(year_2025["stationCount"], 2)
+        self.assertEqual(year_2025["groupCount"], 4)
+        stations = {station["station"]: station["groupCount"] for station in year_2025["stations"]}
+        self.assertEqual(stations, {"吉安站": 2, "上海站·青浦杯": 2})
+        self.assertTrue(all("_canonicalEventID" not in group for station in year_2025["stations"] for group in station["groups"]))
 
     def test_frontend_refresh_is_cache_busted_and_accessible(self):
         script = (ROOT / "docs" / "master-series.js").read_text(encoding="utf-8")

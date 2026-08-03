@@ -53,6 +53,13 @@ STATUS_META = {
     },
 }
 
+# Public titles have historically used both province-qualified and short city
+# labels for the same station.  Normalize only confirmed aliases here; this is
+# a presentation/grouping rule and does not mutate the source event catalog.
+STATION_ALIASES = {
+    "江西吉安站": "吉安站",
+}
+
 
 def read_json(path: pathlib.Path, default: Any) -> Any:
     if not path.is_file():
@@ -91,7 +98,8 @@ def coverage_percent(archived: int | None, played: int | None) -> float | None:
 
 def group_row(event: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
     parsed_station, parsed_group = parse_master_title_hints(event)
-    station = str(event.get("station") or parsed_station or "站名待核").strip()
+    raw_station = str(event.get("station") or parsed_station or "站名待核").strip()
+    station = STATION_ALIASES.get(raw_station, raw_station)
     group_label = str(event.get("groupLabel") or parsed_group or "组别待核").strip()
     counts = report.get("counts") or {}
     archived = as_int(counts.get("archivedGames"))
@@ -102,6 +110,7 @@ def group_row(event: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
     return {
         "tournamentID": tournament_id or None,
         "routeID": route_id,
+        "_canonicalEventID": str(event.get("canonicalEventID") or "").strip(),
         "date": event.get("date"),
         "station": station,
         "groupLabel": group_label,
@@ -150,11 +159,44 @@ def build_summary(public_payload: dict[str, Any], completeness_payload: dict[str
     years: list[dict[str, Any]] = []
     for year in range(END_YEAR, START_YEAR - 1, -1):
         year_groups = [item for item in groups if item["year"] == year]
+        canonical_labels: dict[str, list[str]] = defaultdict(list)
+        for item in year_groups:
+            if item["_canonicalEventID"]:
+                canonical_labels[item["_canonicalEventID"]].append(item["station"])
+        canonical_station = {
+            canonical_id: max(
+                labels,
+                key=lambda label: (
+                    label != "站名待核",
+                    "·" in label,
+                    len(label),
+                    label,
+                ),
+            )
+            for canonical_id, labels in canonical_labels.items()
+        }
+        for item in year_groups:
+            if item["_canonicalEventID"] in canonical_station:
+                item["station"] = canonical_station[item["_canonicalEventID"]]
         station_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for item in year_groups:
             station_groups[item["station"]].append(item)
         stations = []
-        for station, items in station_groups.items():
+        for items in station_groups.values():
+            station = max(
+                (item["station"] for item in items),
+                key=lambda label: (
+                    label != "站名待核",
+                    "·" in label,
+                    len(label),
+                    label,
+                ),
+            )
+            public_items = []
+            for item in items:
+                item["station"] = station
+                public_items.append({key: value for key, value in item.items() if key != "_canonicalEventID"})
+            items = public_items
             items.sort(key=lambda item: (item.get("date") or "", item["groupLabel"]), reverse=True)
             status_counts = Counter(item["pgnStatus"] for item in items)
             stations.append({
