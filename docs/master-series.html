@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title>2022–2026 棋协大师赛入库与 PGN 状态 · 4CHESS</title>
+    <meta name="description" content="按年份和赛站查看 2022–2026 年全国国际象棋棋协大师赛已入库组别，以及全台、直播台次和无 PGN 状态。">
+    <link rel="icon" href="./assets/4chess-favicon-black.png" type="image/png" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="./assets/4chess-favicon-white.png" type="image/png" media="(prefers-color-scheme: dark)">
+    <script src="theme.js?v=20260727-1"></script>
+    <link rel="stylesheet" href="styles.css?v=20260729-1">
+    <link rel="stylesheet" href="master-series.css?v=20260803-1">
+  </head>
+  <body class="coverage-page master-report-page">
+    <main class="master-report-shell">
+      <nav class="page-nav report-nav" aria-label="页面导航">
+        <a class="compact-brand" href="./" aria-label="返回 4CHESS 中国国际象棋棋手数据库首页">
+          <span class="theme-logo compact-brand-logo" aria-hidden="true">
+            <img class="logo-on-light" src="assets/4chess-logo-black.png" width="442" height="95" alt="">
+            <img class="logo-on-dark" src="assets/4chess-logo-white.png" width="289" height="61" alt="">
+          </span>
+        </a>
+        <div class="report-nav-links">
+          <a href="./events.html">赛事目录</a>
+          <a href="./coverage.html">数据覆盖</a>
+        </div>
+        <div class="theme-switcher" role="group" aria-label="外观主题">
+          <button type="button" data-theme-choice="auto" aria-label="跟随系统主题" title="跟随系统主题">自动</button>
+          <button type="button" data-theme-choice="light" aria-label="使用浅色主题" title="浅色主题">☀</button>
+          <button type="button" data-theme-choice="dark" aria-label="使用深色主题" title="深色主题">☾</button>
+        </div>
+      </nav>
+
+      <header class="master-hero">
+        <div>
+          <span class="eyebrow">Master series archive · 2022—2026</span>
+          <h1>棋协大师赛<br>入库与 PGN 状态</h1>
+          <p>每年入库多少站、每站多少组别，以及哪些组别拥有全台棋谱、仅直播台次棋谱或没有棋谱，一页看清。</p>
+        </div>
+        <div class="refresh-panel">
+          <button class="refresh-button" id="refreshButton" type="button">
+            <span aria-hidden="true">↻</span>
+            <span>刷新仓库现状</span>
+          </button>
+          <p id="refreshStatus" role="status" aria-live="polite">正在读取最新快照…</p>
+        </div>
+      </header>
+
+      <section class="report-loading" id="reportLoading" aria-live="polite">
+        <span class="loading-dot"></span>
+        <span>正在汇总 2022–2026 年数据…</span>
+      </section>
+
+      <div id="reportContent" hidden>
+        <section class="master-kpis" id="masterKpis" aria-label="总体入库概览"></section>
+
+        <section class="report-context">
+          <div>
+            <span class="context-label">统计口径</span>
+            <p id="reportDefinition"></p>
+          </div>
+          <div class="snapshot-meta">
+            <span id="snapshotTime"></span>
+            <code id="snapshotID"></code>
+          </div>
+        </section>
+
+        <nav class="year-jump" id="yearJump" aria-label="按年份跳转"></nav>
+
+        <section class="status-panel" aria-labelledby="statusHeading">
+          <div class="section-heading report-section-heading">
+            <div>
+              <span class="section-index">PGN</span>
+              <h2 id="statusHeading">状态口径与筛选</h2>
+            </div>
+            <button class="reset-filter" id="resetFilter" type="button" hidden>显示全部</button>
+          </div>
+          <div class="status-legend" id="statusLegend"></div>
+        </section>
+
+        <div class="active-filter" id="activeFilter" aria-live="polite"></div>
+        <section class="year-sections" id="yearSections" aria-label="逐年逐站入库明细"></section>
+      </div>
+
+      <section class="report-error" id="reportError" hidden role="alert">
+        <strong>暂时无法读取汇总数据</strong>
+        <p id="reportErrorMessage"></p>
+        <button type="button" id="retryButton">重新加载</button>
+      </section>
+
+      <footer class="master-report-footer">
+        <span>4CHESS · 中国国际象棋棋手数据库</span>
+        <a href="./contribute.html">发现数据问题？提交线索</a>
+      </footer>
+    </main>
+    <script type="module" src="./master-series.js?v=20260803-1"></script>
+  </body>
+</html>

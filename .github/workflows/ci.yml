@@ -36,6 +36,7 @@ jobs:
         run: |
           node --check docs/app.js
           node --check docs/leaderboards.js
+          node --check docs/master-series.js
           node Scripts/tests/frontend_presentation_names_test.mjs
           node Scripts/tests/frontend_search_core_test.mjs
           node Scripts/tests/pgn_proxy_test.mjs
@@ -60,6 +61,7 @@ jobs:
           python3 Scripts/build_api.py
           python3 Scripts/build_changelog.py
           python3 Scripts/build_dashboard.py
+          python3 Scripts/build_master_series_summary.py
           python3 Scripts/validate_public_metrics.py
 
       - name: Public surface must not expose raw club/school strings (minors)

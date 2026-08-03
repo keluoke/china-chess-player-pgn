@@ -188,6 +188,7 @@ def main() -> int:
 
     # --- public event projections --------------------------------------
     steps.append(step([py, "Scripts/build_event_catalog.py"], optional_script="Scripts/build_event_catalog.py"))
+    steps.append(step([py, "Scripts/build_master_series_summary.py"], optional_script="Scripts/build_master_series_summary.py"))
     steps.append(step([py, "Scripts/build_player_participation.py"], optional_script="Scripts/build_player_participation.py"))
 
     # --- maintainer queues / audits ------------------------------------
