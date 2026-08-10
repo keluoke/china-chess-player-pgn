@@ -168,6 +168,28 @@ def parse_html(body: str, base_url: str) -> TableParser:
     return parser
 
 
+FIDE_EVENT_URL_RE = re.compile(
+    r"^https://ratings\.fide\.com/tournament_information\.phtml\?event=(\d+)$",
+    re.IGNORECASE,
+)
+
+
+def extract_fide_event_id(*parsers: TableParser) -> str:
+    """Return the one unambiguous FIDE event ID linked by Chess-Results.
+
+    The ID is a cross-source join key, not permission to assume that a PGN
+    exists. Multiple conflicting IDs fail closed and leave the supplement
+    disabled for that event.
+    """
+    event_ids = {
+        match.group(1)
+        for parser in parsers
+        for link in parser.links
+        if (match := FIDE_EVENT_URL_RE.fullmatch(link))
+    }
+    return next(iter(event_ids)) if len(event_ids) == 1 else ""
+
+
 DATE_TOKEN = r"(?:20\d{2}[./-]\d{1,2}[./-]\d{1,2}|\d{1,2}[./-]\d{1,2}[./-]20\d{2})"
 
 
@@ -940,6 +962,7 @@ class EventCollector:
             else f"tnr{self.tid}"
         )
         date_begin, date_end = extract_event_dates(players_page, standings_page)
+        fide_event_id = extract_fide_event_id(players_page, standings_page)
 
         # 3. rounds: heading + page links + queue metadata cross-validation.
         rounds, round_candidates = discover_rounds(
@@ -1038,6 +1061,7 @@ class EventCollector:
             "sourceName": self.title,
             "dateBegin": date_begin or None,
             "dateEnd": date_end or None,
+            "fideEventID": fide_event_id or None,
             "sourceRefs": [{"source": "Chess-Results", "tournamentID": self.tid, "url": standings_url}],
             "coverageScope": "domestic-full",
             "format": event_format,
@@ -1564,6 +1588,7 @@ def main() -> int:
             )
     if publish and not args.dry_run and not args.no_pgn and complete_ids:
         command = [sys.executable, "-u", "Scripts/fetch_event_pgn.py", "--workers", "1", "--full-archive"]
+        command.extend(["--private-root", str(private_root)])
         if args.overwrite:
             command.append("--overwrite")
         if args.no_rebuild:

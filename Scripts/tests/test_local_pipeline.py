@@ -464,6 +464,78 @@ class EventPgnSelectionTests(unittest.TestCase):
             self.assertEqual(result["status"], "source_unavailable")
             download.assert_not_called()
 
+    def test_fide_pgn_links_reject_non_official_hosts(self) -> None:
+        links = fetch_event_pgn.fide_pgn_links(
+            '<a href="/download/event.pgn">official</a>'
+            '<a href="https://evil.example/event.pgn">wrong</a>',
+            "https://ratings.fide.com/tournament_information.phtml?event=490467",
+        )
+        self.assertEqual(links, ["https://ratings.fide.com/download/event.pgn"])
+
+    def test_fide_supplement_requires_unique_pairing_and_adds_board(self) -> None:
+        payload = {"rounds": [{"round": 1, "pairings": [{
+            "board": "7", "result": "1 - 0",
+            "white": {"playerNo": "1", "name": "Alpha, Test", "fideID": "900001"},
+            "black": {"playerNo": "2", "name": "Beta, Test", "fideID": "900002"},
+        }]}]}
+        pgn = '\n'.join([
+            '[Event "Official report"]', '[Round "1"]',
+            '[White "Alpha, Test"]', '[Black "Beta, Test"]',
+            '[WhiteFideId "900001"]', '[BlackFideId "900002"]', '[Result "1-0"]',
+            '', '1. e4 e5 1-0',
+        ])
+        normalized, coverage = fetch_event_pgn.validate_fide_supplement(payload, pgn)
+        self.assertIn('[Board "7"]', normalized)
+        self.assertEqual(coverage, {"matched": 1, "played": 1})
+
+    def test_fide_supplement_rejects_result_mismatch(self) -> None:
+        payload = {"rounds": [{"round": 1, "pairings": [{
+            "board": "7", "result": "1 - 0",
+            "white": {"playerNo": "1", "name": "Alpha, Test", "fideID": "900001"},
+            "black": {"playerNo": "2", "name": "Beta, Test", "fideID": "900002"},
+        }]}]}
+        pgn = '\n'.join([
+            '[Event "Official report"]', '[Round "1"]',
+            '[White "Alpha, Test"]', '[Black "Beta, Test"]', '[Result "0-1"]',
+            '', '1. e4 e5 0-1',
+        ])
+        with self.assertRaisesRegex(ValueError, "FIDE_PGN_RESULT_MISMATCH"):
+            fetch_event_pgn.validate_fide_supplement(payload, pgn)
+
+    def test_missing_chess_results_pgn_uses_fide_event_fallback(self) -> None:
+        pgn = '\n'.join([
+            '[Event "Official report"]', '[Round "1"]', '[Board "1"]',
+            '[White "Alpha"]', '[Black "Beta"]', '[Result "1-0"]', '', '1. e4 e5 1-0',
+        ])
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            details = root / "details"
+            details.mkdir()
+            (details / "tnr999001.json").write_text(json.dumps({
+                "fideEventID": "490467",
+                "rounds": [{"round": 1, "pairings": [{
+                    "board": "1", "result": "1-0", "hasPGN": False,
+                    "white": {"playerNo": "1", "name": "Alpha"},
+                    "black": {"playerNo": "2", "name": "Beta"},
+                }]}],
+            }), encoding="utf-8")
+            archive = root / "archive"
+            with (
+                mock.patch.object(fetch_event_pgn, "EVENT_DETAILS", details),
+                mock.patch.object(fetch_event_pgn, "EVENT_PGN_ARCHIVE", archive),
+                mock.patch.object(fetch_event_pgn, "require_chess_results_publication"),
+                mock.patch.object(fetch_event_pgn, "download_fide_event_pgn", return_value=pgn) as fide_download,
+                mock.patch.object(fetch_event_pgn, "download_chess_results_pgn") as chess_results_download,
+            ):
+                result = fetch_event_pgn.process_event(
+                    "999001", set(), {}, root / "out", False, False, full_archive=True,
+                )
+            self.assertEqual(result["status"], "ok")
+            self.assertEqual(result["archiveSource"], "fide-event-id")
+            fide_download.assert_called_once_with("490467", None)
+            chess_results_download.assert_not_called()
+            self.assertTrue((archive / "tnr999001.pgn").is_file())
+
     def test_full_archive_repairs_event_with_only_player_splits(self) -> None:
         pgn = '\n'.join([
             '[Event "Repair test"]',

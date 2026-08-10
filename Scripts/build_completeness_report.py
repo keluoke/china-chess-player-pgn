@@ -202,9 +202,16 @@ def parse_archive_path(path: pathlib.Path, source: str) -> list[dict[str, str]]:
     return games
 
 
-def parse_event_archive(tid: str) -> list[dict[str, str]]:
+def parse_event_archive(tid: str, payload: dict[str, Any] | None = None) -> list[dict[str, str]]:
+    payload = payload or {}
+    pairings = [p for row in payload.get("rounds") or [] for p in row.get("pairings") or []]
+    source = (
+        "FIDE Event Report"
+        if clean(payload.get("fideEventID")) and not any(advertised_pgn(p) for p in pairings)
+        else "Chess-Results"
+    )
     return [
-        *parse_archive_path(EVENT_PGN / f"tnr{tid}.pgn", "Chess-Results"),
+        *parse_archive_path(EVENT_PGN / f"tnr{tid}.pgn", source),
         *parse_archive_path(LICHESS_EVENT_PGN / f"tnr{tid}.pgn", "Lichess Broadcasts"),
     ]
 
@@ -429,9 +436,10 @@ def event_report(
     min_round_coverage = round(min(per_round_coverage), 4) if per_round_coverage else None
 
     # --- archive matching (archives are first-class input, review §2.1) -----
-    archive_games = parse_event_archive(tid)
+    archive_games = parse_event_archive(tid, payload)
     archive_sources = sorted({clean(game.get("source")) for game in archive_games if clean(game.get("source"))})
     lichess_games = [game for game in archive_games if clean(game.get("source")) == "Lichess Broadcasts"]
+    fide_event_games = [game for game in archive_games if clean(game.get("source")) == "FIDE Event Report"]
     lichess_residual = int(lichess_status.get("linkedContainerUnmatchedGames") or 0)
     lichess_scope_verified = (
         not lichess_games
@@ -446,6 +454,12 @@ def event_report(
         # source-published denominator before matching the combined archives.
         lichess_match = match_archive_games(payload, lichess_games, played_keys, set())
         advertised_keys.update(lichess_match["matchedPlayedKeys"])
+    if fide_event_games:
+        # A FIDE-Event-ID link is independent cross-source evidence. Only the
+        # official PGN games that strictly match captured round+board facts
+        # expand the published denominator.
+        fide_match = match_archive_games(payload, fide_event_games, played_keys, set())
+        advertised_keys.update(fide_match["matchedPlayedKeys"])
     if archive_games:
         match = match_archive_games(payload, archive_games, played_keys, advertised_keys)
     else:

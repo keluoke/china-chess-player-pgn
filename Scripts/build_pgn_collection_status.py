@@ -57,12 +57,14 @@ def build() -> dict[str, Any]:
         if archive.is_file():
             games = len(split_games(archive.read_text(encoding="utf-8", errors="replace")))
             status = previous_row.get("status") if previous_row.get("status") in {"fetched", "imported"} else "imported"
+            via_fide_event = bool(payload.get("fideEventID")) and not advertised
             row = {
                 "tournamentID": tid,
                 "status": status,
                 "games": games,
                 "expectedScope": "all-boards" if games else "unknown",
-                "evidence": "validated-local-event-archive",
+                "evidence": "validated-fide-event-archive" if via_fide_event else "validated-local-event-archive",
+                **({"via": "fide-event-id"} if via_fide_event else {}),
                 **({"attemptedAt": previous_row.get("attemptedAt")} if previous_row.get("attemptedAt") else {}),
             }
         elif advertised:

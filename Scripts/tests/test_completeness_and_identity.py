@@ -114,6 +114,23 @@ class ArchiveFirstMatchingTest(unittest.TestCase):
         self.assertEqual(report["counts"]["lichessBroadcastGames"], 1)
         self.assertEqual(report["pgnArchiveSources"], ["Lichess Broadcasts"])
 
+    def test_fide_event_archive_defines_official_published_scope(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Player, A", 2, "Player, B", has_pgn=False),
+            pairing(1, 2, 3, "Player, C", 4, "Player, D", has_pgn=False),
+        ]}]
+        payload = {**payload_with_rounds(rounds), "fideEventID": "490467"}
+        game = {
+            **archive_game(1, 1, "Player, A", "Player, B"),
+            "source": "FIDE Event Report",
+        }
+        with mock.patch.object(ccr, "parse_event_archive", return_value=[game]):
+            report = ccr.event_report(payload, by_player_games={})
+        self.assertEqual(report["pgnAvailability"], "advertised-partial")
+        self.assertEqual(report["archiveStatus"], "matched-advertised-complete")
+        self.assertEqual(report["pgnIngestStatus"], "source-published-complete")
+        self.assertEqual(report["pgnArchiveSources"], ["FIDE Event Report"])
+
     def test_lichess_residual_prevents_complete_status_and_queues_audit(self):
         rounds = [{"round": "1", "pairings": [
             pairing(1, 1, 1, "Player, A", 2, "Player, B", has_pgn=False),

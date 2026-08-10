@@ -22,10 +22,15 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import gzip
+import html
 import json
+import os
 import pathlib
 import re
 import sys
+import urllib.parse
+import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
@@ -40,6 +45,7 @@ from sync_static_pgn import (  # noqa: E402
     download_chess_results_pgn,
 )
 from source_policy import require_chess_results_publication  # noqa: E402
+from source_http import SourceHTTPError, fetch_bytes  # noqa: E402
 from stable_json import write_json  # noqa: E402
 
 SOURCES_CSV = REPO_ROOT / "data" / "manual" / "chess-results-starting-rank-sources.csv"
@@ -50,6 +56,13 @@ REGISTRY_PLAYERS = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
 EVENT_PGN_ARCHIVE = REPO_ROOT / "data" / "generated" / "chess-results-event-pgn"
 EVENT_DETAILS = REPO_ROOT / "data" / "generated" / "chess-results-event-details"
 COLLECTION_STATUS = REPO_ROOT / "data" / "generated" / "pgn-collection-status.json"
+FIDE_EVENT_INFO_URL = "https://ratings.fide.com/tournament_information.phtml?event={event_id}"
+FIDE_PGN_HREF_RE = re.compile(r'href\s*=\s*["\']([^"\']*pgn[^"\']*)["\']', re.I)
+USER_AGENT = "ChinaChessPlayerPGN/FIDEEventPGN-1.0"
+
+
+class FidePGNNotPublished(RuntimeError):
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -242,6 +255,153 @@ def _read_json(path: pathlib.Path) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def fide_event_id_for(tournament_id: str) -> str:
+    value = clean(_read_json(EVENT_DETAILS / f"tnr{tournament_id}.json").get("fideEventID") or "")
+    return value if re.fullmatch(r"\d{4,12}", value) else ""
+
+
+def _save_private_fide_page(private_root: pathlib.Path | None, event_id: str, body: bytes, url: str) -> None:
+    if private_root is None:
+        return
+    root = private_root / "raw" / "fide-events" / f"event{event_id}"
+    root.mkdir(parents=True, exist_ok=True)
+    root.chmod(0o700)
+    target = root / "information.html.gz"
+    tmp = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    tmp.write_bytes(gzip.compress(body, compresslevel=9, mtime=0))
+    os.replace(tmp, target)
+    target.chmod(0o600)
+    meta = root / "page.json"
+    meta_tmp = meta.with_name(f".{meta.name}.{os.getpid()}.tmp")
+    meta_tmp.write_text(json.dumps({"url": url, "bytes": len(body)}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(meta_tmp, meta)
+    meta.chmod(0o600)
+
+
+def fide_pgn_links(info_html: str, base_url: str) -> list[str]:
+    """Extract only official FIDE PGN links from a tournament page."""
+    links: list[str] = []
+    for raw_href in FIDE_PGN_HREF_RE.findall(info_html):
+        candidate = urllib.parse.urljoin(base_url, html.unescape(raw_href))
+        parsed = urllib.parse.urlparse(candidate)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme == "https" and (host == "fide.com" or host.endswith(".fide.com")):
+            links.append(candidate)
+    return list(dict.fromkeys(links))
+
+
+def _decode_pgn_bytes(body: bytes) -> str:
+    for encoding in ("utf-8-sig", "cp1252", "latin-1"):
+        try:
+            text = body.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        if split_games(text) and count_pgn_games(text) > 0:
+            return text
+    raise ValueError("FIDE_PGN_INVALID: response is not a parseable PGN")
+
+
+def download_fide_event_pgn(event_id: str, private_root: pathlib.Path | None = None) -> str:
+    """Follow an official FIDE tournament page to its advertised PGN."""
+    info_url = FIDE_EVENT_INFO_URL.format(event_id=event_id)
+    request = urllib.request.Request(info_url, headers={"User-Agent": USER_AGENT, "Accept": "text/html"})
+    body, final_url, headers = fetch_bytes(
+        request,
+        expected_types=("text/html", "application/xhtml+xml"),
+    )
+    _save_private_fide_page(private_root, event_id, body, final_url)
+    text = body.decode(headers.get_content_charset() or "utf-8", errors="replace")
+    links = fide_pgn_links(text, final_url)
+    if not links:
+        raise FidePGNNotPublished(f"FIDE_EVENT_PGN_NOT_PUBLISHED: event {event_id} has no official PGN link")
+    errors: list[str] = []
+    for url in links[:4]:
+        try:
+            request = urllib.request.Request(
+                url,
+                headers={"User-Agent": USER_AGENT, "Accept": "application/x-chess-pgn,text/plain,*/*"},
+            )
+            pgn_body, _final_url, _headers = fetch_bytes(request)
+            return _decode_pgn_bytes(pgn_body)
+        except (SourceHTTPError, ValueError) as error:
+            errors.append(str(error))
+    raise ValueError("FIDE_PGN_DOWNLOAD_INVALID: " + "; ".join(errors[:4]))
+
+
+def _round_id(value: Any) -> str:
+    match = re.match(r"(\d+)", clean(value))
+    return match.group(1) if match else clean(value)
+
+
+def _result_id(value: Any) -> str:
+    return re.sub(r"\s+", "", clean(value)).replace("½", "1/2")
+
+
+def _header_fide_id(headers: dict[str, str], side: str) -> str:
+    for key in (f"{side}FideId", f"{side}FideID", f"{side}FIDEID"):
+        value = re.sub(r"\D", "", headers.get(key, ""))
+        if value and value != "0":
+            return value
+    return ""
+
+
+def validate_fide_supplement(payload: dict[str, Any], pgn: str) -> tuple[str, dict[str, int]]:
+    """Require every FIDE PGN game to match one unique captured pairing.
+
+    FIDE ID pairs are preferred; normalized names are the fallback. Round is
+    mandatory, results must agree, and duplicate/unmatched games reject the
+    whole supplement. Missing Board tags are filled from the matched pairing
+    so downstream completeness checks keep their round+board natural key.
+    """
+    candidates: list[dict[str, str]] = []
+    for round_row in payload.get("rounds") or []:
+        rid = _round_id(round_row.get("round"))
+        for pairing in round_row.get("pairings") or []:
+            white = pairing.get("white") or {}
+            black = pairing.get("black") or {}
+            if not white.get("playerNo") or not black.get("playerNo"):
+                continue
+            result = _result_id(pairing.get("result"))
+            if not result or result in {"+--", "--+", "---"}:
+                continue
+            candidates.append({
+                "round": rid,
+                "board": clean(pairing.get("board")),
+                "names": "|".join(sorted([normalize_name(white.get("name")), normalize_name(black.get("name"))])),
+                "fide": "|".join(sorted(filter(None, [clean(white.get("fideID")), clean(black.get("fideID"))]))),
+                "result": result,
+            })
+    games = split_games(pgn)
+    if not games:
+        raise ValueError("FIDE_PGN_EMPTY: no games")
+    used: set[tuple[str, str]] = set()
+    normalized_games: list[str] = []
+    for game in games:
+        headers = parse_headers(game)
+        rid = _round_id(headers.get("Round"))
+        if not rid:
+            raise ValueError("FIDE_PGN_UNMATCHED: game has no round")
+        fide_key = "|".join(sorted(filter(None, [_header_fide_id(headers, "White"), _header_fide_id(headers, "Black")])))
+        fide_key = fide_key if "|" in fide_key else ""
+        name_key = "|".join(sorted([normalize_name(headers.get("White")), normalize_name(headers.get("Black"))]))
+        matches = [row for row in candidates if row["round"] == rid and ((fide_key and row["fide"] == fide_key) or row["names"] == name_key)]
+        if len(matches) != 1:
+            raise ValueError(f"FIDE_PGN_UNMATCHED: round {rid} has {len(matches)} pairing matches")
+        match = matches[0]
+        natural_key = (rid, match["board"])
+        if natural_key in used:
+            raise ValueError(f"FIDE_PGN_DUPLICATE: round {rid} board {match['board']}")
+        if headers.get("Result") and match["result"] and _result_id(headers["Result"]) != match["result"]:
+            raise ValueError(f"FIDE_PGN_RESULT_MISMATCH: round {rid} board {match['board']}")
+        used.add(natural_key)
+        if match["board"] and not clean(headers.get("Board")):
+            insertion = f'[Board "{match["board"]}"]\n'
+            split_at = game.find("\n\n")
+            game = game[:split_at + 1] + insertion + game[split_at + 1:] if split_at >= 0 else insertion + game
+        normalized_games.append(game.strip())
+    return "\n\n".join(normalized_games) + "\n", {"matched": len(used), "played": len(candidates)}
+
+
 # ---------------------------------------------------------------------------
 # Per-event worker
 # ---------------------------------------------------------------------------
@@ -255,6 +415,7 @@ def process_event(
     dry_run: bool,
     pgn_text: str | None = None,
     full_archive: bool = False,
+    private_root: pathlib.Path | None = None,
 ) -> dict[str, Any]:
     """Split a tournament PGN per Chinese player.
 
@@ -275,6 +436,7 @@ def process_event(
         "unassigned": 0,
         "players": 0,
         "error": "",
+        "archiveSource": "chess-results",
     }
 
     out_dir = out_root / f"tnr{tournament_id}"
@@ -292,10 +454,29 @@ def process_event(
         # links is primary evidence that this source does not publish PGN for
         # the event.  Do not create an empty archive or hammer the generic
         # search form; the caller records it as a source gap and moves on.
-        result["status"] = "source_unavailable"
-        result["error"] = "SOURCE_PGN_NOT_PUBLISHED"
-        print(f"tnr{tournament_id}: 来源页面未公开任何棋谱链接，记录为 PGN 来源缺口。", file=sys.stderr, flush=True)
-        return result
+        fide_event_id = fide_event_id_for(tournament_id)
+        if not fide_event_id:
+            result["status"] = "source_unavailable"
+            result["error"] = "SOURCE_PGN_NOT_PUBLISHED"
+            print(f"tnr{tournament_id}: 来源页面未公开棋谱，且无 FIDE-Event-ID。", file=sys.stderr, flush=True)
+            return result
+        try:
+            print(f"tnr{tournament_id}: 使用 FIDE-Event-ID {fide_event_id} 检查官方 PGN…", file=sys.stderr, flush=True)
+            pgn = download_fide_event_pgn(fide_event_id, private_root)
+            pgn, coverage = validate_fide_supplement(_read_json(EVENT_DETAILS / f"tnr{tournament_id}.json"), pgn)
+            result["archiveSource"] = "fide-event-id"
+            result["supplementMatched"] = coverage["matched"]
+            result["supplementPlayed"] = coverage["played"]
+        except FidePGNNotPublished as exc:
+            result["status"] = "source_unavailable"
+            result["error"] = "FIDE_EVENT_PGN_NOT_PUBLISHED"
+            print(f"tnr{tournament_id}: {exc}", file=sys.stderr, flush=True)
+            return result
+        except Exception as exc:
+            result["status"] = "error"
+            result["error"] = str(exc)
+            print(f"tnr{tournament_id}: FIDE 官方 PGN 补源失败：{exc}", file=sys.stderr, flush=True)
+            return result
     elif (
         not full_archive
         and not overwrite
@@ -373,6 +554,7 @@ def main() -> int:
     parser.add_argument("--overwrite", action="store_true", help="refetch even if files already exist")
     parser.add_argument("--workers", type=int, default=3, help="parallel download workers")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--private-root", type=pathlib.Path, help="private run directory for raw FIDE evidence")
     parser.add_argument(
         "--full-archive",
         action="store_true",
@@ -433,6 +615,7 @@ def main() -> int:
                 args.dry_run,
                 None,
                 args.full_archive,
+                args.private_root,
             ): tid
             for tid in ids
         }
@@ -459,10 +642,10 @@ def main() -> int:
                 outcomes[tid] = {"status": "fetch-failed", "errorCode": "SOURCE_PGN_FETCH_FAILED"}
             elif status == "source_unavailable":
                 stats["eventsSourceUnavailable"] += 1
-                outcomes[tid] = {"status": "not-published", "errorCode": "SOURCE_PGN_NOT_PUBLISHED"}
+                outcomes[tid] = {"status": "not-published", "errorCode": res["error"] or "SOURCE_PGN_NOT_PUBLISHED"}
             else:
                 stats["eventsWithGames"] += 1
-                outcomes[tid] = {"status": "fetched", "games": res["games"]}
+                outcomes[tid] = {"status": "fetched", "games": res["games"], "via": res.get("archiveSource") or "chess-results"}
                 stats["games"] += res["games"]
                 stats["gamesAssigned"] += res["assigned"]
                 stats["gamesUnassigned"] += res["unassigned"]

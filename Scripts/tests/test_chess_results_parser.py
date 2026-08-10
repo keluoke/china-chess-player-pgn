@@ -61,6 +61,21 @@ class TnrNormalizationTests(unittest.TestCase):
 
 
 class ParserMatrixTests(unittest.TestCase):
+    def test_unique_fide_event_id_is_extracted_from_official_link(self) -> None:
+        page = sce.parse_html(
+            '<a href="https://ratings.fide.com/tournament_information.phtml?event=490467">490467</a>',
+            "https://chess-results.com/tnr999001.aspx",
+        )
+        self.assertEqual(sce.extract_fide_event_id(page), "490467")
+
+    def test_conflicting_fide_event_ids_fail_closed(self) -> None:
+        page = sce.parse_html(
+            '<a href="https://ratings.fide.com/tournament_information.phtml?event=490467">A</a>'
+            '<a href="https://ratings.fide.com/tournament_information.phtml?event=490468">B</a>',
+            "https://chess-results.com/tnr999001.aspx",
+        )
+        self.assertEqual(sce.extract_fide_event_id(page), "")
+
     def test_explicit_event_date_range_is_parsed_without_using_last_update(self) -> None:
         page = sce.parse_html(
             """

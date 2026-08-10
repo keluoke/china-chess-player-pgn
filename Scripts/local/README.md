@@ -166,6 +166,11 @@ python3 Scripts/local/identity_review.py --show <candidateID>
 - **PGN 判定**：`source-published-complete` 表示来源实际公开的直播棋谱全部入库，
   可少于全台；`full-board-complete` 才表示全台。分母来自实际公开链接/广播，
   不把“前十台”写死；每局必须与轮次、台次和双方 playerNo 唯一匹配。
+- **FIDE Event 补源**：Chess-Results 未公开 PGN、但页面存在唯一
+  `FIDE-Event-ID` 时，采集器才访问该 FIDE 官方赛事页并跟随其 PGN 下载链接。
+  每局必须按轮次及双方 FIDE ID（姓名仅作唯一回退）匹配已抓取对阵，结果一致；
+  歧义、错配、重复局或非 FIDE 域名链接整包拒绝。无 ID 或 FIDE 未发布 PGN 仍
+  保持 `not-published`，不得把补源失败伪装成空棋谱或全台完整。
 - **对阵引用三态**：双方都能唯一回查名单才是普通对局；只有来源明确写出
   `bye` / `not paired` 才是轮空；其余缺 `playerNo` 的记录都是 unresolved，
   整场降为 partial，并进入 `repair-pairing-player-numbers` P0 队列。奇数名单
