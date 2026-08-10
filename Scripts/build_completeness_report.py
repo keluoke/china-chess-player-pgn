@@ -550,6 +550,14 @@ def event_report(
         results_status = "results-complete"
 
     # --- source-advertised availability (played-game denominator) -----------
+    # An official FIDE event PGN link advertises event-wide coverage even when
+    # strict validation rejects the downloaded bytes. Preserve that promise so
+    # the gap is actionable instead of being mislabeled as none expected.
+    if (
+        collection_status.get("status") in {"fetch-failed", "empty-response"}
+        and collection_status.get("via") == "fide-event-id"
+    ):
+        advertised_keys.update(played_keys)
     if unresolved_pairings and not played:
         availability = "unresolved-pairings"
         scope = "coverage-unresolved"

@@ -28,6 +28,7 @@ import panel as local_panel  # noqa: E402
 import apply_aliases_to_registry  # noqa: E402
 import build_api  # noqa: E402
 import build_event_details  # noqa: E402
+import build_pgn_collection_status  # noqa: E402
 import build_public_metrics  # noqa: E402
 import build_static_player_pgn  # noqa: E402
 import fetch_event_pgn  # noqa: E402
@@ -396,13 +397,14 @@ class TargetedCaptureCheckpointTests(unittest.TestCase):
 
 
 class EventPgnSelectionTests(unittest.TestCase):
-    def test_event_release_boundary_excludes_cloud_rebuilt_indexes(self) -> None:
+    def test_event_release_boundary_includes_per_event_pgn_attempt_facts(self) -> None:
         script = (SCRIPTS / "local" / "refresh.sh").read_text(encoding="utf-8")
         block = re.search(r"EVENT_PATHS=\((.*?)\)\n\nrun_registry", script, re.DOTALL)
         self.assertIsNotNone(block)
         for fact_root in (
             "data/generated/chess-results-event-details",
             "data/generated/chess-results-event-pgn",
+            "data/generated/pgn-source-attempts",
             "docs/data/pgn/chess-results",
         ):
             self.assertIn(fact_root, block.group(1))
@@ -442,12 +444,56 @@ class EventPgnSelectionTests(unittest.TestCase):
             with (
                 mock.patch.object(sys, "argv", argv),
                 mock.patch.object(fetch_event_pgn, "COLLECTION_STATUS", status),
+                mock.patch.object(fetch_event_pgn, "EVENT_ATTEMPT_ROOT", pathlib.Path(temp) / "attempts"),
                 mock.patch.object(fetch_event_pgn, "load_china_fide_ids", return_value=set()),
                 mock.patch.object(fetch_event_pgn, "load_name_index", return_value={}),
                 mock.patch.object(fetch_event_pgn, "process_event", return_value=outcome),
             ):
                 self.assertEqual(fetch_event_pgn.main(), 0)
             self.assertEqual(status.read_text(encoding="utf-8"), '{"sentinel":"keep"}\n')
+            attempt = json.loads((pathlib.Path(temp) / "attempts/tnr999001.json").read_text(encoding="utf-8"))
+            self.assertEqual(attempt["status"], "fetched")
+
+    def test_fide_validation_error_keeps_specific_machine_code(self) -> None:
+        self.assertEqual(
+            fetch_event_pgn.source_error_code(
+                "FIDE_PGN_RESULT_MISMATCH: round 9 board 17",
+                "SOURCE_PGN_FETCH_FAILED",
+            ),
+            "FIDE_PGN_RESULT_MISMATCH",
+        )
+
+    def test_cloud_status_rebuild_preserves_fide_strict_rejection(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            details = root / "details"
+            attempts = root / "attempts"
+            details.mkdir()
+            attempts.mkdir()
+            (details / "tnr999001.json").write_text(json.dumps({
+                "tournamentID": "999001",
+                "fideEventID": "490467",
+                "rounds": [{"pairings": [{"board": "1", "hasPGN": False}]}],
+            }), encoding="utf-8")
+            (attempts / "tnr999001.json").write_text(json.dumps({
+                "schemaVersion": 1,
+                "tournamentID": "999001",
+                "attemptedAt": "2026-08-10T12:00:00+00:00",
+                "status": "fetch-failed",
+                "errorCode": "FIDE_PGN_RESULT_MISMATCH",
+                "via": "fide-event-id",
+            }), encoding="utf-8")
+            with (
+                mock.patch.object(build_pgn_collection_status, "DETAILS", details),
+                mock.patch.object(build_pgn_collection_status, "ARCHIVES", root / "archives"),
+                mock.patch.object(build_pgn_collection_status, "ATTEMPTS", attempts),
+                mock.patch.object(build_pgn_collection_status, "OUTPUT", root / "status.json"),
+            ):
+                row = build_pgn_collection_status.build()["events"]["999001"]
+            self.assertEqual(row["status"], "fetch-failed")
+            self.assertEqual(row["errorCode"], "FIDE_PGN_RESULT_MISMATCH")
+            self.assertEqual(row["via"], "fide-event-id")
+            self.assertEqual(row["expectedScope"], "all-boards")
 
     def test_event_with_explicitly_missing_pgn_links_is_not_downloaded(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

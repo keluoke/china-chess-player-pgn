@@ -57,6 +57,7 @@ REGISTRY_PLAYERS = REPO_ROOT / "docs" / "data" / "registry" / "players.json"
 EVENT_PGN_ARCHIVE = REPO_ROOT / "data" / "generated" / "chess-results-event-pgn"
 EVENT_DETAILS = REPO_ROOT / "data" / "generated" / "chess-results-event-details"
 COLLECTION_STATUS = REPO_ROOT / "data" / "generated" / "pgn-collection-status.json"
+EVENT_ATTEMPT_ROOT = REPO_ROOT / "data" / "generated" / "pgn-source-attempts"
 FIDE_EVENT_INFO_URL = "https://ratings.fide.com/tournament_information.phtml?event={event_id}"
 FIDE_HREF_RE = re.compile(
     r'href\s*=\s*(?:"([^"]+)"|\'([^\']+)\'|([^\s>]+))',
@@ -67,6 +68,27 @@ USER_AGENT = "ChinaChessPlayerPGN/FIDEEventPGN-1.0"
 
 class FidePGNNotPublished(RuntimeError):
     pass
+
+
+def source_error_code(error: Any, fallback: str) -> str:
+    """Keep a stable machine code while leaving diagnostics in private logs."""
+    match = re.match(r"^([A-Z][A-Z0-9_]+)(?::|$)", clean(error))
+    return match.group(1) if match else fallback
+
+
+def write_event_attempt(
+    root: pathlib.Path,
+    tournament_id: str,
+    attempted_at: str,
+    outcome: dict[str, Any],
+) -> None:
+    """Persist one independently mergeable PGN source fact per event."""
+    write_json(root / f"tnr{tournament_id}.json", {
+        "schemaVersion": 1,
+        "tournamentID": tournament_id,
+        "attemptedAt": attempted_at,
+        **outcome,
+    }, ensure_ascii=False, indent=2)
 
 
 # ---------------------------------------------------------------------------
@@ -553,6 +575,7 @@ def process_event(
             return result
         try:
             print(f"tnr{tournament_id}: 使用 FIDE-Event-ID {fide_event_id} 检查官方 PGN…", file=sys.stderr, flush=True)
+            result["archiveSource"] = "fide-event-id"
             pgn = download_fide_event_pgn(fide_event_id, private_root)
             pgn, coverage = validate_fide_supplement(_read_json(EVENT_DETAILS / f"tnr{tournament_id}.json"), pgn)
             result["archiveSource"] = "fide-event-id"
@@ -726,14 +749,26 @@ def main() -> int:
                 outcomes[tid] = {"status": "archive-present"}
             elif status == "empty":
                 stats["eventsEmpty"] += 1
-                outcomes[tid] = {"status": "empty-response", "errorCode": "SOURCE_PGN_EMPTY"}
+                outcomes[tid] = {
+                    "status": "empty-response",
+                    "errorCode": "SOURCE_PGN_EMPTY",
+                    "via": res.get("archiveSource") or "chess-results",
+                }
             elif status == "error":
                 stats["eventsError"] += 1
                 stats["errors"].append(f"tnr{tid}: {res['error']}")
-                outcomes[tid] = {"status": "fetch-failed", "errorCode": "SOURCE_PGN_FETCH_FAILED"}
+                outcomes[tid] = {
+                    "status": "fetch-failed",
+                    "errorCode": source_error_code(res.get("error"), "SOURCE_PGN_FETCH_FAILED"),
+                    "via": res.get("archiveSource") or "chess-results",
+                }
             elif status == "source_unavailable":
                 stats["eventsSourceUnavailable"] += 1
-                outcomes[tid] = {"status": "not-published", "errorCode": res["error"] or "SOURCE_PGN_NOT_PUBLISHED"}
+                outcomes[tid] = {
+                    "status": "not-published",
+                    "errorCode": res["error"] or "SOURCE_PGN_NOT_PUBLISHED",
+                    "via": res.get("archiveSource") or "chess-results",
+                }
             else:
                 stats["eventsWithGames"] += 1
                 outcomes[tid] = {"status": "fetched", "games": res["games"], "via": res.get("archiveSource") or "chess-results"}
@@ -747,10 +782,14 @@ def main() -> int:
                     file=sys.stderr,
                 )
 
+    attempted_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    if not args.dry_run:
+        for tid, outcome in outcomes.items():
+            write_event_attempt(EVENT_ATTEMPT_ROOT, tid, attempted_at, outcome)
+
     if not args.dry_run and not args.defer_status_rebuild:
         previous = _read_json(COLLECTION_STATUS)
         events = previous.get("events") if isinstance(previous.get("events"), dict) else {}
-        attempted_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
         for tid, outcome in outcomes.items():
             events[tid] = {"tournamentID": tid, "attemptedAt": attempted_at, **outcome}
         write_json(COLLECTION_STATUS, {

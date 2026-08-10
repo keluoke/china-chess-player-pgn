@@ -22,6 +22,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DETAILS = ROOT / "data" / "generated" / "chess-results-event-details"
 ARCHIVES = ROOT / "data" / "generated" / "chess-results-event-pgn"
 OUTPUT = ROOT / "data" / "generated" / "pgn-collection-status.json"
+ATTEMPTS = ROOT / "data" / "generated" / "pgn-source-attempts"
 
 
 def read_json(path: pathlib.Path, default: Any) -> Any:
@@ -41,6 +42,13 @@ def advertised_count(payload: dict[str, Any]) -> tuple[int, int]:
     return advertised, len(pairings)
 
 
+def event_attempt(tid: str) -> dict[str, Any]:
+    payload = read_json(ATTEMPTS / f"tnr{tid}.json", {})
+    if str(payload.get("tournamentID") or "").strip() != tid:
+        return {}
+    return payload
+
+
 def build() -> dict[str, Any]:
     previous = read_json(OUTPUT, {})
     previous_events = previous.get("events") if isinstance(previous.get("events"), dict) else {}
@@ -53,6 +61,9 @@ def build() -> dict[str, Any]:
             continue
         archive = ARCHIVES / f"tnr{tid}.pgn"
         previous_row = previous_events.get(tid, {})
+        attempt = event_attempt(tid)
+        if attempt.get("attemptedAt") and str(attempt.get("attemptedAt")) >= str(previous_row.get("attemptedAt") or ""):
+            previous_row = {**previous_row, **attempt}
         advertised, pairings = advertised_count(payload)
         if archive.is_file():
             games = len(split_games(archive.read_text(encoding="utf-8", errors="replace")))
@@ -76,6 +87,18 @@ def build() -> dict[str, Any]:
                 "expectedScope": "all-boards" if advertised == pairings else "selected-boards",
                 "evidence": "captured-pairing-pages",
                 **({key: previous_row.get(key) for key in ("attemptedAt", "errorCode") if previous_row.get(key)}),
+            }
+        elif pairings and previous_row.get("status") in {"fetch-failed", "empty-response"}:
+            row = {
+                "tournamentID": tid,
+                "status": previous_row["status"],
+                "expectedScope": "all-boards" if previous_row.get("via") == "fide-event-id" else "unknown",
+                "evidence": (
+                    "official-fide-event-pgn-advertised"
+                    if previous_row.get("via") == "fide-event-id"
+                    else "source-fetch-attempt"
+                ),
+                **({key: previous_row.get(key) for key in ("attemptedAt", "errorCode", "via") if previous_row.get(key)}),
             }
         elif pairings:
             row = {

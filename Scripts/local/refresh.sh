@@ -551,6 +551,7 @@ BULK_PATHS=(
 EVENT_PATHS=(
   "data/generated/chess-results-event-details"
   "data/generated/chess-results-event-pgn"
+  "data/generated/pgn-source-attempts"
   "docs/data/pgn/chess-results"
   "data/generated/r2-object-receipts/events--chess-results.json"
 )
@@ -699,7 +700,8 @@ recover_event_data() {
   done < <(
     py "$RUN_MANAGER" recovery-list --repo "$REPO_ROOT" \
       --allow "${EVENT_PATHS[0]}" --allow "${EVENT_PATHS[1]}" \
-      --allow "${EVENT_PATHS[2]}" --allow "${EVENT_PATHS[3]}" --plain
+      --allow "${EVENT_PATHS[2]}" --allow "${EVENT_PATHS[3]}" \
+      --allow "${EVENT_PATHS[4]}" --plain
   )
   if [ "$count" -eq 0 ]; then
     PUSH_SUMMARY="没有需要接管的中断赛事产物"

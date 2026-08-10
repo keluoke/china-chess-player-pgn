@@ -177,6 +177,10 @@ python3 Scripts/local/identity_review.py --show <candidateID>
   每局必须按轮次及双方 FIDE ID（姓名仅作唯一回退）匹配已抓取对阵，结果一致；
   歧义、错配、重复局或非 FIDE 域名链接整包拒绝。无 ID 或 FIDE 未发布 PGN 仍
   保持 `not-published`，不得把补源失败伪装成空棋谱或全台完整。
+  每次 PGN 尝试另写 `data/generated/pgn-source-attempts/tnr<ID>.json` 独立事实；
+  它随赛事 manifest 发布并在云端重建状态索引。严格拒绝保留具体错误码和
+  `fide-event-id` 路径，前台标为 `source-published-missing`，不会误降为
+  `not-published` / `none-expected`；每赛事一文件也避免共享索引的并发覆盖。
 - **对阵引用三态**：双方都能唯一回查名单才是普通对局；只有来源明确写出
   `bye` / `not paired` 才是轮空；其余缺 `playerNo` 的记录都是 unresolved，
   整场降为 partial，并进入 `repair-pairing-player-numbers` P0 队列。奇数名单

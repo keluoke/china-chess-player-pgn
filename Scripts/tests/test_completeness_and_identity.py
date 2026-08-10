@@ -131,6 +131,26 @@ class ArchiveFirstMatchingTest(unittest.TestCase):
         self.assertEqual(report["pgnIngestStatus"], "source-published-complete")
         self.assertEqual(report["pgnArchiveSources"], ["FIDE Event Report"])
 
+    def test_rejected_official_fide_pgn_remains_an_actionable_published_gap(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Player, A", 2, "Player, B", has_pgn=False),
+        ]}]
+        payload = {**payload_with_rounds(rounds), "fideEventID": "490467"}
+        status = {
+            "status": "fetch-failed",
+            "errorCode": "FIDE_PGN_RESULT_MISMATCH",
+            "via": "fide-event-id",
+            "attemptedAt": "2026-08-10T12:00:00+00:00",
+        }
+        with mock.patch.object(ccr, "parse_event_archive", return_value=[]):
+            report = ccr.event_report(payload, by_player_games={}, collection_status=status)
+        self.assertEqual(report["pgnAvailability"], "advertised-full")
+        self.assertEqual(report["archiveStatus"], "missing")
+        self.assertEqual(report["pgnIngestStatus"], "source-published-missing")
+        self.assertEqual(report["pgnSourceErrorCode"], "FIDE_PGN_RESULT_MISMATCH")
+        queue = ccr.supplement_queue([report], leads={})
+        self.assertEqual(queue[0]["nextAction"], "re-fetch-or-import-advertised-boards")
+
     def test_lichess_residual_prevents_complete_status_and_queues_audit(self):
         rounds = [{"round": "1", "pairings": [
             pairing(1, 1, 1, "Player, A", 2, "Player, B", has_pgn=False),

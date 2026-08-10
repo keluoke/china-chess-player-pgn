@@ -46,6 +46,7 @@ PUBLIC_RELEASE_PREFIXES = (
     "data/generated/transfer-candidates.json",
     "data/generated/chess-results-event-details",
     "data/generated/chess-results-event-pgn",
+    "data/generated/pgn-source-attempts",
     "docs/data/pgn/chess-results",
     "data/generated/person-observations.csv",
     "data/generated/person-observations.meta.json",
@@ -57,6 +58,7 @@ PUBLIC_RELEASE_PREFIXES = (
 CHESS_RESULTS_RELEASE_PREFIXES = (
     "data/generated/chess-results-event-details",
     "data/generated/chess-results-event-pgn",
+    "data/generated/pgn-source-attempts",
     "docs/data/pgn/chess-results",
     "data/generated/person-observations.csv",
     "data/generated/person-observations.meta.json",
