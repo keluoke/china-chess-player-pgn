@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import gzip
 import hashlib
 import json
 import io
@@ -475,6 +476,19 @@ class EventPgnSelectionTests(unittest.TestCase):
             "https://ratings.fide.com/download/event.pgn",
             "https://ratings.fide.com/view_pgn.php?code=abc&download=1",
         ])
+
+    def test_private_fide_pgn_preserves_exact_response_and_hash(self) -> None:
+        body = b'[Event "Audit"]\n\n1. e4 *\n'
+        with tempfile.TemporaryDirectory() as temp:
+            private_root = pathlib.Path(temp)
+            fetch_event_pgn._save_private_fide_pgn(
+                private_root, "490467", body, "https://ratings.fide.com/audit.pgn",
+            )
+            root = private_root / "raw" / "fide-events" / "event490467"
+            self.assertEqual(gzip.decompress((root / "official.pgn.gz").read_bytes()), body)
+            meta = json.loads((root / "pgn.json").read_text(encoding="utf-8"))
+            self.assertEqual(meta["bytes"], len(body))
+            self.assertEqual(meta["sha256"], hashlib.sha256(body).hexdigest())
 
     def test_fide_supplement_requires_unique_pairing_and_adds_board(self) -> None:
         payload = {"rounds": [{"round": 1, "pairings": [{

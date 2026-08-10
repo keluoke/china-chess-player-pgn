@@ -23,6 +23,7 @@ import argparse
 import csv
 import datetime as dt
 import gzip
+import hashlib
 import html
 import json
 import os
@@ -281,6 +282,29 @@ def _save_private_fide_page(private_root: pathlib.Path | None, event_id: str, bo
     meta.chmod(0o600)
 
 
+def _save_private_fide_pgn(private_root: pathlib.Path | None, event_id: str, body: bytes, url: str) -> None:
+    """Persist the exact official PGN response for local audit and replay."""
+    if private_root is None:
+        return
+    root = private_root / "raw" / "fide-events" / f"event{event_id}"
+    root.mkdir(parents=True, exist_ok=True)
+    root.chmod(0o700)
+    target = root / "official.pgn.gz"
+    tmp = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    tmp.write_bytes(gzip.compress(body, compresslevel=9, mtime=0))
+    os.replace(tmp, target)
+    target.chmod(0o600)
+    meta = root / "pgn.json"
+    meta_tmp = meta.with_name(f".{meta.name}.{os.getpid()}.tmp")
+    meta_tmp.write_text(json.dumps({
+        "url": url,
+        "bytes": len(body),
+        "sha256": hashlib.sha256(body).hexdigest(),
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.replace(meta_tmp, meta)
+    meta.chmod(0o600)
+
+
 def fide_pgn_links(info_html: str, base_url: str) -> list[str]:
     """Extract only official FIDE PGN links from a tournament page."""
     links: list[str] = []
@@ -327,7 +351,8 @@ def download_fide_event_pgn(event_id: str, private_root: pathlib.Path | None = N
                 url,
                 headers={"User-Agent": USER_AGENT, "Accept": "application/x-chess-pgn,text/plain,*/*"},
             )
-            pgn_body, _final_url, _headers = fetch_bytes(request)
+            pgn_body, final_pgn_url, _headers = fetch_bytes(request)
+            _save_private_fide_pgn(private_root, event_id, pgn_body, final_pgn_url)
             return _decode_pgn_bytes(pgn_body)
         except (SourceHTTPError, ValueError) as error:
             errors.append(str(error))
