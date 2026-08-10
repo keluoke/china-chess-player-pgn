@@ -61,6 +61,13 @@ class TnrNormalizationTests(unittest.TestCase):
 
 
 class ParserMatrixTests(unittest.TestCase):
+    def test_tournament_details_url_uses_canonical_host_and_explicit_flag(self) -> None:
+        self.assertEqual(
+            sce.page_url("1469426", sce.TOURNAMENT_DETAILS_ART, None),
+            "https://chess-results.com/tnr1469426.aspx?lan=1&art=0&turdet=YES",
+        )
+        self.assertNotIn("SNode", sce.page_url("1469426", sce.TOURNAMENT_DETAILS_ART, None))
+
     def test_unique_fide_event_id_is_extracted_from_official_link(self) -> None:
         page = sce.parse_html(
             '<a href="https://ratings.fide.com/tournament_information.phtml?event=490467">490467</a>',
@@ -353,6 +360,8 @@ class FakeFetcher:
         if key in self.failures:
             raise self.failures[key]
         url = sce.page_url(tid, art, rd)
+        if art == sce.TOURNAMENT_DETAILS_ART:
+            return fixture("tournament_details.html"), url
         if art == 0:
             if tid == "999404":
                 return fixture("empty_event.html"), url
@@ -414,6 +423,12 @@ class BatchIsolationTests(unittest.TestCase):
             self.assertEqual(result["targets"]["999404"]["errorCode"], "EVENT_EMPTY")
             self.assertEqual(result["summary"], {"complete": 2, "quarantined": 1})
             self.assertEqual(result["requested"], ["999001", "999404", "999002"])
+            detail_path = (
+                temp / "run1" / "extracted" / "chess-results-event-details" / "tnr999001.json"
+            )
+            detail = json.loads(detail_path.read_text())
+            self.assertEqual(detail["fideEventID"], "490467")
+            self.assertEqual(fetcher.calls[("999001", sce.TOURNAMENT_DETAILS_ART, None)], 1)
 
     def test_post_step_failure_keeps_completed_capture_and_returns_partial(self) -> None:
         with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
@@ -454,6 +469,22 @@ class BatchIsolationTests(unittest.TestCase):
             self.assertEqual(result["postSteps"][0]["step"], "event-pgn")
             self.assertEqual(result["postSteps"][0]["code"], "POST_STEP_FAILED")
 
+    def test_tournament_details_network_failure_never_becomes_missing_event_id(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
+            temp = pathlib.Path(name)
+            fetcher = FakeFetcher()
+            fetcher.failures[("999008", sce.TOURNAMENT_DETAILS_ART, None)] = SourceHTTPError(
+                "SOURCE_NETWORK_FAILURE", "details unavailable"
+            )
+            code = self.run_main(temp, fetcher, ["999008"], "run1")
+            self.assertEqual(code, 1)
+            event = self.load_state(temp)["999008"]
+            self.assertEqual(event["status"], "retry-wait")
+            self.assertEqual(event["errorCode"], "SOURCE_NETWORK_FAILURE")
+            self.assertFalse(
+                (temp / "run1" / "extracted" / "chess-results-event-details" / "tnr999008.json").exists()
+            )
+
     def test_pages_persist_before_parse_and_resume_fetches_only_missing(self) -> None:
         with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
             temp = pathlib.Path(name)
@@ -462,7 +493,7 @@ class BatchIsolationTests(unittest.TestCase):
             code = self.run_main(temp, fetcher, ["999003"], "run1")
             self.assertEqual(code, 1)
             raw = temp / "run1" / "raw" / "chess-results" / "tnr999003"
-            for kind in ("starting-rank", "standings", "round-1"):
+            for kind in ("starting-rank", "standings", "tournament-details", "round-1"):
                 self.assertTrue((raw / f"{kind}.html.gz").is_file(), kind)
             events = self.load_state(temp)
             self.assertEqual(events["999003"]["status"], "retry-wait")
@@ -477,6 +508,7 @@ class BatchIsolationTests(unittest.TestCase):
             self.assertEqual(events["999003"]["status"], "complete")
             self.assertEqual(fetcher.calls[("999003", 0, None)], 1)
             self.assertEqual(fetcher.calls[("999003", 1, None)], 1)
+            self.assertEqual(fetcher.calls[("999003", sce.TOURNAMENT_DETAILS_ART, None)], 1)
             self.assertEqual(fetcher.calls[("999003", 2, 1)], 1)
             self.assertEqual(fetcher.calls[("999003", 2, 2)], 2)
 

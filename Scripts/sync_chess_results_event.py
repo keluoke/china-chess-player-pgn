@@ -47,13 +47,15 @@ EVENT_QUEUE = ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json
 CAPTURE_STATE = local_state_root() / "chess-results" / "capture-state.json"
 USER_AGENT = "ChinaChessPlayerPGN/EventDetailSync"
 
-# v5: v4 plus unique roster-name recovery for pairing pages that omit serial
-# numbers.  Any non-bye side that still lacks a roster reference is rejected
-# instead of being silently reclassified as a bye by downstream completeness.
+# v7: every event captures the independent ``turdet=YES`` tournament-details
+# page from the canonical host before deciding whether a FIDE Event ID exists.
+# Normal starting/standings pages can vary by Chess-Results serving node and
+# are therefore never used as the Event ID authority.
 # Bumping the version releases affected targets for one evidence-backed retry;
 # cached starting-rank pages are replayed locally before any missing page is
 # requested.
-PARSER_VERSION = "chess-results-v6"
+PARSER_VERSION = "chess-results-v7"
+TOURNAMENT_DETAILS_ART = -1
 QUARANTINE_DAYS = 7
 STRUCTURE_QUARANTINE_THRESHOLD = 2
 
@@ -230,6 +232,9 @@ def extract_event_dates(*parsers: TableParser) -> tuple[str, str]:
 
 
 def page_url(tournament_id: str, art: int, round_no: int | None) -> str:
+    if art == TOURNAMENT_DETAILS_ART:
+        params = {"lan": "1", "art": "0", "turdet": "YES"}
+        return f"https://chess-results.com/tnr{tournament_id}.aspx?{urllib.parse.urlencode(params)}"
     # zeilen=99999 disables Swiss-Manager pagination: without it, player lists
     # and standings of large events silently truncate at ~150 rows while round
     # pages still show every board (the tnr1213322 lesson). The alias collector
@@ -898,7 +903,7 @@ class EventCollector:
 
     def collect(self) -> dict[str, Any]:
         fetched_at = now_iso()
-        self.pages_expected = 2
+        self.pages_expected = 3
         self.report("probing")
 
         # 1. players / format probe: art=0 individual, art=15/16 team lists.
@@ -955,16 +960,27 @@ class EventCollector:
                 f"tnr{self.tid} 排名行异常：players={len(players)} standings={len(standings)}",
                 failed_page="standings",
             )
-        self.pages_parsed += 2
+        # 3. Independent tournament details.  This canonical-host request is
+        # mandatory even when another page happens to expose a FIDE link: the
+        # normal pages vary by serving node, while ``turdet=YES`` is the stable
+        # metadata contract.  PageStore persists it before parsing and a
+        # network failure remains retryable rather than becoming a false
+        # "no FIDE Event ID" verdict.
+        tournament_details_page, _tournament_details_url, _ = self.page(
+            "tournament-details", TOURNAMENT_DETAILS_ART
+        )
+        self.pages_parsed += 3
         self.title = (
             standings_page.h2s[0] if standings_page.h2s
             else players_page.h2s[0] if players_page.h2s
             else f"tnr{self.tid}"
         )
-        date_begin, date_end = extract_event_dates(players_page, standings_page)
-        fide_event_id = extract_fide_event_id(players_page, standings_page)
+        date_begin, date_end = extract_event_dates(
+            tournament_details_page, players_page, standings_page
+        )
+        fide_event_id = extract_fide_event_id(tournament_details_page)
 
-        # 3. rounds: heading + page links + queue metadata cross-validation.
+        # 4. rounds: heading + page links + queue metadata cross-validation.
         rounds, round_candidates = discover_rounds(
             [standings_page, players_page], self.queue_rounds, self.options.max_rounds
         )
@@ -979,7 +995,7 @@ class EventCollector:
         if not rounds:
             status, error_code = "partial", "ROUND_COUNT_UNKNOWN"
         else:
-            self.pages_expected = 2 + rounds
+            self.pages_expected = 3 + rounds
             self.report("rounds", rounds=rounds)
             all_rounds_page: TableParser | None = None
             all_rounds_url = ""
@@ -995,7 +1011,7 @@ class EventCollector:
                     embedded = embedded_round_tables(round_page)
                     if all(number in embedded for number in range(1, rounds + 1)):
                         all_rounds_page, all_rounds_url = round_page, round_url
-                        self.pages_expected = 3
+                        self.pages_expected = 4
                         self.report("rounds", rounds=rounds, legacyCombinedRounds=True)
                 else:
                     round_page, round_url = all_rounds_page, all_rounds_url
