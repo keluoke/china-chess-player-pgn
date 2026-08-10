@@ -272,8 +272,9 @@ def main() -> int:
             candidate_oid = git_blob_oid_for_bytes(content)
 
         current_oid = current_tree.get(path)
+        safe_receipt_rebase = False
+        current_content: bytes | None = None
         if release_conflicts(item.get("baseBlobOid"), current_oid, candidate_oid):
-            safe_receipt_rebase = False
             if (
                 path in MONOTONIC_RECEIPT_PATHS
                 and item["operation"] == "upsert"
@@ -290,6 +291,8 @@ def main() -> int:
             item["deliveryBaseSha256"] = item.get("baseSha256")
         elif current_oid == candidate_oid and item["operation"] == "upsert":
             item["deliveryBaseSha256"] = item.get("sha256")
+        elif safe_receipt_rebase and current_content is not None:
+            item["deliveryBaseSha256"] = hashlib.sha256(current_content).hexdigest()
         else:
             item["deliveryBaseSha256"] = None
         prepared.append((item, content, candidate_oid))
