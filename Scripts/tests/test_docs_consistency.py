@@ -47,6 +47,11 @@ def operational_docs() -> list[pathlib.Path]:
 
 
 class RefreshCommandContractTests(unittest.TestCase):
+    def test_event_archive_upload_detects_new_gitignored_pgn(self) -> None:
+        refresh = (REPO / "Scripts" / "local" / "refresh.sh").read_text(encoding="utf-8")
+        self.assertIn("worktree-baseline.json", refresh)
+        self.assertIn("-newer \"$archive_baseline\"", refresh)
+
     def test_every_documented_refresh_command_is_in_the_safe_whitelist(self) -> None:
         violations = []
         for path in operational_docs():

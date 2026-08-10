@@ -666,8 +666,16 @@ run_private_events() {
   else
     ERROR_MESSAGE="赛事采集未形成可完成目标；逐场真实原因见本批结果、capture-state 与本次日志。"
   fi
+  # New archive files may be ignored by Git until the manifest stages them,
+  # so git status alone is not a reliable upload trigger. The immutable
+  # preflight baseline predates every file written by this run.
+  local archive_baseline="$RUN_DIR/worktree-baseline.json"
+  local recent_archive=""
+  if [ -f "$archive_baseline" ]; then
+    recent_archive="$(find data/generated/chess-results-event-pgn -type f -name '*.pgn' -newer "$archive_baseline" -print -quit 2>/dev/null)"
+  fi
   if { [ "$rc" -eq 0 ] || [ "$rc" -eq 4 ]; } && \
-      [ -n "$(git status --porcelain -- data/generated/chess-results-event-pgn)" ]; then
+      { [ -n "$(git status --porcelain -- data/generated/chess-results-event-pgn)" ] || [ -n "$recent_archive" ]; }; then
     upload_event_archives_to_r2 || return $?
   fi
   return "$rc"
