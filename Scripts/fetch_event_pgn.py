@@ -57,7 +57,10 @@ EVENT_PGN_ARCHIVE = REPO_ROOT / "data" / "generated" / "chess-results-event-pgn"
 EVENT_DETAILS = REPO_ROOT / "data" / "generated" / "chess-results-event-details"
 COLLECTION_STATUS = REPO_ROOT / "data" / "generated" / "pgn-collection-status.json"
 FIDE_EVENT_INFO_URL = "https://ratings.fide.com/tournament_information.phtml?event={event_id}"
-FIDE_PGN_HREF_RE = re.compile(r'href\s*=\s*["\']([^"\']*pgn[^"\']*)["\']', re.I)
+FIDE_HREF_RE = re.compile(
+    r'href\s*=\s*(?:"([^"]+)"|\'([^\']+)\'|([^\s>]+))',
+    re.IGNORECASE,
+)
 USER_AGENT = "ChinaChessPlayerPGN/FIDEEventPGN-1.0"
 
 
@@ -281,7 +284,10 @@ def _save_private_fide_page(private_root: pathlib.Path | None, event_id: str, bo
 def fide_pgn_links(info_html: str, base_url: str) -> list[str]:
     """Extract only official FIDE PGN links from a tournament page."""
     links: list[str] = []
-    for raw_href in FIDE_PGN_HREF_RE.findall(info_html):
+    for href_groups in FIDE_HREF_RE.findall(info_html):
+        raw_href = next((value for value in href_groups if value), "")
+        if "pgn" not in raw_href.casefold():
+            continue
         candidate = urllib.parse.urljoin(base_url, html.unescape(raw_href))
         parsed = urllib.parse.urlparse(candidate)
         host = (parsed.hostname or "").lower()

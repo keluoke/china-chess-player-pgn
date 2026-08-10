@@ -467,10 +467,14 @@ class EventPgnSelectionTests(unittest.TestCase):
     def test_fide_pgn_links_reject_non_official_hosts(self) -> None:
         links = fetch_event_pgn.fide_pgn_links(
             '<a href="/download/event.pgn">official</a>'
+            '<a href=view_pgn.php?code=abc&download=1>official unquoted</a>'
             '<a href="https://evil.example/event.pgn">wrong</a>',
             "https://ratings.fide.com/tournament_information.phtml?event=490467",
         )
-        self.assertEqual(links, ["https://ratings.fide.com/download/event.pgn"])
+        self.assertEqual(links, [
+            "https://ratings.fide.com/download/event.pgn",
+            "https://ratings.fide.com/view_pgn.php?code=abc&download=1",
+        ])
 
     def test_fide_supplement_requires_unique_pairing_and_adds_board(self) -> None:
         payload = {"rounds": [{"round": 1, "pairings": [{
