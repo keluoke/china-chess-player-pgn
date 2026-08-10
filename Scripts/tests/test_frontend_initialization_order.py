@@ -81,6 +81,10 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         self.assertNotIn("该赛事已有赛事记录，但棋手名单尚未同步", renderer)
         self.assertIn('["日期", eventDateLabel(event)]', renderer)
         self.assertIn("中国棋手（名单标 CHN）", renderer)
+        self.assertIn("eventPGNArchive(eventDetail)", renderer)
+        self.assertIn("打开整场 PGN（", renderer)
+        self.assertIn("eventArchive.gameCount", renderer)
+        self.assertIn("detail.completeness?.matchedPairings", renderer)
 
     def test_styles_follow_system_dark_mode(self) -> None:
         styles = (ROOT / "docs" / "styles.css").read_text(encoding="utf-8")
@@ -122,8 +126,8 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         expected_dimensions = {
             "chessdb-logo-light.png": (726, 157),
             "chessdb-logo-dark.png": (726, 157),
-            "4chess-favicon-black.png": (512, 512),
-            "4chess-favicon-white.png": (512, 512),
+            "chessdb-favicon-light.png": (512, 512),
+            "chessdb-favicon-dark.png": (512, 512),
         }
         for name, expected in expected_dimensions.items():
             payload = (ROOT / "docs" / "assets" / name).read_bytes()

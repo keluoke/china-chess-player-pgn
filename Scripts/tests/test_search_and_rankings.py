@@ -161,7 +161,7 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn('fetchJSON(snapshotVersionedPath(`./${event.detailPath}`), true)', app)
         self.assertIn('fetchJSON(snapshotVersionedPath("./data/index/public-events.json"), true)', app)
         self.assertIn('/data/index/event-details/*\n  Cache-Control: no-cache', headers)
-        self.assertIn('app.js?v=20260810-1', index)
+        self.assertIn('app.js?v=20260810-2', index)
 
     def test_r2_cors_policy_allows_production_read_origins_only(self) -> None:
         policy = (

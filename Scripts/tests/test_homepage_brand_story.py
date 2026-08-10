@@ -33,8 +33,8 @@ class HomepageBrandStoryTest(unittest.TestCase):
     def test_theme_appropriate_brand_assets_are_reused_by_all_public_pages(self) -> None:
         for name in ("index.html", "coverage.html", "leaderboards.html", "events.html", "contribute.html"):
             html = (ROOT / "docs" / name).read_text(encoding="utf-8")
-            self.assertIn('href="./assets/4chess-favicon-black.png"', html)
-            self.assertIn('href="./assets/4chess-favicon-white.png"', html)
+            self.assertIn('href="./assets/chessdb-favicon-light.png"', html)
+            self.assertIn('href="./assets/chessdb-favicon-dark.png"', html)
             self.assertIn('src="assets/chessdb-logo-light.png"', html)
             self.assertIn('src="assets/chessdb-logo-dark.png"', html)
             self.assertNotIn("brand.svg", html)

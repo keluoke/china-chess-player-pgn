@@ -969,6 +969,8 @@ function renderEvent() {
   const chineseRosterCount = detailRoster
     ? detailRoster.filter(player => String(player?.federation || "").toUpperCase() === "CHN").length
     : null;
+  const eventArchive = eventPGNArchive(eventDetail);
+  const archivedGameCount = eventArchive?.gameCount || Number(event.gameCount || 0);
   const coverageLabel = completenessLabel(event, eventDetail);
   const facts = [
     ["日期", eventDateLabel(event)],
@@ -981,7 +983,7 @@ function renderEvent() {
     ["已收录棋手", standingCount === null && event.playerCount ? `${event.playerCount} 名` : null],
     ["可跳转棋手", detailRoster ? `${eventPlayers.length} 名` : null],
     ["覆盖口径", coverageLabel],
-    ["已归档 PGN", event.gameCount ? `${compactNumber(event.gameCount)} 盘` : null],
+    ["已归档 PGN", archivedGameCount ? `${compactNumber(archivedGameCount)} 盘` : null],
     ["有棋谱棋手", event.pgnPlayerCount ? `${event.pgnPlayerCount} 名` : null]
     ,["署名", event.attribution]
     ,["许可", event.license]
@@ -997,6 +999,7 @@ function renderEvent() {
         <h1>${escapeHTML(event.displayName ?? event.name ?? "未命名赛事")}</h1>
       </div>
       <div class="detail-title-actions">
+        ${eventArchive ? `<button type="button" class="primary-button event-pgn-button" data-action="open-event-pgn" data-pgn-path="${escapeAttribute(eventArchive.pgnPath)}">打开整场 PGN（${compactNumber(eventArchive.gameCount)} 盘）</button>` : ""}
         <a class="action-link" href="#" data-action="back-to-dashboard">← 返回搜索</a>
       </div>
     </div>
@@ -1026,6 +1029,25 @@ function renderEvent() {
     wirePGNViewerActions(viewerPlayer);
     mountLichessViewer(viewerPlayer);
   }
+}
+
+function eventPGNArchive(detail) {
+  if (!detail || detail.error) return null;
+  for (const round of detail.rounds ?? []) {
+    for (const pairing of round.pairings ?? []) {
+      if (pairing?.localGame?.pgnPath) {
+        return {
+          pgnPath: pairing.localGame.pgnPath,
+          gameCount: Number(detail.completeness?.matchedPairings || 0)
+            || (detail.rounds ?? []).reduce(
+              (total, item) => total + (item.pairings ?? []).filter(row => row?.localGame?.pgnPath).length,
+              0
+            )
+        };
+      }
+    }
+  }
+  return null;
 }
 
 function eventViewerPlayer(event) {
