@@ -376,6 +376,12 @@ def _header_fide_id(headers: dict[str, str], side: str) -> str:
     return ""
 
 
+def _replace_pgn_header(game: str, tag: str, value: str) -> str:
+    pattern = re.compile(rf'^\[{re.escape(tag)}\s+".*"\]$', re.MULTILINE)
+    replacement = f'[{tag} "{value}"]'
+    return pattern.sub(replacement, game, count=1) if pattern.search(game) else replacement + "\n" + game
+
+
 def validate_fide_supplement(payload: dict[str, Any], pgn: str) -> tuple[str, dict[str, int]]:
     """Require every FIDE PGN game to match one unique captured pairing.
 
@@ -402,10 +408,35 @@ def validate_fide_supplement(payload: dict[str, Any], pgn: str) -> tuple[str, di
                 "fide": "|".join(sorted(filter(None, [clean(white.get("fideID")), clean(black.get("fideID"))]))),
                 "result": result,
             })
-    games = split_games(pgn)
+    # FIDE occasionally repeats an identical game block in an otherwise valid
+    # download. Exact byte-equivalent duplicates are transport noise; anything
+    # merely similar still reaches the natural-key duplicate gate below.
+    games = list(dict.fromkeys(game.strip() for game in split_games(pgn)))
     if not games:
         raise ValueError("FIDE_PGN_EMPTY: no games")
+    round_votes: dict[str, set[str]] = defaultdict(set)
+    for game in games:
+        headers = parse_headers(game)
+        rid = _round_id(headers.get("Round"))
+        fide_key = "|".join(sorted(filter(None, [_header_fide_id(headers, "White"), _header_fide_id(headers, "Black")])))
+        fide_key = fide_key if "|" in fide_key else ""
+        name_key = "|".join(sorted([normalize_name(headers.get("White")), normalize_name(headers.get("Black"))]))
+        identity_matches = [
+            row for row in candidates
+            if (fide_key and row["fide"] == fide_key) or row["names"] == name_key
+        ]
+        vote_matches = identity_matches
+        if len(vote_matches) > 1 and headers.get("Result"):
+            vote_matches = [row for row in vote_matches if row["result"] == _result_id(headers["Result"])]
+        if len(vote_matches) == 1:
+            round_votes[rid].add(vote_matches[0]["round"])
+    conflicting_round = next((rid for rid, values in round_votes.items() if len(values) > 1), "")
+    if conflicting_round:
+        raise ValueError(f"FIDE_PGN_ROUND_MAPPING_CONFLICT: official round {conflicting_round}")
+    inferred_rounds = {rid: next(iter(values)) for rid, values in round_votes.items() if len(values) == 1}
     used: set[tuple[str, str]] = set()
+    official_to_local_round: dict[str, str] = {}
+    local_to_official_round: dict[str, str] = {}
     normalized_games: list[str] = []
     for game in games:
         headers = parse_headers(game)
@@ -415,16 +446,45 @@ def validate_fide_supplement(payload: dict[str, Any], pgn: str) -> tuple[str, di
         fide_key = "|".join(sorted(filter(None, [_header_fide_id(headers, "White"), _header_fide_id(headers, "Black")])))
         fide_key = fide_key if "|" in fide_key else ""
         name_key = "|".join(sorted([normalize_name(headers.get("White")), normalize_name(headers.get("Black"))]))
-        matches = [row for row in candidates if row["round"] == rid and ((fide_key and row["fide"] == fide_key) or row["names"] == name_key)]
+        identity_matches = [
+            row for row in candidates
+            if (fide_key and row["fide"] == fide_key) or row["names"] == name_key
+        ]
+        # Some official FIDE files number rounds across consecutive event
+        # sections (for example blitz 1-9, rapid 10-20), whereas each
+        # Chess-Results group restarts at 1. Prefer a unique identity match
+        # across the whole event even when the two numeric ranges overlap;
+        # use round/result only to disambiguate repeated opponents.
+        matches = identity_matches
+        inferred_round = inferred_rounds.get(rid)
+        if inferred_round:
+            matches = [row for row in matches if row["round"] == inferred_round]
+        if len(matches) > 1:
+            same_round = [row for row in matches if row["round"] == rid]
+            if len(same_round) == 1:
+                matches = same_round
+        if len(matches) > 1 and headers.get("Result"):
+            result_matches = [row for row in matches if row["result"] == _result_id(headers["Result"])]
+            if len(result_matches) == 1:
+                matches = result_matches
         if len(matches) != 1:
             raise ValueError(f"FIDE_PGN_UNMATCHED: round {rid} has {len(matches)} pairing matches")
         match = matches[0]
-        natural_key = (rid, match["board"])
+        local_round = match["round"]
+        if official_to_local_round.get(rid, local_round) != local_round:
+            raise ValueError(f"FIDE_PGN_ROUND_MAPPING_CONFLICT: official round {rid}")
+        if local_to_official_round.get(local_round, rid) != rid:
+            raise ValueError(f"FIDE_PGN_ROUND_MAPPING_CONFLICT: local round {local_round}")
+        official_to_local_round[rid] = local_round
+        local_to_official_round[local_round] = rid
+        natural_key = (local_round, match["board"])
         if natural_key in used:
             raise ValueError(f"FIDE_PGN_DUPLICATE: round {rid} board {match['board']}")
         if headers.get("Result") and match["result"] and _result_id(headers["Result"]) != match["result"]:
             raise ValueError(f"FIDE_PGN_RESULT_MISMATCH: round {rid} board {match['board']}")
         used.add(natural_key)
+        if rid != local_round:
+            game = _replace_pgn_header(game, "Round", local_round)
         if match["board"] and not clean(headers.get("Board")):
             insertion = f'[Board "{match["board"]}"]\n'
             split_at = game.find("\n\n")

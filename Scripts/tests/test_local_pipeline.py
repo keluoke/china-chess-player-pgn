@@ -506,6 +506,37 @@ class EventPgnSelectionTests(unittest.TestCase):
         self.assertIn('[Board "7"]', normalized)
         self.assertEqual(coverage, {"matched": 1, "played": 1})
 
+    def test_fide_supplement_infers_unique_round_relabel_from_identity(self) -> None:
+        payload = {"rounds": [{"round": 1, "pairings": [{
+            "board": "7", "result": "1-0",
+            "white": {"playerNo": "1", "name": "Alpha", "fideID": "900001"},
+            "black": {"playerNo": "2", "name": "Beta", "fideID": "900002"},
+        }]}]}
+        pgn = '\n'.join([
+            '[Event "Official report"]', '[Round "10.1"]',
+            '[White "Alpha"]', '[Black "Beta"]',
+            '[WhiteFideId "900001"]', '[BlackFideId "900002"]', '[Result "1-0"]',
+            '', '1. e4 e5 1-0',
+        ])
+        normalized, coverage = fetch_event_pgn.validate_fide_supplement(payload, pgn)
+        self.assertIn('[Round "1"]', normalized)
+        self.assertIn('[Board "7"]', normalized)
+        self.assertEqual(coverage, {"matched": 1, "played": 1})
+
+    def test_fide_supplement_deduplicates_only_exact_game_blocks(self) -> None:
+        payload = {"rounds": [{"round": 1, "pairings": [{
+            "board": "1", "result": "1-0",
+            "white": {"playerNo": "1", "name": "Alpha"},
+            "black": {"playerNo": "2", "name": "Beta"},
+        }]}]}
+        game = '\n'.join([
+            '[Event "Official report"]', '[Round "1"]',
+            '[White "Alpha"]', '[Black "Beta"]', '[Result "1-0"]', '', '1. e4 e5 1-0',
+        ])
+        normalized, coverage = fetch_event_pgn.validate_fide_supplement(payload, game + '\n\n' + game)
+        self.assertEqual(fetch_event_pgn.count_pgn_games(normalized), 1)
+        self.assertEqual(coverage, {"matched": 1, "played": 1})
+
     def test_fide_supplement_rejects_result_mismatch(self) -> None:
         payload = {"rounds": [{"round": 1, "pairings": [{
             "board": "7", "result": "1 - 0",
