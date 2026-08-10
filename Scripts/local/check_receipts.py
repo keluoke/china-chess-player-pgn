@@ -139,10 +139,80 @@ def remote_file_bytes(repository: str, ref: str, path: str) -> bytes:
     return base64.b64decode(content)
 
 
+def verify_release_reachable_from_snapshot(
+    repository: str,
+    snapshot_body: bytes,
+    release_run_id: str,
+) -> dict[str, Any]:
+    """Prove that the snapshot input commit includes the release in its history.
+
+    The current local-release manifest is intentionally replaced by every new
+    ingest, so comparing only its latest bytes would make older releases
+    unverifiable. GitHub's path history, anchored at the immutable snapshot
+    input commit, lets us find the release's run-id even after later ingests.
+    """
+    try:
+        snapshot = json.loads(snapshot_body)
+        input_commit = str(snapshot.get("inputCommit") or "")
+    except (AttributeError, json.JSONDecodeError, UnicodeDecodeError):
+        input_commit = ""
+    if not re.fullmatch(r"[0-9a-f]{40,64}", input_commit):
+        return {
+            "ok": False,
+            "releaseRunId": release_run_id,
+            "error": "deployed snapshot does not record a valid input commit",
+        }
+    query = urllib.parse.urlencode({
+        "sha": input_commit,
+        "path": "data/generated/local-release-manifest.json",
+        "per_page": 100,
+    })
+    try:
+        commits = gh_api(f"repos/{repository}/commits?{query}")
+        for commit in commits if isinstance(commits, list) else []:
+            sha = str(commit.get("sha") or "")
+            message = str((commit.get("commit") or {}).get("message") or "")
+            if release_run_id in message:
+                return {
+                    "ok": True,
+                    "releaseRunId": release_run_id,
+                    "inputCommit": input_commit,
+                    "ingestCommit": sha,
+                }
+            try:
+                release_manifest = json.loads(remote_file_bytes(
+                    repository,
+                    sha,
+                    "data/generated/local-release-manifest.json",
+                ))
+            except (RuntimeError, AttributeError, json.JSONDecodeError, UnicodeDecodeError):
+                continue
+            if str(release_manifest.get("runId") or "") == release_run_id:
+                return {
+                    "ok": True,
+                    "releaseRunId": release_run_id,
+                    "inputCommit": input_commit,
+                    "ingestCommit": sha,
+                }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "releaseRunId": release_run_id,
+            "inputCommit": input_commit,
+            "error": str(exc)[:200],
+        }
+    return {
+        "ok": False,
+        "releaseRunId": release_run_id,
+        "inputCommit": input_commit,
+        "error": "release is not reachable from the deployed snapshot input commit",
+    }
+
+
 def verify_online_file(
     manifest: dict[str, Any],
     fallback: tuple[str, bytes] | None = None,
-    release_manifest_sha256: str | None = None,
+    release_input_proof: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Fetch one released docs/ file from the live site and compare hashes.
 
@@ -175,33 +245,16 @@ def verify_online_file(
             return {"ok": False, "url": url, "error": str(exc)[:200]}
         expected = hashlib.sha256(expected_body).hexdigest()
         actual = hashlib.sha256(body).hexdigest()
-        release_proof = None
-        if release_manifest_sha256:
-            try:
-                snapshot = json.loads(expected_body)
-                release_fact = next(
-                    (
-                        item for item in snapshot.get("inputs") or []
-                        if item.get("path") == "data/generated/local-release-manifest.json"
-                    ),
-                    {},
-                )
-                release_proof = release_fact.get("sha256") == release_manifest_sha256
-            except (AttributeError, json.JSONDecodeError, UnicodeDecodeError):
-                release_proof = False
+        release_proof_ok = release_input_proof is None or release_input_proof.get("ok") is True
         return {
-            "ok": actual == expected and release_proof is not False,
+            "ok": actual == expected and release_proof_ok,
             "url": url,
             "expected": expected,
             "actual": actual,
             "verification": "deployed-snapshot",
-            **({
-                "releaseManifestExpected": release_manifest_sha256,
-                "releaseManifestMatched": release_proof,
-            } if release_manifest_sha256 else {}),
-            **({
-                "error": "deployed snapshot was not built from this release manifest",
-            } if release_proof is False else {}),
+            **({"releaseInputProof": release_input_proof} if release_input_proof else {}),
+            **({"error": release_input_proof.get("error")}
+               if release_input_proof and not release_proof_ok else {}),
         }
     return {"ok": False, "error": "manifest 中没有可在线校验的 docs/ 文件"}
 
@@ -285,12 +338,17 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
                         snapshot_path,
                         remote_file_bytes(repository, str(deploy["head_sha"]), snapshot_path),
                     )
+                release_input_proof = None
+                if fallback:
+                    release_input_proof = verify_release_reachable_from_snapshot(
+                        repository,
+                        fallback[1],
+                        str(manifest.get("runId") or run_id),
+                    )
                 online = verify_online_file(
                     manifest,
                     fallback=fallback,
-                    release_manifest_sha256=hashlib.sha256(
-                        (entry / "manifest.json").read_bytes()
-                    ).hexdigest() if fallback else None,
+                    release_input_proof=release_input_proof,
                 )
                 receipts["online"] = {**online, "checkedAt": run_manager.now()}
                 if online.get("ok"):

@@ -98,7 +98,9 @@ jobs:
           while IFS= read -r path; do
             [ -n "$path" ] && paths+=("$path")
           done < "$RUNNER_TEMP/local-release-paths.txt"
-          bash Scripts/ci_commit_push.sh "Ingest validated local release" "${paths[@]}"
+          bash Scripts/ci_commit_push.sh \
+            "Ingest validated local release ${{ steps.apply.outputs.run_id }}" \
+            "${paths[@]}"
           echo "main_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Write ingest receipt

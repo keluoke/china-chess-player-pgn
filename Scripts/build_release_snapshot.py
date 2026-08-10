@@ -78,11 +78,18 @@ def input_facts() -> list[dict]:
     return [file_fact(path) for path in paths]
 
 
-def snapshot_document(snapshot_id: str, generated_at: str, facts: list[dict], steps: list[dict]) -> dict:
+def snapshot_document(
+    snapshot_id: str,
+    generated_at: str,
+    input_commit: str,
+    facts: list[dict],
+    steps: list[dict],
+) -> dict:
     return {
         "schemaVersion": 4,
         "snapshotId": snapshot_id,
         "generatedAt": generated_at,
+        "inputCommit": input_commit,
         "producerVersion": "build-release-snapshot-v4",
         "inputs": facts,
         "steps": steps,
@@ -151,6 +158,14 @@ def main() -> int:
     sid = snapshot_id()
     os.environ["SNAPSHOT_ID"] = sid
     print(f"snapshotId={sid}")
+    input_commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    print(f"inputCommit={input_commit}")
 
     py = sys.executable
     steps: list[dict] = []
@@ -219,9 +234,9 @@ def main() -> int:
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     previous_snapshot = SNAPSHOT_JSON.read_bytes() if SNAPSHOT_JSON.is_file() else None
     try:
-        write_snapshot(snapshot_document(sid, generated_at, facts, steps))
+        write_snapshot(snapshot_document(sid, generated_at, input_commit, facts, steps))
         steps.append(step([py, "Scripts/validate_snapshot_consistency.py"]))
-        write_snapshot(snapshot_document(sid, generated_at, facts, steps))
+        write_snapshot(snapshot_document(sid, generated_at, input_commit, facts, steps))
     except BaseException:
         atomic_snapshot_bytes(previous_snapshot)
         raise

@@ -1,6 +1,7 @@
 # Cloudflare Pages cache rules (U2): keep repeat visits / full-page
-# navigations cheap. Data files change only on rebuild; SWR lets the browser
-# reuse the cached copy instantly while revalidating in the background.
+# navigations cheap. Snapshot-versioned event URLs are immutable in practice;
+# their unversioned aliases must revalidate so a previous HTML fallback cannot
+# shadow a newly deployed JSON file for a full stale-while-revalidate window.
 
 /data/search-bootstrap.json
   Cache-Control: public, max-age=300, stale-while-revalidate=86400
@@ -16,6 +17,12 @@
 
 /data/*
   Cache-Control: public, max-age=600, stale-while-revalidate=86400
+
+/data/index/public-events.json
+  Cache-Control: no-cache
+
+/data/index/event-details/*
+  Cache-Control: no-cache
 
 /api/*
   Cache-Control: public, max-age=600, stale-while-revalidate=86400

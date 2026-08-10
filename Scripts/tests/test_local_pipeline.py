@@ -1736,44 +1736,67 @@ class ReceiptAdvanceTests(unittest.TestCase):
     def test_non_public_release_verifies_the_deployed_snapshot(self) -> None:
         import check_receipts
 
-        manifest_sha = "a" * 64
         snapshot = json.dumps({
             "snapshotId": "snap-verified",
-            "inputs": [{
-                "path": "data/generated/local-release-manifest.json",
-                "sha256": manifest_sha,
-            }],
+            "inputCommit": "a" * 40,
         }).encode()
+        proof = {"ok": True, "releaseRunId": "run-verified", "inputCommit": "a" * 40}
         with mock.patch.object(check_receipts, "fetch_online_bytes", return_value=snapshot):
             result = check_receipts.verify_online_file(
                 {"files": [{"path": "data/generated/event.json", "operation": "upsert"}]},
                 fallback=("docs/data/snapshot.json", snapshot),
-                release_manifest_sha256=manifest_sha,
+                release_input_proof=proof,
             )
         self.assertTrue(result["ok"])
         self.assertEqual(result["verification"], "deployed-snapshot")
-        self.assertTrue(result["releaseManifestMatched"])
+        self.assertTrue(result["releaseInputProof"]["ok"])
         self.assertTrue(result["url"].endswith("/data/snapshot.json"))
 
-    def test_non_public_release_rejects_snapshot_built_from_older_manifest(self) -> None:
+    def test_non_public_release_rejects_unreachable_snapshot_input(self) -> None:
         import check_receipts
 
         snapshot = json.dumps({
             "snapshotId": "stale-snapshot",
-            "inputs": [{
-                "path": "data/generated/local-release-manifest.json",
-                "sha256": "a" * 64,
-            }],
+            "inputCommit": "a" * 40,
         }).encode()
+        proof = {"ok": False, "error": "release is not reachable from snapshot input"}
         with mock.patch.object(check_receipts, "fetch_online_bytes", return_value=snapshot):
             result = check_receipts.verify_online_file(
                 {"files": [{"path": "data/generated/event.json", "operation": "upsert"}]},
                 fallback=("docs/data/snapshot.json", snapshot),
-                release_manifest_sha256="b" * 64,
+                release_input_proof=proof,
             )
         self.assertFalse(result["ok"])
-        self.assertFalse(result["releaseManifestMatched"])
-        self.assertIn("not built from this release", result["error"])
+        self.assertFalse(result["releaseInputProof"]["ok"])
+        self.assertIn("not reachable", result["error"])
+
+    def test_release_reachability_is_anchored_at_snapshot_input_commit(self) -> None:
+        import check_receipts
+
+        input_commit = "a" * 40
+        ingest_commit = "b" * 40
+        snapshot = json.dumps({"inputCommit": input_commit}).encode()
+        commits = [{"sha": ingest_commit, "commit": {"message": "Ingest validated local release"}}]
+        release_manifest = json.dumps({"runId": "run-123"}).encode()
+        with (
+            mock.patch.object(check_receipts, "gh_api", return_value=commits) as api,
+            mock.patch.object(check_receipts, "remote_file_bytes", return_value=release_manifest),
+        ):
+            result = check_receipts.verify_release_reachable_from_snapshot(
+                "owner/repo", snapshot, "run-123"
+            )
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["ingestCommit"], ingest_commit)
+        self.assertIn(f"sha={input_commit}", api.call_args.args[0])
+
+    def test_release_reachability_rejects_missing_input_commit(self) -> None:
+        import check_receipts
+
+        result = check_receipts.verify_release_reachable_from_snapshot(
+            "owner/repo", b'{"snapshotId":"old"}', "run-123"
+        )
+        self.assertFalse(result["ok"])
+        self.assertIn("input commit", result["error"])
 
     def test_remote_file_bytes_decodes_github_content(self) -> None:
         import check_receipts

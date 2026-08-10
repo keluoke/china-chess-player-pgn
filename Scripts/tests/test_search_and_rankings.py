@@ -155,8 +155,13 @@ class PublicNavigationTests(unittest.TestCase):
     def test_snapshot_json_is_revalidated_after_deploy(self) -> None:
         app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
         index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
+        headers = (ROOT / "docs" / "_headers").read_text(encoding="utf-8")
         self.assertIn('fetch(path, { cache: "no-cache" })', app)
-        self.assertIn('app.js?v=20260801-2', index)
+        self.assertIn('function snapshotVersionedPath(path)', app)
+        self.assertIn('fetchJSON(snapshotVersionedPath(`./${event.detailPath}`), true)', app)
+        self.assertIn('fetchJSON(snapshotVersionedPath("./data/index/public-events.json"), true)', app)
+        self.assertIn('/data/index/event-details/*\n  Cache-Control: no-cache', headers)
+        self.assertIn('app.js?v=20260810-1', index)
 
     def test_r2_cors_policy_allows_production_read_origins_only(self) -> None:
         policy = (

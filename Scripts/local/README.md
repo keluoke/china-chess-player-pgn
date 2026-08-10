@@ -216,8 +216,9 @@ FIDE/Lichess/Chess-Results 发布前必须满足：
    `target_sha` 传给 rebuild；rebuild 精确检出并核对该提交。构建期间 main 若有
    更新，派生快照禁止 rebase 到新输入后继续发布，必须 fail-closed 并由新提交的
    rebuild 接管。`docs/data/snapshot.json` 同时记录本次
-   `data/generated/local-release-manifest.json` 的 SHA-256，回执只有确认线上快照由
-   该发布包构建时才能推进到 `online-verified`。
+   实际输入提交 `inputCommit`。回执沿该提交可达的 local-release-manifest 历史
+   核对发布 `runId`；即使后续发布替换当前 manifest，也只有确认该发布已进入
+   线上快照的输入历史时才能推进到 `online-verified`。
 
 发布准备使用与 preflight 相同的机器路径口径，包括 Git 忽略但实际存在的孤儿
 产物；发现时一律 fail-closed，并在 `diagnostics/recovery-candidates.json` 写出

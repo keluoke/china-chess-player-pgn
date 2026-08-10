@@ -1036,10 +1036,16 @@ function eventViewerPlayer(event) {
   };
 }
 
+function snapshotVersionedPath(path) {
+  if (!data?.snapshotId) return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}v=${encodeURIComponent(data.snapshotId)}`;
+}
+
 function requestEventDetail(event) {
   const tournamentID = String(event?.tournamentID ?? "");
   if (!tournamentID || !event.detailPath || eventDetailCache.has(tournamentID) || eventDetailRequests.has(tournamentID)) return;
-  const request = fetchJSON(`./${event.detailPath}`, true)
+  const request = fetchJSON(snapshotVersionedPath(`./${event.detailPath}`), true)
     .then(detail => {
       eventDetailCache.set(tournamentID, detail);
       if (sameEventID(state.selectedEventID, event)) renderEvent();
@@ -1055,7 +1061,7 @@ function requestEventDetail(event) {
 function requestDirectEvent(tournamentID) {
   if (!tournamentID || directEventRequests.has(tournamentID)) return;
   const detailPath = `data/index/event-details/tnr${tournamentID}.json`;
-  const request = fetchJSON(`./${detailPath}`, false)
+  const request = fetchJSON(snapshotVersionedPath(`./${detailPath}`), false)
     .then(detail => {
       if (!detail) {
         directEventCache.set(tournamentID, { missing: true });
@@ -1149,7 +1155,7 @@ function requestEventCatalog() {
   // read. The full events.json stays an internal evidence/audit artifact and
   // is fetched lazily only for deep links / per-sighting PGN checks.
   if (eventCatalogRequest) return eventCatalogRequest;
-  eventCatalogRequest = fetchJSON("./data/index/public-events.json", true)
+  eventCatalogRequest = fetchJSON(snapshotVersionedPath("./data/index/public-events.json"), true)
     .then(payload => {
       eventCatalog = Array.isArray(payload?.events) ? payload.events : [];
       renderEvent();
