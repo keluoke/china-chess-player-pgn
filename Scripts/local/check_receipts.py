@@ -213,16 +213,66 @@ def verify_online_file(
     manifest: dict[str, Any],
     fallback: tuple[str, bytes] | None = None,
     release_input_proof: dict[str, Any] | None = None,
+    bundle_root: pathlib.Path | None = None,
 ) -> dict[str, Any]:
-    """Fetch one released docs/ file from the live site and compare hashes.
+    """Fetch one released public file from its serving tier and compare hashes.
 
-    Cloudflare serves docs/ as the site root, so ``docs/data/x.json`` is
-    reachable at ``<site>/data/x.json``. A hash match proves the deployed
-    site actually carries this release's bytes.
+    Event archives are deliberately excluded from Pages and served from R2;
+    their bundle receipt is therefore authoritative for the public URL.
+    Other ``docs/`` files are served from the Pages site root.
     """
+    event_items = []
     for item in manifest.get("files") or []:
         path = str(item.get("path") or "")
-        if item.get("operation") != "upsert" or not path.startswith("docs/"):
+        if item.get("operation") == "upsert" and re.fullmatch(
+            r"data/generated/chess-results-event-pgn/tnr\d+\.pgn", path
+        ):
+            event_items.append(item)
+    if event_items and bundle_root is not None:
+        receipt_path = (
+            bundle_root / "files" / "data" / "generated" /
+            "r2-object-receipts" / "events--chess-results.json"
+        )
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return {"ok": False, "error": f"R2 event receipt unavailable: {exc}"}
+        objects = {
+            str(row.get("key") or ""): row
+            for row in receipt.get("objects") or []
+            if isinstance(row, dict)
+        }
+        item = event_items[0]
+        name = pathlib.PurePosixPath(str(item["path"])).name
+        key = f"events/chess-results/{name}"
+        remote = objects.get(key)
+        expected = str(item.get("sha256") or "")
+        if not remote or remote.get("sha256") != expected or not remote.get("publicURL"):
+            return {
+                "ok": False,
+                "error": f"R2 event receipt does not certify {key}",
+                "expected": expected,
+            }
+        url = str(remote["publicURL"])
+        try:
+            body = fetch_online_bytes(url)
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "url": url, "error": str(exc)[:200]}
+        actual = hashlib.sha256(body).hexdigest()
+        return {
+            "ok": actual == expected,
+            "url": url,
+            "expected": expected,
+            "actual": actual,
+            "verification": "r2-event-object",
+        }
+    for item in manifest.get("files") or []:
+        path = str(item.get("path") or "")
+        if (
+            item.get("operation") != "upsert"
+            or not path.startswith("docs/")
+            or path.startswith("docs/data/pgn/")
+        ):
             continue
         url = f"{SITE_URL}/{path[len('docs/'):]}"
         try:
@@ -328,7 +378,9 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
                     "headSHA": deploy.get("head_sha"),
                 }
                 has_public_file = any(
-                    item.get("operation") == "upsert" and str(item.get("path") or "").startswith("docs/")
+                    item.get("operation") == "upsert"
+                    and str(item.get("path") or "").startswith("docs/")
+                    and not str(item.get("path") or "").startswith("docs/data/pgn/")
                     for item in manifest.get("files") or []
                 )
                 fallback = None
@@ -349,6 +401,7 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
                     manifest,
                     fallback=fallback,
                     release_input_proof=release_input_proof,
+                    bundle_root=entry,
                 )
                 receipts["online"] = {**online, "checkedAt": run_manager.now()}
                 if online.get("ok"):

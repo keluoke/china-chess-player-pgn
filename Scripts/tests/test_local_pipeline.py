@@ -1828,6 +1828,52 @@ class ReceiptAdvanceTests(unittest.TestCase):
         self.assertTrue(result["releaseInputProof"]["ok"])
         self.assertTrue(result["url"].endswith("/data/snapshot.json"))
 
+    def test_event_pgn_release_verifies_the_r2_receipt_object(self) -> None:
+        import check_receipts
+
+        body = b'[Event "FIDE Event Report"]\n\n1. e4 e5 *\n'
+        digest = hashlib.sha256(body).hexdigest()
+        manifest = {"files": [{
+            "path": "data/generated/chess-results-event-pgn/tnr1469438.pgn",
+            "operation": "upsert",
+            "sha256": digest,
+        }]}
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle_root = pathlib.Path(tmp)
+            receipt_path = (
+                bundle_root / "files" / "data" / "generated" /
+                "r2-object-receipts" / "events--chess-results.json"
+            )
+            receipt_path.parent.mkdir(parents=True)
+            receipt_path.write_text(json.dumps({"objects": [{
+                "key": "events/chess-results/tnr1469438.pgn",
+                "sha256": digest,
+                "publicURL": "https://data.example/events/chess-results/tnr1469438.pgn",
+            }]}), encoding="utf-8")
+            with mock.patch.object(check_receipts, "fetch_online_bytes", return_value=body):
+                result = check_receipts.verify_online_file(
+                    manifest, bundle_root=bundle_root
+                )
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["verification"], "r2-event-object")
+        self.assertEqual(result["actual"], digest)
+
+    def test_pages_trimmed_pgn_uses_snapshot_fallback(self) -> None:
+        import check_receipts
+
+        snapshot = b'{"snapshotId":"snap-pgn-trimmed"}\n'
+        with mock.patch.object(check_receipts, "fetch_online_bytes", return_value=snapshot):
+            result = check_receipts.verify_online_file(
+                {"files": [{
+                    "path": "docs/data/pgn/chess-results/fide-1-2.pgn",
+                    "operation": "upsert",
+                    "sha256": "0" * 64,
+                }]},
+                fallback=("docs/data/snapshot.json", snapshot),
+            )
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["verification"], "deployed-snapshot")
+
     def test_non_public_release_rejects_unreachable_snapshot_input(self) -> None:
         import check_receipts
 

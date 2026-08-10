@@ -585,9 +585,35 @@ run_registry() {
 
 R2_PGN_RECEIPT="data/generated/r2-object-receipts/events--chess-results.json"
 
+upload_event_archives_to_r2() {
+  ensure_pymod boto3
+  local source_root="${R2_EVENT_PGN_SOURCE_ROOT:-$REPO_ROOT/data/generated/chess-results-event-pgn}"
+  local secrets_file="${R2_SECRETS_FILE:-$REPO_ROOT/.secrets.local}"
+  [ -d "$source_root" ] || fail "R2_EVENT_SOURCE_MISSING" "R2 赛事 PGN 源目录不存在：$source_root"
+  [ -f "$secrets_file" ] || fail "R2_SECRETS_MISSING" "R2 凭据文件不存在：$secrets_file"
+  state "uploading-r2-events" "上传赛事 PGN 归档并逐对象回读 SHA-256"
+  py Scripts/local/upload_bulk_to_r2.py \
+    --prefix events/chess-results \
+    --source-root "$source_root" \
+    --secrets "$secrets_file" \
+    --receipt-path "$REPO_ROOT/$R2_PGN_RECEIPT" \
+    --receipt-field objects \
+    --workers "${R2_UPLOAD_WORKERS:-24}" || return $?
+  state "verifying-r2-events" "全量 HEAD 校验赛事 PGN 对象元数据与本地 SHA-256"
+  py Scripts/local/upload_bulk_to_r2.py \
+    --prefix events/chess-results \
+    --source-root "$source_root" \
+    --secrets "$secrets_file" \
+    --receipt-path "$REPO_ROOT/$R2_PGN_RECEIPT" \
+    --receipt-field objects \
+    --workers "${R2_UPLOAD_WORKERS:-24}" \
+    --verify || return $?
+}
+
 run_r2_migration() {
   [ "${#EXTRA[@]}" -eq 0 ] || fail "UNSAFE_ARGUMENT_BLOCKED" "storage-migrate 不接受额外参数。"
   preflight_release "$R2_PGN_RECEIPT" || return $?
+  upload_event_archives_to_r2 || return $?
   ensure_pymod boto3
   local source_root="${R2_PGN_SOURCE_ROOT:-$REPO_ROOT/docs/data/pgn}"
   local secrets_file="${R2_SECRETS_FILE:-$REPO_ROOT/.secrets.local}"
@@ -639,6 +665,10 @@ run_private_events() {
     PUSH_SUMMARY="赛事采集部分完成；失败目标已隔离记录，成功赛事已清洗并进入发布路径"
   else
     ERROR_MESSAGE="赛事采集未形成可完成目标；逐场真实原因见本批结果、capture-state 与本次日志。"
+  fi
+  if { [ "$rc" -eq 0 ] || [ "$rc" -eq 4 ]; } && \
+      [ -n "$(git status --porcelain -- data/generated/chess-results-event-pgn)" ]; then
+    upload_event_archives_to_r2 || return $?
   fi
   return "$rc"
 }

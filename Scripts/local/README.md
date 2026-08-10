@@ -87,8 +87,8 @@ bash Scripts/local/refresh.sh discover-events
 bash Scripts/local/refresh.sh discover-events -- 8600000 8600001
 
 # Chess-Results：全量抓取（raw 只写仓库外私有区）→ 本地清洗 → 与已发布副本
-# 比对合并（一致跳过，冲突以本地清洗数据为准）→ manifest 发布；逐页原子落盘，
-# 坏目标隔离绕行
+# 比对合并（一致跳过，冲突以本地清洗数据为准）→ 赛事 PGN 先上传 R2 并回读
+# SHA-256 → manifest 发布；R2 失败则整批 fail-closed，逐页原子落盘，坏目标隔离绕行
 bash Scripts/local/refresh.sh event-queue
 bash Scripts/local/refresh.sh event-queue -- --from-queue 10
 bash Scripts/local/refresh.sh event-queue -- 1110333
@@ -111,10 +111,13 @@ bash Scripts/local/refresh.sh deliver
 # 同步云端回执：查询 ingest/rebuild/deploy workflow 结论并校验线上文件哈希
 bash Scripts/local/refresh.sh receipts
 
+# storage-migrate 同时处理 data/generated/chess-results-event-pgn 与
+# docs/data/pgn，并在共享回执中分别记录 objects / playerObjects。
 # 将当前静态 PGN 树递归上传到 R2，逐对象校验 SHA-256，并只通过
 # local-data 发布合并回执；不访问任何赛事来源。默认源为 docs/data/pgn，
 # 可由维护者设置 R2_PGN_SOURCE_ROOT 指向同一 main 快照的干净代码工作区。
 bash Scripts/local/refresh.sh storage-migrate
+# 赛事归档源可用 R2_EVENT_PGN_SOURCE_ROOT 覆盖；棋手 PGN 树仍用 R2_PGN_SOURCE_ROOT。
 
 # 首次浏览器切流前用已登录的 Wrangler 配置桶级 CORS；策略文件可评审，
 # S3 对象写入密钥不需要也不应承担桶配置权限。
