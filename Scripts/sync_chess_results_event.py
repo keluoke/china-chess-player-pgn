@@ -47,14 +47,13 @@ EVENT_QUEUE = ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json
 CAPTURE_STATE = local_state_root() / "chess-results" / "capture-state.json"
 USER_AGENT = "ChinaChessPlayerPGN/EventDetailSync"
 
-# v7: every event captures the independent ``turdet=YES`` tournament-details
-# page from the canonical host before deciding whether a FIDE Event ID exists.
-# Normal starting/standings pages can vary by Chess-Results serving node and
-# are therefore never used as the Event ID authority.
+# v8: v7 plus canonical handling for Swiss-Manager's ``-1 / bye`` pairing
+# rows. Explicit non-player opponents never become roster references, so a
+# valid bye cannot quarantine an otherwise complete event.
 # Bumping the version releases affected targets for one evidence-backed retry;
 # cached starting-rank pages are replayed locally before any missing page is
 # requested.
-PARSER_VERSION = "chess-results-v7"
+PARSER_VERSION = "chess-results-v8"
 TOURNAMENT_DETAILS_ART = -1
 QUARANTINE_DAYS = 7
 STRUCTURE_QUARANTINE_THRESHOLD = 2
@@ -508,6 +507,8 @@ def roster_number_for_name(name: str, players: dict[str, dict[str, str]]) -> str
 
 
 def pairing_side(number: str, name: str, chinese_name: str, players: dict[str, dict[str, str]]) -> dict[str, str]:
+    if normalized_pairing_name(name) in NON_PLAYER_PAIRING_NAMES:
+        number = ""
     number = number or roster_number_for_name(name, players)
     known = players.get(number, {})
     return {

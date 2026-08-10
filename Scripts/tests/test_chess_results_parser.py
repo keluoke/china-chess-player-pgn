@@ -83,6 +83,11 @@ class ParserMatrixTests(unittest.TestCase):
         )
         self.assertEqual(sce.extract_fide_event_id(page), "")
 
+    def test_negative_player_number_on_explicit_bye_is_not_a_roster_reference(self) -> None:
+        side = sce.pairing_side("-1", "bye", "", {"1": {"name": "Player One"}})
+        self.assertNotIn("playerNo", side)
+        self.assertEqual(side["name"], "bye")
+
     def test_explicit_event_date_range_is_parsed_without_using_last_update(self) -> None:
         page = sce.parse_html(
             """
