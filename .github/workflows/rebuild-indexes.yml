@@ -24,6 +24,11 @@ on:
       - ".github/actions/rebuild-indexes/**"
       - ".github/workflows/rebuild-indexes.yml"
   workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Exact main commit whose inputs must be rebuilt.
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -40,6 +45,22 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          # workflow_dispatch can resolve `ref: main` to a briefly stale SHA.
+          # The ingest job therefore passes the exact commit it just pushed.
+          ref: ${{ inputs.target_sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Verify checked-out rebuild base
+        env:
+          EXPECTED_REBUILD_SHA: ${{ inputs.target_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_REBUILD_SHA" ]; then
+            echo "REBUILD_BASE_MISMATCH: expected $EXPECTED_REBUILD_SHA, checked out $actual" >&2
+            exit 1
+          fi
 
       - name: Set up Python
         uses: ./.github/actions/setup-python-deps
@@ -51,6 +72,10 @@ jobs:
 
       - name: Commit rebuilt indexes
         id: commit
+        env:
+          # A snapshot built from one main commit must never be rebased onto
+          # newer machine inputs. A newer ingest dispatches its own rebuild.
+          CI_COMMIT_REBASE_ON_CONFLICT: "false"
         run: bash Scripts/ci_commit_push.sh "Rebuild derived indexes" docs/data docs/api
 
       # Always dispatch the deploy: even if the rebuild itself produced no new

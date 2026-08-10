@@ -12,6 +12,10 @@ inputs:
     description: Git ref to run the workflow on.
     required: false
     default: main
+  workflow_inputs:
+    description: JSON object passed as workflow_dispatch inputs.
+    required: false
+    default: "{}"
   token:
     description: Token with actions:write scope (pass the workflow's github.token).
     required: true
@@ -23,14 +27,17 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
+        WORKFLOW_REF: ${{ inputs.ref }}
+        WORKFLOW_INPUTS: ${{ inputs.workflow_inputs }}
       run: |
         set -euo pipefail
+        payload="$(python3 -c 'import json,os; inputs=json.loads(os.environ["WORKFLOW_INPUTS"]); assert isinstance(inputs, dict); print(json.dumps({"ref":os.environ["WORKFLOW_REF"],"inputs":inputs},separators=(",",":")))')"
         for attempt in 1 2 3; do
           if curl -sf -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${{ inputs.workflow }}/dispatches" \
-            -d "{\"ref\":\"${{ inputs.ref }}\"}"; then
+            -d "$payload"; then
             exit 0
           fi
           echo "dispatch attempt $attempt failed; retrying in 20s" >&2

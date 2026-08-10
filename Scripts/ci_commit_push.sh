@@ -15,6 +15,11 @@ shift
 # PUSH_BRANCH overrides the target: workflows triggered by a push to another
 # branch (e.g. ingest-local-data fires on local-data) still commit to main.
 branch="${PUSH_BRANCH:-${GITHUB_REF_NAME:-main}}"
+rebase_on_conflict="${CI_COMMIT_REBASE_ON_CONFLICT:-true}"
+if [ "$rebase_on_conflict" != "true" ] && [ "$rebase_on_conflict" != "false" ]; then
+  echo "CI_COMMIT_REBASE_ON_CONFLICT must be true or false" >&2
+  exit 2
+fi
 
 # A delete may already have landed on main during an ingest retry. Keep exact
 # manifest scope, but omit pathspecs that are neither present nor tracked so
@@ -60,6 +65,10 @@ for attempt in 1 2 3; do
   if git push origin "HEAD:${branch}"; then
     pushed=true
     break
+  fi
+  if [ "$rebase_on_conflict" = "false" ]; then
+    echo "REMOTE_MOVED_DURING_BUILD: refusing to rebase a derived snapshot onto newer ${branch}" >&2
+    exit 4
   fi
   echo "Push failed on attempt ${attempt}; rebasing onto origin/${branch} before retry." >&2
   # -X theirs: these are bot data commits; on overlap (e.g. regenerated

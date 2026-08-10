@@ -100,7 +100,9 @@
    派生产物在同一 `SNAPSHOT_ID` 下重建并写入 `docs/data/snapshot.json`；任一
    构建或校验步骤失败即中止且不提交，旧快照继续服务。公共产物的去来源化由
    `validate_public_privacy.py` 扫描（禁 `source*`/`evidence`/`pgnURL` 字段与
-   chess-results 链接；Lichess CC BY-SA 署名字段除外）。
+   chess-results 链接；Lichess CC BY-SA 署名字段除外）。ingest 触发 rebuild 时
+   必须传递并核对实际 main 提交 SHA；派生提交禁止在 push 冲突后 rebase 到更新的
+   输入快照。线上回执还必须核对 snapshot 中的 local-release-manifest 哈希。
 9. 修改管线后至少运行：`python3 -m unittest Scripts.tests.test_local_pipeline`、
    `python3 -m unittest Scripts.tests.test_chess_results_parser`、
    `python3 -m unittest Scripts.tests.test_docs_consistency`、

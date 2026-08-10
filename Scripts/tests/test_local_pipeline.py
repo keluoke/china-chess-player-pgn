@@ -90,6 +90,53 @@ class CiCommitPushTests(unittest.TestCase):
             )
             self.assertEqual(published, '{"ok":true}\n')
 
+    def test_rebuild_snapshot_refuses_to_rebase_onto_newer_main(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            repo = root / "repo"
+            concurrent = root / "concurrent"
+            remote = root / "remote.git"
+            repo.mkdir()
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "user.name", "test")
+            git(repo, "config", "user.email", "test@example.com")
+            (repo / "docs/data").mkdir(parents=True)
+            (repo / "docs/data/snapshot.json").write_text('{"snapshot":"old"}\n', encoding="utf-8")
+            git(repo, "add", "docs/data/snapshot.json")
+            git(repo, "commit", "-qm", "initial")
+            subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+            git(repo, "remote", "add", "origin", str(remote))
+            git(repo, "push", "-q", "-u", "origin", "main")
+            subprocess.run(["git", "clone", "-q", "-b", "main", str(remote), str(concurrent)], check=True)
+            git(concurrent, "config", "user.name", "other")
+            git(concurrent, "config", "user.email", "other@example.com")
+            (concurrent / "input.json").write_text('{"new":true}\n', encoding="utf-8")
+            git(concurrent, "add", "input.json")
+            git(concurrent, "commit", "-qm", "new machine input")
+            git(concurrent, "push", "-q", "origin", "main")
+
+            (repo / "docs/data/snapshot.json").write_text('{"snapshot":"stale"}\n', encoding="utf-8")
+            env = os.environ.copy()
+            env.update({
+                "CI_COMMIT_REBASE_ON_CONFLICT": "false",
+                "PUSH_BRANCH": "main",
+            })
+            completed = subprocess.run(
+                [str(SCRIPTS / "ci_commit_push.sh"), "rebuild", "docs/data"],
+                cwd=repo,
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            self.assertEqual(completed.returncode, 4)
+            self.assertIn("REMOTE_MOVED_DURING_BUILD", completed.stderr)
+            published = subprocess.check_output(
+                ["git", "--git-dir", str(remote), "show", "main:docs/data/snapshot.json"],
+                text=True,
+            )
+            self.assertEqual(published, '{"snapshot":"old"}\n')
+
 
 class TargetedCaptureCheckpointTests(unittest.TestCase):
     def test_csv_import_preserves_event_and_group_titles(self) -> None:
@@ -1689,15 +1736,44 @@ class ReceiptAdvanceTests(unittest.TestCase):
     def test_non_public_release_verifies_the_deployed_snapshot(self) -> None:
         import check_receipts
 
-        snapshot = b'{"snapshotId":"snap-verified"}\n'
+        manifest_sha = "a" * 64
+        snapshot = json.dumps({
+            "snapshotId": "snap-verified",
+            "inputs": [{
+                "path": "data/generated/local-release-manifest.json",
+                "sha256": manifest_sha,
+            }],
+        }).encode()
         with mock.patch.object(check_receipts, "fetch_online_bytes", return_value=snapshot):
             result = check_receipts.verify_online_file(
                 {"files": [{"path": "data/generated/event.json", "operation": "upsert"}]},
                 fallback=("docs/data/snapshot.json", snapshot),
+                release_manifest_sha256=manifest_sha,
             )
         self.assertTrue(result["ok"])
         self.assertEqual(result["verification"], "deployed-snapshot")
+        self.assertTrue(result["releaseManifestMatched"])
         self.assertTrue(result["url"].endswith("/data/snapshot.json"))
+
+    def test_non_public_release_rejects_snapshot_built_from_older_manifest(self) -> None:
+        import check_receipts
+
+        snapshot = json.dumps({
+            "snapshotId": "stale-snapshot",
+            "inputs": [{
+                "path": "data/generated/local-release-manifest.json",
+                "sha256": "a" * 64,
+            }],
+        }).encode()
+        with mock.patch.object(check_receipts, "fetch_online_bytes", return_value=snapshot):
+            result = check_receipts.verify_online_file(
+                {"files": [{"path": "data/generated/event.json", "operation": "upsert"}]},
+                fallback=("docs/data/snapshot.json", snapshot),
+                release_manifest_sha256="b" * 64,
+            )
+        self.assertFalse(result["ok"])
+        self.assertFalse(result["releaseManifestMatched"])
+        self.assertIn("not built from this release", result["error"])
 
     def test_remote_file_bytes_decodes_github_content(self) -> None:
         import check_receipts
@@ -1764,6 +1840,21 @@ class IngestWorkflowContractTests(unittest.TestCase):
         self.assertIn("!/docs/data/", workflow)
         self.assertIn("!/data/generated/", workflow)
         self.assertIn("!/docs/api/", workflow)
+
+    def test_ingest_dispatches_exact_main_sha_to_rebuild(self) -> None:
+        workflow = (SCRIPTS.parent / ".github" / "workflows" / "ingest-local-data.yml").read_text(encoding="utf-8")
+        dispatch = (SCRIPTS.parent / ".github" / "actions" / "dispatch-workflow" / "action.yml").read_text(encoding="utf-8")
+        self.assertIn('echo "main_sha=$(git rev-parse HEAD)"', workflow)
+        self.assertIn('"target_sha":"${{ steps.commit.outputs.main_sha }}"', workflow)
+        self.assertIn("workflow_inputs", dispatch)
+        self.assertIn('"inputs":inputs', dispatch)
+
+    def test_rebuild_pins_target_sha_and_refuses_stale_rebase(self) -> None:
+        workflow = (SCRIPTS.parent / ".github" / "workflows" / "rebuild-indexes.yml").read_text(encoding="utf-8")
+        self.assertIn("target_sha:", workflow)
+        self.assertIn("ref: ${{ inputs.target_sha || github.sha }}", workflow)
+        self.assertIn("REBUILD_BASE_MISMATCH", workflow)
+        self.assertIn('CI_COMMIT_REBASE_ON_CONFLICT: "false"', workflow)
 
 
 class SparseIngestApplyTests(unittest.TestCase):

@@ -99,6 +99,7 @@ jobs:
             [ -n "$path" ] && paths+=("$path")
           done < "$RUNNER_TEMP/local-release-paths.txt"
           bash Scripts/ci_commit_push.sh "Ingest validated local release" "${paths[@]}"
+          echo "main_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Write ingest receipt
         if: always()
@@ -115,7 +116,7 @@ jobs:
             echo "| baseline mode | \`${{ steps.apply.outputs.baseline_mode || 'n/a' }}\` |"
             echo "| baseline paths verified | \`${{ steps.apply.outputs.baseline_verified || '0' }}\` |"
             echo "| idempotent paths | \`${{ steps.apply.outputs.idempotent_paths || '0' }}\` |"
-            echo "| main commit | \`$(git rev-parse HEAD)\` |"
+            echo "| main commit | \`${{ steps.commit.outputs.main_sha || 'n/a' }}\` |"
             echo "| committed | \`${{ steps.commit.outputs.committed || 'false' }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -124,4 +125,6 @@ jobs:
         uses: ./.github/actions/dispatch-workflow
         with:
           workflow: rebuild-indexes.yml
+          workflow_inputs: >-
+            {"target_sha":"${{ steps.commit.outputs.main_sha }}"}
           token: ${{ github.token }}

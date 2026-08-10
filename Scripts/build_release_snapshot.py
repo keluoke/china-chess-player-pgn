@@ -61,6 +61,7 @@ def file_fact(path: pathlib.Path) -> dict:
 
 def input_facts() -> list[dict]:
     paths = [
+        ROOT / "data/generated/local-release-manifest.json",
         ROOT / "docs/data/registry/players.json",
         ROOT / "docs/data/registry/manifest.json",
         ROOT / "data/generated/person-observations.csv",
@@ -79,10 +80,10 @@ def input_facts() -> list[dict]:
 
 def snapshot_document(snapshot_id: str, generated_at: str, facts: list[dict], steps: list[dict]) -> dict:
     return {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "snapshotId": snapshot_id,
         "generatedAt": generated_at,
-        "producerVersion": "build-release-snapshot-v3",
+        "producerVersion": "build-release-snapshot-v4",
         "inputs": facts,
         "steps": steps,
     }

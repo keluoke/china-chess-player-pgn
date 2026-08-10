@@ -142,6 +142,7 @@ def remote_file_bytes(repository: str, ref: str, path: str) -> bytes:
 def verify_online_file(
     manifest: dict[str, Any],
     fallback: tuple[str, bytes] | None = None,
+    release_manifest_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Fetch one released docs/ file from the live site and compare hashes.
 
@@ -174,12 +175,33 @@ def verify_online_file(
             return {"ok": False, "url": url, "error": str(exc)[:200]}
         expected = hashlib.sha256(expected_body).hexdigest()
         actual = hashlib.sha256(body).hexdigest()
+        release_proof = None
+        if release_manifest_sha256:
+            try:
+                snapshot = json.loads(expected_body)
+                release_fact = next(
+                    (
+                        item for item in snapshot.get("inputs") or []
+                        if item.get("path") == "data/generated/local-release-manifest.json"
+                    ),
+                    {},
+                )
+                release_proof = release_fact.get("sha256") == release_manifest_sha256
+            except (AttributeError, json.JSONDecodeError, UnicodeDecodeError):
+                release_proof = False
         return {
-            "ok": actual == expected,
+            "ok": actual == expected and release_proof is not False,
             "url": url,
             "expected": expected,
             "actual": actual,
             "verification": "deployed-snapshot",
+            **({
+                "releaseManifestExpected": release_manifest_sha256,
+                "releaseManifestMatched": release_proof,
+            } if release_manifest_sha256 else {}),
+            **({
+                "error": "deployed snapshot was not built from this release manifest",
+            } if release_proof is False else {}),
         }
     return {"ok": False, "error": "manifest 中没有可在线校验的 docs/ 文件"}
 
@@ -263,7 +285,13 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
                         snapshot_path,
                         remote_file_bytes(repository, str(deploy["head_sha"]), snapshot_path),
                     )
-                online = verify_online_file(manifest, fallback=fallback)
+                online = verify_online_file(
+                    manifest,
+                    fallback=fallback,
+                    release_manifest_sha256=hashlib.sha256(
+                        (entry / "manifest.json").read_bytes()
+                    ).hexdigest() if fallback else None,
+                )
                 receipts["online"] = {**online, "checkedAt": run_manager.now()}
                 if online.get("ok"):
                     stage_results["online-verified"] = {"ok": True}
