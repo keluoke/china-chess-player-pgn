@@ -236,13 +236,27 @@ def main() -> int:
                 if problem:
                     problems.append(problem)
 
+        verified_all = not (mismatched or absent or missing_meta or error_count)
+        if verified_all and not args.dry_run:
+            receipts = []
+            for path in source_files():
+                key = object_key(path)
+                stat = path.stat()
+                receipts.append({
+                    "key": key,
+                    "sha256": sha256_file(path),
+                    "bytes": stat.st_size,
+                    "publicURL": f"{PUBLIC_BASE}/{key}",
+                })
+            write_receipt(receipts)
+
         print(json.dumps({
             "bucket": bucket, "prefix": args.prefix, "verified": verified,
             "mismatched": mismatched, "missingMetadata": missing_meta,
             "absent": absent, "errors": error_count, "problems": problems[:20],
             "seconds": round(time.time() - started, 1),
         }, ensure_ascii=False))
-        return 1 if (mismatched or absent or missing_meta or error_count) else 0
+        return 0 if verified_all else 1
 
     # Confirmation cache: once a remote object's sha256 metadata matched the
     # local file, skip the per-object HEAD on later runs unless the local
