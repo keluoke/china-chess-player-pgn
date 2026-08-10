@@ -1,9 +1,16 @@
 {
-  "schemaVersion": 3,
-  "snapshotId": "20260810T035347Z-3a73e629",
-  "generatedAt": "2026-08-10T03:55:42+00:00",
-  "producerVersion": "build-release-snapshot-v3",
+  "schemaVersion": 4,
+  "snapshotId": "20260810T041740Z-0638dae6",
+  "generatedAt": "2026-08-10T04:19:22+00:00",
+  "producerVersion": "build-release-snapshot-v4",
   "inputs": [
+    {
+      "path": "data/generated/local-release-manifest.json",
+      "present": true,
+      "bytes": 3520,
+      "sha256": "c75b19459bd9a1db9fcac4d238a4a684dad66adbb57a813ba93ec2a7df39f780",
+      "schemaVersion": 1
+    },
     {
       "path": "docs/data/registry/players.json",
       "present": true,
@@ -28,16 +35,16 @@
       "path": "data/generated/person-observations.meta.json",
       "present": true,
       "bytes": 589,
-      "sha256": "ea5efb7cb579dc71c43013105e76f7382bae6e26f0ea457a30874d92b4512f4f",
+      "sha256": "ddaf74b2d23293e5d85132d183a941e8470095b658c91a107fae17666479d4d6",
       "schemaVersion": 2
     },
     {
       "path": "data/generated/event-completeness-report.json",
       "present": true,
-      "bytes": 2359873,
-      "sha256": "b81ab41c3f3c5724a5d908e5a25f2060515e2259265919b05c2da430a64c2b13",
+      "bytes": 2380608,
+      "sha256": "ec8472cec87a31e6e4ad1baec994c869f52f59159877a939eec4199a304765e2",
       "schemaVersion": 2,
-      "eventCount": 1019
+      "eventCount": 1028
     },
     {
       "path": "data/generated/chess-results-player-events.csv",
@@ -52,10 +59,10 @@
     {
       "path": "data/generated/pgn-collection-status.json",
       "present": true,
-      "bytes": 225272,
-      "sha256": "d75b681572a22545e75a3314ec846de8898395e096aa7c0f6ddc87842c8faf44",
+      "bytes": 227333,
+      "sha256": "f0db43f7d255e85bb23a15c231bf88726d2e3878c98e0942bb50683257837e66",
       "schemaVersion": 1,
-      "eventCount": 1019
+      "eventCount": 1028
     },
     {
       "path": "data/generated/r2-object-receipts/events--chess-results.json",
@@ -92,7 +99,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_release.py --registry docs/data/registry --corrections data/community/name-corrections.csv",
       "status": "built",
-      "seconds": 0.2
+      "seconds": 0.1
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_static_pgn.py",
@@ -102,47 +109,47 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_static_player_pgn.py",
       "status": "built",
-      "seconds": 49.1
+      "seconds": 44.8
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_pgn_collection_status.py",
       "status": "built",
-      "seconds": 1.7
+      "seconds": 1.4
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_completeness_report.py",
       "status": "built",
-      "seconds": 9.7
+      "seconds": 9.0
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_event_details.py",
       "status": "built",
-      "seconds": 8.3
+      "seconds": 7.5
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_person_observations.py",
       "status": "built",
-      "seconds": 2.0
+      "seconds": 1.7
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/sync_domestic_players.py",
       "status": "built",
-      "seconds": 15.2
+      "seconds": 13.1
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_identity_clustering.py",
       "status": "built",
-      "seconds": 3.0
+      "seconds": 2.6
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_domestic_progressions.py",
       "status": "built",
-      "seconds": 1.0
+      "seconds": 0.8
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_event_catalog.py",
       "status": "built",
-      "seconds": 0.8
+      "seconds": 0.7
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_master_series_summary.py",
@@ -162,22 +169,22 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_domestic_event_queue.py",
       "status": "built",
-      "seconds": 0.5
+      "seconds": 0.4
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_data_quality_audit.py",
       "status": "built",
-      "seconds": 1.6
+      "seconds": 1.4
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/reconcile_pgn_sources.py --write-audit",
       "status": "built",
-      "seconds": 1.1
+      "seconds": 1.0
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_search_bootstrap.py",
       "status": "built",
-      "seconds": 4.9
+      "seconds": 4.2
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_public_metrics.py",
@@ -192,7 +199,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_api.py",
       "status": "built",
-      "seconds": 1.1
+      "seconds": 1.0
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/build_changelog.py",
@@ -207,7 +214,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_registry_authority.py",
       "status": "built",
-      "seconds": 2.0
+      "seconds": 1.7
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_metrics.py",
@@ -217,7 +224,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_public_privacy.py",
       "status": "built",
-      "seconds": 9.5
+      "seconds": 8.0
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.6/x64/bin/python3 Scripts/validate_snapshot_consistency.py",
