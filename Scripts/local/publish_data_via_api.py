@@ -29,6 +29,10 @@ sys.path.insert(0, str(SCRIPT_DIR.parent))
 
 import run_manager  # noqa: E402
 
+MONOTONIC_RECEIPT_PATHS = {
+    "data/generated/r2-object-receipts/events--chess-results.json",
+}
+
 
 def repository_name() -> str:
     remote = subprocess.run(
@@ -137,6 +141,39 @@ def release_conflicts(base_oid: str | None, current_oid: str | None, candidate_o
     return current_oid != base_oid and current_oid != candidate_oid
 
 
+def remote_blob_bytes(repository: str, oid: str) -> bytes:
+    payload = api(repository, "GET", f"/git/blobs/{oid}")
+    if payload.get("encoding") != "base64" or not payload.get("content"):
+        raise SystemExit("API_DELIVERY_BASELINE_MISSING: GitHub 未返回可解码的当前 blob")
+    return base64.b64decode(str(payload["content"]).encode("ascii"), validate=False)
+
+
+def monotonic_receipt_superset(candidate: bytes, current: bytes) -> bool:
+    """Allow a receipt rebase only when every current object is unchanged."""
+    try:
+        newer = json.loads(candidate)
+        older = json.loads(current)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False
+    for field in ("schemaVersion", "bucket", "prefix", "playerObjectsPrefix"):
+        if newer.get(field) != older.get(field):
+            return False
+    if str(newer.get("verifiedAt") or "") < str(older.get("verifiedAt") or ""):
+        return False
+    for field in ("objects", "playerObjects"):
+        newer_rows = newer.get(field)
+        older_rows = older.get(field)
+        if not isinstance(newer_rows, list) or not isinstance(older_rows, list):
+            return False
+        newer_by_key = {row.get("key"): row for row in newer_rows if isinstance(row, dict) and row.get("key")}
+        older_by_key = {row.get("key"): row for row in older_rows if isinstance(row, dict) and row.get("key")}
+        if len(newer_by_key) != len(newer_rows) or len(older_by_key) != len(older_rows):
+            return False
+        if any(newer_by_key.get(key) != row for key, row in older_by_key.items()):
+            return False
+    return True
+
+
 def local_blob_facts(repo: pathlib.Path, commit: str, path: str) -> tuple[str | None, str | None]:
     """Read a path's immutable Git baseline without touching the worktree."""
     commit_check = subprocess.run(
@@ -236,7 +273,17 @@ def main() -> int:
 
         current_oid = current_tree.get(path)
         if release_conflicts(item.get("baseBlobOid"), current_oid, candidate_oid):
-            conflicts.append(path)
+            safe_receipt_rebase = False
+            if (
+                path in MONOTONIC_RECEIPT_PATHS
+                and item["operation"] == "upsert"
+                and content is not None
+                and current_oid
+            ):
+                current_content = remote_blob_bytes(repository, current_oid)
+                safe_receipt_rebase = monotonic_receipt_superset(content, current_content)
+            if not safe_receipt_rebase:
+                conflicts.append(path)
 
         item["deliveryBaseBlobOid"] = current_oid
         if current_oid == item.get("baseBlobOid"):

@@ -1158,6 +1158,27 @@ class ApiFallbackPolicyTests(unittest.TestCase):
         self.assertFalse(publish_data_via_api.release_conflicts("base", "candidate", "candidate"))
         self.assertTrue(publish_data_via_api.release_conflicts("base", "concurrent", "candidate"))
 
+    def test_api_allows_only_monotonic_r2_receipt_superset(self) -> None:
+        import publish_data_via_api
+
+        old = {
+            "schemaVersion": 1, "bucket": "chess-data", "prefix": "events/chess-results",
+            "verifiedAt": "2026-08-10T01:00:00Z", "playerObjectsPrefix": "data/pgn",
+            "objects": [{"key": "events/chess-results/tnr1.pgn", "sha256": "a", "bytes": 1}],
+            "playerObjects": [{"key": "data/pgn/p1.pgn", "sha256": "b", "bytes": 2}],
+        }
+        new = json.loads(json.dumps(old))
+        new["verifiedAt"] = "2026-08-10T02:00:00Z"
+        new["objects"].append({"key": "events/chess-results/tnr2.pgn", "sha256": "c", "bytes": 3})
+        encode = lambda value: json.dumps(value, sort_keys=True).encode("utf-8")
+        self.assertTrue(publish_data_via_api.monotonic_receipt_superset(encode(new), encode(old)))
+        changed = json.loads(json.dumps(new))
+        changed["objects"][0]["sha256"] = "wrong"
+        self.assertFalse(publish_data_via_api.monotonic_receipt_superset(encode(changed), encode(old)))
+        missing = json.loads(json.dumps(new))
+        missing["playerObjects"] = []
+        self.assertFalse(publish_data_via_api.monotonic_receipt_superset(encode(missing), encode(old)))
+
     def test_api_reads_remote_tree_once(self) -> None:
         import publish_data_via_api
 
