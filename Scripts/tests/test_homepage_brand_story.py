@@ -25,6 +25,7 @@ class HomepageBrandStoryTest(unittest.TestCase):
         for removed in ("hero-brand-mark", 'class="eyebrow"', "search-guidance"):
             self.assertNotIn(removed, search)
         self.assertIn('class="theme-logo hero-logo"', search)
+        self.assertIn('aria-label="chessdb"', search)
         self.assertLess(search.index('class="theme-logo hero-logo"'), search.index('id="searchForm"'))
         self.assertLess(search.index('id="searchForm"'), search.index('id="searchSuggestions"'))
         self.assertIn("往下看，我们为什么做这件事", search)
@@ -34,8 +35,8 @@ class HomepageBrandStoryTest(unittest.TestCase):
             html = (ROOT / "docs" / name).read_text(encoding="utf-8")
             self.assertIn('href="./assets/4chess-favicon-black.png"', html)
             self.assertIn('href="./assets/4chess-favicon-white.png"', html)
-            self.assertIn('src="assets/4chess-logo-black.png"', html)
-            self.assertIn('src="assets/4chess-logo-white.png"', html)
+            self.assertIn('src="assets/chessdb-logo-light.png"', html)
+            self.assertIn('src="assets/chessdb-logo-dark.png"', html)
             self.assertNotIn("brand.svg", html)
         self.assertFalse((ROOT / "docs" / "brand.svg").exists())
 

@@ -111,8 +111,8 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         header = index[index.index('class="topbar"'):index.index("</header>")]
         hero = index[index.index('class="search-command"'):index.index('id="searchResultsSection"')]
         for section in (header, hero):
-            self.assertIn('src="assets/4chess-logo-black.png"', section)
-            self.assertIn('src="assets/4chess-logo-white.png"', section)
+            self.assertIn('src="assets/chessdb-logo-light.png"', section)
+            self.assertIn('src="assets/chessdb-logo-dark.png"', section)
         self.assertIn('class="theme-logo brand-logo"', header)
         self.assertIn('class="theme-logo hero-logo"', hero)
         self.assertIn(':root[data-theme="dark"] .theme-logo .logo-on-light { display: none; }', styles)
@@ -120,8 +120,8 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         self.assertIn('.search-command[data-mode="compact"] > .hero-logo,', styles)
 
         expected_dimensions = {
-            "4chess-logo-black.png": (442, 95),
-            "4chess-logo-white.png": (289, 61),
+            "chessdb-logo-light.png": (726, 157),
+            "chessdb-logo-dark.png": (726, 157),
             "4chess-favicon-black.png": (512, 512),
             "4chess-favicon-white.png": (512, 512),
         }
