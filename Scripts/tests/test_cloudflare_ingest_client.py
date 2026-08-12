@@ -50,6 +50,54 @@ class CloudflareIngestClientTests(unittest.TestCase):
             with self.assertRaisesRegex(cloudflare_ingest.ShadowDeliveryError, "RELEASE_HASH_MISMATCH"):
                 cloudflare_ingest.build_shadow_manifest(path, files)
 
+    def test_free_tier_preflight_rejects_oversized_manifest_locally(self):
+        payload = {
+            "files": [
+                {"path": f"data/generated/chess-results-event-details/tnr{index:05d}.json", "bytes": 1}
+                for index in range(cloudflare_ingest.MAX_RELEASE_FILES + 1)
+            ]
+        }
+        with self.assertRaisesRegex(
+            cloudflare_ingest.ShadowDeliveryError, "FREE_TIER_RELEASE_FILE_LIMIT"
+        ):
+            cloudflare_ingest.validate_shadow_limits(payload)
+
+    def test_ineligible_bundle_writes_receipt_without_network_request(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text("{}", encoding="utf-8")
+            payload = {
+                "files": [
+                    {"path": f"data/generated/tnr{index}.json", "bytes": 1}
+                    for index in range(cloudflare_ingest.MAX_RELEASE_FILES + 1)
+                ]
+            }
+            with (
+                mock.patch.object(
+                    cloudflare_ingest,
+                    "bundle_paths",
+                    return_value=(manifest_path, root / "files"),
+                ),
+                mock.patch.object(
+                    cloudflare_ingest,
+                    "build_shadow_manifest",
+                    return_value=(payload, []),
+                ),
+                mock.patch.object(cloudflare_ingest, "request_json") as request,
+            ):
+                with self.assertRaisesRegex(
+                    cloudflare_ingest.ShadowDeliveryError,
+                    "FREE_TIER_RELEASE_FILE_LIMIT",
+                ):
+                    cloudflare_ingest.deliver("run-1", "https://shadow.invalid", "secret")
+            request.assert_not_called()
+            state = json.loads(
+                (root / "shadow-delivery.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(state["status"], "ineligible")
+            self.assertEqual(state["errorCode"], "FREE_TIER_RELEASE_FILE_LIMIT")
+
 
 if __name__ == "__main__":
     unittest.main()

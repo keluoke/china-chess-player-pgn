@@ -36,6 +36,9 @@ import run_manager  # noqa: E402
 TERMINAL = {"complete", "conflict", "failed"}
 KEYCHAIN_SERVICE = "china-chess-cloudflare-ingest-shadow"
 DEFAULT_ENDPOINT = "https://chess-data-ingest-shadow.seanyan099.workers.dev"
+MAX_RELEASE_FILES = 12
+MAX_RELEASE_BYTES = 64 * 1024 * 1024
+MAX_FILE_BYTES = 16 * 1024 * 1024
 
 
 class ShadowDeliveryError(RuntimeError):
@@ -177,6 +180,24 @@ def build_shadow_manifest(manifest_path: pathlib.Path, files_root: pathlib.Path)
     }, uploads
 
 
+def validate_shadow_limits(payload: dict[str, Any]) -> None:
+    files = payload.get("files") or []
+    if len(files) > MAX_RELEASE_FILES:
+        raise ShadowDeliveryError(
+            f"FREE_TIER_RELEASE_FILE_LIMIT: {len(files)} > {MAX_RELEASE_FILES}"
+        )
+    total = sum(int(item.get("bytes") or 0) for item in files)
+    if total > MAX_RELEASE_BYTES:
+        raise ShadowDeliveryError(
+            f"FREE_TIER_RELEASE_BYTE_LIMIT: {total} > {MAX_RELEASE_BYTES}"
+        )
+    oversized = [item for item in files if int(item.get("bytes") or 0) > MAX_FILE_BYTES]
+    if oversized:
+        raise ShadowDeliveryError(
+            f"FREE_TIER_RELEASE_OBJECT_LIMIT: {oversized[0].get('path')}"
+        )
+
+
 def save_state(path: pathlib.Path, payload: dict[str, Any]) -> None:
     run_manager.atomic_json(path, {"schemaVersion": 1, **payload, "updatedAt": run_manager.now()})
 
@@ -191,6 +212,19 @@ def deliver(
     manifest_path, files_root = bundle_paths(run_id, root)
     payload, uploads = build_shadow_manifest(manifest_path, files_root)
     state_path = manifest_path.parent / "shadow-delivery.json"
+    try:
+        validate_shadow_limits(payload)
+    except ShadowDeliveryError as error:
+        save_state(state_path, {
+            "runId": run_id,
+            "status": "ineligible",
+            "errorCode": str(error).split(":", 1)[0],
+            "message": str(error),
+            "files": len(payload.get("files") or []),
+            "bytes": sum(int(item.get("bytes") or 0) for item in payload.get("files") or []),
+            "endpoint": endpoint,
+        })
+        raise
     save_state(state_path, {"runId": run_id, "status": "registering", "endpoint": endpoint})
     registered = request_json(endpoint, "POST", "/v1/releases", secret, payload=payload)
     for index, (item, candidate) in enumerate(uploads, start=1):
@@ -244,6 +278,10 @@ def main() -> int:
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--endpoint", default=os.environ.get("CLOUDFLARE_INGEST_URL", DEFAULT_ENDPOINT))
     parser.add_argument("--wait-seconds", type=int, default=180)
+    parser.add_argument(
+        "--accept-queued", action="store_true",
+        help="return success after an authenticated upload is queued; the panel will poll later",
+    )
     parser.add_argument("--state-root", type=pathlib.Path)
     args = parser.parse_args()
     secret = ingest_secret()
@@ -257,7 +295,10 @@ def main() -> int:
         print(str(error), file=sys.stderr)
         return 1
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result.get("status") == "complete" else 2
+    successful = {"complete"}
+    if args.accept_queued:
+        successful.update({"queued", "processing"})
+    return 0 if result.get("status") in successful else 2
 
 
 if __name__ == "__main__":

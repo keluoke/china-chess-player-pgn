@@ -26,6 +26,6 @@ FIDE/Lichess/Chess-Results 通过校验后生成精确 release manifest 并 forc
 ## 故障恢复
 
 - 来源失败：使用面板错误码处理，成功的独立阶段不会丢失；
-- 推送失败：运行 `bash Scripts/local/refresh.sh push`，不重新抓取；
+- 投递失败：运行 `bash Scripts/local/refresh.sh publish`，不重新抓取；
 - 校验失败：检查对应 `runs/<run-id>/run.log` 和 staging，禁止手工绕过 manifest；
 - 页面部署失败：只重跑离线 rebuild/deploy workflow，不运行任何抓取命令。

@@ -493,8 +493,8 @@ Pages / 静态站
 | --- | --- | --- |
 | `贡献工具-双击启动.command`、`.bat` | **立即删除或改成纯说明** | 指向已不存在的 `Scripts/contrib/contrib_tool.py`，当前双击必失败 |
 | 根目录旧 `一键抓取.app` | **删除旧副本，只保留现行面板入口** | 与 `一键抓取面板.command` / `Scripts/local/panel.py` 重复，容易走错入口 |
-| `local-data-center/` 的 capture/tasks UI | **迁移必要审计后删除** | 与现行 panel.py 形成第二套控制面；其中日志、run-state 应在仓库外 |
-| `Scripts/local/targeted_capture_panel.py`、`targeted_series_capture.py` | **并入 panel/event-queue 后删除** | 两套队列、断点和状态语言增加维护成本；须先迁移仍有价值的批次恢复测试 |
+| `local-data-center/` 的 capture/tasks UI | **已完成：由现行 panel.py 取代** | 单面板直接读取仓库外 run/outbox/capture-state，不再维护第二套控制面 |
+| `Scripts/local/targeted_capture_panel.py`、`targeted_series_capture.py`、`import_event_list.py` | **已完成：删除** | TNR/URL/CSV 文本录入、重试与隔离状态、发布回执均已并入 panel/event-queue；安全回归测试已迁移 |
 | `Scripts/build_local_data_center.py` | **拆出 CompletenessReport 构建器后删除 UI 构建部分** | 严格完整度逻辑有价值，但不应复制第二套数据中心 |
 | `data/generated/chess-results-player-name-map.csv` | **迁移有效候选后删除/移出公共机器层** | 含赛事标题、尾逗号等脏姓名，不能继续成为派生输入 |
 | `docs/data/youth-leaderboards.json` | **v1 客户端迁移后删除** | `leaderboards.json` 已是泛化替代，继续双写会产生漂移 |

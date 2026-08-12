@@ -44,18 +44,19 @@ STATE_ROOT = local_state_root()
 CAPTURE_STATE_PATH = STATE_ROOT / "chess-results" / "capture-state.json"
 PORT_FILE = STATE_ROOT / "panel.port"
 AUTOMATION_PATH = STATE_ROOT / "automation.json"
-PING_TOKEN = "china-chess-local-panel-v2"
+PING_TOKEN = "china-chess-local-panel-v3"
 CSRF_TOKEN = secrets.token_urlsafe(24)
 SITE_URL = os.environ.get("CHINA_CHESS_SITE_URL", "https://china-chess-player-pgn.pages.dev").rstrip("/")
 REFRESH_DAYS = 30
 
 ALLOWED_COMMANDS = {
     "health", "all", "registry", "event-queue", "discover-events", "candidates",
-    "bulk", "bulk-full", "deliver", "push", "receipts", "reindex",
-    "recover-events",
+    "bulk", "bulk-full", "publish", "deliver", "receipts", "reindex",
+    "recover-events", "shadow-publish",
 }
 EXTRA_TOKEN = re.compile(r"^[A-Za-z0-9_.:/=-]{1,200}$")
 TNR_TOKEN = re.compile(r"^\d{4,9}$")
+TNR_ANYWHERE = re.compile(r"(?:tnr)?(\d{4,9})", re.IGNORECASE)
 children: set[subprocess.Popen[bytes]] = set()
 children_lock = threading.Lock()
 monitor_stop = threading.Event()
@@ -83,6 +84,7 @@ HUMAN_REQUIRED_DELIVERY_ERRORS = {
     "GIT_FALLBACK_BASE_MISMATCH",
     "ONLINE_HASH_MISMATCH",
 }
+SHADOW_TERMINAL = {"complete", "conflict", "failed", "ineligible"}
 TNR_RELEASE_PATH = re.compile(r"(?:^|/)tnr(\d{4,9})(?:[./-]|$)")
 
 
@@ -173,8 +175,19 @@ def automation_payload() -> dict:
         if attention_code(item)
     ]
     attention_ids = {str(item.get("runId")) for item in attention}
+    shadow_rows = []
+    for item in entries:
+        state = _read_json_file(pathlib.Path(str(item.get("path") or "")) / "shadow-delivery.json")
+        if state:
+            shadow_rows.append(state)
+    shadow_attention = [
+        {"runId": item.get("runId"), "status": item.get("status"), "errorCode": item.get("errorCode")}
+        for item in shadow_rows
+        if item.get("status") in {"conflict", "failed", "ineligible"}
+    ]
     return {
         "enabled": payload.get("enabled", True),
+        "shadowEnabled": payload.get("shadowEnabled", False),
         "lastAction": payload.get("lastAction"),
         "lastActionAt": payload.get("lastActionAt"),
         "nextCheckAt": payload.get("nextCheckAt"),
@@ -187,6 +200,9 @@ def automation_payload() -> dict:
             }
             and str(item.get("runId")) not in attention_ids
         ),
+        "shadowPending": sum(1 for item in shadow_rows if item.get("status") not in SHADOW_TERMINAL),
+        "shadowComplete": sum(1 for item in shadow_rows if item.get("status") == "complete"),
+        "shadowAttention": shadow_attention,
     }
 
 
@@ -197,20 +213,31 @@ def set_automation(enabled: bool, **fields: object) -> dict:
     return automation_payload()
 
 
+def update_automation(body: dict) -> dict:
+    current = _read_json_file(AUTOMATION_PATH)
+    enabled = bool(body.get("enabled")) if "enabled" in body else bool(current.get("enabled", True))
+    fields: dict[str, object] = {}
+    if "shadowEnabled" in body:
+        fields["shadowEnabled"] = bool(body.get("shadowEnabled"))
+    return set_automation(enabled, **fields)
+
+
 def automation_monitor() -> None:
     """Advance outbox delivery/receipts only; never starts a source capture."""
     backoff = [30, 120, 300]
     index = 0
     while not monitor_stop.wait(backoff[index]):
         config = automation_payload()
-        if not config.get("enabled") or durable_state().get("running"):
+        git_enabled = bool(config.get("enabled"))
+        shadow_enabled = bool(config.get("shadowEnabled"))
+        if (not git_enabled and not shadow_enabled) or durable_state().get("running"):
             continue
         entries = outbox_entries()
         pending = [
             item for item in entries
             if item.get("status") == "pending"
             and item.get("lastError") not in HUMAN_REQUIRED_DELIVERY_ERRORS
-        ]
+        ] if git_enabled else []
         advancing = [
             item for item in entries
             if item.get("status") in {
@@ -226,8 +253,14 @@ def automation_monitor() -> None:
                     != ((item.get("receipts") or {}).get("online") or {}).get("actual")
                 )
             )
-        ]
-        command = "deliver" if pending else "receipts" if advancing else ""
+        ] if git_enabled else []
+        shadow_pending = bool(shadow_enabled and config.get("shadowPending"))
+        command = (
+            "publish" if pending
+            else "shadow-publish" if shadow_pending
+            else "receipts" if advancing
+            else ""
+        )
         if not command:
             index = 0
             continue
@@ -235,7 +268,7 @@ def automation_monitor() -> None:
         if ok:
             delay = backoff[min(index + 1, len(backoff) - 1)]
             set_automation(
-                True,
+                git_enabled,
                 lastAction=command,
                 lastActionAt=dt.datetime.now(dt.timezone.utc).isoformat(),
                 nextCheckAt=(
@@ -255,6 +288,30 @@ def stop_job() -> tuple[bool, str]:
     except ProcessLookupError:
         return False, "任务刚刚结束"
     return True, "已发送中止信号；未通过校验的暂存数据不会进入发布包"
+
+
+def normalize_capture_token(value: object) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    if "://" in raw:
+        parsed = urllib.parse.urlparse(raw)
+        host = (parsed.hostname or "").lower()
+        if host != "chess-results.com" and not host.endswith(".chess-results.com"):
+            return ""
+    matched = TNR_ANYWHERE.search(raw)
+    return matched.group(1) if matched else ""
+
+
+def parse_capture_text(value: object) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for token in re.split(r"[\s,;]+", str(value or "")):
+        tournament_id = normalize_capture_token(token)
+        if tournament_id and tournament_id not in seen:
+            seen.add(tournament_id)
+            result.append(tournament_id)
+    return result
 
 
 def load_captures() -> dict:
@@ -502,6 +559,7 @@ def publication_payload(run_dir: pathlib.Path | None, run_id: str) -> dict:
     if not manifest and outbox_dir:
         manifest = _read_json_file(outbox_dir / "manifest.json")
     delivery = _read_json_file(outbox_dir / "delivery.json") if outbox_dir else {}
+    shadow = _read_json_file(outbox_dir / "shadow-delivery.json") if outbox_dir else {}
     files = manifest.get("files") if isinstance(manifest.get("files"), list) else []
     normalized_files = [item for item in files if isinstance(item, dict)]
     target_changes: dict[str, dict[str, int]] = {}
@@ -536,6 +594,7 @@ def publication_payload(run_dir: pathlib.Path | None, run_id: str) -> dict:
         "remoteSHA": delivery.get("remoteSHA"),
         "lastError": delivery.get("lastError"),
         "receipts": delivery.get("receipts") or {},
+        "shadow": shadow,
     }
 
 
@@ -634,7 +693,9 @@ def events_payload() -> dict:
     except Exception:  # noqa: BLE001
         deliveries = []
     for delivery in deliveries:
-        manifest = _read_json_file(pathlib.Path(str(delivery.get("path") or "")) / "manifest.json")
+        outbox_path = pathlib.Path(str(delivery.get("path") or ""))
+        manifest = _read_json_file(outbox_path / "manifest.json")
+        shadow = _read_json_file(outbox_path / "shadow-delivery.json")
         for item in manifest.get("files") or []:
             matched = TNR_RELEASE_PATH.search(str(item.get("path") or ""))
             if matched:
@@ -642,6 +703,7 @@ def events_payload() -> dict:
                     "status": delivery.get("status"),
                     "runId": delivery.get("runId"),
                     "lastError": delivery.get("lastError"),
+                    "shadow": shadow,
                 }
 
     entries = []
@@ -713,6 +775,9 @@ def publish_payload() -> dict:
                     for key, value in (item.get("receipts") or {}).items()
                     if isinstance(value, dict)
                 },
+                "shadow": _read_json_file(
+                    pathlib.Path(str(item.get("path") or "")) / "shadow-delivery.json"
+                ),
             }
             for item in entries
         ],
@@ -720,7 +785,7 @@ def publish_payload() -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "ChinaChessPanel/2.2"
+    server_version = "ChinaChessPanel/3.0"
 
     def log_message(self, *_args) -> None:
         pass
@@ -788,7 +853,9 @@ class Handler(BaseHTTPRequestHandler):
             ok, message = start_job(str(body.get("cmd") or ""), [str(x) for x in body.get("extra") or []])
             self.send_json({"ok": ok, "message": message}, 200 if ok else 409)
         elif self.path == "/api/capture":
-            tnrs = [str(x) for x in body.get("tnrs") or []]
+            tnrs = parse_capture_text(body.get("text")) if body.get("text") is not None else [
+                str(x) for x in body.get("tnrs") or []
+            ]
             if not tnrs:
                 self.send_json({"ok": False, "message": "请先粘贴至少一个 TNR 或链接"}, 400)
                 return
@@ -801,7 +868,7 @@ class Handler(BaseHTTPRequestHandler):
             ok, message = stop_job()
             self.send_json({"ok": ok, "message": message}, 200 if ok else 409)
         elif self.path == "/api/automation":
-            self.send_json(set_automation(bool(body.get("enabled"))))
+            self.send_json(update_automation(body))
         elif self.path == "/api/shutdown":
             self.send_json({"ok": True, "message": "面板已退出；运行中的采集任务不受影响"})
             threading.Thread(target=self.server.shutdown, daemon=True).start()
@@ -811,7 +878,7 @@ class Handler(BaseHTTPRequestHandler):
 
 PAGE = r"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>维护者本地数据控制台</title><style>
+<title>本地数据采集与双通道发布面板</title><style>
 :root{--bg:#f5f3ee;--card:#fff;--ink:#20232a;--muted:#68707b;--line:#ddd8ce;--blue:#175bd3;--ok:#177a3d;--bad:#b3261e;--warn:#a25700}
 @media(prefers-color-scheme:dark){:root{--bg:#15171c;--card:#20232a;--ink:#eee;--muted:#a1a6b0;--line:#373b44;--blue:#7aa5f8;--ok:#62d18d;--bad:#ee918b;--warn:#e3a85f}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,"PingFang SC",sans-serif}.wrap{max-width:1120px;margin:auto;padding:28px 20px 70px}h1{margin:0;font-size:1.7rem}h1 small{display:block;color:var(--muted);font-size:.84rem;font-weight:400;margin-top:5px}.notice{margin:18px 0;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--card)}.notice b{color:var(--ok)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:13px}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px}.head{display:flex;justify-content:space-between;gap:8px}.badge{color:var(--blue);font-size:.76rem}.desc,.meta{color:var(--muted);font-size:.84rem}.meta{margin-top:8px}.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}button.primary{background:var(--blue);border-color:var(--blue);color:white}button.danger{color:var(--bad)}button:disabled{opacity:.45;cursor:not-allowed}.status{display:flex;gap:10px;align-items:flex-start;margin:22px 0;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:12px}.dot{width:11px;height:11px;border-radius:50%;background:var(--muted);margin-top:6px}.dot.running{background:var(--blue);animation:pulse 1.2s infinite}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}@keyframes pulse{50%{opacity:.35}}#statusMeta{color:var(--muted);font-size:.83rem}#log{background:#0d1117;color:#d7e0ea;border-radius:11px;padding:14px;height:320px;overflow:auto;white-space:pre-wrap;font:12px/1.5 ui-monospace,SFMono-Regular,monospace}table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:.83rem}h2{font-size:1.15rem;margin-top:34px;border-bottom:2px solid var(--line);padding-bottom:6px}h3{font-size:.98rem;margin:20px 0 8px}footer{display:flex;justify-content:space-between;color:var(--muted);font-size:.8rem;margin-top:20px}a{color:var(--blue);cursor:pointer;text-decoration:none}
@@ -825,11 +892,13 @@ textarea{width:100%;min-height:74px;border:1px solid var(--line);border-radius:9
 input[type=search],select{border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 10px;font-size:.85rem;min-width:160px}
 .pager{display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--muted);font-size:.82rem}
 .resultRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:6px;font-size:.85rem;flex-wrap:wrap}.resultGroup{margin-top:14px;font-size:.86rem}.resultGroup>b{display:block;margin-bottom:5px}.publishLine{margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--bg);font-size:.84rem}
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:18px 0}.stage{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}.stage b{display:block}.stage span{font-size:.78rem;color:var(--muted)}@media(max-width:760px){.pipeline{grid-template-columns:1fr 1fr}}
 </style></head><body><div class="wrap">
-<h1>维护者本地数据控制台<small>社区只提交线索、勘误和人工知识；所有网络采集均由维护者本机执行</small></h1>
-<div class="notice"><b>合规边界已启用：</b>来源原始页面只保存在本机；通过完整性门禁的清洗结构化数据才进入 manifest → outbox → 云端摄入 → 重建 → 部署 → 线上验证。采集、数据变化和发布状态分别展示，只有 online-verified 才算上线。</div>
+<h1>本地数据采集与双通道发布面板<small>唯一维护入口 · 来源只在住宅网络访问 · 原始页面永不离开本机</small></h1>
+<div class="pipeline"><div class="stage"><b>① 本机采集</b><span>抓取、清洗、完整性门禁</span></div><div class="stage"><b>② 不可变 outbox</b><span>manifest、自然键、SHA-256</span></div><div class="stage"><b>③A GitHub 生产</b><span>main、离线重建、部署、线上验证</span></div><div class="stage"><b>③B Cloudflare 影子</b><span>可选并行双写；鉴权、R2、D1 回执</span></div></div>
+<div class="notice"><b>当前生产边界：</b>GitHub 仍是生产发布通道；Cloudflare 是隔离影子通道。影子冲突、超限或网络失败不会阻断 GitHub，也不会触发重新抓取。只有 <code>online-verified</code> 才算生产上线。</div>
 <div class="status"><span id="dot" class="dot"></span><div style="flex:1"><b id="statusText">读取状态…</b><div id="statusMeta"></div><div id="progressList"></div></div><button id="stop" class="danger" onclick="stopJob()">中止任务</button></div>
-<div class="notice"><label><input type="checkbox" id="autoAdvance" onchange="toggleAutomation()"> <b>自动推进发布</b></label><span id="automationMeta" class="meta">只处理 outbox 投递与云端回执；不会自动抓取任何来源。</span></div>
+<div class="notice"><label><input type="checkbox" id="autoAdvance" onchange="toggleAutomation()"> <b>自动推进 GitHub 生产发布</b></label><span id="automationMeta" class="meta"></span><br><label><input type="checkbox" id="shadowAdvance" onchange="toggleShadow()"> <b>自动双写 Cloudflare 影子</b></label><span id="shadowMeta" class="meta">默认关闭；勾选即授权未来符合免费层门禁的 outbox 写入专用 Worker/R2/D1。</span></div>
 
 <h2>① 赛事采集与发布（来源访问仅限本机）</h2>
 <div class="card">
@@ -866,22 +935,22 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
 <table><thead><tr><th>日期 / 赛事</th><th>状态</th><th>完整度</th><th>发布</th><th>抓取时间</th><th>动作</th></tr></thead><tbody id="recent"></tbody></table>
 <div class="pager"><button onclick="ePage=Math.max(0,ePage-1);renderEvents()">上一页</button><span id="eventPageInfo"></span><button onclick="ePage++;renderEvents()">下一页</button></div>
 
-<h2>② 公开发布中心（FIDE / Lichess → local-data → 线上）</h2>
+<h2>② 双通道发布中心</h2>
 <div class="summary" id="publishInfo"></div>
 <div class="grid">
  <div class="card"><div class="head"><b>FIDE 注册表</b><span class="badge">可发布</span></div><div class="desc">临时下载、ZIP/语义/人数/分片/勘误校验，通过后才原子晋升。姓名和等级分唯一权威。</div><div class="actions"><button class="primary" onclick="runCmd('registry',[],false)">开始</button><span class="small" id="fideDue"></span></div></div>
  <div class="card"><div class="head"><b>Lichess Broadcast</b><span class="badge">CC BY-SA 4.0</span></div><div class="desc">在暂存区验证分片并重建数据包，manifest 保留许可证和署名链接。</div><div class="actions"><button class="primary" onclick="runCmd('bulk',[],false)">开始</button><button onclick="runCmd('bulk-full',[],true)">全量刷新</button><span class="small" id="lichessDue"></span></div></div>
- <div class="card"><div class="head"><b>投递发布包</b><span class="badge">不抓取</span></div><div class="desc">把 outbox 中待发布的 release 包投递到 local-data；自动轮换直连/代理/API 路线。</div><div class="actions"><button class="primary" onclick="runCmd('deliver',[],false)">投递</button></div></div>
+ <div class="card"><div class="head"><b>推进双通道</b><span class="badge">不抓取</span></div><div class="desc">推进 GitHub 生产投递，并在已授权时续传 Cloudflare 影子回执；任一失败都只重试投递，不回抓来源。</div><div class="actions"><button class="primary" onclick="runCmd('publish',[],false)">立即推进</button></div></div>
  <div class="card"><div class="head"><b>同步云端回执</b><span class="badge">只读</span></div><div class="desc">查询 GitHub ingest/rebuild/deploy 结论并校验线上文件哈希；pushed 不等于已发布。</div><div class="actions"><button class="primary" onclick="runCmd('receipts',[],false)">同步回执</button></div></div>
 </div>
-<h3>发布投递状态（outbox）</h3>
-<div class="small">状态链：pending → pushed → ingested-to-main → indexes-rebuilt → deployed → <b>online-verified</b>（只有线上文件哈希验证通过才算已发布）。</div>
-<table><thead><tr><th>run-id</th><th>状态</th><th>commit</th><th>路线</th><th>回执</th><th>最近错误</th></tr></thead><tbody id="outbox"></tbody></table>
+<h3>同一 outbox 的两套独立回执</h3>
+<div class="small">生产：pending → pushed → ingested-to-main → indexes-rebuilt → deployed → <b>online-verified</b>。影子：registering → uploading → queued → processing → complete/conflict/ineligible。</div>
+<table><thead><tr><th>run-id</th><th>GitHub 生产</th><th>Cloudflare 影子</th><th>commit / snapshot</th><th>回执</th><th>最近错误</th></tr></thead><tbody id="outbox"></tbody></table>
 
 <h2>③ 一键例行维护与诊断</h2>
 <div class="grid">
  <div class="card"><div class="head"><b>健康检查</b><span class="badge">只读</span></div><div class="desc">磁盘、FIDE last-good、发布路径、.git 锁、三个来源直连和 GitHub 投递路线。</div><div class="actions"><button class="primary" onclick="runCmd('health',[],false)">检查</button></div></div>
- <div class="card"><div class="head"><b>安全常规刷新</b><span class="badge">独立阶段</span></div><div class="desc">FIDE 满 25 天才更新；另采集队列前 3 个赛事到私有区。投递失败留在 outbox，不阻塞采集。</div><div class="actions"><button class="primary" onclick="runCmd('all',[],false)">开始</button></div></div>
+ <div class="card"><div class="head"><b>安全常规刷新</b><span class="badge">独立阶段</span></div><div class="desc">FIDE 满 25 天才更新；另采集队列前 3 个赛事。每个新 outbox 按上方授权独立推进生产与影子。</div><div class="actions"><button class="primary" onclick="runCmd('all',[],false)">开始</button></div></div>
  <div class="card"><div class="head"><b>姓名候选</b><span class="badge">仅私有</span></div><div class="desc">生成待人工审查的姓名候选；不会自动写 manual/community 或覆盖 registry。</div><div class="actions"><button class="primary" onclick="runCmd('candidates',[],false)">开始</button></div></div>
  <div class="card"><div class="head"><b>本地离线诊断</b><span class="badge">不交付</span></div><div class="desc">本地重建派生索引用于诊断；不会自动暂存、提交或推送。</div><div class="actions"><button class="primary" onclick="runCmd('reindex',[],false)">离线运行</button></div></div>
 </div>
@@ -900,8 +969,9 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function post(path,body){return fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Panel-Token":TOKEN},body:JSON.stringify(body)}).then(r=>r.json())}
 async function runCmd(cmd,extra,full){if(full&&!confirm("全量刷新会消耗大量流量，确认继续？"))return;const r=await post('/api/run',{cmd,extra});if(!r.ok)alert(r.message);setTimeout(poll,400)}
 async function stopJob(){if(!confirm("中止当前任务？已抓页面与检查点会保留，续跑只补缺页。"))return;const r=await post('/api/stop',{});alert(r.message)}
-async function loadAutomation(){const a=await(await fetch('/api/automation')).json();$('#autoAdvance').checked=!!a.enabled;$('#automationMeta').textContent=`只处理 outbox/回执，不访问数据源 · 待投递 ${a.pending||0} · 推进中 ${a.advancing||0}${(a.attention||[]).length?' · 需要你处理 '+a.attention.length:''}${a.lastAction?' · 最近 '+a.lastAction:''}`}
+async function loadAutomation(){const a=await(await fetch('/api/automation')).json();$('#autoAdvance').checked=!!a.enabled;$('#shadowAdvance').checked=!!a.shadowEnabled;$('#automationMeta').textContent=`不访问来源 · 待投递 ${a.pending||0} · 推进中 ${a.advancing||0}${(a.attention||[]).length?' · 需处理 '+a.attention.length:''}`;$('#shadowMeta').textContent=`${a.shadowEnabled?'已授权自动双写':'未授权，保持关闭'} · 完成 ${a.shadowComplete||0} · 待推进 ${a.shadowPending||0} · 需处理 ${(a.shadowAttention||[]).length}`}
 async function toggleAutomation(){const a=await post('/api/automation',{enabled:$('#autoAdvance').checked});$('#automationMeta').textContent=a.enabled?'自动推进已开启；不会自动抓取。':'自动推进已暂停。'}
+async function toggleShadow(){const enabled=$('#shadowAdvance').checked;if(enabled&&!confirm('启用后，未来符合免费层门禁的清洗后机器数据 outbox 将自动写入专用 Cloudflare 影子 Worker/R2/D1。原始 HTML、人工数据和代码不会上传。确认启用？')){$('#shadowAdvance').checked=false;return}await post('/api/automation',{shadowEnabled:enabled});loadAutomation()}
 function queueTop(n){runCmd('event-queue',['--from-queue',String(n)],false);watchRun('队列前 '+n+' 个')}
 function discoverEvents(){
  const raw=($('#fideDiscoveryInput').value||'').trim();
@@ -935,7 +1005,7 @@ async function startCapture(){
  if(!good.length){alert('请先粘贴至少一个有效的 TNR 或 chess-results.com 链接');return}
  if(bad.length&&!confirm(`${bad.length} 行无法识别，将被忽略。继续采集 ${good.length} 场？`))return;
  if(good.length>10){alert('一次最多 10 场；请分批粘贴以保护访问预算。');return}
- const r=await post('/api/capture',{tnrs:good});
+ const r=await post('/api/capture',{text:$('#tnrInput').value});
  if(!r.ok){alert(r.message);return}
  watchRun('指定赛事 '+good.length+' 场');
  setTimeout(async()=>{const s=await(await fetch('/api/state')).json();$('#captureMsg').textContent=`已启动 run ${s.runId||''} · 共 ${good.length} 场`},600);
@@ -966,7 +1036,7 @@ async function renderBatchResult(){
  batchResult.style.display='block';
  batchResult.innerHTML=`<div class=head><b>本批结果${r.running?'（进行中）':''}</b><span class=badge>run ${esc(r.runId||'')}</span></div>
  <div class=meta>${summary}</div>
- <div class="publishLine"><span class="chip ${pubClass}">${esc(pubText)}</span> · 数据文件 ${esc(pub.changedFiles||0)}（新增/更新 ${esc(pub.upserts||0)}，删除 ${esc(pub.deletes||0)}）${pub.route?' · 路线 '+esc(pub.route):''}${pub.remoteSHA?' · remote '+esc(String(pub.remoteSHA).slice(0,12)):''}${pub.lastError?' · '+esc(pub.lastError):''}</div>
+ <div class="publishLine"><b>GitHub 生产</b> <span class="chip ${pubClass}">${esc(pubText)}</span> · 数据文件 ${esc(pub.changedFiles||0)}（新增/更新 ${esc(pub.upserts||0)}，删除 ${esc(pub.deletes||0)}）${pub.route?' · 路线 '+esc(pub.route):''}${pub.remoteSHA?' · remote '+esc(String(pub.remoteSHA).slice(0,12)):''}${pub.lastError?' · '+esc(pub.lastError):''}<br><b>Cloudflare 影子</b> <span class="chip ${pub.shadow?.status==='complete'?'ok':pub.shadow?.status?'warn':''}">${esc(pub.shadow?.status||'未启用/未双写')}</span>${pub.shadow?.snapshot_id?' · snapshot '+esc(pub.shadow.snapshot_id):''}${pub.shadow?.errorCode?' · '+esc(pub.shadow.errorCode):''}</div>
  ${successRows.length?`<div class=resultGroup><b>完整成功（${successRows.length}）</b>${renderRows(successRows)}</div>`:''}
  ${attentionRows.length?`<div class=resultGroup><b style="color:var(--warn)">部分完成 / 失败（${attentionRows.length}）</b>${renderRows(attentionRows)}</div>`:''}`;
  return r;
@@ -1061,8 +1131,9 @@ async function loadOutbox(){
  $('#publishInfo').innerHTML=`<span class=pill>FIDE ${o.fideDue?'<b style="color:var(--warn)">到期</b>':'未到期'}</span><span class=pill>Lichess ${o.lichessDue?'<b style="color:var(--warn)">到期</b>':'未到期'}</span><a class=pill href="${SITE}/" target="_blank">打开线上站点 ↗</a>`;
  outboxBody.innerHTML=(o.entries||[]).map(e=>{
   const cls=e.status==='online-verified'?'ok':e.status==='pending'?'warn':'';
+  const shadow=e.shadow||{}, shadowCls=shadow.status==='complete'?'ok':shadow.status?'warn':'';
   const rc=Object.entries(e.receipts||{}).map(([k,v])=>v.url?`<a href="${esc(v.url)}" target="_blank">${k}${v.conclusion?':'+esc(v.conclusion):''}</a>`:(k==='online'?`online:${v.ok?'✔':'✘'}`:'')).filter(Boolean).join(' · ');
-  return `<tr><td>${esc(e.runId)}</td><td><span class="chip ${cls}">${esc(e.status)}</span></td><td>${esc(e.commit)}</td><td>${esc(e.route||'-')}</td><td>${rc||'-'}</td><td>${esc(e.lastError||'-')}</td></tr>`
+  return `<tr><td>${esc(e.runId)}</td><td><span class="chip ${cls}">${esc(e.status)}</span><br><span class=meta>${esc(e.route||'-')}</span></td><td><span class="chip ${shadowCls}">${esc(shadow.status||'未双写')}</span></td><td>${esc(e.commit)}${shadow.snapshot_id?'<br>'+esc(String(shadow.snapshot_id).slice(0,28)):''}</td><td>${rc||'-'}</td><td>${esc(e.lastError||shadow.errorCode||'-')}</td></tr>`
  }).join('')||'<tr><td colspan=6>没有待投递或最近投递的发布包</td></tr>';
 }
 

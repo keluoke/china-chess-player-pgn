@@ -30,7 +30,7 @@ manifest，并离线重建派生索引。
 - registry 是姓名和等级分的唯一权威；`name-corrections.csv` 在每次 FIDE 重建中
   最后强制应用，并在发布前再次断言。
 
-## 控制面板
+## 唯一控制面板
 
 双击仓库根目录的「一键抓取面板.command」或「一键抓取.app」，也可运行：
 
@@ -38,6 +38,8 @@ manifest，并离线重建派生索引。
 python3 Scripts/local/panel.py
 ```
 
+这是唯一现行采集控制面。旧 `local-data-center`、`targeted_capture_panel.py`、
+`targeted_series_capture.py` 和 `import_event_list.py` 已删除，不能再作为入口。
 面板只监听 `127.0.0.1`，POST 请求带随机本地令牌。任务锁、run-id、状态和日志
 都持久化在仓库外；关闭或重启面板不会遗失正在运行的任务。
 面板服务断开时蓝色运行指示会立即停止；重开后若发现记录仍为 running 但对应
@@ -64,9 +66,13 @@ partial 目标可一键"续跑补缺页"。队列汇总栏区分：
 
 “已抓赛事”按赛事日期列出本机已有清洗结果，并合并显示抓取状态、人数/轮次/
 排名、完整性门禁和发布阶段；支持搜索、日期/采集时间排序、发布状态筛选与分页。
-面板默认开启“自动推进发布”，它只会执行 `deliver` 和 `receipts`，不会自动访问
-任何数据源。网络型投递失败按 30 秒、120 秒、300 秒退避重试；基线冲突、manifest
+面板把发布拆成两个互不授权的开关：“GitHub 生产自动推进”默认开启，只执行
+`publish`/`receipts`；“Cloudflare 自动影子双写”默认关闭，只有维护者确认开启后，
+才把同一不可变 outbox 双写到影子 Worker。两个开关都不会自动访问任何数据源。
+网络型投递失败按 30 秒、120 秒、300 秒退避重试；基线冲突、manifest
 错误、路径/哈希错误和已证实的线上哈希不一致会停止自动重试并列入“需要人工处理”。
+影子包若超过 12 文件、64 MiB 或单文件 16 MiB，会在本机预检中标为
+`ineligible`；不会上传、不会拆包，也不会阻塞 GitHub 生产发布。
 
 ## 安全命令
 
@@ -105,13 +111,17 @@ bash Scripts/local/refresh.sh candidates -- --tournament-id 1110333
 bash Scripts/local/refresh.sh bulk
 bash Scripts/local/refresh.sh bulk-full
 
-# GitHub 网络失败后只投递 outbox 中的发布包，不重新抓取（push 为兼容别名）
+# 推进 GitHub 生产投递和已显式启用的 Cloudflare 影子回执，不重新抓取
+bash Scripts/local/refresh.sh publish
+# deliver 仅为命令行兼容别名
 bash Scripts/local/refresh.sh deliver
+# 仅推进已授权且已开始的影子回执，不触碰 GitHub
+bash Scripts/local/refresh.sh shadow-publish
 
 # 同步云端回执：查询 ingest/rebuild/deploy workflow 结论并校验线上文件哈希
 bash Scripts/local/refresh.sh receipts
 
-# 将一个已经存在的 outbox 包双写到 Cloudflare 免费层影子服务；不访问数据源，
+# 显式回填一个已经存在的 outbox 包到 Cloudflare 免费层影子服务；不访问数据源，
 # 不改变 GitHub 生产发布状态。默认使用契约内影子 endpoint（可由
 # CLOUDFLARE_INGEST_URL 覆盖）；HMAC secret 默认从 macOS Keychain service
 # china-chess-cloudflare-ingest-shadow 读取。
@@ -255,7 +265,7 @@ FIDE/Lichess/Chess-Results 发布前必须满足：
 不会自动删除、回滚或重新抓取。运行目录按“最近 30 个 + 每类命令至少 5 个”保留；
 本批结果同时写入对应 outbox，因此普通 run 被轮转后仍可在面板追溯。
 
-push 成功不等于发布成功。为避免投递完成后被慢回执查询阻塞，`deliver` 只负责
+GitHub 投递成功不等于发布成功。为避免投递完成后被慢回执查询阻塞，`publish` 负责
 把发布包送达 `local-data`；`refresh.sh receipts` 独立通过 gh API 读取
 ingest/rebuild/deploy workflow 结论，并从线上站点回取一个已发布文件校验
 SHA-256，把 outbox 状态沿

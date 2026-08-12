@@ -13,7 +13,7 @@
 
 **架构：私有采集、审批发布、离线构建。** 所有网络采集只在维护者本机运行，
 见 [`Scripts/local/refresh.sh`](Scripts/local/README.md)。原始响应留在仓库外；本地只
-push 带精确路径和 SHA-256 的发布 manifest，Actions 验证后离线重建并部署。
+投递带精确路径和 SHA-256 的发布 manifest，Actions 验证后离线重建并部署。
 
 ## 网页版
 
@@ -42,7 +42,7 @@ python3 -m http.server 4173 -d docs
 | `event-queue` / `candidates` | Chess-Results | 私有采集，不写人工层或公开数据 |
 | `registry` | FIDE | staging + last-good + registry/勘误校验 + manifest |
 | `bulk` | Lichess | 验证分片，保留 CC BY-SA 4.0 署名并按 manifest 发布 |
-| `push` | GitHub | 重投最近发布包，不重新抓取 |
+| `publish` / `deliver` | GitHub + 可选 Cloudflare 影子 | 推进不可变 outbox 和回执，不重新抓取 |
 
 ### 索引/部署类（GitHub Actions，自动）
 

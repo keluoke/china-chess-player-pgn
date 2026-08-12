@@ -40,9 +40,6 @@ import validate_registry_authority  # noqa: E402
 import sync_chess_results_event  # noqa: E402
 import sync_static_pgn  # noqa: E402
 import sync_lichess_broadcast_bulk  # noqa: E402
-import targeted_series_capture as targeted_capture  # noqa: E402
-import targeted_capture_panel as targeted_panel  # noqa: E402
-import import_event_list  # noqa: E402
 import discover_player_events  # noqa: E402
 import event_targeting  # noqa: E402
 from sync_chinese_players import (  # noqa: E402
@@ -140,262 +137,143 @@ class CiCommitPushTests(unittest.TestCase):
             self.assertEqual(published, '{"snapshot":"old"}\n')
 
 
-class TargetedCaptureCheckpointTests(unittest.TestCase):
-    def test_csv_import_preserves_event_and_group_titles(self) -> None:
+class PanelPipelineTests(unittest.TestCase):
+    def test_capture_input_accepts_only_tnr_and_chess_results_urls(self) -> None:
+        self.assertEqual(local_panel.normalize_capture_token("tnr1383"), "1383")
+        self.assertEqual(
+            local_panel.normalize_capture_token(
+                "https://chess-results.com/tnr1429695.aspx?lan=1"
+            ),
+            "1429695",
+        )
+        self.assertEqual(
+            local_panel.normalize_capture_token(
+                "https://example.com/tnr1429695.aspx"
+            ),
+            "",
+        )
+
+    def test_capture_text_deduplicates_csv_and_plain_tokens(self) -> None:
+        self.assertEqual(
+            local_panel.parse_capture_text(
+                "公开组,https://chess-results.com/tnr1429695.aspx?lan=33\n"
+                "tnr1429695; 1429696"
+            ),
+            ["1429695", "1429696"],
+        )
+
+    def test_single_panel_exposes_only_current_safe_entrypoints(self) -> None:
+        self.assertIn("event-queue", local_panel.ALLOWED_COMMANDS)
+        self.assertIn("publish", local_panel.ALLOWED_COMMANDS)
+        self.assertNotIn("push", local_panel.ALLOWED_COMMANDS)
+        self.assertNotIn("targeted-series", local_panel.ALLOWED_COMMANDS)
+
+    def test_running_job_blocks_a_second_source_capture(self) -> None:
+        with mock.patch.object(
+            local_panel,
+            "durable_state",
+            return_value={"running": True, "command": "event-queue", "runId": "active"},
+        ):
+            ok, message = local_panel.start_job("event-queue", ["999001"])
+        self.assertFalse(ok)
+        self.assertIn("已有任务", message)
+
+    def test_unknown_panel_command_is_rejected_before_launch(self) -> None:
+        with mock.patch.object(local_panel, "durable_state", return_value={"running": False}):
+            ok, message = local_panel.start_job("crawl", [])
+        self.assertFalse(ok)
+        self.assertIn("白名单", message)
+
+    def test_retry_and_quarantine_state_survives_panel_restart(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
-            source = root / "events.csv"
-            overrides = root / "task-overrides.json"
-            run_state = root / "run-state.json"
-            source.write_text(
-                "2026年全国国际象棋棋协大师赛（测试站）,\n"
-                "公开组,https://chess-results.com/tnr1455665.aspx?lan=33&art=0\n"
-                "女子组,https://s2.chess-results.com/tnr1455661.aspx?lan=33&art=0\n",
+            capture_state = pathlib.Path(temp) / "capture-state.json"
+            capture_state.write_text(
+                json.dumps(
+                    {
+                        "events": {
+                            "999001": {
+                                "status": "retry-wait",
+                                "nextRetryAt": "2999-01-01T00:00:00+00:00",
+                            },
+                            "999002": {
+                                "status": "quarantined",
+                                "errorCode": "UNSUPPORTED_EVENT_FORMAT",
+                            },
+                        }
+                    }
+                ),
                 encoding="utf-8",
             )
-            result = import_event_list.import_targets(source, overrides_path=overrides, run_state_path=run_state)
-            payload = json.loads(overrides.read_text(encoding="utf-8"))
-            self.assertEqual(result["targets"], 2)
-            self.assertEqual(
-                payload["additions"]["1455665"]["displayName"],
-                "2026年全国国际象棋棋协大师赛（测试站） · 公开组",
+            with mock.patch.object(local_panel, "CAPTURE_STATE_PATH", capture_state):
+                captures = local_panel.load_captures()
+            self.assertEqual(captures["999001"]["status"], "retry-wait")
+            self.assertEqual(captures["999002"]["status"], "quarantined")
+
+    def test_shadow_automation_is_independent_and_opt_in(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            automation = root / "automation.json"
+            with (
+                mock.patch.object(local_panel, "AUTOMATION_PATH", automation),
+                mock.patch.object(local_panel, "outbox_entries", return_value=[]),
+            ):
+                initial = local_panel.automation_payload()
+                self.assertTrue(initial["enabled"])
+                self.assertFalse(initial["shadowEnabled"])
+
+                updated = local_panel.update_automation({"shadowEnabled": True})
+                self.assertTrue(updated["enabled"])
+                self.assertTrue(updated["shadowEnabled"])
+
+                disabled_git = local_panel.update_automation({"enabled": False})
+                self.assertFalse(disabled_git["enabled"])
+                self.assertTrue(disabled_git["shadowEnabled"])
+
+    def test_free_tier_ineligible_shadow_is_visible_without_blocking_git(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            outbox = root / "outbox-run"
+            outbox.mkdir()
+            (outbox / "shadow-delivery.json").write_text(
+                json.dumps(
+                    {
+                        "runId": "run-1",
+                        "status": "ineligible",
+                        "errorCode": "FREE_TIER_RELEASE_FILE_LIMIT",
+                    }
+                ),
+                encoding="utf-8",
             )
-            self.assertEqual(json.loads(run_state.read_text(encoding="utf-8"))["status"], "pending")
+            entries = [{"runId": "run-1", "status": "pending", "path": str(outbox)}]
+            with (
+                mock.patch.object(local_panel, "AUTOMATION_PATH", root / "automation.json"),
+                mock.patch.object(local_panel, "outbox_entries", return_value=entries),
+            ):
+                payload = local_panel.automation_payload()
+            self.assertEqual(payload["pending"], 1)
+            self.assertEqual(payload["shadowAttention"][0]["status"], "ineligible")
 
-    def test_manual_only_selection_excludes_catalogue_targets(self) -> None:
-        plan = {"targets": [
-            {"tournamentID": "100001", "series": "chess-association-master", "future": False, "existingRecord": False},
-            {"tournamentID": "100002", "series": "manual-review", "future": False, "existingRecord": False},
-            {"tournamentID": "100003", "series": "manual-review", "future": False, "existingRecord": True},
-        ]}
-        selected = targeted_capture.selected_targets(
-            plan, refresh_existing=False, include_future=False, manual_only=True,
-        )
-        self.assertEqual([row["tournamentID"] for row in selected], ["100002"])
-
-    def test_manual_task_input_accepts_tnr_and_source_link_only(self) -> None:
-        self.assertEqual(targeted_panel.normalize_tnr("tnr1383"), "1383")
-        self.assertEqual(
-            targeted_panel.normalize_tnr("https://chess-results.com/tnr1429695.aspx?lan=1"), "1429695",
-        )
-        self.assertEqual(targeted_panel.normalize_tnr("https://example.com/tnr1429695.aspx"), "")
-
-    def test_completed_capture_is_not_retried_when_release_fails(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            capture_state = pathlib.Path(temp) / "capture-state.json"
-            pgn_archive = pathlib.Path(temp) / "event-pgn"
-            pgn_archive.mkdir()
-            (pgn_archive / "tnr999001.pgn").write_text('[Event "test"]\n\n1. e4 *\n', encoding="utf-8")
-            (pgn_archive / "tnr999002.pgn").write_text('[Event "test"]\n\n1. d4 *\n', encoding="utf-8")
-            capture_state.write_text(json.dumps({"events": {
-                "999001": {"status": "complete", "runPrivateRoot": "/private/runs/test-run"},
-                "999002": {"status": "complete", "runPrivateRoot": "/private/runs/test-run"},
-            }}), encoding="utf-8")
-            state = {
-                "status": "stopped", "nextBatchIndex": 0, "completedBatches": 0,
-                "currentTargets": ["999001", "999002"],
-                "lastOutcome": {"runId": "test-run", "errorCode": "WORKTREE_CHANGED_DURING_RUN"},
+    def test_production_merge_conflict_requires_human_attention(self) -> None:
+        entries = [
+            {
+                "runId": "run-1",
+                "status": "pending",
+                "lastError": "RELEASE_BASE_CONFLICT",
+                "path": "",
             }
-            batches = [[{"tournamentID": "999001"}, {"tournamentID": "999002"}]]
-            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state), \
-                 mock.patch.object(targeted_capture, "EVENT_PGN_ARCHIVE", pgn_archive):
-                self.assertTrue(targeted_capture.recover_completed_batch(state, batches))
-            self.assertEqual(state["nextBatchIndex"], 1)
-            self.assertEqual(state["completedBatches"], 1)
-            self.assertEqual(state["lastOutcome"]["result"], "capture-complete-release-blocked")
-
-    def test_old_capture_cannot_advance_new_failed_run(self) -> None:
+        ]
         with tempfile.TemporaryDirectory() as temp:
-            capture_state = pathlib.Path(temp) / "capture-state.json"
-            capture_state.write_text(json.dumps({"events": {
-                "999001": {"status": "complete", "runPrivateRoot": "/private/runs/older-run"},
-            }}), encoding="utf-8")
-            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state):
-                self.assertFalse(targeted_capture.batch_capture_completed(["999001"], "new-run"))
-
-    def test_missing_pgn_archive_cannot_advance_completed_event_pages(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            capture_state = pathlib.Path(temp) / "capture-state.json"
-            capture_state.write_text(json.dumps({"events": {
-                "999001": {"status": "complete", "runPrivateRoot": "/private/runs/test-run"},
-            }}), encoding="utf-8")
-            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state), \
-                 mock.patch.object(targeted_capture, "EVENT_PGN_ARCHIVE", pathlib.Path(temp) / "missing-pgn"):
-                self.assertFalse(targeted_capture.batch_capture_completed(["999001"], "test-run"))
-
-    def test_explicit_source_pgn_gap_can_advance_without_an_empty_archive(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
-            capture_state = root / "capture-state.json"
-            details = root / "details"
-            details.mkdir()
-            capture_state.write_text(json.dumps({"events": {
-                "999001": {"status": "complete", "runPrivateRoot": "/private/runs/test-run"},
-            }}), encoding="utf-8")
-            (details / "tnr999001.json").write_text(json.dumps({"rounds": [{"pairings": [{
-                "white": {"playerNo": "1", "name": "White"},
-                "black": {"playerNo": "2", "name": "Black"},
-                "hasPGN": False, "pgnURL": "",
-            }]}]}), encoding="utf-8")
-            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state), \
-                 mock.patch.object(targeted_capture, "EVENT_PGN_ARCHIVE", root / "missing-pgn"), \
-                 mock.patch.object(targeted_capture, "DETAILS", details):
-                self.assertTrue(targeted_capture.batch_capture_completed(["999001"], "test-run"))
-
-    def test_active_source_backoff_blocks_a_batch_without_network(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            capture_state = pathlib.Path(temp) / "capture-state.json"
-            capture_state.write_text(json.dumps({"events": {
-                "999001": {"status": "retry-wait", "nextRetryAt": "2999-01-01T00:00:00+00:00"},
-            }}), encoding="utf-8")
-            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state):
-                self.assertEqual(targeted_capture.retry_after_for(["999001"]), "2999-01-01T00:00:00+00:00")
-
-    def test_quarantine_review_date_is_not_a_source_backoff(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            capture_state = pathlib.Path(temp) / "capture-state.json"
-            capture_state.write_text(json.dumps({"events": {
-                "999001": {"status": "quarantined", "nextRetryAt": "2999-01-01T00:00:00+00:00"},
-            }}), encoding="utf-8")
             with (
-                mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state),
-                mock.patch.object(targeted_panel, "CAPTURE_STATE_PATH", capture_state),
+                mock.patch.object(local_panel, "AUTOMATION_PATH", pathlib.Path(temp) / "automation.json"),
+                mock.patch.object(local_panel, "outbox_entries", return_value=entries),
             ):
-                self.assertIsNone(targeted_capture.retry_after_for(["999001"]))
-                self.assertIsNone(targeted_panel.active_retry_after({"currentTargets": ["999001"]}))
-
-    def test_elapsed_retry_target_is_prioritized_but_future_backoff_is_not(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            capture_state = pathlib.Path(temp) / "capture-state.json"
-            capture_state.write_text(json.dumps({"events": {
-                "999001": {"status": "retry-wait", "nextRetryAt": "2000-01-01T00:00:00+00:00"},
-                "999002": {"status": "retry-wait", "nextRetryAt": "2999-01-01T00:00:00+00:00"},
-                "999003": {"status": "complete"},
-            }}), encoding="utf-8")
-            with mock.patch.object(targeted_capture, "CAPTURE_STATE_PATH", capture_state):
-                self.assertEqual(targeted_capture.retry_ready_targets({"999001", "999002", "999003"}), ["999001"])
-
-    def test_completed_plan_runs_due_retry_without_reopening_finished_batches(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
-            state = {"status": "completed", "nextBatchIndex": 1, "completedBatches": 1}
-            plan = {"targets": [{"tournamentID": "999001", "future": False, "existingRecord": False}]}
-            completed = subprocess.CompletedProcess([], 0)
-            with (
-                mock.patch.object(targeted_capture, "LOG_PATH", root / "capture.log"),
-                mock.patch.object(targeted_capture, "RUN_STATE_PATH", root / "run-state.json"),
-                mock.patch.object(targeted_capture, "run_state", return_value=(state, 1)),
-                mock.patch.object(targeted_capture, "retry_ready_targets", return_value=["999001"]),
-                mock.patch.object(targeted_capture.subprocess, "run", side_effect=[completed, completed]) as run,
-            ):
-                self.assertEqual(targeted_capture.run(plan, refresh_existing=False, include_future=False, manual_only=False, limit=0), 0)
-            self.assertEqual(run.call_args_list[0].args[0], [
-                "bash", "Scripts/local/refresh.sh", "event-queue", "--no-push", "--", "999001",
-            ])
-            self.assertEqual(state["status"], "completed")
-            self.assertEqual(state["completedBatches"], 1)
-
-    def test_completed_checkpoint_does_not_fall_back_to_legacy_log(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
-            targets = [{"tournamentID": "999001"}]
-            signature = __import__("hashlib").sha256(b"999001").hexdigest()
-            state_path = root / "run-state.json"
-            state_path.write_text(json.dumps({
-                "status": "completed", "targetSignature": signature,
-                "nextBatchIndex": 1, "completedBatches": 1,
-            }), encoding="utf-8")
-            with (
-                mock.patch.object(targeted_capture, "RUN_STATE_PATH", state_path),
-                mock.patch.object(targeted_capture, "LOG_PATH", root / "capture.log"),
-            ):
-                state, start = targeted_capture.run_state(targets, [targets])
-            self.assertEqual(start, 1)
-            self.assertEqual(state["status"], "completed")
-
-    def test_new_task_signature_does_not_inherit_old_log_batch_index(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
-            state_path = root / "run-state.json"
-            log_path = root / "capture.log"
-            state_path.write_text(json.dumps({
-                "status": "completed", "targetSignature": "old-signature",
-                "nextBatchIndex": 77, "completedBatches": 77,
-            }), encoding="utf-8")
-            log_path.write_text("STOP batch 16: historical failure\n", encoding="utf-8")
-            targets = [{"tournamentID": "999001"}]
-            with (
-                mock.patch.object(targeted_capture, "RUN_STATE_PATH", state_path),
-                mock.patch.object(targeted_capture, "LOG_PATH", log_path),
-            ):
-                state, start = targeted_capture.run_state(targets, [targets])
-            self.assertEqual(start, 0)
-            self.assertEqual(state["status"], "pending")
+                payload = local_panel.automation_payload()
+        self.assertEqual(payload["attention"][0]["errorCode"], "RELEASE_BASE_CONFLICT")
+        self.assertEqual(payload["pending"], 1)
 
     def test_source_request_ledger_is_not_a_daily_capture_gate(self) -> None:
         self.assertIsNone(source_http.POLICIES["chess-results"].daily_budget)
         self.assertIsNone(source_http.POLICIES["fide"].daily_budget)
-
-    def test_control_panel_reads_the_same_retry_gate(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            capture_state = pathlib.Path(temp) / "capture-state.json"
-            capture_state.write_text(json.dumps({"events": {
-                "999001": {"status": "retry-wait", "nextRetryAt": "2999-01-01T00:00:00+00:00"},
-            }}), encoding="utf-8")
-            with mock.patch.object(targeted_panel, "CAPTURE_STATE_PATH", capture_state):
-                self.assertEqual(
-                    targeted_panel.active_retry_after({"currentTargets": ["999001"]}),
-                    "2999-01-01T00:00:00+00:00",
-                )
-
-    def test_imported_task_scope_resumes_manual_campaign_only(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
-            collection = root / "collection"
-            collection.mkdir()
-            state_path = collection / "run-state.json"
-            state_path.write_text(json.dumps({"taskScope": "manual-only"}), encoding="utf-8")
-            panel = targeted_panel.Panel()
-            with (
-                mock.patch.object(targeted_panel, "STATE_PATH", state_path),
-                mock.patch.object(targeted_panel, "COLLECTION", collection),
-                mock.patch.object(targeted_panel, "LOCK_PATH", root / "index.lock"),
-                mock.patch.object(targeted_panel, "active_retry_after", return_value=None),
-                mock.patch.object(targeted_panel, "pid_alive", return_value=False),
-                mock.patch.object(targeted_panel.subprocess, "Popen") as popen,
-            ):
-                popen.return_value.poll.return_value = None
-                ok, _ = panel.start_resume()
-            self.assertTrue(ok)
-            self.assertEqual(popen.call_args.args[0][-1], "--only-manual")
-
-    def test_panel_inferrs_manual_scope_from_saved_batch(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            root = pathlib.Path(temp)
-            collection = root / "collection"
-            collection.mkdir()
-            state_path = collection / "run-state.json"
-            plan_path = collection / "target-plan.json"
-            state_path.write_text(json.dumps({"currentTargets": ["100002"]}), encoding="utf-8")
-            plan_path.write_text(json.dumps({"targets": [
-                {"tournamentID": "100002", "series": "manual-review"},
-            ]}), encoding="utf-8")
-            panel = targeted_panel.Panel()
-            with (
-                mock.patch.object(targeted_panel, "STATE_PATH", state_path),
-                mock.patch.object(targeted_panel, "PLAN_PATH", plan_path),
-                mock.patch.object(targeted_panel, "COLLECTION", collection),
-                mock.patch.object(targeted_panel, "LOCK_PATH", root / "index.lock"),
-                mock.patch.object(targeted_panel, "active_retry_after", return_value=None),
-                mock.patch.object(targeted_panel, "pid_alive", return_value=False),
-                mock.patch.object(targeted_panel.subprocess, "Popen") as popen,
-            ):
-                popen.return_value.poll.return_value = None
-                ok, _ = panel.start_resume()
-            self.assertTrue(ok)
-            self.assertEqual(popen.call_args.args[0][-1], "--only-manual")
-
-
 class EventPgnSelectionTests(unittest.TestCase):
     def test_event_release_boundary_includes_per_event_pgn_attempt_facts(self) -> None:
         script = (SCRIPTS / "local" / "refresh.sh").read_text(encoding="utf-8")
@@ -1847,9 +1725,12 @@ class PanelBatchResultTests(unittest.TestCase):
         start = source.index("def automation_monitor()")
         end = source.index("\ndef stop_job", start)
         monitor = source[start:end]
-        self.assertIn('"deliver" if pending else "receipts"', monitor)
+        self.assertIn('"shadow-publish" if shadow_pending', monitor)
+        self.assertIn("if git_enabled else []", monitor)
+        self.assertIn("if (not git_enabled and not shadow_enabled)", monitor)
         self.assertNotIn("event-queue", monitor)
-        self.assertIn("自动推进发布", local_panel.PAGE)
+        self.assertIn("自动推进 GitHub 生产发布", local_panel.PAGE)
+        self.assertIn("自动双写 Cloudflare 影子", local_panel.PAGE)
 
     def test_panel_automation_quarantines_online_hash_mismatch(self) -> None:
         with (

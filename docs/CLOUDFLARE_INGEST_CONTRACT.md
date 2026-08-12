@@ -16,6 +16,10 @@
 第一阶段只做影子双写和对账，不修改生产 Pages/R2 数据读取。连续发布验证通过前，
 GitHub `local-data → main → rebuild → deploy` 仍是生产发布链路。
 
+面板中的 Cloudflare 自动双写必须是独立、显式授权且默认关闭的开关；不得因
+GitHub 生产自动推进已开启而推定影子上传也获授权。开关开启后，只对新生成的
+合格 outbox 自动双写；历史包只能由维护者显式执行 `shadow-deliver` 回填。
+
 ## 免费层硬门禁
 
 以下是服务自身的绝对上限，不是告警阈值；达到任一门禁立即 fail-closed，不排队、
@@ -39,6 +43,10 @@ GitHub `local-data → main → rebuild → deploy` 仍是生产发布链路。
 固定保留 7 次余量。不得在不拆分 Queue 状态机的前提下提高此值。预算按
 最坏情况在发布登记时一次性预留，即使对象已存在也不返还预算。这样会保守地提前
 停机，但不会因去重估算乐观而突破门禁。免费额度或用量无法确认时按不可用处理。
+本机客户端必须在任何网络请求前执行相同门禁。超限包写入
+`shadow-delivery.json`，状态为 `ineligible` 并保留明确的 `FREE_TIER_*` 错误码；
+GitHub 生产 outbox 不受影响。禁止为了塞进免费层自动拆分一个原子发布包：这会
+改变三方合并和快照原子性，也不能规避 D1 Free 单次 50 查询上限。
 
 Worker Free 到达平台账户级请求上限时由 Cloudflare 拒绝后续请求；本服务不配置
 Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前，必须重新
@@ -77,7 +85,8 @@ Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前�
 
 生产切流必须另行满足：
 
-1. 至少连续 7 天且不少于 20 个真实发布包双写；
+1. 至少连续 7 天且不少于 20 个符合本契约上限的真实发布包双写；`ineligible`
+   包只计入容量证据，不计入成功对账包数；
 2. Git 生产结果与 Cloudflare 影子结果逐路径 SHA-256 一致；
 3. 幂等重投、乱序发布、真实冲突、Queue 重试、配额耗尽均通过演练；
 4. 生产回滚、旧 URL 兼容、MIME/CORS/cache 和原始 URL 验证完成；

@@ -113,8 +113,11 @@
    使用 `refresh.sh health`；按 FIDE ID 发现最近赛事使用 `refresh.sh discover-events`
    （只写仓库外私有候选池，不抓赛事详情、不发布）；私有赛事采集使用
    `refresh.sh event-queue -- <tnr-or-url>`；
-   发布重投使用 `refresh.sh deliver`（`push` 是其兼容别名）。
-8. push 成功不等于发布成功；必须确认云端 ingest、rebuild、deploy 的 receipt。任一
+   发布推进使用 `refresh.sh publish`（`deliver` 仅为命令行兼容别名）。
+   `targeted_capture_panel.py`、`targeted_series_capture.py`、`import_event_list.py`
+   及仓库内 `local-data-center` 第二控制面已退役并删除；采集面板唯一入口是
+   `Scripts/local/panel.py`，采集唯一入口仍是 `refresh.sh event-queue`。
+8. GitHub 投递成功不等于发布成功；必须确认云端 ingest、rebuild、deploy 的 receipt。任一
    云端阶段失败只重试该阶段，不回抓来源。
 8a. 云端/本地派生重建唯一入口是 `Scripts/build_release_snapshot.py`：所有
    派生产物在同一 `SNAPSHOT_ID` 下重建并写入 `docs/data/snapshot.json`；任一
@@ -137,7 +140,11 @@
 - 代码工作区独立从远端 `main` 做 blobless+sparse clone；允许 fetch/fast-forward，
   但不承载采集运行状态、机器产物或 outbox。
 - 采集与投递解耦:GitHub push 失败只把发布包标记为 delivery-pending 留在 outbox，
-  不阻塞后续采集；恢复后运行 `refresh.sh deliver` 重投。
+  不阻塞后续采集；恢复后运行 `refresh.sh publish` 重投。
+- 面板把 GitHub 生产推进与 Cloudflare 影子双写设为两个独立开关。生产推进默认
+  开启；影子双写必须由维护者显式开启，默认关闭。影子包超过 12 文件、64 MiB
+  或单文件 16 MiB 时标记 `ineligible` 并停止影子上传，GitHub 生产链路继续；
+  禁止为绕过 D1 Free 单次 50 查询上限自动拆包或降低原子性。
 - chess-results / FIDE 抓取必须直连住宅 IP(封数据中心 IP);终端 GitHub 访问显式
   注入 127.0.0.1:15236，`scutil` 只能用于发现候选代理，不能视为终端已继承代理。
 - CI 里绝不能回抓 chess-results(GitHub IP 被封);Chess-Results 只在维护者本机
