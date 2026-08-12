@@ -1,0 +1,42 @@
+name = "chess-data-ingest-shadow"
+main = "src/worker.js"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+# This service is intentionally pinned to Workers Free.  Do not add paid
+# bindings or raise these budgets without changing AGENTS.md and the reviewed
+# contract in docs/CLOUDFLARE_INGEST_CONTRACT.md.
+[vars]
+SERVICE_MODE = "shadow"
+MAX_DAILY_RELEASES = "8"
+MAX_RELEASE_FILES = "12"
+MAX_RELEASE_BYTES = "67108864"
+MAX_FILE_BYTES = "16777216"
+MAX_SHADOW_STORAGE_BYTES = "1073741824"
+MAX_MONTHLY_R2_CLASS_A = "100000"
+MAX_MONTHLY_R2_CLASS_B = "250000"
+MAX_DAILY_D1_ROWS_READ = "100000"
+MAX_DAILY_D1_ROWS_WRITTEN = "10000"
+MAX_D1_STORAGE_BYTES = "134217728"
+MAX_DAILY_QUEUE_OPS = "1000"
+MAX_DAILY_WORKER_REQUESTS = "5000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "chess-data-ingest-shadow"
+database_id = "fb7575b4-b781-42d9-afab-d3773114e396"
+
+[[r2_buckets]]
+binding = "DATA"
+bucket_name = "chess-ingest-shadow"
+
+[[queues.producers]]
+binding = "RELEASE_QUEUE"
+queue = "chess-data-ingest-shadow"
+
+[[queues.consumers]]
+queue = "chess-data-ingest-shadow"
+max_batch_size = 1
+max_batch_timeout = 5
+max_retries = 3
+max_concurrency = 1

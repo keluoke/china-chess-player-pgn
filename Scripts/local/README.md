@@ -111,6 +111,12 @@ bash Scripts/local/refresh.sh deliver
 # 同步云端回执：查询 ingest/rebuild/deploy workflow 结论并校验线上文件哈希
 bash Scripts/local/refresh.sh receipts
 
+# 将一个已经存在的 outbox 包双写到 Cloudflare 免费层影子服务；不访问数据源，
+# 不改变 GitHub 生产发布状态。默认使用契约内影子 endpoint（可由
+# CLOUDFLARE_INGEST_URL 覆盖）；HMAC secret 默认从 macOS Keychain service
+# china-chess-cloudflare-ingest-shadow 读取。
+bash Scripts/local/refresh.sh shadow-deliver -- 20260812-081901-9ae22db0
+
 # storage-migrate 同时处理 data/generated/chess-results-event-pgn 与
 # docs/data/pgn，并在共享回执中分别记录 objects / playerObjects。
 # 将当前静态 PGN 树递归上传到 R2，逐对象校验 SHA-256，并只通过
@@ -191,6 +197,14 @@ python3 Scripts/local/identity_review.py --show <candidateID>
   `source-published-coverage-unresolved`，不能静默视为完整。
 
 ## 发布事务
+
+### Cloudflare 免费层影子发布
+
+`cloudflare/ingest/` 是机器数据直达 Cloudflare 的第一阶段影子服务。它不取代当前
+GitHub 生产链路；本机 outbox 可双写到该服务做 SHA-256/三方冲突/回执对账。
+免费额度、鉴权、不可变快照和生产切流门禁以
+`docs/CLOUDFLARE_INGEST_CONTRACT.md` 为准。达到任一硬上限时影子发布必须停止，
+不得降低校验、借用生产桶或自动切换付费计划。
 
 每次运行创建独立目录：
 

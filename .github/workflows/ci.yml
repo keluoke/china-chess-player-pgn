@@ -41,6 +41,12 @@ jobs:
           node Scripts/tests/frontend_search_core_test.mjs
           node Scripts/tests/pgn_proxy_test.mjs
 
+      - name: Validate Cloudflare free-tier ingest policy
+        run: |
+          node --check cloudflare/ingest/src/policy.js
+          node --check cloudflare/ingest/src/worker.js
+          node --test cloudflare/ingest/test/*.test.mjs
+
       - name: Validate local shell entrypoint
         run: bash -n Scripts/local/refresh.sh
 

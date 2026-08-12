@@ -27,6 +27,7 @@
 #   deliver      Deliver pending outbox release bundles; never re-scrapes.
 #   push         Alias of deliver (kept for compatibility).
 #   receipts     Sync cloud ingest/rebuild/deploy receipts + online check.
+#   shadow-deliver  Double-write one existing outbox run to Cloudflare shadow ingest.
 #   reindex      Offline diagnostic rebuild only; never commits or pushes.
 #
 # Retired/blocked by policy: crawl*, pgn*, events*, aliases, promote,
@@ -903,6 +904,16 @@ case "$command" in
     py_extra Scripts/local/check_receipts.py || fail "RECEIPT_CHECK_FAILED" \
       "部分云端回执暂不可读；已确认的阶段不会回退，稍后只重试 receipts。"
     PUSH_SUMMARY="云端回执已同步；线上验证结果见 outbox 状态"
+    ;;
+
+  shadow-deliver)
+    [ "${#EXTRA[@]}" -eq 1 ] || fail "UNSAFE_ARGUMENT_BLOCKED" \
+      "shadow-deliver 只接受一个现有 outbox run-id；不会访问任何数据源。"
+    state "shadow-delivering" "将现有不可变 outbox 双写到 Cloudflare 免费层影子 ingest"
+    py Scripts/local/cloudflare_ingest.py --run-id "${EXTRA[0]}" \
+      || fail "CLOUDFLARE_SHADOW_DELIVERY_FAILED" \
+        "影子投递未完成；GitHub 生产链路和本机 outbox 未改变。"
+    PUSH_SUMMARY="Cloudflare 影子发布完成；生产仍使用 GitHub 链路"
     ;;
 
   reindex)

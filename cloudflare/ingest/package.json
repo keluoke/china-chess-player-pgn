@@ -1,0 +1,12 @@
+{
+  "name": "chess-data-ingest-shadow",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check src/policy.js && node --check src/worker.js"
+  },
+  "devDependencies": {
+    "wrangler": "4.116.0"
+  }
+}

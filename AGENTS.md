@@ -12,6 +12,26 @@
 
 ## 本地采集与 GitHub 投递铁律
 
+### Cloudflare 免费层影子 ingest（迁移期硬契约）
+
+- 机器数据直达 Cloudflare 的新链路当前仅允许 `shadow` 双写，不得替代生产
+  `local-data → main → rebuild → deploy`。完整契约见
+  `docs/CLOUDFLARE_INGEST_CONTRACT.md`。
+- 专用 Worker/R2/D1/Queue 必须保持免费计划，禁止自动升级或配置付费资源。服务
+  硬上限：8 releases/day、12 files/release、64 MiB/release、16 MiB/file、
+  5,000 Worker requests/day、100,000 D1 reads/day、10,000 D1 writes/day、
+  1,000 Queue ops/day、100,000 R2 Class A/month、250,000 Class B/month、
+  128 MiB D1、1 GiB 影子 R2 预留。D1 Free 单次调用最多 50 次查询，合并最坏
+  43 次；Queue consumer 并发固定为 1。任一额度无法确认或达到上限即 fail-closed。
+- Worker 只做 HMAC 鉴权、manifest/路径/哈希门禁和流式 R2 写；普通 HTTP 请求禁止
+  执行整库解析或索引重建。Queue 分片/异步处理，D1 只存小型元数据、path head、
+  snapshot 指针和 receipt，PGN/大 JSON 正文只存内容寻址 R2 对象。
+- `data/manual/`、`data/community/`、代码与 schema 继续只走 Git；原始 HTML/WARC
+  永不上传。影子链路仍须保持 registry 权威压制和 baseline/current/candidate
+  fail-closed 冲突隔离。
+- 未达到契约规定的连续 7 天且至少 20 包双写对账、冲突/幂等/配额/回滚演练前，
+  禁止把 Cloudflare ingest 切为生产主入口。
+
 1. 所有 Chess-Results/FIDE/Lichess 来源访问只允许维护者本机住宅网络执行；
    GitHub Actions、云主机、社区贡献工具不得回抓。唯一入口是
    `bash Scripts/local/refresh.sh <safe-command>`。
