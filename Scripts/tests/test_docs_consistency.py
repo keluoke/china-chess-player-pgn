@@ -47,10 +47,11 @@ def operational_docs() -> list[pathlib.Path]:
 
 
 class RefreshCommandContractTests(unittest.TestCase):
-    def test_event_archive_upload_detects_new_gitignored_pgn(self) -> None:
+    def test_event_archive_upload_uses_exact_recovery_projection(self) -> None:
         refresh = (REPO / "Scripts" / "local" / "refresh.sh").read_text(encoding="utf-8")
-        self.assertIn("worktree-baseline.json", refresh)
-        self.assertIn("-newer \"$archive_baseline\"", refresh)
+        self.assertIn('recovery-list --repo "$REPO_ROOT"', refresh)
+        self.assertIn('--file-list "$file_list"', refresh)
+        self.assertIn('"data/pgn" "playerObjects"', refresh)
 
     def test_every_documented_refresh_command_is_in_the_safe_whitelist(self) -> None:
         violations = []

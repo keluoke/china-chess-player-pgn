@@ -38,6 +38,11 @@ manifest，并离线重建派生索引。
 python3 Scripts/local/panel.py
 ```
 
+启动器先读取 Git 的 `chessdb.workspaceRole`：从 `code` 工作区误开时会按
+`chessdb.collectorRoot` 自动跳转到采集工作区；路径未配置或角色异常则
+fail-closed。面板进程和 `refresh.sh` 入口还会分别复核角色，非 `collector`
+一律报 `WRONG_WORKSPACE_ROLE`，不会创建 run、抓取来源或生成发布包。
+
 这是唯一现行采集控制面。旧 `local-data-center`、`targeted_capture_panel.py`、
 `targeted_series_capture.py` 和 `import_event_list.py` 已删除，不能再作为入口。
 面板只监听 `127.0.0.1`，POST 请求带随机本地令牌。任务锁、run-id、状态和日志
@@ -62,7 +67,9 @@ partial 目标可一键"续跑补缺页"。队列汇总栏区分：
 部分/失败目标、逐场人数/轮次/排名、逐场直接更新文件数、整批文件数/字节数，
 以及 outbox → main → 部署 → 线上验证的实际阶段。混合批次显示为“部分完成”，
 不再笼统标成整批 `failed`；发布状态只取 manifest 和 delivery receipt，不从
-采集退出码推断。
+采集退出码推断。成功清洗且无 manifest 才显示“与已发布数据一致”；运行在发布
+准备前失败且无 manifest 时显示“采集/发布失败，未生成发布包”，不得误报成
+“没有数据变化”。
 
 “已抓赛事”按赛事日期列出本机已有清洗结果，并合并显示抓取状态、人数/轮次/
 排名、完整性门禁和发布阶段；支持搜索、日期/采集时间排序、发布状态筛选与分页。
@@ -155,6 +162,12 @@ python3 Scripts/local/identity_review.py --show <candidateID>
 `crawl*`、`pgn*`、`events*`、`aliases`、`promote`、`reconcile`、`verify` 和
 `contrib` 已从一键入口退役。社区只提交赛事 URL/tnr、优先级、身份勘误、联邦
 变更证据及质量问题，不提交自动抓取文件。
+
+Python 依赖不写入 Homebrew/system Python。入口发现缺少依赖时，在仓库外状态区
+`~/Library/Application Support/ChinaChessPlayerPGN/python-runtime/` 创建私有
+venv 并切换本次任务；这兼容 PEP 668，安装错误会原样进入 run 日志。赛事采集和
+`recover-events` 只把本批新增/变化的赛事 PGN、棋手拆分 PGN 上传 R2 并 HEAD
+校验 SHA-256，随后才允许生成 manifest；已有 R2 回执按对象 key 合并保留。
 
 ## 采集语义（Chess-Results）
 
@@ -284,6 +297,10 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 
 ## 常见错误码
 
+- `WRONG_WORKSPACE_ROLE`：从非 collector 工作区启动；入口在创建 run 和访问来源前
+  已拒绝。请使用采集工作区的一键面板，或修复 `chessdb.collectorRoot` 配置。
+- `DEPENDENCY_ENVIRONMENT_FAILED` / `DEPENDENCY_INSTALL_FAILED`：仓库外私有 venv
+  创建失败或依赖安装失败；本次不会把缺依赖误报成“无数据变化”。
 - `DIRTY_RELEASE_PATH`：机器发布路径已有未提交修改；本次不会访问来源或生成发布包。
   已校验的中断机器产物应使用 `recover-events` 接管，不能靠重新抓取消除。
 - `RELEASE_BASELINE_MISSING` / `RELEASE_BASELINE_INVALID`：本次预检基线缺失或损坏，

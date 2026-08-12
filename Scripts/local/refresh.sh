@@ -59,7 +59,15 @@ case "$command" in
     ;;
 esac
 
-py() { python3 -u "$@"; }
+workspace_role="$(git -C "$REPO_ROOT" config --get chessdb.workspaceRole 2>/dev/null || true)"
+if [ "$workspace_role" != "collector" ]; then
+  printf 'WRONG_WORKSPACE_ROLE: 数据管线只能在 collector 工作区运行；当前角色为 %s。\n' \
+    "${workspace_role:-unset}" >&2
+  exit 2
+fi
+
+PYTHON_BIN="${CHINA_CHESS_PYTHON:-$(command -v python3)}"
+py() { "$PYTHON_BIN" -u "$@"; }
 py_extra() {
   if [ "${#EXTRA[@]}" -gt 0 ]; then
     py "$@" "${EXTRA[@]}"
@@ -225,9 +233,26 @@ trap on_exit EXIT
 
 # --- dependencies ---------------------------------------------------------
 ensure_pymod() {
-  local mod="$1" pkg="${2:-$1}" attempt label args
-  python3 -c "import $mod" 2>/dev/null && return 0
+  local mod="$1" pkg="${2:-$1}" attempt label args runtime_root venv_python
+  py -c "import $mod" 2>/dev/null && return 0
   step "安装 Python 依赖：$pkg"
+  if [ -n "${CHINA_CHESS_LOCAL_ROOT:-}" ]; then
+    runtime_root="$CHINA_CHESS_LOCAL_ROOT/python-runtime"
+  elif [ "$(uname -s)" = "Darwin" ]; then
+    runtime_root="$HOME/Library/Application Support/ChinaChessPlayerPGN/python-runtime"
+  else
+    runtime_root="${XDG_STATE_HOME:-$HOME/.local/state}/china-chess-player-pgn/python-runtime"
+  fi
+  venv_python="$runtime_root/bin/python3"
+  if [ ! -x "$venv_python" ]; then
+    echo "创建隔离 Python 运行环境：$runtime_root"
+    "$PYTHON_BIN" -m venv "$runtime_root" || \
+      fail "DEPENDENCY_ENVIRONMENT_FAILED" "无法创建隔离 Python 运行环境：$runtime_root"
+  fi
+  if "$venv_python" -c "import $mod" 2>/dev/null; then
+    PYTHON_BIN="$venv_python"
+    return 0
+  fi
   for attempt in \
     "PyPI|" \
     "清华镜像|-i https://pypi.tuna.tsinghua.edu.cn/simple"; do
@@ -235,9 +260,10 @@ ensure_pymod() {
     args="${attempt#*|}"
     echo "依赖安装尝试：${label}（单次网络超时 12 秒）"
     # shellcheck disable=SC2086
-    if python3 -m pip install --user --quiet --disable-pip-version-check \
-       --default-timeout=12 --retries=1 $args "$pkg" 2>/dev/null \
-       && python3 -c "import $mod" 2>/dev/null; then
+    if "$venv_python" -m pip install --quiet --disable-pip-version-check \
+       --default-timeout=12 --retries=1 $args "$pkg" \
+       && "$venv_python" -c "import $mod"; then
+      PYTHON_BIN="$venv_python"
       return 0
     fi
   done
@@ -681,6 +707,34 @@ upload_event_archives_to_r2() {
     --verify || return $?
 }
 
+upload_selected_r2_files() {
+  local source_root="$1" prefix="$2" receipt_field="$3" file_list="$4" label="$5"
+  [ -s "$file_list" ] || return 0
+  ensure_pymod boto3
+  local secrets_file="${R2_SECRETS_FILE:-$REPO_ROOT/.secrets.local}"
+  [ -d "$source_root" ] || fail "R2_SOURCE_MISSING" "R2 ${label}源目录不存在：$source_root"
+  [ -f "$secrets_file" ] || fail "R2_SECRETS_MISSING" "R2 凭据文件不存在：$secrets_file"
+  state "uploading-r2-selected" "上传本次 ${label} 并逐对象回读 SHA-256"
+  py Scripts/local/upload_bulk_to_r2.py \
+    --prefix "$prefix" \
+    --source-root "$source_root" \
+    --file-list "$file_list" \
+    --secrets "$secrets_file" \
+    --receipt-path "$REPO_ROOT/$R2_PGN_RECEIPT" \
+    --receipt-field "$receipt_field" \
+    --workers "${R2_UPLOAD_WORKERS:-24}" || return $?
+  state "verifying-r2-selected" "HEAD 校验本次 ${label} 的对象元数据与本地 SHA-256"
+  py Scripts/local/upload_bulk_to_r2.py \
+    --prefix "$prefix" \
+    --source-root "$source_root" \
+    --file-list "$file_list" \
+    --secrets "$secrets_file" \
+    --receipt-path "$REPO_ROOT/$R2_PGN_RECEIPT" \
+    --receipt-field "$receipt_field" \
+    --workers "${R2_UPLOAD_WORKERS:-24}" \
+    --verify || return $?
+}
+
 run_r2_migration() {
   [ "${#EXTRA[@]}" -eq 0 ] || fail "UNSAFE_ARGUMENT_BLOCKED" "storage-migrate 不接受额外参数。"
   preflight_release "$R2_PGN_RECEIPT" || return $?
@@ -737,17 +791,24 @@ run_private_events() {
   else
     ERROR_MESSAGE="赛事采集未形成可完成目标；逐场真实原因见本批结果、capture-state 与本次日志。"
   fi
-  # New archive files may be ignored by Git until the manifest stages them,
-  # so git status alone is not a reliable upload trigger. The immutable
-  # preflight baseline predates every file written by this run.
-  local archive_baseline="$RUN_DIR/worktree-baseline.json"
-  local recent_archive=""
-  if [ -f "$archive_baseline" ]; then
-    recent_archive="$(find data/generated/chess-results-event-pgn -type f -name '*.pgn' -newer "$archive_baseline" -print -quit 2>/dev/null)"
-  fi
-  if { [ "$rc" -eq 0 ] || [ "$rc" -eq 4 ]; } && \
-      { [ -n "$(git status --porcelain -- data/generated/chess-results-event-pgn)" ] || [ -n "$recent_archive" ]; }; then
-    upload_event_archives_to_r2 || return $?
+  # Git ignores these machine roots, so derive the exact R2 delta from the
+  # same recovery projection used by preflight/manifest preparation.
+  if [ "$rc" -eq 0 ] || [ "$rc" -eq 4 ]; then
+    local event_r2_list="$RUN_DIR/diagnostics/r2-event-files.txt"
+    local player_r2_list="$RUN_DIR/diagnostics/r2-player-files.txt"
+    mkdir -p "$RUN_DIR/diagnostics"
+    py "$RUN_MANAGER" recovery-list --repo "$REPO_ROOT" \
+      --allow "${EVENT_PATHS[1]}" --plain | \
+      sed 's#^data/generated/chess-results-event-pgn/##' > "$event_r2_list"
+    py "$RUN_MANAGER" recovery-list --repo "$REPO_ROOT" \
+      --allow "${EVENT_PATHS[3]}" --plain | \
+      sed 's#^docs/data/pgn/##' > "$player_r2_list"
+    upload_selected_r2_files \
+      "${R2_EVENT_PGN_SOURCE_ROOT:-$REPO_ROOT/data/generated/chess-results-event-pgn}" \
+      "events/chess-results" "objects" "$event_r2_list" "赛事完整 PGN" || return $?
+    upload_selected_r2_files \
+      "${R2_PGN_SOURCE_ROOT:-$REPO_ROOT/docs/data/pgn}" \
+      "data/pgn" "playerObjects" "$player_r2_list" "棋手拆分 PGN" || return $?
   fi
   return "$rc"
 }
@@ -762,10 +823,23 @@ release_event_data() {
 
 recover_event_data() {
   local path count=0
+  local event_r2_list="$RUN_DIR/diagnostics/r2-event-files.txt"
+  local player_r2_list="$RUN_DIR/diagnostics/r2-player-files.txt"
+  mkdir -p "$RUN_DIR/diagnostics"
+  : > "$event_r2_list"
+  : > "$player_r2_list"
   recovery_args=()
   while IFS= read -r path; do
     [ -n "$path" ] || continue
     recovery_args+=(--adopt "$path")
+    case "$path" in
+      data/generated/chess-results-event-pgn/*)
+        printf '%s\n' "${path#data/generated/chess-results-event-pgn/}" >> "$event_r2_list"
+        ;;
+      docs/data/pgn/*)
+        printf '%s\n' "${path#docs/data/pgn/}" >> "$player_r2_list"
+        ;;
+    esac
     count=$((count + 1))
   done < <(
     py "$RUN_MANAGER" recovery-list --repo "$REPO_ROOT" \
@@ -782,6 +856,12 @@ recover_event_data() {
   for path in "${EVENT_PATHS[@]}"; do preflight_args+=(--allow "$path"); done
   py "$RUN_MANAGER" preflight --repo "$REPO_ROOT" --run-dir "$RUN_DIR" \
     "${preflight_args[@]}" "${recovery_args[@]}" || return $?
+  upload_selected_r2_files \
+    "${R2_EVENT_PGN_SOURCE_ROOT:-$REPO_ROOT/data/generated/chess-results-event-pgn}" \
+    "events/chess-results" "objects" "$event_r2_list" "恢复赛事完整 PGN" || return $?
+  upload_selected_r2_files \
+    "${R2_PGN_SOURCE_ROOT:-$REPO_ROOT/docs/data/pgn}" \
+    "data/pgn" "playerObjects" "$player_r2_list" "恢复棋手拆分 PGN" || return $?
   release_event_data
   PUSH_SUMMARY="已接管并收口 ${count} 个中断机器产物；发布状态见 outbox"
 }

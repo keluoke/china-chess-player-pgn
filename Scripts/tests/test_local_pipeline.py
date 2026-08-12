@@ -40,6 +40,7 @@ import validate_registry_authority  # noqa: E402
 import sync_chess_results_event  # noqa: E402
 import sync_static_pgn  # noqa: E402
 import sync_lichess_broadcast_bulk  # noqa: E402
+import upload_bulk_to_r2  # noqa: E402
 import discover_player_events  # noqa: E402
 import event_targeting  # noqa: E402
 from sync_chinese_players import (  # noqa: E402
@@ -152,6 +153,34 @@ class PanelPipelineTests(unittest.TestCase):
             ),
             "",
         )
+        self.assertEqual(local_panel.normalize_capture_token("2026"), "")
+        self.assertEqual(local_panel.normalize_capture_token("tnr2026"), "2026")
+
+    def test_panel_refuses_code_workspace_role(self) -> None:
+        with mock.patch.object(local_panel, "workspace_role", return_value="code"):
+            self.assertIn("WRONG_WORKSPACE_ROLE", local_panel.collector_workspace_error())
+
+    def test_targeted_r2_file_list_is_confined_and_receipts_merge(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            (root / "nested").mkdir()
+            selected = root / "nested" / "game.pgn"
+            selected.write_text("[Event \"x\"]\n", encoding="utf-8")
+            file_list = root / "files.txt"
+            file_list.write_text("nested/game.pgn\n", encoding="utf-8")
+            self.assertEqual(
+                upload_bulk_to_r2.select_source_files(root, file_list),
+                [selected.resolve()],
+            )
+            file_list.write_text("../escape.pgn\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                upload_bulk_to_r2.select_source_files(root, file_list)
+        merged = upload_bulk_to_r2.merge_receipt_rows(
+            [{"key": "old", "sha256": "1"}, {"key": "same", "sha256": "old"}],
+            [{"key": "same", "sha256": "new"}, {"key": "added", "sha256": "2"}],
+        )
+        self.assertEqual([row["key"] for row in merged], ["added", "old", "same"])
+        self.assertEqual(merged[-1]["sha256"], "new")
 
     def test_capture_text_deduplicates_csv_and_plain_tokens(self) -> None:
         self.assertEqual(
@@ -169,17 +198,23 @@ class PanelPipelineTests(unittest.TestCase):
         self.assertNotIn("targeted-series", local_panel.ALLOWED_COMMANDS)
 
     def test_running_job_blocks_a_second_source_capture(self) -> None:
-        with mock.patch.object(
-            local_panel,
-            "durable_state",
-            return_value={"running": True, "command": "event-queue", "runId": "active"},
+        with (
+            mock.patch.object(local_panel, "collector_workspace_error", return_value=""),
+            mock.patch.object(
+                local_panel,
+                "durable_state",
+                return_value={"running": True, "command": "event-queue", "runId": "active"},
+            ),
         ):
             ok, message = local_panel.start_job("event-queue", ["999001"])
         self.assertFalse(ok)
         self.assertIn("已有任务", message)
 
     def test_unknown_panel_command_is_rejected_before_launch(self) -> None:
-        with mock.patch.object(local_panel, "durable_state", return_value={"running": False}):
+        with (
+            mock.patch.object(local_panel, "collector_workspace_error", return_value=""),
+            mock.patch.object(local_panel, "durable_state", return_value={"running": False}),
+        ):
             ok, message = local_panel.start_job("crawl", [])
         self.assertFalse(ok)
         self.assertIn("白名单", message)
@@ -1216,6 +1251,7 @@ class EventQueueEntrypointTests(unittest.TestCase):
             git(repo, "init", "-q", "-b", "main")
             git(repo, "config", "user.name", "test")
             git(repo, "config", "user.email", "test@example.com")
+            git(repo, "config", "chessdb.workspaceRole", "collector")
             git(repo, "add", ".")
             git(repo, "commit", "-qm", "base")
             receipt.write_text('{"verifiedAt":"orphaned"}\n', encoding="utf-8")
@@ -1256,6 +1292,28 @@ class EventQueueEntrypointTests(unittest.TestCase):
             )
             self.assertEqual(receipt.read_text(encoding="utf-8"), '{"verifiedAt":"orphaned"}\n')
             self.assertNotIn("CHESS_RESULTS_COLLECTION_FAILED", process.stderr + process.stdout)
+
+    def test_wrong_workspace_role_is_rejected_before_run_creation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            repo = root / "repo"
+            local = repo / "Scripts/local"
+            local.mkdir(parents=True)
+            shutil.copy2(REFRESH_SH, local / "refresh.sh")
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "chessdb.workspaceRole", "code")
+            state_root = root / "state"
+            process = subprocess.run(
+                ["bash", str(local / "refresh.sh"), "health", "--", "--offline"],
+                cwd=repo,
+                env={**os.environ, "CHINA_CHESS_LOCAL_ROOT": str(state_root)},
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            self.assertEqual(process.returncode, 2)
+            self.assertIn("WRONG_WORKSPACE_ROLE", process.stderr)
+            self.assertFalse(state_root.exists())
 
 
 class DiscoverEventsEntrypointTests(unittest.TestCase):
@@ -1304,6 +1362,11 @@ class DiscoverEventsEntrypointTests(unittest.TestCase):
             "PATH": f"{wrapper.parent}:{os.environ['PATH']}",
             "CHINA_CHESS_LOCAL_ROOT": str(state_root),
             "FAIL_FINAL_STATE": "1" if fail_final_state else "0",
+            # Unit tests exercise the command body without depending on a
+            # maintainer machine's repo-local workspace role configuration.
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "chessdb.workspaceRole",
+            "GIT_CONFIG_VALUE_0": "collector",
         }
         return subprocess.run(
             ["bash", str(REFRESH_SH), "discover-events", "--", "8600000"],
@@ -1574,7 +1637,7 @@ class PanelBatchResultTests(unittest.TestCase):
             self.assertEqual(payload["requested"], ["100001", "100002"])
             self.assertEqual(payload["targets"], {})
             self.assertEqual(payload["stage"], "preflight")
-            self.assertEqual(payload["publication"]["status"], "no-release")
+            self.assertEqual(payload["publication"]["status"], "failed-before-release")
             self.assertIn("r.result==='failed'?'失败'", local_panel.PAGE)
 
     def test_result_joins_every_target_with_exact_release_and_delivery_counts(self) -> None:
@@ -1713,6 +1776,7 @@ class PanelBatchResultTests(unittest.TestCase):
         self.assertIn('partial "PARTIAL_FAILURE"', refresh)
         self.assertIn("更新数据文件", local_panel.PAGE)
         self.assertIn("部分完成 / 失败", local_panel.PAGE)
+        self.assertIn("采集/发布失败，未生成发布包", local_panel.PAGE)
         self.assertNotIn("部分赛事目标失败已隔离；成功赛事已发布", refresh)
 
     def test_panel_disconnect_stops_running_indicator(self) -> None:

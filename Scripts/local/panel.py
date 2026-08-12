@@ -88,6 +88,43 @@ SHADOW_TERMINAL = {"complete", "conflict", "failed", "ineligible"}
 TNR_RELEASE_PATH = re.compile(r"(?:^|/)tnr(\d{4,9})(?:[./-]|$)")
 
 
+def workspace_role(root: pathlib.Path = REPO_ROOT) -> str:
+    try:
+        completed = subprocess.run(
+            ["git", "config", "--get", "chessdb.workspaceRole"],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return completed.stdout.strip()
+
+
+def collector_workspace_error(root: pathlib.Path = REPO_ROOT) -> str:
+    role = workspace_role(root)
+    if role == "collector":
+        return ""
+    hint = ""
+    if role == "code":
+        try:
+            hint = subprocess.check_output(
+                ["git", "config", "--get", "chessdb.collectorRoot"],
+                cwd=root,
+                text=True,
+                timeout=5,
+            ).strip()
+        except (OSError, subprocess.SubprocessError):
+            hint = ""
+    return (
+        "WRONG_WORKSPACE_ROLE: 采集面板只能从 collector 工作区启动；"
+        f"当前角色为 {role or 'unset'}。"
+        + (f" 请改从 {hint} 启动。" if hint else "")
+    )
+
+
 def durable_state() -> dict:
     payload = current_payload(40000)
     return {
@@ -100,6 +137,9 @@ def durable_state() -> dict:
 
 
 def start_job(cmd: str, extra: list[str]) -> tuple[bool, str]:
+    role_error = collector_workspace_error()
+    if role_error:
+        return False, role_error
     state = durable_state()
     if state.get("running"):
         return False, f"已有任务在运行：{state.get('command')}（run {state.get('runId')}）"
@@ -293,6 +333,10 @@ def stop_job() -> tuple[bool, str]:
 def normalize_capture_token(value: object) -> str:
     raw = str(value or "").strip()
     if not raw:
+        return ""
+    # A pasted section heading such as "2026" is not a safe implicit TNR.
+    # Explicit tnr2026 / a Chess-Results URL remain valid for old short IDs.
+    if re.fullmatch(r"(?:19|20)\d{2}", raw):
         return ""
     if "://" in raw:
         parsed = urllib.parse.urlparse(raw)
@@ -516,7 +560,11 @@ def result_payload() -> dict:
         "requested": state.get("requested") or [],
         "requestArguments": state.get("requestArguments") or [],
         "statusLabels": STATUS_LABELS,
-        "publication": publication_payload(pathlib.Path(run_dir) if run_dir else None, run_id),
+        "publication": publication_payload(
+            pathlib.Path(run_dir) if run_dir else None,
+            run_id,
+            str(state.get("result") or ""),
+        ),
     }
     payload = retained_result
     if run_dir:
@@ -552,7 +600,7 @@ def _read_json_file(path: pathlib.Path) -> dict:
         return {}
 
 
-def publication_payload(run_dir: pathlib.Path | None, run_id: str) -> dict:
+def publication_payload(run_dir: pathlib.Path | None, run_id: str, run_result: str = "") -> dict:
     """Join capture output, exact changed files and outbox delivery facts."""
     manifest = _read_json_file(run_dir / "release-manifest.json") if run_dir else {}
     outbox_dir = STATE_ROOT / "outbox" / run_id if run_id else None
@@ -578,7 +626,14 @@ def publication_payload(run_dir: pathlib.Path | None, run_id: str) -> dict:
             current = target_changes.setdefault(matched.group(1), {"files": 0, "bytes": 0})
             current["files"] += 1
             current["bytes"] += size
-    status = str(delivery.get("status") or ("local-only" if manifest else "no-release"))
+    if delivery.get("status"):
+        status = str(delivery["status"])
+    elif manifest:
+        status = "local-only"
+    elif run_result in {"failed", "push-failed"}:
+        status = "failed-before-release"
+    else:
+        status = "no-release"
     return {
         "hasManifest": bool(manifest),
         "changedFiles": len(normalized_files),
@@ -1019,15 +1074,15 @@ async function renderBatchResult(){
  const rows=Object.entries(r.targets).sort((a,b)=>(order[a[1].status]??9)-(order[b[1].status]??9));
  const requested=(r.requested||[]).length||rows.length, complete=Number(r.summary?.complete||0);
  const attention=requested-complete, pub=r.publication||{};
- const deliveryLabels={'no-release':'没有数据变化','local-only':'已生成发布包，尚未进入 outbox','pending':'发布包待投递','pushed':'已投递到 local-data','ingested-to-main':'已合并到 main','indexes-rebuilt':'索引已重建','deployed':'已部署，待线上校验','online-verified':'线上已验证','abandoned':'发布包已放弃'};
- const pubClass=pub.onlineVerified?'ok':pub.delivered?'':pub.hasManifest?'warn':'';
+ const deliveryLabels={'no-release':'清洗结果与已发布数据一致','failed-before-release':'采集/发布失败，未生成发布包','local-only':'已生成发布包，尚未进入 outbox','pending':'发布包待投递','pushed':'已投递到 local-data','ingested-to-main':'已合并到 main','indexes-rebuilt':'索引已重建','deployed':'已部署，待线上校验','online-verified':'线上已验证','abandoned':'发布包已放弃'};
+ const pubClass=pub.onlineVerified?'ok':pub.status==='failed-before-release'?'bad':pub.delivered?'':pub.hasManifest?'warn':'';
  const pubText=deliveryLabels[pub.status]||pub.status||'未生成发布包';
  const summary=`目标 <b>${requested}</b> · 完整成功 <b>${complete}</b> · 需处理 <b>${Math.max(0,attention)}</b> · 更新数据文件 <b>${pub.changedFiles||0}</b>${pub.changedFiles?`（${formatBytes(pub.changedBytes||0)}）`:''}`;
  const renderRows=(items)=>items.map(([tid,t])=>{
   const cls=t.status==='complete'?'ok':(t.status==='partial'||t.status==='unsupported'||t.status==='quarantined')?'warn':'bad';
   const stats=t.players!=null?` · ${esc(t.players)} 人 / ${esc(t.rounds??'-')} 轮 / ${esc(t.standings??'-')} 行排名`:'';
   const err=t.errorCode?` · <span class="chip ${cls}">${esc(t.errorCode)}${t.failedPage?' @ '+esc(t.failedPage):''}</span>`:'';
-  const change=t.releaseFiles?`<span class="chip ok">更新 ${esc(t.releaseFiles)} 文件 · ${formatBytes(t.releaseBytes||0)}</span>`:'<span class=small>无直接赛事文件变化</span>';
+  const change=t.releaseFiles?`<span class="chip ok">更新 ${esc(t.releaseFiles)} 文件 · ${formatBytes(t.releaseBytes||0)}</span>`:pub.status==='failed-before-release'?'<span class="chip bad">未形成发布清单</span>':'<span class=small>无直接赛事文件变化</span>';
   const btns=(t.status==='complete'||t.status==='partial')?`<button onclick="showPreview('${tid}')">本地预览</button>`:'';
   return `<div class=resultRow><span class="chip ${cls}">${esc((r.statusLabels||{})[t.status]||t.status)}</span><b>tnr${esc(tid)}</b><span>${esc(t.title||'')}${stats}${err}</span>${change}${btns}<button onclick="runCmd('event-queue',['${tid}'],false)">重新抓取</button></div>`
  }).join('');
@@ -1059,7 +1114,7 @@ function batchStatusText(r){
 }
 
 function batchPublicationText(r){
- const p=r.publication||{}, labels={'no-release':'无数据变化','local-only':'发布包仅在本地','pending':'发布包待投递','pushed':'已投递 local-data','ingested-to-main':'已合并 main','indexes-rebuilt':'索引已重建','deployed':'已部署待校验','online-verified':'线上已验证','abandoned':'发布包已放弃'};
+ const p=r.publication||{}, labels={'no-release':'清洗结果与已发布数据一致','failed-before-release':'采集/发布失败，未生成发布包','local-only':'发布包仅在本地','pending':'发布包待投递','pushed':'已投递 local-data','ingested-to-main':'已合并 main','indexes-rebuilt':'索引已重建','deployed':'已部署待校验','online-verified':'线上已验证','abandoned':'发布包已放弃'};
  return `更新 ${p.changedFiles||0} 个数据文件${p.changedFiles?' / '+formatBytes(p.changedBytes||0):''} · ${labels[p.status]||p.status||'未生成发布包'}${p.remoteSHA?' · '+String(p.remoteSHA).slice(0,12):''}`;
 }
 
@@ -1227,6 +1282,9 @@ def pick_port() -> int:
 def main() -> int:
     if not REFRESH.exists():
         raise SystemExit(f"找不到 {REFRESH}")
+    role_error = collector_workspace_error()
+    if role_error:
+        raise SystemExit(role_error)
     port = pick_port()
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     PORT_FILE.parent.mkdir(parents=True, exist_ok=True)

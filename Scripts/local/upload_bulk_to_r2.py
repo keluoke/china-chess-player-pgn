@@ -39,6 +39,38 @@ SOURCES = {
 PUBLIC_BASE = "https://data.chessdb.aigclabs.cc"
 
 
+def select_source_files(source_root: pathlib.Path, file_list: pathlib.Path | None) -> list[pathlib.Path]:
+    if not file_list:
+        return [path for path in sorted(source_root.rglob("*")) if path.is_file()]
+    root = source_root.resolve()
+    selected: list[pathlib.Path] = []
+    for raw in file_list.read_text(encoding="utf-8").splitlines():
+        relative = pathlib.PurePosixPath(raw.strip())
+        if not raw.strip():
+            continue
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError(f"invalid --file-list path: {raw}")
+        path = (root / pathlib.Path(*relative.parts)).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError as error:
+            raise ValueError(f"file-list path escapes source-root: {raw}") from error
+        if not path.is_file():
+            raise ValueError(f"file-list path is not a file: {raw}")
+        selected.append(path)
+    return sorted(set(selected))
+
+
+def merge_receipt_rows(existing: object, verified: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged = {
+        str(row.get("key")): row
+        for row in (existing if isinstance(existing, list) else [])
+        if isinstance(row, dict) and row.get("key")
+    }
+    merged.update({str(row["key"]): row for row in verified})
+    return sorted(merged.values(), key=lambda row: row["key"])
+
+
 def load_secrets(path: pathlib.Path = SECRETS) -> dict[str, str]:
     values: dict[str, str] = {}
     for line in path.read_text().splitlines():
@@ -53,6 +85,8 @@ def main() -> int:
     parser.add_argument("--prefix", default="bulk/lichess-broadcast/shards")
     parser.add_argument("--source-root", type=pathlib.Path,
                         help="override the configured local source root")
+    parser.add_argument("--file-list", type=pathlib.Path,
+                        help="newline-delimited paths relative to source-root; upload/verify only these files")
     parser.add_argument("--secrets", type=pathlib.Path, default=SECRETS)
     parser.add_argument("--receipt-path", type=pathlib.Path,
                         help="override the generated receipt path")
@@ -144,7 +178,10 @@ def main() -> int:
             )
 
     def source_files() -> list[pathlib.Path]:
-        return [path for path in sorted(source_root.rglob("*")) if path.is_file()]
+        try:
+            return select_source_files(source_root, args.file_list)
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
 
     def object_key(path: pathlib.Path) -> str:
         return f"{args.prefix.rstrip('/')}/{path.relative_to(source_root).as_posix()}"
@@ -168,6 +205,8 @@ def main() -> int:
             payload["prefix"] = args.prefix
         else:
             payload[f"{args.receipt_field}Prefix"] = args.prefix
+        if args.file_list and isinstance(payload.get(args.receipt_field), list):
+            receipts = merge_receipt_rows(payload[args.receipt_field], receipts)
         payload[args.receipt_field] = sorted(receipts, key=lambda row: row["key"])
         write_json(receipt_path, payload, ensure_ascii=False, indent=2)
 
