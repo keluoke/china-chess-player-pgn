@@ -80,19 +80,6 @@ async function verifySignature(request, env, rawBody, uploadHash = null) {
     .bind(Math.floor(Date.now() / 1000) - 600).run();
 }
 
-async function ensureD1StorageBudget(env) {
-  const pageCountRow = await env.DB.prepare("PRAGMA page_count").first();
-  const pageSizeRow = await env.DB.prepare("PRAGMA page_size").first();
-  const pageCount = Number(pageCountRow?.page_count ?? Object.values(pageCountRow || {})[0]);
-  const pageSize = Number(pageSizeRow?.page_size ?? Object.values(pageSizeRow || {})[0]);
-  if (!Number.isSafeInteger(pageCount) || !Number.isSafeInteger(pageSize)) {
-    throw new Error("FREE_TIER_D1_STORAGE_UNKNOWN");
-  }
-  if (pageCount * pageSize >= numericBudget(env, "MAX_D1_STORAGE_BYTES")) {
-    throw new Error("FREE_TIER_D1_STORAGE_BUDGET_EXHAUSTED");
-  }
-}
-
 async function reserveQuota(env, reservation) {
   const day = dayKey();
   const month = monthKey();
@@ -146,6 +133,18 @@ async function reserveQuota(env, reservation) {
   if (Number(monthly.meta?.changes || 0) !== 1) {
     throw new Error("FREE_TIER_MONTHLY_BUDGET_EXHAUSTED");
   }
+  const storage = await env.DB.prepare(`
+    UPDATE quota_storage SET d1_reserved_bytes = d1_reserved_bytes + ?2,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE key = ?1 AND d1_reserved_bytes + ?2 <= ?3
+  `).bind(
+    "ingest",
+    reservation.d1StorageReservedBytes,
+    numericBudget(env, "MAX_D1_STORAGE_BYTES"),
+  ).run();
+  if (Number(storage.meta?.changes || 0) !== 1) {
+    throw new Error("FREE_TIER_D1_STORAGE_BUDGET_EXHAUSTED");
+  }
 }
 
 async function takeRequestBudget(env) {
@@ -173,7 +172,6 @@ async function registerRelease(request, env, rawBody) {
     }
     return json({ ok: true, runId: manifest.runId, status: existing.status, idempotent: true });
   }
-  await ensureD1StorageBudget(env);
   await reserveQuota(env, estimateReservation(manifest, env));
   const timestamp = nowIso();
   await env.DB.prepare(`

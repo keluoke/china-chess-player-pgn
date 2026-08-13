@@ -48,3 +48,7 @@ path heads and `current_snapshot` together. The signed release header binds an
 ordered SHA-256 for every registration chunk, and the Worker recomputes it
 before accepting the chunk. Do not raise 384 or either chunk size without
 re-deriving every hard budget in the contract.
+
+D1 storage is guarded by the conservative `quota_storage` ledger introduced in
+`0003_d1_storage_ledger.sql`; Worker bindings must not rely on unauthorized
+SQLite page-size PRAGMAs.

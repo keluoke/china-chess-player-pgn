@@ -91,6 +91,7 @@ test("large logical release uses bounded registration and merge chunks", () => {
   assert.equal(header.expectedFiles, 50);
   assert.equal(estimateReservation(header, env).queueOps, 18);
   assert.equal(estimateReservation(header, env).d1RowsWritten, 620);
+  assert.equal(estimateReservation(header, env).d1StorageReservedBytes, 275456);
   const release = {
     source_json: JSON.stringify(header.source),
     manifest_sha256: header.manifestSha256,

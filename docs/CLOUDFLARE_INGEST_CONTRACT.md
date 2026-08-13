@@ -59,6 +59,12 @@ head 查询及少量固定查询/批写，低于 Worker Free 单次 50 子请求
 `shadow-delivery.json` 为 `ineligible`；只有上游本来就语义独立的发布才可分别形成
 独立 manifest，禁止客户端把一个原子发布包拆成多个可见快照来规避配额。
 
+D1 Worker binding 不允许用 `PRAGMA page_count/page_size` 查询实际库大小，因此不得
+把该查询当运行时门禁。服务改用只增不减的 `quota_storage` 账本：迁移时先为既有库
+预留 4 MiB，之后每包按 `4096 × files + 1024 × registrationChunks + 64 KiB`
+预留元数据空间；累计达到 128 MiB 即拒绝新包。只有完成实际清理并通过迁移审计后
+才能调低账本，不得在请求路径中乐观返还。该估算刻意高于实际行尺寸，以提前停机。
+
 Worker Free 到达平台账户级请求上限时由 Cloudflare 拒绝后续请求；本服务不配置
 Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前，必须重新
 分配本表预算，否则视为违反契约。

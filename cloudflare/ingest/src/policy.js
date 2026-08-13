@@ -267,6 +267,10 @@ export function estimateReservation(manifest, env = {}) {
     // Covers file registration, upload flags, staged decisions, path heads,
     // authenticated request nonce/budget rows, chunk rows and polling slack.
     d1RowsWritten: count * 6 + registrationChunks * 4 + 300,
+    // D1 does not authorize page_count/page_size PRAGMAs from a Worker
+    // binding. Reserve a deliberately high, never-refunded metadata estimate
+    // so the service fails closed before the 128 MiB internal ceiling.
+    d1StorageReservedBytes: count * 4096 + registrationChunks * 1024 + 65536,
     queueOps: queueMessages * 3,
     r2ClassA: upserts + 2,
     r2ClassB: upserts,
