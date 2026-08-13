@@ -373,6 +373,9 @@ async function handleFetch(request, env) {
     return json({ ok: false, error: "NOT_FOUND" }, 404);
   } catch (error) {
     const code = errorCode(error);
+    // Keep authenticated payloads and secrets out of logs, but retain the
+    // provider error message needed to diagnose shadow D1/R2 failures.
+    console.error("ingest request failed", { code, message: String(error?.message || error).slice(0, 1000) });
     const status = code.startsWith("AUTH_") ? 401
       : code === "RELEASE_NOT_FOUND" ? 404
       : code.startsWith("FREE_TIER_") ? 429
