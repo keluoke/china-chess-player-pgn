@@ -21,6 +21,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -40,8 +41,11 @@ DEFAULT_ENDPOINT = "https://chess-data-ingest-shadow.seanyan099.workers.dev"
 # requests/messages so this is no longer the per-invocation D1 query limit.
 MAX_RELEASE_FILES = 384
 MAX_CHUNK_FILES = 10
-MAX_RELEASE_BYTES = 64 * 1024 * 1024
-MAX_FILE_BYTES = 16 * 1024 * 1024
+MAX_RELEASE_BYTES = 96 * 1024 * 1024
+MAX_FILE_BYTES = 96 * 1024 * 1024
+MAX_SINGLE_UPLOAD_BYTES = 16 * 1024 * 1024
+MULTIPART_PART_BYTES = 8 * 1024 * 1024
+MAX_MULTIPART_PARTS = 12
 
 
 class ShadowDeliveryError(RuntimeError):
@@ -83,7 +87,7 @@ def request_json(
         body = raw_body or b""
         content_type = "application/octet-stream"
     digest = content_digest or hashlib.sha256(body).hexdigest()
-    headers = signed_headers(method, path, digest, secret)
+    headers = signed_headers(method, urllib.parse.urlsplit(path).path, digest, secret)
     headers.update({"content-type": content_type, "content-length": str(len(body))})
     url = endpoint.rstrip("/") + path
     if shutil.which("curl"):
@@ -156,7 +160,10 @@ def build_shadow_manifest(manifest_path: pathlib.Path, files_root: pathlib.Path)
     uploads: list[tuple[dict[str, Any], pathlib.Path]] = []
     for item in items:
         path = item["path"]
-        base_sha = item.get("deliveryBaseSha256", item.get("baseSha256"))
+        base_sha = item.get(
+            "shadowBaseSha256",
+            item.get("deliveryBaseSha256", item.get("baseSha256")),
+        )
         projected = {
             "path": path,
             "operation": item["operation"],
@@ -169,9 +176,28 @@ def build_shadow_manifest(manifest_path: pathlib.Path, files_root: pathlib.Path)
             candidate = files_root / path
             if not candidate.is_file():
                 raise ShadowDeliveryError(f"OUTBOX_FILE_MISSING: {path}")
-            digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+            digest = hashlib.sha256()
+            parts: list[dict[str, Any]] = []
+            with candidate.open("rb") as handle:
+                while True:
+                    body = handle.read(MULTIPART_PART_BYTES)
+                    if not body:
+                        break
+                    digest.update(body)
+                    if candidate.stat().st_size > MAX_SINGLE_UPLOAD_BYTES:
+                        parts.append({
+                            "number": len(parts) + 1,
+                            "sha256": hashlib.sha256(body).hexdigest(),
+                            "bytes": len(body),
+                        })
+            digest = digest.hexdigest()
             if digest != item["sha256"] or candidate.stat().st_size != item["bytes"]:
                 raise ShadowDeliveryError(f"RELEASE_HASH_MISMATCH: {path}")
+            if parts:
+                projected["multipart"] = {
+                    "partSize": MULTIPART_PART_BYTES,
+                    "parts": parts,
+                }
             uploads.append((projected, candidate))
     return {
         "schemaVersion": 1,
@@ -199,6 +225,15 @@ def validate_shadow_limits(payload: dict[str, Any]) -> None:
         raise ShadowDeliveryError(
             f"FREE_TIER_RELEASE_OBJECT_LIMIT: {oversized[0].get('path')}"
         )
+    invalid_multipart = [
+        item for item in files
+        if int(item.get("bytes") or 0) > MAX_SINGLE_UPLOAD_BYTES
+        and not item.get("multipart")
+    ]
+    if invalid_multipart:
+        raise ShadowDeliveryError(
+            f"RELEASE_MULTIPART_REQUIRED: {invalid_multipart[0].get('path')}"
+        )
 
 
 def canonical_manifest_bytes(payload: dict[str, Any]) -> bytes:
@@ -219,6 +254,13 @@ def chunk_fingerprint_bytes(files: list[dict[str, Any]]) -> bytes:
             item.get("sha256"),
             item.get("baseSha256"),
             int(item.get("bytes") or 0),
+            [
+                int(item["multipart"]["partSize"]),
+                [
+                    [int(part["number"]), part["sha256"], int(part["bytes"])]
+                    for part in item["multipart"]["parts"]
+                ],
+            ] if item.get("multipart") else None,
         ]
         for item in files
     ]
@@ -241,6 +283,10 @@ def registration_payloads(payload: dict[str, Any]) -> tuple[dict[str, Any], list
         "expectedFiles": len(files),
         "expectedBytes": sum(int(item.get("bytes") or 0) for item in files),
         "expectedUpserts": sum(1 for item in files if item.get("operation") == "upsert"),
+        "expectedMultipartFiles": sum(1 for item in files if item.get("multipart")),
+        "expectedUploadParts": sum(
+            len(item.get("multipart", {}).get("parts", [])) for item in files
+        ),
         "expectedChunks": len(chunks),
         "chunkSha256s": chunk_digests,
     }
@@ -308,15 +354,31 @@ def deliver(
             "endpoint": endpoint,
         })
     for index, (item, candidate) in enumerate(uploads, start=1):
-        body = candidate.read_bytes()
-        request_json(
-            endpoint,
-            "PUT",
-            f"/v1/releases/{run_id}/files/{item['sha256']}",
-            secret,
-            raw_body=body,
-            content_digest=str(item["sha256"]),
-        )
+        multipart = item.get("multipart")
+        if multipart:
+            with candidate.open("rb") as handle:
+                for part in multipart["parts"]:
+                    body = handle.read(int(part["bytes"]))
+                    if len(body) != int(part["bytes"]) or hashlib.sha256(body).hexdigest() != part["sha256"]:
+                        raise ShadowDeliveryError(f"RELEASE_HASH_MISMATCH: {item['path']}")
+                    request_json(
+                        endpoint,
+                        "PUT",
+                        f"/v1/releases/{run_id}/files/{item['sha256']}/parts/{part['number']}/{part['sha256']}",
+                        secret,
+                        raw_body=body,
+                        content_digest=str(part["sha256"]),
+                    )
+        else:
+            body = candidate.read_bytes()
+            request_json(
+                endpoint,
+                "PUT",
+                f"/v1/releases/{run_id}/files/{item['sha256']}",
+                secret,
+                raw_body=body,
+                content_digest=str(item["sha256"]),
+            )
         save_state(state_path, {
             "runId": run_id,
             "status": "uploading",

@@ -78,8 +78,10 @@ partial 目标可一键"续跑补缺页"。队列汇总栏区分：
 才把同一不可变 outbox 双写到影子 Worker。两个开关都不会自动访问任何数据源。
 网络型投递失败按 30 秒、120 秒、300 秒退避重试；基线冲突、manifest
 错误、路径/哈希错误和已证实的线上哈希不一致会停止自动重试并列入“需要人工处理”。
-影子逻辑包若超过 384 文件、64 MiB 或单文件 16 MiB，会在本机预检中标为
-`ineligible`；不会上传、不会拆包，也不会阻塞 GitHub 生产发布。
+影子逻辑包若超过 384 文件、96 MiB 或单文件 96 MiB，会在本机预检中标为
+`ineligible`；不会上传、不会拆成可见子快照，也不会阻塞 GitHub 生产发布。超过
+16 MiB 的合格单文件自动按固定 8 MiB multipart 片续传，Queue 合成并回读验证后才
+允许进入 path head。
 合格逻辑包内部按 10 文件分片登记与合并，分片不产生可见快照；所有分片完成后
 才原子切换一个影子 snapshot。因此 50 文件赛事包可正常双写，仍保持单一回执。
 
@@ -135,6 +137,13 @@ bash Scripts/local/refresh.sh receipts
 # CLOUDFLARE_INGEST_URL 覆盖）；HMAC secret 默认从 macOS Keychain service
 # china-chess-cloudflare-ingest-shadow 读取。
 bash Scripts/local/refresh.sh shadow-deliver -- 20260812-081901-9ae22db0
+
+# 历史全量基线只允许从固定 Git commit 的干净完整 checkout 准备到仓库外迁移区；
+# prepare-cleanup 生成补偿删除包，deliver 单次最多推进 8 包，reconcile 做双向全量对账。
+python3 Scripts/local/cloudflare_baseline.py prepare --snapshot-root /absolute/clean/snapshot --target-commit <sha>
+python3 Scripts/local/cloudflare_baseline.py prepare-cleanup --migration-dir "/absolute/state/baseline-migrations/baseline-<sha>"
+python3 Scripts/local/cloudflare_baseline.py deliver --migration-dir "/absolute/state/baseline-migrations/baseline-<sha>"
+python3 Scripts/local/cloudflare_baseline.py reconcile --migration-dir "/absolute/state/baseline-migrations/baseline-<sha>"
 
 # storage-migrate 同时处理 data/generated/chess-results-event-pgn 与
 # docs/data/pgn，并在共享回执中分别记录 objects / playerObjects。

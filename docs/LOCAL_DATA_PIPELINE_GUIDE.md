@@ -56,7 +56,8 @@ bash Scripts/local/refresh.sh shadow-deliver -- <run-id>
 
 - GitHub 网络失败：保留 `pending`，恢复后运行 `publish`，不要重新抓取。
 - `RELEASE_BASE_CONFLICT`：整包隔离，人工核对 baseline/current/candidate。
-- 影子 `ineligible`：逻辑包超过 384 文件、64 MiB 或单文件 16 MiB；按契约不上传。
+- 影子 `ineligible`：逻辑包超过 384 文件、96 MiB 或单文件 96 MiB；按契约不上传。
+  16 MiB 以上的合格文件自动使用 8 MiB multipart 传输片，合成完成前不形成快照。
   384 文件以内由客户端和 Queue 自动按 10 文件分块处理，但对外仍是一个原子快照；
   GitHub 生产继续。
 - 影子 `conflict`/`failed`：只处理影子回执，不回滚已验证的 GitHub 生产阶段。

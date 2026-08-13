@@ -29,6 +29,10 @@ function monthKey() {
   return nowIso().slice(0, 7);
 }
 
+function multipartPartKey(runId, sha256, part) {
+  return `ingest/multipart-parts/${runId}/${sha256}/${String(part.number).padStart(3, "0")}-${part.sha256}`;
+}
+
 function errorCode(error) {
   const text = String(error?.message || error || "INTERNAL_ERROR");
   return /^[A-Z0-9_]+(?::|$)/.test(text) ? text.split(":", 1)[0] : "INTERNAL_ERROR";
@@ -157,6 +161,16 @@ async function takeRequestBudget(env) {
   if (Number(result.meta?.changes || 0) !== 1) throw new Error("FREE_TIER_WORKER_REQUEST_BUDGET_EXHAUSTED");
 }
 
+async function takeD1ReadBudget(env, rows) {
+  const day = dayKey();
+  await env.DB.prepare("INSERT OR IGNORE INTO quota_daily(day) VALUES (?1)").bind(day).run();
+  const result = await env.DB.prepare(`
+    UPDATE quota_daily SET d1_rows_read=d1_rows_read+?2
+    WHERE day=?1 AND d1_rows_read+?2<=?3
+  `).bind(day, rows, numericBudget(env, "MAX_DAILY_D1_ROWS_READ")).run();
+  if (Number(result.meta?.changes || 0) !== 1) throw new Error("FREE_TIER_D1_READ_BUDGET_EXHAUSTED");
+}
+
 async function registerRelease(request, env, rawBody) {
   const payload = JSON.parse(new TextDecoder().decode(rawBody));
   const manifest = normalizeReleaseHeader(payload, env);
@@ -177,8 +191,9 @@ async function registerRelease(request, env, rawBody) {
   await env.DB.prepare(`
     INSERT INTO releases(
       run_id,status,command,base_commit,source_json,expected_files,expected_bytes,
-      manifest_sha256,expected_upserts,expected_chunks,chunk_hashes_json,created_at,updated_at
-    ) VALUES (?1,'registering',?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?11)
+      manifest_sha256,expected_upserts,expected_chunks,chunk_hashes_json,
+      expected_multipart_files,expected_upload_parts,created_at,updated_at
+    ) VALUES (?1,'registering',?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?13)
   `).bind(
     manifest.runId,
     manifest.command,
@@ -190,6 +205,8 @@ async function registerRelease(request, env, rawBody) {
     manifest.expectedUpserts,
     manifest.expectedChunks,
     JSON.stringify(manifest.chunkSha256s),
+    manifest.expectedMultipartFiles,
+    manifest.expectedUploadParts,
     timestamp,
   ).run();
   return json({
@@ -206,7 +223,8 @@ async function registerRelease(request, env, rawBody) {
 async function registerChunk(env, runId, chunkIndex, rawBody) {
   const release = await env.DB.prepare(`
     SELECT status,source_json,manifest_sha256,expected_files,expected_bytes,expected_chunks,
-      registered_files,registered_bytes,registered_chunks,chunk_hashes_json
+      expected_multipart_files,expected_upload_parts,registered_files,registered_bytes,
+      registered_chunks,registered_multipart_files,registered_upload_parts,chunk_hashes_json
     FROM releases WHERE run_id=?1
   `).bind(runId).first();
   if (!release) throw new Error("RELEASE_NOT_FOUND");
@@ -227,17 +245,22 @@ async function registerChunk(env, runId, chunkIndex, rawBody) {
   const nextFiles = Number(release.registered_files) + chunk.files.length;
   const nextBytes = Number(release.registered_bytes) + chunk.totalBytes;
   const nextChunks = Number(release.registered_chunks) + 1;
+  const nextMultipartFiles = Number(release.registered_multipart_files) + chunk.multipartFiles;
+  const nextUploadParts = Number(release.registered_upload_parts) + chunk.uploadParts;
   if (
     nextFiles > Number(release.expected_files)
     || nextBytes > Number(release.expected_bytes)
     || nextChunks > Number(release.expected_chunks)
+    || nextMultipartFiles > Number(release.expected_multipart_files)
+    || nextUploadParts > Number(release.expected_upload_parts)
   ) throw new Error("RELEASE_REGISTRATION_OVERFLOW");
   const timestamp = nowIso();
   await env.DB.batch([
     ...chunk.files.map((item) => env.DB.prepare(`
       INSERT INTO release_files(
-        run_id,path,operation,candidate_sha256,base_sha256,bytes,blob_key,uploaded
-      ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
+        run_id,path,operation,candidate_sha256,base_sha256,bytes,blob_key,uploaded,
+        upload_mode,expected_parts,parts_json
+      ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)
     `).bind(
       runId,
       item.path,
@@ -247,6 +270,9 @@ async function registerChunk(env, runId, chunkIndex, rawBody) {
       item.bytes,
       item.blobKey,
       item.operation === "delete" ? 1 : 0,
+      item.uploadMode || "single",
+      item.expectedParts || 0,
+      JSON.stringify(item.multipart?.parts || []),
     )),
     env.DB.prepare(`
       INSERT INTO release_chunks(run_id,chunk_index,chunk_sha256,files,bytes,created_at)
@@ -254,12 +280,15 @@ async function registerChunk(env, runId, chunkIndex, rawBody) {
     `).bind(runId, chunk.chunkIndex, chunkSha256, chunk.files.length, chunk.totalBytes, timestamp),
     env.DB.prepare(`
       UPDATE releases SET registered_files=?2,registered_bytes=?3,registered_chunks=?4,
-        status=?5,updated_at=?6 WHERE run_id=?1
+        registered_multipart_files=?5,registered_upload_parts=?6,status=?7,updated_at=?8
+      WHERE run_id=?1
     `).bind(
       runId,
       nextFiles,
       nextBytes,
       nextChunks,
+      nextMultipartFiles,
+      nextUploadParts,
       nextChunks === Number(release.expected_chunks) ? "registered" : "registering",
       timestamp,
     ),
@@ -277,10 +306,11 @@ async function registerChunk(env, runId, chunkIndex, rawBody) {
 async function uploadFile(request, env, runId, sha256) {
   if (!HEX64.test(sha256)) throw new Error("RELEASE_HASH_INVALID");
   const row = await env.DB.prepare(`
-    SELECT bytes, blob_key, uploaded FROM release_files
+    SELECT bytes, blob_key, uploaded, upload_mode FROM release_files
     WHERE run_id = ?1 AND candidate_sha256 = ?2 AND operation = 'upsert'
   `).bind(runId, sha256).first();
   if (!row) throw new Error("RELEASE_FILE_UNDECLARED");
+  if (String(row.upload_mode) !== "single") throw new Error("RELEASE_MULTIPART_REQUIRED");
   const length = Number(request.headers.get("content-length"));
   if (!Number.isSafeInteger(length) || length !== Number(row.bytes)) throw new Error("RELEASE_SIZE_MISMATCH");
   if (Number(row.uploaded) === 1) return json({ ok: true, runId, sha256, idempotent: true });
@@ -296,20 +326,69 @@ async function uploadFile(request, env, runId, sha256) {
   return json({ ok: true, runId, sha256, bytes: length }, 201);
 }
 
+async function uploadFilePart(request, env, runId, sha256, partNumber, partSha256) {
+  if (!HEX64.test(sha256) || !HEX64.test(partSha256)) throw new Error("RELEASE_HASH_INVALID");
+  const row = await env.DB.prepare(`
+    SELECT bytes,upload_mode,expected_parts,parts_json FROM release_files
+    WHERE run_id=?1 AND candidate_sha256=?2 AND operation='upsert'
+  `).bind(runId, sha256).first();
+  if (!row || String(row.upload_mode) !== "multipart") throw new Error("RELEASE_FILE_UNDECLARED");
+  let parts;
+  try {
+    parts = JSON.parse(String(row.parts_json || "[]"));
+  } catch {
+    throw new Error("RELEASE_MULTIPART_INVALID");
+  }
+  const expected = parts.find((part) => Number(part.number) === partNumber);
+  if (!expected || expected.sha256 !== partSha256) throw new Error("RELEASE_MULTIPART_PART_UNDECLARED");
+  const length = Number(request.headers.get("content-length"));
+  if (!Number.isSafeInteger(length) || length !== Number(expected.bytes)) throw new Error("RELEASE_SIZE_MISMATCH");
+  const existing = await env.DB.prepare(`
+    SELECT part_sha256,bytes,part_key FROM release_file_parts
+    WHERE run_id=?1 AND candidate_sha256=?2 AND part_number=?3
+  `).bind(runId, sha256, partNumber).first();
+  if (existing) {
+    if (existing.part_sha256 !== partSha256 || Number(existing.bytes) !== length) {
+      throw new Error("RELEASE_MULTIPART_PART_MISMATCH");
+    }
+    const object = await env.DATA.head(String(existing.part_key));
+    if (!object || object.size !== length || object.customMetadata?.sha256 !== partSha256) {
+      throw new Error("R2_MULTIPART_PART_VERIFY_FAILED");
+    }
+    return json({ ok: true, runId, sha256, partNumber, idempotent: true });
+  }
+  const partKey = multipartPartKey(runId, sha256, expected);
+  const object = await env.DATA.put(partKey, request.body, {
+    sha256: bytesFromHex(partSha256),
+    customMetadata: { sha256: partSha256, logicalSha256: sha256, runId, partNumber: String(partNumber) },
+    httpMetadata: { contentType: "application/octet-stream", cacheControl: "no-store" },
+  });
+  if (!object || object.size !== length) throw new Error("R2_MULTIPART_PART_VERIFY_FAILED");
+  await env.DB.prepare(`
+    INSERT INTO release_file_parts(
+      run_id,candidate_sha256,part_number,part_sha256,bytes,part_key,uploaded_at
+    ) VALUES (?1,?2,?3,?4,?5,?6,?7)
+  `).bind(runId, sha256, partNumber, partSha256, length, partKey, nowIso()).run();
+  return json({ ok: true, runId, sha256, partNumber, bytes: length }, 201);
+}
+
 async function commitRelease(env, runId) {
   const release = await env.DB.prepare(`
     SELECT status,expected_files,expected_bytes,expected_upserts,expected_chunks,
-      registered_files,registered_bytes,registered_chunks
+      expected_multipart_files,expected_upload_parts,registered_files,registered_bytes,
+      registered_chunks,registered_multipart_files,registered_upload_parts
     FROM releases WHERE run_id = ?1
   `).bind(runId).first();
   if (!release) throw new Error("RELEASE_NOT_FOUND");
-  if (["queued", "processing", "complete", "conflict"].includes(String(release.status))) {
+  if (["assembling", "queued", "processing", "complete", "conflict"].includes(String(release.status))) {
     return json({ ok: true, runId, status: release.status, idempotent: true });
   }
   if (
     Number(release.registered_files) !== Number(release.expected_files)
     || Number(release.registered_bytes) !== Number(release.expected_bytes)
     || Number(release.registered_chunks) !== Number(release.expected_chunks)
+    || Number(release.registered_multipart_files) !== Number(release.expected_multipart_files)
+    || Number(release.registered_upload_parts) !== Number(release.expected_upload_parts)
   ) throw new Error("RELEASE_REGISTRATION_INCOMPLETE");
   const registered = await env.DB.prepare(`
     SELECT COUNT(*) AS files,
@@ -322,14 +401,33 @@ async function commitRelease(env, runId) {
     || Number(registered?.bytes) !== Number(release.expected_bytes)
     || Number(registered?.upserts) !== Number(release.expected_upserts)
   ) throw new Error("RELEASE_REGISTRATION_MISMATCH");
+  const parts = await env.DB.prepare(`
+    SELECT COUNT(*) AS uploaded FROM release_file_parts WHERE run_id=?1
+  `).bind(runId).first();
+  const expectedParts = await env.DB.prepare(`
+    SELECT COALESCE(SUM(expected_parts),0) AS expected FROM (
+      SELECT candidate_sha256,MAX(expected_parts) AS expected_parts
+      FROM release_files WHERE run_id=?1 AND upload_mode='multipart'
+      GROUP BY candidate_sha256
+    )
+  `).bind(runId).first();
+  if (Number(parts?.uploaded || 0) !== Number(expectedParts?.expected || 0)) {
+    throw new Error("RELEASE_MULTIPART_UPLOAD_INCOMPLETE");
+  }
   const missing = await env.DB.prepare(`
     SELECT COUNT(*) AS count FROM release_files WHERE run_id = ?1 AND uploaded = 0
   `).bind(runId).first();
-  if (Number(missing?.count || 0) !== 0) throw new Error("RELEASE_UPLOAD_INCOMPLETE");
-  await env.DB.prepare("UPDATE releases SET status='queued', updated_at=?2 WHERE run_id=?1")
-    .bind(runId, nowIso()).run();
-  await env.RELEASE_QUEUE.send({ schemaVersion: 2, runId, phase: "merge" });
-  return json({ ok: true, runId, status: "queued" }, 202);
+  const unassembled = await env.DB.prepare(`
+    SELECT COUNT(*) AS count FROM release_files
+    WHERE run_id=?1 AND upload_mode='multipart' AND uploaded=0
+  `).bind(runId).first();
+  const assembling = Number(unassembled?.count || 0) > 0;
+  if (!assembling && Number(missing?.count || 0) !== 0) throw new Error("RELEASE_UPLOAD_INCOMPLETE");
+  const status = assembling ? "assembling" : "queued";
+  await env.DB.prepare("UPDATE releases SET status=?2,updated_at=?3 WHERE run_id=?1")
+    .bind(runId, status, nowIso()).run();
+  await env.RELEASE_QUEUE.send({ schemaVersion: 2, runId, phase: assembling ? "assemble" : "merge" });
+  return json({ ok: true, runId, status }, 202);
 }
 
 async function receipt(env, runId) {
@@ -348,13 +446,38 @@ async function quotaStatus(env) {
   return json({ ok: true, mode: env.SERVICE_MODE, daily: daily || {}, monthly: monthly || {} });
 }
 
+async function listHeads(env, url) {
+  const after = String(url.searchParams.get("after") || "");
+  const requested = Number(url.searchParams.get("limit") || 200);
+  if (after.length > 512 || !Number.isSafeInteger(requested) || requested < 1 || requested > 200) {
+    throw new Error("RELEASE_HEAD_CURSOR_INVALID");
+  }
+  await takeD1ReadBudget(env, requested + 1);
+  const rows = (await env.DB.prepare(`
+    SELECT path,sha256,deleted,snapshot_id,updated_at FROM path_heads
+    WHERE path>?1 ORDER BY path LIMIT ?2
+  `).bind(after, requested).all()).results || [];
+  return json({
+    ok: true,
+    mode: env.SERVICE_MODE,
+    heads: rows,
+    nextAfter: rows.length === requested ? rows[rows.length - 1].path : null,
+  });
+}
+
 async function handleFetch(request, env) {
   const url = new URL(request.url);
   const uploadMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})\/files\/([0-9a-f]{64})$/);
+  const partMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})\/files\/([0-9a-f]{64})\/parts\/([0-9]+)\/([0-9a-f]{64})$/);
   const chunkMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})\/chunks\/([0-9]+)$/);
   const commitMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})\/commit$/);
   const receiptMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})$/);
   try {
+    if (request.method === "PUT" && partMatch) {
+      await verifySignature(request, env, new Uint8Array(), partMatch[4]);
+      await takeRequestBudget(env);
+      return await uploadFilePart(request, env, partMatch[1], partMatch[2], Number(partMatch[3]), partMatch[4]);
+    }
     if (request.method === "PUT" && uploadMatch) {
       await verifySignature(request, env, new Uint8Array(), uploadMatch[2]);
       await takeRequestBudget(env);
@@ -368,6 +491,7 @@ async function handleFetch(request, env) {
     if (request.method === "POST" && commitMatch) return await commitRelease(env, commitMatch[1]);
     if (request.method === "GET" && receiptMatch) return await receipt(env, receiptMatch[1]);
     if (request.method === "GET" && url.pathname === "/v1/quota") return await quotaStatus(env);
+    if (request.method === "GET" && url.pathname === "/v1/heads") return await listHeads(env, url);
     return json({ ok: false, error: "NOT_FOUND" }, 404);
   } catch (error) {
     const code = errorCode(error);
@@ -470,7 +594,7 @@ async function finalizeRelease(env, runId) {
       INSERT INTO path_heads(path,sha256,deleted,snapshot_id,updated_at)
       SELECT path,candidate_sha256,CASE WHEN operation='delete' THEN 1 ELSE 0 END,?2,?3
       FROM release_files
-      WHERE run_id=?1 AND decision IN ('apply','delete') AND 1=1
+      WHERE run_id=?1 AND (decision IN ('apply','delete') OR bootstrapped=1)
       ON CONFLICT(path) DO UPDATE SET
         sha256=excluded.sha256,deleted=excluded.deleted,
         snapshot_id=excluded.snapshot_id,updated_at=excluded.updated_at
@@ -487,6 +611,72 @@ async function finalizeRelease(env, runId) {
       UPDATE releases SET status='complete',snapshot_id=?2,receipt_key=?3,updated_at=?4 WHERE run_id=?1
     `).bind(runId, snapshotId, receiptKey, timestamp),
   ]);
+}
+
+async function processAssemble(env, runId) {
+  const release = await env.DB.prepare("SELECT status FROM releases WHERE run_id=?1").bind(runId).first();
+  if (!release || ["complete", "conflict"].includes(String(release.status))) return;
+  const row = await env.DB.prepare(`
+    SELECT * FROM release_files
+    WHERE run_id=?1 AND upload_mode='multipart' AND uploaded=0
+    ORDER BY path LIMIT 1
+  `).bind(runId).first();
+  if (!row) {
+    const missing = await env.DB.prepare(`
+      SELECT COUNT(*) AS count FROM release_files WHERE run_id=?1 AND uploaded=0
+    `).bind(runId).first();
+    if (Number(missing?.count || 0) !== 0) throw new Error("RELEASE_UPLOAD_INCOMPLETE");
+    await env.DB.prepare("UPDATE releases SET status='queued',updated_at=?2 WHERE run_id=?1")
+      .bind(runId, nowIso()).run();
+    await env.RELEASE_QUEUE.send({ schemaVersion: 2, runId, phase: "merge" });
+    return;
+  }
+  let parts;
+  try {
+    parts = JSON.parse(String(row.parts_json || "[]"));
+  } catch {
+    throw new Error("RELEASE_MULTIPART_INVALID");
+  }
+  const existing = await env.DATA.head(String(row.blob_key));
+  if (!existing || existing.size !== Number(row.bytes) || existing.customMetadata?.sha256 !== row.candidate_sha256) {
+    const upload = await env.DATA.createMultipartUpload(String(row.blob_key), {
+      customMetadata: { sha256: row.candidate_sha256, runId },
+      httpMetadata: { contentType: "application/octet-stream", cacheControl: "public, max-age=31536000, immutable" },
+    });
+    const uploadedParts = [];
+    try {
+      for (const part of parts) {
+        const recorded = await env.DB.prepare(`
+          SELECT part_key,part_sha256,bytes FROM release_file_parts
+          WHERE run_id=?1 AND candidate_sha256=?2 AND part_number=?3
+        `).bind(runId, row.candidate_sha256, part.number).first();
+        if (!recorded || recorded.part_sha256 !== part.sha256 || Number(recorded.bytes) !== Number(part.bytes)) {
+          throw new Error("RELEASE_MULTIPART_UPLOAD_INCOMPLETE");
+        }
+        const object = await env.DATA.get(String(recorded.part_key));
+        if (!object || object.size !== Number(part.bytes) || object.customMetadata?.sha256 !== part.sha256) {
+          throw new Error("R2_MULTIPART_PART_VERIFY_FAILED");
+        }
+        uploadedParts.push(await upload.uploadPart(Number(part.number), object.body));
+      }
+      await upload.complete(uploadedParts);
+    } catch (error) {
+      try { await upload.abort(); } catch { /* best effort; R2 lifecycle also aborts stale uploads */ }
+      throw error;
+    }
+  }
+  const completed = await env.DATA.head(String(row.blob_key));
+  if (!completed || completed.size !== Number(row.bytes) || completed.customMetadata?.sha256 !== row.candidate_sha256) {
+    throw new Error("R2_MULTIPART_ASSEMBLY_VERIFY_FAILED");
+  }
+  const recordedParts = (await env.DB.prepare(`
+    SELECT part_key FROM release_file_parts WHERE run_id=?1 AND candidate_sha256=?2
+  `).bind(runId, row.candidate_sha256).all()).results || [];
+  await env.DB.prepare(`
+    UPDATE release_files SET uploaded=1 WHERE run_id=?1 AND candidate_sha256=?2
+  `).bind(runId, row.candidate_sha256).run();
+  if (recordedParts.length) await env.DATA.delete(recordedParts.map((part) => String(part.part_key)));
+  await env.RELEASE_QUEUE.send({ schemaVersion: 2, runId, phase: "assemble" });
 }
 
 async function processMergeChunk(env, runId) {
@@ -529,8 +719,10 @@ export default {
   async queue(batch, env) {
     for (const message of batch.messages) {
       const runId = String(message.body?.runId || "");
+      const phase = String(message.body?.phase || "merge");
       try {
-        await processMergeChunk(env, runId);
+        if (phase === "assemble") await processAssemble(env, runId);
+        else await processMergeChunk(env, runId);
         message.ack();
       } catch (error) {
         const code = errorCode(error);
@@ -540,7 +732,7 @@ export default {
           UPDATE releases SET status=?2,error_code=?3,error_detail=?4,updated_at=?5 WHERE run_id=?1
         `).bind(
           runId,
-          terminal ? "failed" : "queued",
+          terminal ? "failed" : (phase === "assemble" ? "assembling" : "queued"),
           code,
           String(error?.message || error).slice(0, 1000),
           nowIso(),

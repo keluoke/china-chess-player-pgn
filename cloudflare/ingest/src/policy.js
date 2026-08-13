@@ -80,6 +80,9 @@ function validateSource(source, files, mode) {
 function normalizeFiles(files, env, maxFiles) {
   const maxReleaseBytes = numericBudget(env, "MAX_RELEASE_BYTES");
   const maxFileBytes = numericBudget(env, "MAX_FILE_BYTES");
+  const maxSingleUploadBytes = numericBudget(env, "MAX_SINGLE_UPLOAD_BYTES");
+  const multipartPartBytes = numericBudget(env, "MULTIPART_PART_BYTES");
+  const maxMultipartParts = numericBudget(env, "MAX_MULTIPART_PARTS");
   if (!Array.isArray(files) || files.length < 1 || files.length > maxFiles) {
     throw new Error("FREE_TIER_RELEASE_FILE_LIMIT");
   }
@@ -102,9 +105,53 @@ function normalizeFiles(files, env, maxFiles) {
     if (!HEX64.test(sha256) || !Number.isSafeInteger(bytes) || bytes < 0 || bytes > maxFileBytes) {
       throw new Error("FREE_TIER_RELEASE_OBJECT_LIMIT");
     }
+    let multipart = null;
+    if (bytes > maxSingleUploadBytes) {
+      const supplied = item.multipart;
+      const parts = Array.isArray(supplied?.parts) ? supplied.parts : [];
+      const expectedParts = Math.ceil(bytes / multipartPartBytes);
+      if (
+        Number(supplied?.partSize) !== multipartPartBytes
+        || parts.length !== expectedParts
+        || parts.length < 2
+        || parts.length > maxMultipartParts
+      ) throw new Error("RELEASE_MULTIPART_INVALID");
+      let multipartBytes = 0;
+      const normalizedParts = parts.map((part, index) => {
+        const number = Number(part?.number);
+        const partSha256 = String(part?.sha256 || "");
+        const partBytes = Number(part?.bytes);
+        const expectedBytes = index === parts.length - 1
+          ? bytes - multipartPartBytes * index
+          : multipartPartBytes;
+        if (
+          number !== index + 1
+          || !HEX64.test(partSha256)
+          || !Number.isSafeInteger(partBytes)
+          || partBytes !== expectedBytes
+          || (index < parts.length - 1 && partBytes < 5 * 1024 * 1024)
+        ) throw new Error("RELEASE_MULTIPART_INVALID");
+        multipartBytes += partBytes;
+        return { number, sha256: partSha256, bytes: partBytes };
+      });
+      if (multipartBytes !== bytes) throw new Error("RELEASE_MULTIPART_INVALID");
+      multipart = { partSize: multipartPartBytes, parts: normalizedParts };
+    } else if (item.multipart != null) {
+      throw new Error("RELEASE_MULTIPART_UNNECESSARY");
+    }
     totalBytes += bytes;
     if (totalBytes > maxReleaseBytes) throw new Error("FREE_TIER_RELEASE_BYTE_LIMIT");
-    return { path, operation, sha256, baseSha256, bytes, blobKey: blobKey(sha256) };
+    return {
+      path,
+      operation,
+      sha256,
+      baseSha256,
+      bytes,
+      blobKey: blobKey(sha256),
+      uploadMode: multipart ? "multipart" : "single",
+      multipart,
+      expectedParts: multipart?.parts.length || 0,
+    };
   });
   return { files: normalized, totalBytes };
 }
@@ -160,6 +207,8 @@ export function normalizeReleaseHeader(payload, env) {
   const expectedFiles = Number(payload.expectedFiles);
   const expectedBytes = Number(payload.expectedBytes);
   const expectedUpserts = Number(payload.expectedUpserts);
+  const expectedMultipartFiles = Number(payload.expectedMultipartFiles || 0);
+  const expectedUploadParts = Number(payload.expectedUploadParts || 0);
   const expectedChunks = Number(payload.expectedChunks);
   const maxFiles = numericBudget(env, "MAX_RELEASE_FILES");
   const maxBytes = numericBudget(env, "MAX_RELEASE_BYTES");
@@ -173,6 +222,14 @@ export function normalizeReleaseHeader(payload, env) {
   if (!Number.isSafeInteger(expectedUpserts) || expectedUpserts < 0 || expectedUpserts > expectedFiles) {
     throw new Error("RELEASE_MANIFEST_INVALID");
   }
+  if (
+    !Number.isSafeInteger(expectedMultipartFiles)
+    || expectedMultipartFiles < 0
+    || expectedMultipartFiles > expectedUpserts
+    || !Number.isSafeInteger(expectedUploadParts)
+    || expectedUploadParts < expectedMultipartFiles * 2
+    || expectedUploadParts > expectedMultipartFiles * numericBudget(env, "MAX_MULTIPART_PARTS")
+  ) throw new Error("RELEASE_MULTIPART_INVALID");
   if (!Number.isSafeInteger(expectedChunks) || expectedChunks !== Math.ceil(expectedFiles / chunkFiles)) {
     throw new Error("RELEASE_CHUNK_COUNT_INVALID");
   }
@@ -200,6 +257,8 @@ export function normalizeReleaseHeader(payload, env) {
     expectedFiles,
     expectedBytes,
     expectedUpserts,
+    expectedMultipartFiles,
+    expectedUploadParts,
     expectedChunks,
     chunkSha256s,
   };
@@ -212,6 +271,10 @@ export function chunkFingerprintText(files) {
     item.sha256,
     item.baseSha256,
     item.bytes,
+    item.multipart ? [
+      item.multipart.partSize,
+      item.multipart.parts.map((part) => [part.number, part.sha256, part.bytes]),
+    ] : null,
   ]));
 }
 
@@ -239,7 +302,16 @@ export function normalizeReleaseChunk(payload, release, env) {
   }
   const source = JSON.parse(String(release.source_json || "{}"));
   validateSource(source, files, String(env.SERVICE_MODE || "shadow"));
-  return { schemaVersion: 1, manifestSha256, chunkSha256, chunkIndex, files, totalBytes };
+  return {
+    schemaVersion: 1,
+    manifestSha256,
+    chunkSha256,
+    chunkIndex,
+    files,
+    totalBytes,
+    multipartFiles: files.filter((item) => item.uploadMode === "multipart").length,
+    uploadParts: files.reduce((total, item) => total + item.expectedParts, 0),
+  };
 }
 
 export function threeWayDecision(base, current, candidate, operation) {
@@ -256,24 +328,29 @@ export function estimateReservation(manifest, env = {}) {
   const count = manifest.expectedFiles ?? manifest.files.length;
   const upserts = manifest.expectedUpserts
     ?? manifest.files.filter((item) => item.operation === "upsert").length;
+  const multipartFiles = manifest.expectedMultipartFiles
+    ?? manifest.files.filter((item) => item.uploadMode === "multipart").length;
+  const uploadParts = manifest.expectedUploadParts
+    ?? manifest.files.reduce((total, item) => total + Number(item.expectedParts || 0), 0);
   const registerChunkFiles = Number(env.MAX_REGISTER_CHUNK_FILES || 10);
   const mergeChunkFiles = Number(env.MAX_MERGE_CHUNK_FILES || 10);
   const registrationChunks = manifest.expectedChunks ?? Math.ceil(count / registerChunkFiles);
-  const queueMessages = Math.ceil(count / mergeChunkFiles) + 1;
+  const queueMessages = Math.ceil(count / mergeChunkFiles)
+    + (multipartFiles > 0 ? multipartFiles + 2 : 1);
   return {
     releases: 1,
     workerRequests: 0,
     d1RowsRead: count * 4 + 50,
     // Covers file registration, upload flags, staged decisions, path heads,
     // authenticated request nonce/budget rows, chunk rows and polling slack.
-    d1RowsWritten: count * 6 + registrationChunks * 4 + 300,
+    d1RowsWritten: count * 6 + uploadParts * 3 + registrationChunks * 4 + 300,
     // D1 does not authorize page_count/page_size PRAGMAs from a Worker
     // binding. Reserve a deliberately high, never-refunded metadata estimate
     // so the service fails closed before the 128 MiB internal ceiling.
-    d1StorageReservedBytes: count * 4096 + registrationChunks * 1024 + 65536,
+    d1StorageReservedBytes: count * 4096 + uploadParts * 1024 + registrationChunks * 1024 + 65536,
     queueOps: queueMessages * 3,
-    r2ClassA: upserts + 2,
-    r2ClassB: upserts,
+    r2ClassA: (upserts - multipartFiles) + uploadParts * 3 + multipartFiles * 2 + 2,
+    r2ClassB: upserts + uploadParts,
     storageReservedBytes: (manifest.expectedBytes ?? manifest.totalBytes) + 262144,
   };
 }

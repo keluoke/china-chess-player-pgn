@@ -38,32 +38,52 @@ GitHub 生产自动推进已开启而推定影子上传也获授权。开关开�
 | R2 Class B | 10,000,000/月 | 250,000/月预留 |
 | R2 存储 | 10 GB-month/月 | 专用影子桶最多预留 1 GiB |
 
-单日最多 8 个逻辑发布包；单包最多 **384 个文件、64 MiB**；单文件最多 16 MiB。
+单日最多 8 个逻辑发布包；单包最多 **384 个文件、96 MiB**；单个逻辑文件最多
+96 MiB。16 MiB 以内使用单请求流式写入；超过 16 MiB 必须使用固定 8 MiB 的
+R2 multipart 传输片（末片可不足 8 MiB），最多 12 片。传输片只有全部通过独立
+SHA-256 校验、按序合成并回读 size/metadata 后，才把逻辑文件标为 uploaded；传输片
+永不形成 path head、snapshot 或公开对象。
 客户端把一个逻辑 manifest 分成每片最多 10 文件的登记请求，Queue consumer 也按
 每次最多 10 文件计算三方决策。分片只属于内部可恢复状态机，不产生子快照，也不
 改变原始 run-id、manifest 哈希、三方合并边界或回执边界。发布头必须预先提交按
 序排列的分片 SHA-256；Worker 对每个已签名分片重新规范化并计算哈希，任一不匹配
 均拒绝，不能只靠文件数/字节数凑齐登记门禁。
 
-384 是免费层内的联合硬上限：最坏 39 个登记片；40 个 Queue 消息（39 个合并片加
-1 个 finalize），按写入/读取/删除各计一次为每包 120 Queue operations，8 包为
-960，低于本服务 1,000/日预留。D1 写行按 `6 × files + 4 × registrationChunks + 300`
-保守预留，384 文件为每包 2,760、8 包为 22,080，低于本服务 30,000/日；余量覆盖
-重试与计量偏差。Worker 请求最坏预留也必须小于 5,000/日。每个合并 invocation
+384 是免费层内的联合硬上限：无 multipart 时最坏 39 个登记片；40 个 Queue 消息
+（39 个合并片加 1 个 finalize），按写入/读取/删除各计一次为每包 120 Queue
+operations，8 包为 960，低于本服务 1,000/日预留。含 multipart 时每个大文件增加
+一个合成消息并增加一次阶段转换；登记时按真实片数联合预留，因此当日可接收包数
+可能低于 8，禁止为了凑满 8 包降低预留。D1 写行按
+`6 × files + 3 × uploadParts + 4 × registrationChunks + 300` 保守预留；无 multipart
+的 384 文件包仍为 2,760、8 包为 22,080，低于本服务 30,000/日。Worker 请求最坏
+预留也必须小于 5,000/日。每个合并 invocation
 最多执行 10 次 R2 HEAD、10 次 D1
 head 查询及少量固定查询/批写，低于 Worker Free 单次 50 子请求限制。
 
 预算按最坏情况在发布头登记时一次性预留，即使对象已存在也不返还预算。免费额度
 或用量无法确认时按不可用处理。本机客户端必须在任何网络请求前执行同一逻辑包
-门禁。真正超过 384 文件、64 MiB 或 16 MiB 单文件的包写入
+门禁。真正超过 384 文件、96 MiB 或 96 MiB 单文件的包写入
 `shadow-delivery.json` 为 `ineligible`；只有上游本来就语义独立的发布才可分别形成
 独立 manifest，禁止客户端把一个原子发布包拆成多个可见快照来规避配额。
 
+历史全量基线迁移是独立的、不可见的迁移事务：根清单固定目标 Git commit、完整
+路径集合、每路径 Git blob/SHA-256/字节数、来源分区以及根哈希；子传输包可按来源、
+384 文件和 96 MiB 门禁分批执行，但不得计作真实增量发布，也不得在根清单完成前
+用于生产读取。迁移期间暂停影子自动双写；基线完成后按时间顺序重放积压 outbox。
+影子独有路径只能通过带当前 head 哈希的补偿 delete 包清理，禁止直接改 D1/R2。
+最终门禁为双向集合比较：active path、SHA-256、删除状态必须全部一致，差异数为 0。
+
 D1 Worker binding 不允许用 `PRAGMA page_count/page_size` 查询实际库大小，因此不得
 把该查询当运行时门禁。服务改用只增不减的 `quota_storage` 账本：迁移时先为既有库
-预留 4 MiB，之后每包按 `4096 × files + 1024 × registrationChunks + 64 KiB`
+预留 4 MiB，之后每包按
+`4096 × files + 1024 × uploadParts + 1024 × registrationChunks + 64 KiB`
 预留元数据空间；累计达到 128 MiB 即拒绝新包。只有完成实际清理并通过迁移审计后
 才能调低账本，不得在请求路径中乐观返还。该估算刻意高于实际行尺寸，以提前停机。
+
+R2 持久对象账本最多使用 896 MiB，并永久为单个 96 MiB multipart 合成及元数据保留
+至少 128 MiB 瞬时余量，保证专用桶峰值低于 1 GiB。临时分片在完整对象合成后删除；
+不完整 multipart 依赖 R2 七日自动中止作为第二道保护，但该生命周期不得替代服务
+自身的失败回收。任何账本或实际桶用量无法确认时停止接包。
 
 Worker Free 到达平台账户级请求上限时由 Cloudflare 拒绝后续请求；本服务不配置
 Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前，必须重新
@@ -87,7 +107,9 @@ Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前�
 - `current == candidate`：幂等；`current == base`：应用；`candidate == base`：跳过；
   其余情况 `RELEASE_BASE_CONFLICT`，整包隔离。
 - 首次影子观察到既有路径而 D1 尚无 head 时，可从签名 manifest 的 `baseSha256`
-  bootstrap；回执必须报告 bootstrap 数量。此行为仅用于建立影子基线。
+  bootstrap；回执必须报告 bootstrap 数量。即使三方结果为 `idempotent`，只要
+  `bootstrapped=1`，finalize 也必须原子建立 path head；禁止出现“回执完成但无 head”。
+  此行为仅用于建立影子基线。
 - R2 对象先写；分片合并只把决策暂存在 `release_files`，不得更新 `path_heads`。
   所有分片完成且无冲突后，finalize 用一个 D1 `batch()` 内的
   `INSERT ... SELECT ... ON CONFLICT` 更新全部 path head，并同时写 snapshot、receipt
@@ -99,7 +121,7 @@ Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前�
 
 ## 回执与切流门禁
 
-状态链为 `registering → registered → queued → processing → complete/conflict/failed`。只有 D1 已
+状态链为 `registering → registered → assembling（仅 multipart）→ queued → processing → complete/conflict/failed`。只有 D1 已
 原子切换影子快照、R2 manifest/receipt 可回读且哈希一致，才算影子完成。
 Queue 暂时性错误在前三次失败时回到 `queued` 并保留错误详情；第四次仍失败才写
 `failed` 终态，避免客户端把仍会自动重试的消息误判为不可恢复失败。

@@ -18,8 +18,11 @@ const env = {
   MAX_RELEASE_FILES: "384",
   MAX_REGISTER_CHUNK_FILES: "10",
   MAX_MERGE_CHUNK_FILES: "10",
-  MAX_RELEASE_BYTES: String(64 * 1024 * 1024),
-  MAX_FILE_BYTES: String(16 * 1024 * 1024),
+  MAX_RELEASE_BYTES: String(96 * 1024 * 1024),
+  MAX_FILE_BYTES: String(96 * 1024 * 1024),
+  MAX_SINGLE_UPLOAD_BYTES: String(16 * 1024 * 1024),
+  MULTIPART_PART_BYTES: String(8 * 1024 * 1024),
+  MAX_MULTIPART_PARTS: "12",
 };
 
 test("release paths preserve machine/manual boundary", () => {
@@ -50,7 +53,7 @@ test("manifest normalization applies free-tier limits", () => {
   assert.equal(manifest.totalBytes, 12);
   assert.equal(manifest.files[0].blobKey, blobKey(hash));
   assert.equal(estimateReservation(manifest).storageReservedBytes, 262156);
-  assert.throws(() => normalizeManifest({ ...manifest, files: [{ ...manifest.files[0], bytes: 17 * 1024 * 1024 }] }, env), /FREE_TIER_RELEASE_OBJECT_LIMIT/);
+  assert.throws(() => normalizeManifest({ ...manifest, files: [{ ...manifest.files[0], bytes: 17 * 1024 * 1024 }] }, env), /RELEASE_MULTIPART_INVALID/);
   assert.doesNotThrow(() => normalizeManifest({
     ...manifest,
     files: Array.from({ length: 13 }, (_, index) => ({
@@ -85,6 +88,8 @@ test("large logical release uses bounded registration and merge chunks", () => {
     expectedFiles: 50,
     expectedBytes: 50,
     expectedUpserts: 50,
+    expectedMultipartFiles: 0,
+    expectedUploadParts: 0,
     expectedChunks: 5,
     chunkSha256s: Array.from({ length: 5 }, () => "d".repeat(64)),
   }, env);
@@ -107,7 +112,7 @@ test("large logical release uses bounded registration and merge chunks", () => {
   }, release, env);
   assert.equal(chunk.files.length, 10);
   assert.equal(chunkFingerprintText(chunk.files), JSON.stringify(chunkFiles.map((item) => [
-    item.path, item.operation, item.sha256, item.baseSha256, item.bytes,
+    item.path, item.operation, item.sha256, item.baseSha256, item.bytes, null,
   ])));
   assert.throws(() => normalizeReleaseChunk({
     schemaVersion: 1,
@@ -154,6 +159,41 @@ test("three-way merge is fail-closed", () => {
   assert.equal(threeWayDecision("base", "base", null, "delete"), "delete");
 });
 
+test("multipart logical files are part-bound and quota-reserved", () => {
+  const partSize = 8 * 1024 * 1024;
+  const totalBytes = 20 * 1024 * 1024;
+  const parts = [partSize, partSize, 4 * 1024 * 1024].map((bytes, index) => ({
+    number: index + 1,
+    sha256: String(index + 1).repeat(64),
+    bytes,
+  }));
+  const manifest = normalizeManifest({
+    schemaVersion: 1,
+    runId: "20260812-120000-deadbeef",
+    command: "baseline-migrate",
+    baseCommit: "b".repeat(40),
+    source: { source: "Lichess Broadcasts", releasePolicy: "cc-by-sa-4.0", licenseURL: "https://creativecommons.org/licenses/by-sa/4.0/", attributionURL: "https://database.lichess.org/" },
+    files: [{
+      path: "docs/data/bulk/youth.pgn",
+      operation: "upsert",
+      sha256: "a".repeat(64),
+      baseSha256: "a".repeat(64),
+      bytes: totalBytes,
+      multipart: { partSize, parts },
+    }],
+  }, { ...env, MAX_RELEASE_BYTES: String(96 * 1024 * 1024) });
+  assert.equal(manifest.files[0].uploadMode, "multipart");
+  assert.equal(manifest.files[0].expectedParts, 3);
+  const reservation = estimateReservation(manifest, env);
+  assert.equal(reservation.queueOps, 12);
+  assert.equal(reservation.r2ClassA, 13);
+  assert.equal(reservation.r2ClassB, 4);
+  assert.throws(() => normalizeManifest({
+    ...manifest,
+    files: [{ ...manifest.files[0], multipart: { partSize, parts: parts.slice(0, 2) } }],
+  }, { ...env, MAX_RELEASE_BYTES: String(96 * 1024 * 1024) }), /RELEASE_MULTIPART_INVALID/);
+});
+
 test("canonical authentication input is stable", () => {
   assert.equal(
     canonicalRequest("post", "/v1/releases", 123, "f".repeat(32), "a".repeat(64)),
@@ -172,5 +212,5 @@ test("chunk fingerprint is stable across Python client and Worker", async () => 
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   const hex = [...new Uint8Array(digest)]
     .map((value) => value.toString(16).padStart(2, "0")).join("");
-  assert.equal(hex, "c8fde42f02e3c321071ca0f1dfdb482da54456e459a93c81279de1e536712f91");
+  assert.equal(hex, "97df5f9596b1f6cb87225d0e02ebb9a188e2dcf8caa2acf4513dfc8236fb7463");
 });

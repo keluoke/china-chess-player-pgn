@@ -18,7 +18,8 @@
   `local-data → main → rebuild → deploy`。完整契约见
   `docs/CLOUDFLARE_INGEST_CONTRACT.md`。
 - 专用 Worker/R2/D1/Queue 必须保持免费计划，禁止自动升级或配置付费资源。服务
-  硬上限：8 releases/day、384 files/logical release、64 MiB/release、16 MiB/file、
+  硬上限：8 releases/day、384 files/logical release、96 MiB/release、96 MiB/file；
+  超过 16 MiB 必须按固定 8 MiB multipart 片传输（最多 12 片）、
   5,000 Worker requests/day、100,000 D1 reads/day、30,000 D1 writes/day、
   1,000 Queue ops/day、100,000 R2 Class A/month、250,000 Class B/month、
   128 MiB D1、1 GiB 影子 R2 预留。Free 单次调用最多 50 个子请求，10 文件合并片
@@ -143,7 +144,8 @@
   不阻塞后续采集；恢复后运行 `refresh.sh publish` 重投。
 - 面板把 GitHub 生产推进与 Cloudflare 影子双写设为两个独立开关。生产推进默认
   开启；影子双写必须由维护者显式开启，默认关闭。一个逻辑发布包最多 384 文件、
-  64 MiB，单文件最多 16 MiB；客户端以 10 文件注册分块、Queue 以 10 文件合并分块，
+  96 MiB，单文件最多 96 MiB；超过 16 MiB 以固定 8 MiB multipart 片上传并在 Queue
+  原子合成。客户端以 10 文件注册分块、Queue 以 10 文件合并分块，
   最终只允许一次原子快照提交。分块是服务内部实现，不得拆成多个可见快照或降低原子性。
 - chess-results / FIDE 抓取必须直连住宅 IP(封数据中心 IP);终端 GitHub 访问显式
   注入 127.0.0.1:15236，`scutil` 只能用于发现候选代理，不能视为终端已继承代理。

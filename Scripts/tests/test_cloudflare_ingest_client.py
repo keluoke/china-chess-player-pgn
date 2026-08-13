@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -82,6 +83,48 @@ class CloudflareIngestClientTests(unittest.TestCase):
             chunks[0]["chunkSha256"],
             hashlib.sha256(cloudflare_ingest.chunk_fingerprint_bytes(files[:10])).hexdigest(),
         )
+
+    def test_large_file_is_bound_to_resumable_multipart_uploads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            files = root / "files"
+            candidate = files / "docs/data/bulk/youth/pgn/U14/example.pgn"
+            candidate.parent.mkdir(parents=True)
+            body = b"a" * cloudflare_ingest.MULTIPART_PART_BYTES
+            tail = b"b" * 17
+            candidate.write_bytes(body + body + tail)
+            digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+            manifest = {
+                "schemaVersion": 1,
+                "runId": "20260812-120000-deadbeef",
+                "command": "baseline-migrate",
+                "baseCommit": "a" * 40,
+                "source": {
+                    "source": "Lichess Broadcasts",
+                    "releasePolicy": "cc-by-sa-4.0",
+                    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+                    "attributionURL": "https://database.lichess.org/",
+                },
+                "files": [{
+                    "path": "docs/data/bulk/youth/pgn/U14/example.pgn",
+                    "operation": "upsert",
+                    "sha256": digest,
+                    "bytes": candidate.stat().st_size,
+                    "baseBlobOid": "b" * 40,
+                    "baseSha256": digest,
+                }],
+            }
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            payload, _ = cloudflare_ingest.build_shadow_manifest(manifest_path, files)
+            multipart = payload["files"][0]["multipart"]
+            self.assertEqual(multipart["partSize"], cloudflare_ingest.MULTIPART_PART_BYTES)
+            self.assertEqual([part["bytes"] for part in multipart["parts"]], [len(body), len(body), len(tail)])
+            cloudflare_ingest.validate_shadow_limits(payload)
+            header, chunks = cloudflare_ingest.registration_payloads(payload)
+            self.assertEqual(header["expectedMultipartFiles"], 1)
+            self.assertEqual(header["expectedUploadParts"], 3)
+            self.assertEqual(chunks[0]["files"][0]["multipart"], multipart)
 
     def test_free_tier_preflight_rejects_oversized_logical_manifest_locally(self):
         payload = {
@@ -166,6 +209,76 @@ class CloudflareIngestClientTests(unittest.TestCase):
             )
             self.assertEqual(state["status"], "ineligible")
             self.assertEqual(state["errorCode"], "FREE_TIER_RELEASE_FILE_LIMIT")
+
+    @unittest.skipUnless(os.environ.get("CLOUDFLARE_INGEST_INTEGRATION_URL"), "local Worker integration only")
+    def test_local_worker_multipart_end_to_end(self):
+        endpoint = os.environ["CLOUDFLARE_INGEST_INTEGRATION_URL"]
+        secret = os.environ.get("CLOUDFLARE_INGEST_HMAC_SECRET", "integration-secret")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            run_id = "20260813-120000-a11ce001"
+            bundle = root / "outbox" / run_id
+            candidate = bundle / "files/data/generated/chess-results-event-pgn/tnr9999999.pgn"
+            candidate.parent.mkdir(parents=True)
+            candidate.write_bytes(
+                b"a" * cloudflare_ingest.MULTIPART_PART_BYTES
+                + b"b" * cloudflare_ingest.MULTIPART_PART_BYTES
+                + b"tail"
+            )
+            digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+            manifest = {
+                "schemaVersion": 1,
+                "runId": run_id,
+                "command": "integration-test",
+                "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+                "files": [{
+                    "path": "data/generated/chess-results-event-pgn/tnr9999999.pgn",
+                    "operation": "upsert",
+                    "sha256": digest,
+                    "bytes": candidate.stat().st_size,
+                }],
+            }
+            (bundle / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            result = cloudflare_ingest.deliver(run_id, endpoint, secret, root, wait_seconds=30)
+            self.assertEqual(result["status"], "complete")
+            heads = cloudflare_ingest.request_json(endpoint, "GET", "/v1/heads?limit=200", secret)
+            match = next(item for item in heads["heads"] if item["path"] == manifest["files"][0]["path"])
+            self.assertEqual(match["sha256"], digest)
+
+    @unittest.skipUnless(os.environ.get("CLOUDFLARE_INGEST_INTEGRATION_URL"), "local Worker integration only")
+    def test_local_worker_bootstrap_idempotent_creates_head(self):
+        endpoint = os.environ["CLOUDFLARE_INGEST_INTEGRATION_URL"]
+        secret = os.environ.get("CLOUDFLARE_INGEST_HMAC_SECRET", "integration-secret")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            run_id = "20260813-120001-a11ce002"
+            bundle = root / "outbox" / run_id
+            candidate = bundle / "files/data/generated/chess-results-event-details/tnr9999998.json"
+            candidate.parent.mkdir(parents=True)
+            candidate.write_bytes(b"{}\n")
+            digest = hashlib.sha256(candidate.read_bytes()).hexdigest()
+            manifest = {
+                "schemaVersion": 1,
+                "runId": run_id,
+                "command": "baseline-migrate",
+                "baseCommit": "a" * 40,
+                "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+                "files": [{
+                    "path": "data/generated/chess-results-event-details/tnr9999998.json",
+                    "operation": "upsert",
+                    "sha256": digest,
+                    "bytes": candidate.stat().st_size,
+                    "baseBlobOid": "b" * 40,
+                    "baseSha256": digest,
+                }],
+            }
+            (bundle / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            result = cloudflare_ingest.deliver(run_id, endpoint, secret, root, wait_seconds=30)
+            self.assertEqual(result["status"], "complete")
+            heads = cloudflare_ingest.request_json(endpoint, "GET", "/v1/heads?limit=200", secret)
+            match = next(item for item in heads["heads"] if item["path"] == manifest["files"][0]["path"])
+            self.assertEqual(match["sha256"], digest)
+            self.assertEqual(int(match["deleted"]), 0)
 
 
 if __name__ == "__main__":

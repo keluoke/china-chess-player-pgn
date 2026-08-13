@@ -49,6 +49,13 @@ ordered SHA-256 for every registration chunk, and the Worker recomputes it
 before accepting the chunk. Do not raise 384 or either chunk size without
 re-deriving every hard budget in the contract.
 
+The logical release and file ceilings are 96 MiB. Files above 16 MiB use fixed
+8 MiB authenticated parts (up to 12); Queue assembles one immutable R2 object,
+verifies its size/metadata, removes temporary parts, and only then permits merge.
+`Scripts/local/cloudflare_baseline.py` prepares a commit-pinned, source-partitioned
+root migration outside Git, emits compensating deletes, delivers at most eight
+packages per invocation, and performs a paginated bidirectional head comparison.
+
 D1 storage is guarded by the conservative `quota_storage` ledger introduced in
 `0003_d1_storage_ledger.sql`; Worker bindings must not rely on unauthorized
 SQLite page-size PRAGMAs.
