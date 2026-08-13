@@ -3,8 +3,10 @@ import {
   blobKey,
   bytesFromHex,
   canonicalRequest,
+  chunkFingerprintText,
   estimateReservation,
-  normalizeManifest,
+  normalizeReleaseChunk,
+  normalizeReleaseHeader,
   numericBudget,
   threeWayDecision,
 } from "./policy.js";
@@ -158,32 +160,88 @@ async function takeRequestBudget(env) {
 
 async function registerRelease(request, env, rawBody) {
   const payload = JSON.parse(new TextDecoder().decode(rawBody));
-  const manifest = normalizeManifest(payload, env);
-  const existing = await env.DB.prepare("SELECT status FROM releases WHERE run_id = ?1").bind(manifest.runId).first();
-  if (existing) return json({ ok: true, runId: manifest.runId, status: existing.status, idempotent: true });
+  const manifest = normalizeReleaseHeader(payload, env);
+  const existing = await env.DB.prepare("SELECT status,manifest_sha256 FROM releases WHERE run_id = ?1").bind(manifest.runId).first();
+  if (existing) {
+    const existingHash = String(existing.manifest_sha256 || "");
+    if (!existingHash && ["complete", "conflict", "failed"].includes(String(existing.status))) {
+      return json({ ok: true, runId: manifest.runId, status: existing.status, idempotent: true, legacy: true });
+    }
+    if (!existingHash) throw new Error("RELEASE_LEGACY_STATE_UNRESUMABLE");
+    if (existingHash !== manifest.manifestSha256) {
+      throw new Error("RELEASE_MANIFEST_HASH_MISMATCH");
+    }
+    return json({ ok: true, runId: manifest.runId, status: existing.status, idempotent: true });
+  }
   await ensureD1StorageBudget(env);
-  await reserveQuota(env, estimateReservation(manifest));
+  await reserveQuota(env, estimateReservation(manifest, env));
   const timestamp = nowIso();
-  const statements = [
-    env.DB.prepare(`
-      INSERT INTO releases(
-        run_id,status,command,base_commit,source_json,expected_files,expected_bytes,created_at,updated_at
-      ) VALUES (?1,'registered',?2,?3,?4,?5,?6,?7,?7)
-    `).bind(
-      manifest.runId,
-      manifest.command,
-      manifest.baseCommit,
-      JSON.stringify(manifest.source),
-      manifest.files.length,
-      manifest.totalBytes,
-      timestamp,
-    ),
-    ...manifest.files.map((item) => env.DB.prepare(`
+  await env.DB.prepare(`
+    INSERT INTO releases(
+      run_id,status,command,base_commit,source_json,expected_files,expected_bytes,
+      manifest_sha256,expected_upserts,expected_chunks,chunk_hashes_json,created_at,updated_at
+    ) VALUES (?1,'registering',?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?11)
+  `).bind(
+    manifest.runId,
+    manifest.command,
+    manifest.baseCommit,
+    JSON.stringify(manifest.source),
+    manifest.expectedFiles,
+    manifest.expectedBytes,
+    manifest.manifestSha256,
+    manifest.expectedUpserts,
+    manifest.expectedChunks,
+    JSON.stringify(manifest.chunkSha256s),
+    timestamp,
+  ).run();
+  return json({
+    ok: true,
+    mode: env.SERVICE_MODE,
+    runId: manifest.runId,
+    status: "registering",
+    files: manifest.expectedFiles,
+    bytes: manifest.expectedBytes,
+    chunks: manifest.expectedChunks,
+  }, 201);
+}
+
+async function registerChunk(env, runId, chunkIndex, rawBody) {
+  const release = await env.DB.prepare(`
+    SELECT status,source_json,manifest_sha256,expected_files,expected_bytes,expected_chunks,
+      registered_files,registered_bytes,registered_chunks,chunk_hashes_json
+    FROM releases WHERE run_id=?1
+  `).bind(runId).first();
+  if (!release) throw new Error("RELEASE_NOT_FOUND");
+  const payload = JSON.parse(new TextDecoder().decode(rawBody));
+  if (Number(payload.chunkIndex) !== Number(chunkIndex)) throw new Error("RELEASE_CHUNK_INDEX_INVALID");
+  const chunk = normalizeReleaseChunk(payload, release, env);
+  const actualChunkSha256 = await sha256Hex(new TextEncoder().encode(chunkFingerprintText(chunk.files)));
+  if (actualChunkSha256 !== chunk.chunkSha256) throw new Error("RELEASE_CHUNK_HASH_MISMATCH");
+  const chunkSha256 = await sha256Hex(rawBody);
+  const existing = await env.DB.prepare(`
+    SELECT chunk_sha256 FROM release_chunks WHERE run_id=?1 AND chunk_index=?2
+  `).bind(runId, chunk.chunkIndex).first();
+  if (existing) {
+    if (String(existing.chunk_sha256) !== chunkSha256) throw new Error("RELEASE_CHUNK_MISMATCH");
+    return json({ ok: true, runId, chunkIndex: chunk.chunkIndex, status: release.status, idempotent: true });
+  }
+  if (!["registering", "registered"].includes(String(release.status))) throw new Error("RELEASE_REGISTRATION_CLOSED");
+  const nextFiles = Number(release.registered_files) + chunk.files.length;
+  const nextBytes = Number(release.registered_bytes) + chunk.totalBytes;
+  const nextChunks = Number(release.registered_chunks) + 1;
+  if (
+    nextFiles > Number(release.expected_files)
+    || nextBytes > Number(release.expected_bytes)
+    || nextChunks > Number(release.expected_chunks)
+  ) throw new Error("RELEASE_REGISTRATION_OVERFLOW");
+  const timestamp = nowIso();
+  await env.DB.batch([
+    ...chunk.files.map((item) => env.DB.prepare(`
       INSERT INTO release_files(
         run_id,path,operation,candidate_sha256,base_sha256,bytes,blob_key,uploaded
       ) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)
     `).bind(
-      manifest.runId,
+      runId,
       item.path,
       item.operation,
       item.sha256,
@@ -192,15 +250,29 @@ async function registerRelease(request, env, rawBody) {
       item.blobKey,
       item.operation === "delete" ? 1 : 0,
     )),
-  ];
-  await env.DB.batch(statements);
+    env.DB.prepare(`
+      INSERT INTO release_chunks(run_id,chunk_index,chunk_sha256,files,bytes,created_at)
+      VALUES (?1,?2,?3,?4,?5,?6)
+    `).bind(runId, chunk.chunkIndex, chunkSha256, chunk.files.length, chunk.totalBytes, timestamp),
+    env.DB.prepare(`
+      UPDATE releases SET registered_files=?2,registered_bytes=?3,registered_chunks=?4,
+        status=?5,updated_at=?6 WHERE run_id=?1
+    `).bind(
+      runId,
+      nextFiles,
+      nextBytes,
+      nextChunks,
+      nextChunks === Number(release.expected_chunks) ? "registered" : "registering",
+      timestamp,
+    ),
+  ]);
   return json({
     ok: true,
-    mode: env.SERVICE_MODE,
-    runId: manifest.runId,
-    status: "registered",
-    files: manifest.files.length,
-    bytes: manifest.totalBytes,
+    runId,
+    chunkIndex: chunk.chunkIndex,
+    status: nextChunks === Number(release.expected_chunks) ? "registered" : "registering",
+    registeredFiles: nextFiles,
+    registeredChunks: nextChunks,
   }, 201);
 }
 
@@ -227,24 +299,45 @@ async function uploadFile(request, env, runId, sha256) {
 }
 
 async function commitRelease(env, runId) {
-  const release = await env.DB.prepare("SELECT status, expected_files FROM releases WHERE run_id = ?1").bind(runId).first();
+  const release = await env.DB.prepare(`
+    SELECT status,expected_files,expected_bytes,expected_upserts,expected_chunks,
+      registered_files,registered_bytes,registered_chunks
+    FROM releases WHERE run_id = ?1
+  `).bind(runId).first();
   if (!release) throw new Error("RELEASE_NOT_FOUND");
   if (["queued", "processing", "complete", "conflict"].includes(String(release.status))) {
     return json({ ok: true, runId, status: release.status, idempotent: true });
   }
+  if (
+    Number(release.registered_files) !== Number(release.expected_files)
+    || Number(release.registered_bytes) !== Number(release.expected_bytes)
+    || Number(release.registered_chunks) !== Number(release.expected_chunks)
+  ) throw new Error("RELEASE_REGISTRATION_INCOMPLETE");
+  const registered = await env.DB.prepare(`
+    SELECT COUNT(*) AS files,
+      COALESCE(SUM(bytes),0) AS bytes,
+      COALESCE(SUM(CASE WHEN operation='upsert' THEN 1 ELSE 0 END),0) AS upserts
+    FROM release_files WHERE run_id=?1
+  `).bind(runId).first();
+  if (
+    Number(registered?.files) !== Number(release.expected_files)
+    || Number(registered?.bytes) !== Number(release.expected_bytes)
+    || Number(registered?.upserts) !== Number(release.expected_upserts)
+  ) throw new Error("RELEASE_REGISTRATION_MISMATCH");
   const missing = await env.DB.prepare(`
     SELECT COUNT(*) AS count FROM release_files WHERE run_id = ?1 AND uploaded = 0
   `).bind(runId).first();
   if (Number(missing?.count || 0) !== 0) throw new Error("RELEASE_UPLOAD_INCOMPLETE");
   await env.DB.prepare("UPDATE releases SET status='queued', updated_at=?2 WHERE run_id=?1")
     .bind(runId, nowIso()).run();
-  await env.RELEASE_QUEUE.send({ schemaVersion: 1, runId });
+  await env.RELEASE_QUEUE.send({ schemaVersion: 2, runId, phase: "merge" });
   return json({ ok: true, runId, status: "queued" }, 202);
 }
 
 async function receipt(env, runId) {
   const release = await env.DB.prepare(`
-    SELECT run_id,status,expected_files,expected_bytes,snapshot_id,error_code,error_detail,receipt_key,created_at,updated_at
+    SELECT run_id,status,expected_files,expected_bytes,expected_chunks,registered_files,
+      registered_bytes,registered_chunks,snapshot_id,error_code,error_detail,receipt_key,created_at,updated_at
     FROM releases WHERE run_id=?1
   `).bind(runId).first();
   if (!release) throw new Error("RELEASE_NOT_FOUND");
@@ -260,6 +353,7 @@ async function quotaStatus(env) {
 async function handleFetch(request, env) {
   const url = new URL(request.url);
   const uploadMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})\/files\/([0-9a-f]{64})$/);
+  const chunkMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})\/chunks\/([0-9]+)$/);
   const commitMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})\/commit$/);
   const receiptMatch = url.pathname.match(/^\/v1\/releases\/([0-9]{8}-[0-9]{6}-[0-9a-f]{8})$/);
   try {
@@ -272,6 +366,7 @@ async function handleFetch(request, env) {
     await verifySignature(request, env, rawBody);
     await takeRequestBudget(env);
     if (request.method === "POST" && url.pathname === "/v1/releases") return await registerRelease(request, env, rawBody);
+    if (request.method === "POST" && chunkMatch) return await registerChunk(env, chunkMatch[1], Number(chunkMatch[2]), rawBody);
     if (request.method === "POST" && commitMatch) return await commitRelease(env, commitMatch[1]);
     if (request.method === "GET" && receiptMatch) return await receipt(env, receiptMatch[1]);
     if (request.method === "GET" && url.pathname === "/v1/quota") return await quotaStatus(env);
@@ -296,48 +391,30 @@ async function writeTerminalReceipt(env, runId, status, details) {
   return { key, payload };
 }
 
-async function processRelease(env, runId) {
+async function recordConflict(env, runId, conflicts) {
+  const unique = [...new Set(conflicts)].sort().slice(0, 32);
+  const terminal = await writeTerminalReceipt(env, runId, "conflict", {
+    errorCode: "RELEASE_BASE_CONFLICT",
+    conflicts: unique,
+  });
+  await env.DB.prepare(`
+    UPDATE releases SET status='conflict',error_code='RELEASE_BASE_CONFLICT',error_detail=?2,
+      receipt_key=?3,updated_at=?4 WHERE run_id=?1
+  `).bind(runId, JSON.stringify(unique), terminal.key, nowIso()).run();
+}
+
+async function finalizeRelease(env, runId) {
   const release = await env.DB.prepare("SELECT * FROM releases WHERE run_id=?1").bind(runId).first();
   if (!release || ["complete", "conflict"].includes(String(release.status))) return;
-  await env.DB.prepare("UPDATE releases SET status='processing',updated_at=?2 WHERE run_id=?1")
-    .bind(runId, nowIso()).run();
   const rows = (await env.DB.prepare("SELECT * FROM release_files WHERE run_id=?1 ORDER BY path").bind(runId).all()).results || [];
-  const decisions = [];
-  const conflicts = [];
-  let bootstrapped = 0;
-  for (const row of rows) {
-    if (row.operation === "upsert") {
-      const object = await env.DATA.head(String(row.blob_key));
-      if (!object || object.size !== Number(row.bytes) || object.customMetadata?.sha256 !== row.candidate_sha256) {
-        throw new Error(`R2_OBJECT_VERIFY_FAILED:${row.path}`);
-      }
-    }
-    const head = await env.DB.prepare("SELECT sha256,deleted FROM path_heads WHERE path=?1").bind(row.path).first();
-    let current = head ? (Number(head.deleted) ? null : head.sha256) : null;
-    let base = row.base_sha256;
-    if (!head && base) {
-      current = base;
-      bootstrapped += 1;
-    }
-    const decision = threeWayDecision(base, current, row.candidate_sha256, row.operation);
-    decisions.push({ ...row, current, decision });
-    if (decision === "conflict") conflicts.push(row.path);
+  if (rows.length !== Number(release.expected_files) || rows.some((row) => !row.decision)) {
+    throw new Error("RELEASE_MERGE_INCOMPLETE");
   }
+  const decisions = rows;
+  const conflicts = decisions.filter((item) => item.decision === "conflict").map((item) => item.path);
+  const bootstrapped = decisions.filter((item) => Number(item.bootstrapped) === 1).length;
   if (conflicts.length) {
-    const terminal = await writeTerminalReceipt(env, runId, "conflict", {
-      errorCode: "RELEASE_BASE_CONFLICT",
-      conflicts: conflicts.slice(0, 32),
-    });
-    await env.DB.batch([
-      ...decisions.map((item) => env.DB.prepare(`
-        UPDATE release_files SET decision=?3,current_sha256=?4 WHERE run_id=?1 AND path=?2
-      `).bind(runId, item.path, item.decision, item.current)),
-      env.DB.prepare(`
-        UPDATE releases SET status='conflict',error_code='RELEASE_BASE_CONFLICT',error_detail=?2,
-          receipt_key=?3,updated_at=?4 WHERE run_id=?1
-      `).bind(runId, JSON.stringify(conflicts.slice(0, 32)), terminal.key, nowIso()),
-    ]);
-    return;
+    return await recordConflict(env, runId, conflicts);
   }
   const state = await env.DB.prepare("SELECT value FROM service_state WHERE key='current_snapshot'").first();
   const parentSnapshotId = state?.value || null;
@@ -383,21 +460,20 @@ async function processRelease(env, runId) {
     httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
   });
   const timestamp = nowIso();
-  const statements = [];
-  for (const item of decisions) {
-    statements.push(env.DB.prepare(`
-      UPDATE release_files SET decision=?3,current_sha256=?4 WHERE run_id=?1 AND path=?2
-    `).bind(runId, item.path, item.decision, item.current));
-    if (["apply", "delete"].includes(item.decision)) {
-      statements.push(env.DB.prepare(`
-        INSERT INTO path_heads(path,sha256,deleted,snapshot_id,updated_at)
-        VALUES (?1,?2,?3,?4,?5)
-        ON CONFLICT(path) DO UPDATE SET
-          sha256=excluded.sha256,deleted=excluded.deleted,snapshot_id=excluded.snapshot_id,updated_at=excluded.updated_at
-      `).bind(item.path, item.candidate_sha256, item.operation === "delete" ? 1 : 0, snapshotId, timestamp));
-    }
-  }
-  statements.push(
+  await env.DB.batch([
+    // All path heads are derived from staged decisions in one SQL statement.
+    // Together with the pointer/snapshot/release rows below, D1 applies this
+    // batch transactionally, so no registration or merge chunk is visible as
+    // a partial snapshot.
+    env.DB.prepare(`
+      INSERT INTO path_heads(path,sha256,deleted,snapshot_id,updated_at)
+      SELECT path,candidate_sha256,CASE WHEN operation='delete' THEN 1 ELSE 0 END,?2,?3
+      FROM release_files
+      WHERE run_id=?1 AND decision IN ('apply','delete') AND 1=1
+      ON CONFLICT(path) DO UPDATE SET
+        sha256=excluded.sha256,deleted=excluded.deleted,
+        snapshot_id=excluded.snapshot_id,updated_at=excluded.updated_at
+    `).bind(runId, snapshotId, timestamp),
     env.DB.prepare(`
       INSERT INTO snapshots(snapshot_id,parent_snapshot_id,run_id,manifest_key,receipt_key,created_at)
       VALUES (?1,?2,?3,?4,?5,?6)
@@ -409,8 +485,42 @@ async function processRelease(env, runId) {
     env.DB.prepare(`
       UPDATE releases SET status='complete',snapshot_id=?2,receipt_key=?3,updated_at=?4 WHERE run_id=?1
     `).bind(runId, snapshotId, receiptKey, timestamp),
-  );
-  await env.DB.batch(statements);
+  ]);
+}
+
+async function processMergeChunk(env, runId) {
+  const release = await env.DB.prepare("SELECT status FROM releases WHERE run_id=?1").bind(runId).first();
+  if (!release || ["complete", "conflict"].includes(String(release.status))) return;
+  await env.DB.prepare("UPDATE releases SET status='processing',updated_at=?2 WHERE run_id=?1")
+    .bind(runId, nowIso()).run();
+  const limit = numericBudget(env, "MAX_MERGE_CHUNK_FILES");
+  const rows = (await env.DB.prepare(`
+    SELECT * FROM release_files WHERE run_id=?1 AND decision IS NULL ORDER BY path LIMIT ?2
+  `).bind(runId, limit).all()).results || [];
+  if (!rows.length) return await finalizeRelease(env, runId);
+  const decisions = [];
+  const conflicts = [];
+  for (const row of rows) {
+    if (row.operation === "upsert") {
+      const object = await env.DATA.head(String(row.blob_key));
+      if (!object || object.size !== Number(row.bytes) || object.customMetadata?.sha256 !== row.candidate_sha256) {
+        throw new Error(`R2_OBJECT_VERIFY_FAILED:${row.path}`);
+      }
+    }
+    const head = await env.DB.prepare("SELECT sha256,deleted FROM path_heads WHERE path=?1").bind(row.path).first();
+    let current = head ? (Number(head.deleted) ? null : head.sha256) : null;
+    const base = row.base_sha256;
+    const bootstrapped = !head && base != null;
+    if (bootstrapped) current = base;
+    const decision = threeWayDecision(base, current, row.candidate_sha256, row.operation);
+    decisions.push({ ...row, current, decision, bootstrapped });
+    if (decision === "conflict") conflicts.push(row.path);
+  }
+  await env.DB.batch(decisions.map((item) => env.DB.prepare(`
+    UPDATE release_files SET decision=?3,current_sha256=?4,bootstrapped=?5 WHERE run_id=?1 AND path=?2
+  `).bind(runId, item.path, item.decision, item.current, item.bootstrapped ? 1 : 0)));
+  if (conflicts.length) return await recordConflict(env, runId, conflicts);
+  await env.RELEASE_QUEUE.send({ schemaVersion: 2, runId, phase: "merge" });
 }
 
 export default {
@@ -419,14 +529,23 @@ export default {
     for (const message of batch.messages) {
       const runId = String(message.body?.runId || "");
       try {
-        await processRelease(env, runId);
+        await processMergeChunk(env, runId);
         message.ack();
       } catch (error) {
         const code = errorCode(error);
+        const attempts = Number(message.attempts || 1);
+        const terminal = attempts >= 4;
         await env.DB.prepare(`
-          UPDATE releases SET status='failed',error_code=?2,error_detail=?3,updated_at=?4 WHERE run_id=?1
-        `).bind(runId, code, String(error?.message || error).slice(0, 1000), nowIso()).run();
-        message.retry();
+          UPDATE releases SET status=?2,error_code=?3,error_detail=?4,updated_at=?5 WHERE run_id=?1
+        `).bind(
+          runId,
+          terminal ? "failed" : "queued",
+          code,
+          String(error?.message || error).slice(0, 1000),
+          nowIso(),
+        ).run();
+        if (terminal) message.ack();
+        else message.retry();
       }
     }
   },

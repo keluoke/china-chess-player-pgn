@@ -18,11 +18,11 @@
   `local-data → main → rebuild → deploy`。完整契约见
   `docs/CLOUDFLARE_INGEST_CONTRACT.md`。
 - 专用 Worker/R2/D1/Queue 必须保持免费计划，禁止自动升级或配置付费资源。服务
-  硬上限：8 releases/day、12 files/release、64 MiB/release、16 MiB/file、
-  5,000 Worker requests/day、100,000 D1 reads/day、10,000 D1 writes/day、
+  硬上限：8 releases/day、384 files/logical release、64 MiB/release、16 MiB/file、
+  5,000 Worker requests/day、100,000 D1 reads/day、30,000 D1 writes/day、
   1,000 Queue ops/day、100,000 R2 Class A/month、250,000 Class B/month、
-  128 MiB D1、1 GiB 影子 R2 预留。D1 Free 单次调用最多 50 次查询，合并最坏
-  43 次；Queue consumer 并发固定为 1。任一额度无法确认或达到上限即 fail-closed。
+  128 MiB D1、1 GiB 影子 R2 预留。Free 单次调用最多 50 个子请求，10 文件合并片
+  最坏少于 30 个；Queue consumer 并发固定为 1。任一额度无法确认或达到上限即 fail-closed。
 - Worker 只做 HMAC 鉴权、manifest/路径/哈希门禁和流式 R2 写；普通 HTTP 请求禁止
   执行整库解析或索引重建。Queue 分片/异步处理，D1 只存小型元数据、path head、
   snapshot 指针和 receipt，PGN/大 JSON 正文只存内容寻址 R2 对象。
@@ -142,9 +142,9 @@
 - 采集与投递解耦:GitHub push 失败只把发布包标记为 delivery-pending 留在 outbox，
   不阻塞后续采集；恢复后运行 `refresh.sh publish` 重投。
 - 面板把 GitHub 生产推进与 Cloudflare 影子双写设为两个独立开关。生产推进默认
-  开启；影子双写必须由维护者显式开启，默认关闭。影子包超过 12 文件、64 MiB
-  或单文件 16 MiB 时标记 `ineligible` 并停止影子上传，GitHub 生产链路继续；
-  禁止为绕过 D1 Free 单次 50 查询上限自动拆包或降低原子性。
+  开启；影子双写必须由维护者显式开启，默认关闭。一个逻辑发布包最多 384 文件、
+  64 MiB，单文件最多 16 MiB；客户端以 10 文件注册分块、Queue 以 10 文件合并分块，
+  最终只允许一次原子快照提交。分块是服务内部实现，不得拆成多个可见快照或降低原子性。
 - chess-results / FIDE 抓取必须直连住宅 IP(封数据中心 IP);终端 GitHub 访问显式
   注入 127.0.0.1:15236，`scutil` 只能用于发现候选代理，不能视为终端已继承代理。
 - CI 里绝不能回抓 chess-results(GitHub IP 被封);Chess-Results 只在维护者本机

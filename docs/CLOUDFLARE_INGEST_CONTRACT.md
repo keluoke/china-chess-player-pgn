@@ -30,23 +30,34 @@ GitHub 生产自动推进已开启而推定影子上传也获授权。开关开�
 | Worker 请求 | 100,000/日 | 5,000/日预留 |
 | 普通 HTTP Worker CPU | 10 ms/请求 | 只做鉴权、D1 小查询、R2 流式写；禁止整库构建 |
 | D1 rows read | 5,000,000/日 | 100,000/日预留 |
-| D1 rows written | 100,000/日 | 10,000/日预留 |
+| D1 rows written | 100,000/日 | 30,000/日预留 |
 | D1 单库/账户存储 | 500 MB/5 GB | 本服务 128 MiB；只存元数据 |
-| D1 单次 Worker 查询 | 50 次 | 合并最坏 43 次；保留 7 次余量 |
+| Worker Free 单次调用子请求 | 50 次 | 每个登记/合并分片最多 10 文件，最坏不超过 30 次 |
 | Queue operations | 10,000/日 | 1,000/日预留 |
 | R2 Class A | 1,000,000/月 | 100,000/月预留 |
 | R2 Class B | 10,000,000/月 | 250,000/月预留 |
 | R2 存储 | 10 GB-month/月 | 专用影子桶最多预留 1 GiB |
 
-单日最多 8 个发布包；单包最多 12 个文件、64 MiB；单文件最多 16 MiB。12 文件
-上限来自 D1 Free 每次 Worker invocation 最多 50 次查询：当前最坏合并为 43 次，
-固定保留 7 次余量。不得在不拆分 Queue 状态机的前提下提高此值。预算按
-最坏情况在发布登记时一次性预留，即使对象已存在也不返还预算。这样会保守地提前
-停机，但不会因去重估算乐观而突破门禁。免费额度或用量无法确认时按不可用处理。
-本机客户端必须在任何网络请求前执行相同门禁。超限包写入
-`shadow-delivery.json`，状态为 `ineligible` 并保留明确的 `FREE_TIER_*` 错误码；
-GitHub 生产 outbox 不受影响。禁止为了塞进免费层自动拆分一个原子发布包：这会
-改变三方合并和快照原子性，也不能规避 D1 Free 单次 50 查询上限。
+单日最多 8 个逻辑发布包；单包最多 **384 个文件、64 MiB**；单文件最多 16 MiB。
+客户端把一个逻辑 manifest 分成每片最多 10 文件的登记请求，Queue consumer 也按
+每次最多 10 文件计算三方决策。分片只属于内部可恢复状态机，不产生子快照，也不
+改变原始 run-id、manifest 哈希、三方合并边界或回执边界。发布头必须预先提交按
+序排列的分片 SHA-256；Worker 对每个已签名分片重新规范化并计算哈希，任一不匹配
+均拒绝，不能只靠文件数/字节数凑齐登记门禁。
+
+384 是免费层内的联合硬上限：最坏 39 个登记片；40 个 Queue 消息（39 个合并片加
+1 个 finalize），按写入/读取/删除各计一次为每包 120 Queue operations，8 包为
+960，低于本服务 1,000/日预留。D1 写行按 `6 × files + 4 × registrationChunks + 300`
+保守预留，384 文件为每包 2,760、8 包为 22,080，低于本服务 30,000/日；余量覆盖
+重试与计量偏差。Worker 请求最坏预留也必须小于 5,000/日。每个合并 invocation
+最多执行 10 次 R2 HEAD、10 次 D1
+head 查询及少量固定查询/批写，低于 Worker Free 单次 50 子请求限制。
+
+预算按最坏情况在发布头登记时一次性预留，即使对象已存在也不返还预算。免费额度
+或用量无法确认时按不可用处理。本机客户端必须在任何网络请求前执行同一逻辑包
+门禁。真正超过 384 文件、64 MiB 或 16 MiB 单文件的包写入
+`shadow-delivery.json` 为 `ineligible`；只有上游本来就语义独立的发布才可分别形成
+独立 manifest，禁止客户端把一个原子发布包拆成多个可见快照来规避配额。
 
 Worker Free 到达平台账户级请求上限时由 Cloudflare 拒绝后续请求；本服务不配置
 Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前，必须重新
@@ -71,8 +82,10 @@ Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前�
   其余情况 `RELEASE_BASE_CONFLICT`，整包隔离。
 - 首次影子观察到既有路径而 D1 尚无 head 时，可从签名 manifest 的 `baseSha256`
   bootstrap；回执必须报告 bootstrap 数量。此行为仅用于建立影子基线。
-- R2 对象先写，D1 `batch()` 最后原子写入所有 path head、snapshot、receipt 指针和
-  `current_snapshot`。D1 失败时旧快照继续服务；未引用 R2 对象可稍后清理。
+- R2 对象先写；分片合并只把决策暂存在 `release_files`，不得更新 `path_heads`。
+  所有分片完成且无冲突后，finalize 用一个 D1 `batch()` 内的
+  `INSERT ... SELECT ... ON CONFLICT` 更新全部 path head，并同时写 snapshot、receipt
+  指针和 `current_snapshot`。D1 失败时旧快照继续服务；未引用 R2 对象可稍后清理。
 - registry 仍是姓名和等级分唯一权威。第二阶段字段级自然键合并上线前，保持当前
   路径级 fail-closed 语义。
 - Queue consumer 固定 `max_concurrency=1`，避免两个发布包并发读取同一 current；
@@ -80,12 +93,14 @@ Paid Workers。Cloudflare 账户内新增其他 R2/Worker/D1/Queue 消费者前�
 
 ## 回执与切流门禁
 
-状态链为 `registered → queued → processing → complete/conflict/failed`。只有 D1 已
+状态链为 `registering → registered → queued → processing → complete/conflict/failed`。只有 D1 已
 原子切换影子快照、R2 manifest/receipt 可回读且哈希一致，才算影子完成。
+Queue 暂时性错误在前三次失败时回到 `queued` 并保留错误详情；第四次仍失败才写
+`failed` 终态，避免客户端把仍会自动重试的消息误判为不可恢复失败。
 
 生产切流必须另行满足：
 
-1. 至少连续 7 天且不少于 20 个符合本契约上限的真实发布包双写；`ineligible`
+1. 至少连续 7 天且不少于 20 个符合本契约上限的真实逻辑发布包双写；`ineligible`
    包只计入容量证据，不计入成功对账包数；
 2. Git 生产结果与 Cloudflare 影子结果逐路径 SHA-256 一致；
 3. 幂等重投、乱序发布、真实冲突、Queue 重试、配额耗尽均通过演练；

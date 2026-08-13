@@ -50,7 +50,40 @@ class CloudflareIngestClientTests(unittest.TestCase):
             with self.assertRaisesRegex(cloudflare_ingest.ShadowDeliveryError, "RELEASE_HASH_MISMATCH"):
                 cloudflare_ingest.build_shadow_manifest(path, files)
 
-    def test_free_tier_preflight_rejects_oversized_manifest_locally(self):
+    def test_large_logical_manifest_is_split_into_bounded_registration_chunks(self):
+        files = [
+            {
+                "path": f"data/generated/chess-results-event-details/tnr{index:05d}.json",
+                "operation": "upsert",
+                "sha256": hashlib.sha256(str(index).encode()).hexdigest(),
+                "baseSha256": None,
+                "bytes": 1,
+            }
+            for index in range(50)
+        ]
+        payload = {
+            "schemaVersion": 1,
+            "runId": "20260812-120000-deadbeef",
+            "command": "event-queue",
+            "baseCommit": "a" * 40,
+            "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+            "files": files,
+        }
+        cloudflare_ingest.validate_shadow_limits(payload)
+        header, chunks = cloudflare_ingest.registration_payloads(payload)
+        self.assertEqual(header["expectedFiles"], 50)
+        self.assertEqual(header["expectedChunks"], 5)
+        self.assertEqual(header["expectedUpserts"], 50)
+        self.assertTrue(all(len(chunk["files"]) <= cloudflare_ingest.MAX_CHUNK_FILES for chunk in chunks))
+        self.assertEqual([chunk["chunkIndex"] for chunk in chunks], list(range(5)))
+        self.assertTrue(all(chunk["manifestSha256"] == header["manifestSha256"] for chunk in chunks))
+        self.assertEqual([chunk["chunkSha256"] for chunk in chunks], header["chunkSha256s"])
+        self.assertEqual(
+            chunks[0]["chunkSha256"],
+            hashlib.sha256(cloudflare_ingest.chunk_fingerprint_bytes(files[:10])).hexdigest(),
+        )
+
+    def test_free_tier_preflight_rejects_oversized_logical_manifest_locally(self):
         payload = {
             "files": [
                 {"path": f"data/generated/chess-results-event-details/tnr{index:05d}.json", "bytes": 1}
@@ -62,7 +95,43 @@ class CloudflareIngestClientTests(unittest.TestCase):
         ):
             cloudflare_ingest.validate_shadow_limits(payload)
 
-    def test_ineligible_bundle_writes_receipt_without_network_request(self):
+    def test_terminal_legacy_release_skips_chunk_and_upload_replay(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            run_id = "20260812-120000-deadbeef"
+            bundle = root / "outbox" / run_id
+            candidate = bundle / "files/data/generated/event-completeness-report.json"
+            candidate.parent.mkdir(parents=True)
+            candidate.write_bytes(b"{}")
+            digest = hashlib.sha256(b"{}").hexdigest()
+            manifest = {
+                "schemaVersion": 1,
+                "runId": run_id,
+                "command": "event-queue",
+                "baseCommit": "a" * 40,
+                "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+                "files": [{
+                    "path": "data/generated/event-completeness-report.json",
+                    "operation": "upsert",
+                    "sha256": digest,
+                    "bytes": 2,
+                    "baseSha256": None,
+                }],
+            }
+            (bundle / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with mock.patch.object(
+                cloudflare_ingest,
+                "request_json",
+                side_effect=[
+                    {"ok": True, "status": "complete", "legacy": True},
+                    {"ok": True, "status": "complete", "snapshot_id": "legacy-snapshot"},
+                ],
+            ) as request:
+                result = cloudflare_ingest.deliver(run_id, "https://shadow.invalid", "secret", root)
+            self.assertEqual(result["snapshot_id"], "legacy-snapshot")
+            self.assertEqual(request.call_count, 2)
+
+    def test_truly_oversized_bundle_writes_receipt_without_network_request(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             manifest_path = root / "manifest.json"

@@ -77,6 +77,38 @@ function validateSource(source, files, mode) {
   throw new Error("RELEASE_SOURCE_UNSUPPORTED");
 }
 
+function normalizeFiles(files, env, maxFiles) {
+  const maxReleaseBytes = numericBudget(env, "MAX_RELEASE_BYTES");
+  const maxFileBytes = numericBudget(env, "MAX_FILE_BYTES");
+  if (!Array.isArray(files) || files.length < 1 || files.length > maxFiles) {
+    throw new Error("FREE_TIER_RELEASE_FILE_LIMIT");
+  }
+  const seen = new Set();
+  let totalBytes = 0;
+  const normalized = files.map((item) => {
+    const path = String(item?.path || "");
+    const operation = String(item?.operation || "");
+    if (!isAllowedReleasePath(path) || seen.has(path)) throw new Error("RELEASE_PATH_FORBIDDEN");
+    seen.add(path);
+    if (!["upsert", "delete"].includes(operation)) throw new Error("RELEASE_OPERATION_INVALID");
+    const baseSha256 = item.baseSha256 == null ? null : String(item.baseSha256);
+    if (baseSha256 !== null && !HEX64.test(baseSha256)) throw new Error("RELEASE_BASE_HASH_INVALID");
+    if (operation === "delete") {
+      if (item.sha256 != null || Number(item.bytes || 0) !== 0) throw new Error("RELEASE_DELETE_INVALID");
+      return { path, operation, sha256: null, baseSha256, bytes: 0, blobKey: null };
+    }
+    const sha256 = String(item.sha256 || "");
+    const bytes = Number(item.bytes);
+    if (!HEX64.test(sha256) || !Number.isSafeInteger(bytes) || bytes < 0 || bytes > maxFileBytes) {
+      throw new Error("FREE_TIER_RELEASE_OBJECT_LIMIT");
+    }
+    totalBytes += bytes;
+    if (totalBytes > maxReleaseBytes) throw new Error("FREE_TIER_RELEASE_BYTE_LIMIT");
+    return { path, operation, sha256, baseSha256, bytes, blobKey: blobKey(sha256) };
+  });
+  return { files: normalized, totalBytes };
+}
+
 export function numericBudget(env, key) {
   const value = Number(env[key]);
   if (!Number.isSafeInteger(value) || value <= 0) {
@@ -102,36 +134,8 @@ export function normalizeManifest(payload, env) {
   if (!payload || payload.schemaVersion !== 1 || !RUN_ID.test(String(payload.runId || ""))) {
     throw new Error("RELEASE_MANIFEST_INVALID");
   }
-  const files = payload.files;
   const maxFiles = numericBudget(env, "MAX_RELEASE_FILES");
-  const maxReleaseBytes = numericBudget(env, "MAX_RELEASE_BYTES");
-  const maxFileBytes = numericBudget(env, "MAX_FILE_BYTES");
-  if (!Array.isArray(files) || files.length < 1 || files.length > maxFiles) {
-    throw new Error("FREE_TIER_RELEASE_FILE_LIMIT");
-  }
-  const seen = new Set();
-  let totalBytes = 0;
-  const normalized = files.map((item) => {
-    const path = String(item?.path || "");
-    const operation = String(item?.operation || "");
-    if (!isAllowedReleasePath(path) || seen.has(path)) throw new Error("RELEASE_PATH_FORBIDDEN");
-    seen.add(path);
-    if (!['upsert', 'delete'].includes(operation)) throw new Error("RELEASE_OPERATION_INVALID");
-    const baseSha256 = item.baseSha256 == null ? null : String(item.baseSha256);
-    if (baseSha256 !== null && !HEX64.test(baseSha256)) throw new Error("RELEASE_BASE_HASH_INVALID");
-    if (operation === "delete") {
-      if (item.sha256 != null || Number(item.bytes || 0) !== 0) throw new Error("RELEASE_DELETE_INVALID");
-      return { path, operation, sha256: null, baseSha256, bytes: 0, blobKey: null };
-    }
-    const sha256 = String(item.sha256 || "");
-    const bytes = Number(item.bytes);
-    if (!HEX64.test(sha256) || !Number.isSafeInteger(bytes) || bytes < 0 || bytes > maxFileBytes) {
-      throw new Error("FREE_TIER_RELEASE_OBJECT_LIMIT");
-    }
-    totalBytes += bytes;
-    if (totalBytes > maxReleaseBytes) throw new Error("FREE_TIER_RELEASE_BYTE_LIMIT");
-    return { path, operation, sha256, baseSha256, bytes, blobKey: blobKey(sha256) };
-  });
+  const { files: normalized, totalBytes } = normalizeFiles(payload.files, env, maxFiles);
   const baseCommit = payload.baseCommit == null ? null : String(payload.baseCommit);
   if (baseCommit !== null && !/^[0-9a-f]{40,64}$/.test(baseCommit)) {
     throw new Error("RELEASE_BASE_COMMIT_INVALID");
@@ -149,6 +153,95 @@ export function normalizeManifest(payload, env) {
   };
 }
 
+export function normalizeReleaseHeader(payload, env) {
+  if (!payload || payload.schemaVersion !== 2 || !RUN_ID.test(String(payload.runId || ""))) {
+    throw new Error("RELEASE_MANIFEST_INVALID");
+  }
+  const expectedFiles = Number(payload.expectedFiles);
+  const expectedBytes = Number(payload.expectedBytes);
+  const expectedUpserts = Number(payload.expectedUpserts);
+  const expectedChunks = Number(payload.expectedChunks);
+  const maxFiles = numericBudget(env, "MAX_RELEASE_FILES");
+  const maxBytes = numericBudget(env, "MAX_RELEASE_BYTES");
+  const chunkFiles = numericBudget(env, "MAX_REGISTER_CHUNK_FILES");
+  if (!Number.isSafeInteger(expectedFiles) || expectedFiles < 1 || expectedFiles > maxFiles) {
+    throw new Error("FREE_TIER_RELEASE_FILE_LIMIT");
+  }
+  if (!Number.isSafeInteger(expectedBytes) || expectedBytes < 0 || expectedBytes > maxBytes) {
+    throw new Error("FREE_TIER_RELEASE_BYTE_LIMIT");
+  }
+  if (!Number.isSafeInteger(expectedUpserts) || expectedUpserts < 0 || expectedUpserts > expectedFiles) {
+    throw new Error("RELEASE_MANIFEST_INVALID");
+  }
+  if (!Number.isSafeInteger(expectedChunks) || expectedChunks !== Math.ceil(expectedFiles / chunkFiles)) {
+    throw new Error("RELEASE_CHUNK_COUNT_INVALID");
+  }
+  const manifestSha256 = String(payload.manifestSha256 || "");
+  if (!HEX64.test(manifestSha256)) throw new Error("RELEASE_HASH_INVALID");
+  const chunkSha256s = Array.isArray(payload.chunkSha256s)
+    ? payload.chunkSha256s.map((item) => String(item || ""))
+    : [];
+  if (chunkSha256s.length !== expectedChunks || chunkSha256s.some((item) => !HEX64.test(item))) {
+    throw new Error("RELEASE_CHUNK_HASH_INVALID");
+  }
+  const baseCommit = payload.baseCommit == null ? null : String(payload.baseCommit);
+  if (baseCommit !== null && !/^[0-9a-f]{40,64}$/.test(baseCommit)) {
+    throw new Error("RELEASE_BASE_COMMIT_INVALID");
+  }
+  const source = payload.source && typeof payload.source === "object" ? payload.source : {};
+  validateSource(source, [], String(env.SERVICE_MODE || "shadow"));
+  return {
+    schemaVersion: 2,
+    runId: String(payload.runId),
+    command: String(payload.command || "unknown").slice(0, 64),
+    baseCommit,
+    source,
+    manifestSha256,
+    expectedFiles,
+    expectedBytes,
+    expectedUpserts,
+    expectedChunks,
+    chunkSha256s,
+  };
+}
+
+export function chunkFingerprintText(files) {
+  return JSON.stringify(files.map((item) => [
+    item.path,
+    item.operation,
+    item.sha256,
+    item.baseSha256,
+    item.bytes,
+  ]));
+}
+
+export function normalizeReleaseChunk(payload, release, env) {
+  if (!payload || payload.schemaVersion !== 1) throw new Error("RELEASE_CHUNK_INVALID");
+  const manifestSha256 = String(payload.manifestSha256 || "");
+  if (!HEX64.test(manifestSha256) || manifestSha256 !== String(release.manifest_sha256 || "")) {
+    throw new Error("RELEASE_MANIFEST_HASH_MISMATCH");
+  }
+  const chunkIndex = Number(payload.chunkIndex);
+  if (!Number.isSafeInteger(chunkIndex) || chunkIndex < 0 || chunkIndex >= Number(release.expected_chunks)) {
+    throw new Error("RELEASE_CHUNK_INDEX_INVALID");
+  }
+  const maxChunkFiles = numericBudget(env, "MAX_REGISTER_CHUNK_FILES");
+  const { files, totalBytes } = normalizeFiles(payload.files, env, maxChunkFiles);
+  const chunkSha256 = String(payload.chunkSha256 || "");
+  let expectedHashes;
+  try {
+    expectedHashes = JSON.parse(String(release.chunk_hashes_json || "[]"));
+  } catch {
+    throw new Error("RELEASE_CHUNK_HASH_INVALID");
+  }
+  if (!HEX64.test(chunkSha256) || chunkSha256 !== expectedHashes[chunkIndex]) {
+    throw new Error("RELEASE_CHUNK_HASH_MISMATCH");
+  }
+  const source = JSON.parse(String(release.source_json || "{}"));
+  validateSource(source, files, String(env.SERVICE_MODE || "shadow"));
+  return { schemaVersion: 1, manifestSha256, chunkSha256, chunkIndex, files, totalBytes };
+}
+
 export function threeWayDecision(base, current, candidate, operation) {
   const normalizedCurrent = current ?? null;
   const normalizedBase = base ?? null;
@@ -159,18 +252,25 @@ export function threeWayDecision(base, current, candidate, operation) {
   return "conflict";
 }
 
-export function estimateReservation(manifest) {
-  const upserts = manifest.files.filter((item) => item.operation === "upsert").length;
-  const count = manifest.files.length;
+export function estimateReservation(manifest, env = {}) {
+  const count = manifest.expectedFiles ?? manifest.files.length;
+  const upserts = manifest.expectedUpserts
+    ?? manifest.files.filter((item) => item.operation === "upsert").length;
+  const registerChunkFiles = Number(env.MAX_REGISTER_CHUNK_FILES || 10);
+  const mergeChunkFiles = Number(env.MAX_MERGE_CHUNK_FILES || 10);
+  const registrationChunks = manifest.expectedChunks ?? Math.ceil(count / registerChunkFiles);
+  const queueMessages = Math.ceil(count / mergeChunkFiles) + 1;
   return {
     releases: 1,
     workerRequests: 0,
     d1RowsRead: count * 4 + 50,
-    d1RowsWritten: count * 3 + 50,
-    queueOps: 3,
+    // Covers file registration, upload flags, staged decisions, path heads,
+    // authenticated request nonce/budget rows, chunk rows and polling slack.
+    d1RowsWritten: count * 6 + registrationChunks * 4 + 300,
+    queueOps: queueMessages * 3,
     r2ClassA: upserts + 2,
     r2ClassB: upserts,
-    storageReservedBytes: manifest.totalBytes + 262144,
+    storageReservedBytes: (manifest.expectedBytes ?? manifest.totalBytes) + 262144,
   };
 }
 

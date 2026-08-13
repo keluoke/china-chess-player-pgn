@@ -951,7 +951,7 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
 </style></head><body><div class="wrap">
 <h1>本地数据采集与双通道发布面板<small>唯一维护入口 · 来源只在住宅网络访问 · 原始页面永不离开本机</small></h1>
 <div class="pipeline"><div class="stage"><b>① 本机采集</b><span>抓取、清洗、完整性门禁</span></div><div class="stage"><b>② 不可变 outbox</b><span>manifest、自然键、SHA-256</span></div><div class="stage"><b>③A GitHub 生产</b><span>main、离线重建、部署、线上验证</span></div><div class="stage"><b>③B Cloudflare 影子</b><span>可选并行双写；鉴权、R2、D1 回执</span></div></div>
-<div class="notice"><b>当前生产边界：</b>GitHub 仍是生产发布通道；Cloudflare 是隔离影子通道。影子冲突、超限或网络失败不会阻断 GitHub，也不会触发重新抓取。只有 <code>online-verified</code> 才算生产上线。</div>
+<div class="notice"><b>当前生产边界：</b>GitHub 仍是生产发布通道；Cloudflare 是隔离影子通道。影子逻辑包上限 384 文件/64 MiB，内部按 10 文件分块但只提交一个原子快照。影子冲突、超限或网络失败不会阻断 GitHub，也不会触发重新抓取。只有 <code>online-verified</code> 才算生产上线。</div>
 <div class="status"><span id="dot" class="dot"></span><div style="flex:1"><b id="statusText">读取状态…</b><div id="statusMeta"></div><div id="progressList"></div></div><button id="stop" class="danger" onclick="stopJob()">中止任务</button></div>
 <div class="notice"><label><input type="checkbox" id="autoAdvance" onchange="toggleAutomation()"> <b>自动推进 GitHub 生产发布</b></label><span id="automationMeta" class="meta"></span><br><label><input type="checkbox" id="shadowAdvance" onchange="toggleShadow()"> <b>自动双写 Cloudflare 影子</b></label><span id="shadowMeta" class="meta">默认关闭；勾选即授权未来符合免费层门禁的 outbox 写入专用 Worker/R2/D1。</span></div>
 
@@ -999,7 +999,7 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
  <div class="card"><div class="head"><b>同步云端回执</b><span class="badge">只读</span></div><div class="desc">查询 GitHub ingest/rebuild/deploy 结论并校验线上文件哈希；pushed 不等于已发布。</div><div class="actions"><button class="primary" onclick="runCmd('receipts',[],false)">同步回执</button></div></div>
 </div>
 <h3>同一 outbox 的两套独立回执</h3>
-<div class="small">生产：pending → pushed → ingested-to-main → indexes-rebuilt → deployed → <b>online-verified</b>。影子：registering → uploading → queued → processing → complete/conflict/ineligible。</div>
+<div class="small">生产：pending → pushed → ingested-to-main → indexes-rebuilt → deployed → <b>online-verified</b>。影子：registering → registered → uploading → queued → processing → complete/conflict/ineligible。</div>
 <table><thead><tr><th>run-id</th><th>GitHub 生产</th><th>Cloudflare 影子</th><th>commit / snapshot</th><th>回执</th><th>最近错误</th></tr></thead><tbody id="outbox"></tbody></table>
 
 <h2>③ 一键例行维护与诊断</h2>

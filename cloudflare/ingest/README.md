@@ -41,7 +41,10 @@ Re-running the same command is resumable and idempotent. The private outbox gets
 a `shadow-delivery.json` copy of the authenticated remote receipt; this file is
 not part of the release manifest.
 
-The 12-file package ceiling is intentional. It keeps the worst-case merge at
-43 D1 queries, below the Workers Free limit of 50 queries per invocation. Split
-larger outboxes before shadow delivery; never raise the ceiling without first
-implementing and reviewing a resumable multi-message merge state machine.
+One logical release can contain up to 384 files. Registration and three-way
+merge work is resumably chunked at 10 files per HTTP/Queue invocation; chunks
+never become visible snapshots. Only the final D1 transaction advances all
+path heads and `current_snapshot` together. The signed release header binds an
+ordered SHA-256 for every registration chunk, and the Worker recomputes it
+before accepting the chunk. Do not raise 384 or either chunk size without
+re-deriving every hard budget in the contract.

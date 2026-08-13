@@ -36,7 +36,10 @@ import run_manager  # noqa: E402
 TERMINAL = {"complete", "conflict", "failed"}
 KEYCHAIN_SERVICE = "china-chess-cloudflare-ingest-shadow"
 DEFAULT_ENDPOINT = "https://chess-data-ingest-shadow.seanyan099.workers.dev"
-MAX_RELEASE_FILES = 12
+# Logical snapshot limits.  Registration and merge work is split into small
+# requests/messages so this is no longer the per-invocation D1 query limit.
+MAX_RELEASE_FILES = 384
+MAX_CHUNK_FILES = 10
 MAX_RELEASE_BYTES = 64 * 1024 * 1024
 MAX_FILE_BYTES = 16 * 1024 * 1024
 
@@ -198,6 +201,62 @@ def validate_shadow_limits(payload: dict[str, Any]) -> None:
         )
 
 
+def canonical_manifest_bytes(payload: dict[str, Any]) -> bytes:
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+
+
+def chunk_fingerprint_bytes(files: list[dict[str, Any]]) -> bytes:
+    """Canonical cross-language binding for one registered file chunk."""
+    rows = [
+        [
+            item.get("path"),
+            item.get("operation"),
+            item.get("sha256"),
+            item.get("baseSha256"),
+            int(item.get("bytes") or 0),
+        ]
+        for item in files
+    ]
+    return json.dumps(rows, ensure_ascii=False, separators=(",", ":")).encode()
+
+
+def registration_payloads(payload: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Project one logical manifest into a header plus bounded file chunks."""
+    files = list(payload.get("files") or [])
+    digest = hashlib.sha256(canonical_manifest_bytes(payload)).hexdigest()
+    chunks = [files[index:index + MAX_CHUNK_FILES] for index in range(0, len(files), MAX_CHUNK_FILES)]
+    chunk_digests = [hashlib.sha256(chunk_fingerprint_bytes(chunk)).hexdigest() for chunk in chunks]
+    header = {
+        "schemaVersion": 2,
+        "runId": payload["runId"],
+        "command": payload.get("command") or "unknown",
+        "baseCommit": payload.get("baseCommit"),
+        "source": payload.get("source") or {},
+        "manifestSha256": digest,
+        "expectedFiles": len(files),
+        "expectedBytes": sum(int(item.get("bytes") or 0) for item in files),
+        "expectedUpserts": sum(1 for item in files if item.get("operation") == "upsert"),
+        "expectedChunks": len(chunks),
+        "chunkSha256s": chunk_digests,
+    }
+    projected = [
+        {
+            "schemaVersion": 1,
+            "manifestSha256": digest,
+            "chunkSha256": chunk_digests[index],
+            "chunkIndex": index,
+            "files": chunk,
+        }
+        for index, chunk in enumerate(chunks)
+    ]
+    return header, projected
+
+
 def save_state(path: pathlib.Path, payload: dict[str, Any]) -> None:
     run_manager.atomic_json(path, {"schemaVersion": 1, **payload, "updatedAt": run_manager.now()})
 
@@ -226,7 +285,28 @@ def deliver(
         })
         raise
     save_state(state_path, {"runId": run_id, "status": "registering", "endpoint": endpoint})
-    registered = request_json(endpoint, "POST", "/v1/releases", secret, payload=payload)
+    header, chunks = registration_payloads(payload)
+    registered = request_json(endpoint, "POST", "/v1/releases", secret, payload=header)
+    if registered.get("status") in TERMINAL:
+        last = request_json(endpoint, "GET", f"/v1/releases/{run_id}", secret)
+        save_state(state_path, {"runId": run_id, **last, "endpoint": endpoint})
+        return last
+    for index, chunk in enumerate(chunks, start=1):
+        request_json(
+            endpoint,
+            "POST",
+            f"/v1/releases/{run_id}/chunks/{chunk['chunkIndex']}",
+            secret,
+            payload=chunk,
+        )
+        save_state(state_path, {
+            "runId": run_id,
+            "status": "registering",
+            "registeredChunks": index,
+            "totalChunks": len(chunks),
+            "files": len(payload.get("files") or []),
+            "endpoint": endpoint,
+        })
     for index, (item, candidate) in enumerate(uploads, start=1):
         body = candidate.read_bytes()
         request_json(
