@@ -310,7 +310,7 @@ export function normalizeReleaseChunk(payload, release, env) {
     files,
     totalBytes,
     multipartFiles: files.filter((item) => item.uploadMode === "multipart").length,
-    uploadParts: files.reduce((total, item) => total + item.expectedParts, 0),
+    uploadParts: files.reduce((total, item) => total + Number(item.expectedParts || 0), 0),
   };
 }
 

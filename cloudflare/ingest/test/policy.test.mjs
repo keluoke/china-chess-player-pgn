@@ -129,6 +129,45 @@ test("large logical release uses bounded registration and merge chunks", () => {
   }, release, env), /FREE_TIER_RELEASE_FILE_LIMIT/);
 });
 
+test("delete-only chunks reserve zero multipart parts", () => {
+  const header = normalizeReleaseHeader({
+    schemaVersion: 2,
+    runId: "20260812-120000-deadbeef",
+    command: "baseline-compensating-delete",
+    baseCommit: "b".repeat(40),
+    source: { source: "Chess-Results", releasePolicy: "full-data" },
+    manifestSha256: "c".repeat(64),
+    expectedFiles: 1,
+    expectedBytes: 0,
+    expectedUpserts: 0,
+    expectedMultipartFiles: 0,
+    expectedUploadParts: 0,
+    expectedChunks: 1,
+    chunkSha256s: ["d".repeat(64)],
+  }, env);
+  const release = {
+    source_json: JSON.stringify(header.source),
+    manifest_sha256: header.manifestSha256,
+    expected_chunks: 1,
+    chunk_hashes_json: JSON.stringify(header.chunkSha256s),
+  };
+  const chunk = normalizeReleaseChunk({
+    schemaVersion: 1,
+    manifestSha256: header.manifestSha256,
+    chunkSha256: header.chunkSha256s[0],
+    chunkIndex: 0,
+    files: [{
+      path: "data/generated/chess-results-event-details/tnr12345.json",
+      operation: "delete",
+      sha256: null,
+      baseSha256: "a".repeat(64),
+      bytes: 0,
+    }],
+  }, release, env);
+  assert.equal(chunk.multipartFiles, 0);
+  assert.equal(chunk.uploadParts, 0);
+});
+
 test("source license and path coupling is enforced", () => {
   const item = {
     path: "data/generated/chess-results-event-details/tnr12345.json",
