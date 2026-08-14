@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import pathlib
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
@@ -18,6 +19,27 @@ class CloudflareIngestClientTests(unittest.TestCase):
         canonical = "POST\n/v1/releases\n123\n" + "f" * 32 + "\n" + "a" * 64
         expected = __import__("hmac").new(b"secret", canonical.encode(), hashlib.sha256).hexdigest()
         self.assertEqual(headers["x-chess-signature"], expected)
+
+    def test_curl_network_failure_retries_with_contract_backoff(self):
+        failed = subprocess.CompletedProcess(
+            args=["curl"], returncode=35, stdout=b"", stderr=b"TLS failed",
+        )
+        succeeded = subprocess.CompletedProcess(
+            args=["curl"], returncode=0, stdout=b'{"ok":true}', stderr=b"",
+        )
+        with (
+            mock.patch.object(cloudflare_ingest.shutil, "which", return_value="/usr/bin/curl"),
+            mock.patch.object(cloudflare_ingest.subprocess, "run", side_effect=[failed, succeeded]) as run,
+            mock.patch.object(cloudflare_ingest.time, "sleep") as sleep,
+            mock.patch.object(cloudflare_ingest, "signed_headers", wraps=cloudflare_ingest.signed_headers) as sign,
+        ):
+            result = cloudflare_ingest.request_json(
+                "https://shadow.invalid", "GET", "/v1/quota", "secret",
+            )
+        self.assertTrue(result["ok"])
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(sign.call_count, 2)
+        sleep.assert_called_once_with(30)
 
     def test_bundle_hash_is_verified_before_upload(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -173,6 +195,67 @@ class CloudflareIngestClientTests(unittest.TestCase):
                 result = cloudflare_ingest.deliver(run_id, "https://shadow.invalid", "secret", root)
             self.assertEqual(result["snapshot_id"], "legacy-snapshot")
             self.assertEqual(request.call_count, 2)
+
+    def test_interrupted_upload_resumes_after_last_persisted_object(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            run_id = "20260814-120000-resume01"
+            bundle = root / "outbox" / run_id
+            files_root = bundle / "files"
+            manifest_files = []
+            for index in range(3):
+                relative = f"data/generated/chess-results-event-details/tnr{index}.json"
+                candidate = files_root / relative
+                candidate.parent.mkdir(parents=True, exist_ok=True)
+                body = f"{{\"index\":{index}}}\n".encode()
+                candidate.write_bytes(body)
+                digest = hashlib.sha256(body).hexdigest()
+                manifest_files.append({
+                    "path": relative,
+                    "operation": "upsert",
+                    "sha256": digest,
+                    "bytes": len(body),
+                    "baseBlobOid": "b" * 40,
+                    "baseSha256": digest,
+                })
+            manifest = {
+                "schemaVersion": 1,
+                "runId": run_id,
+                "command": "baseline-migrate",
+                "baseCommit": "a" * 40,
+                "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+                "files": manifest_files,
+            }
+            (bundle / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (bundle / "shadow-delivery.json").write_text(json.dumps({
+                "schemaVersion": 1,
+                "runId": run_id,
+                "status": "uploading",
+                "uploaded": 2,
+                "totalUploads": 3,
+                "endpoint": "https://shadow.invalid",
+            }), encoding="utf-8")
+            with mock.patch.object(
+                cloudflare_ingest,
+                "request_json",
+                side_effect=[
+                    {"ok": True, "status": "uploading"},
+                    {"ok": True, "status": "uploaded"},
+                    {"ok": True, "status": "queued"},
+                    {"ok": True, "status": "complete", "snapshot_id": "snapshot-resumed"},
+                ],
+            ) as request:
+                result = cloudflare_ingest.deliver(
+                    run_id, "https://shadow.invalid", "secret", root, wait_seconds=5,
+                )
+            self.assertEqual(result["snapshot_id"], "snapshot-resumed")
+            called_paths = [call.args[2] for call in request.call_args_list]
+            self.assertEqual(called_paths[0], "/v1/releases")
+            self.assertNotIn(f"/v1/releases/{run_id}/chunks/0", called_paths)
+            self.assertEqual(
+                [path for path in called_paths if "/files/" in path],
+                [f"/v1/releases/{run_id}/files/{manifest_files[2]['sha256']}"],
+            )
 
     def test_truly_oversized_bundle_writes_receipt_without_network_request(self):
         with tempfile.TemporaryDirectory() as temporary:

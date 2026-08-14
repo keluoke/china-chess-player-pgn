@@ -87,32 +87,46 @@ def request_json(
         body = raw_body or b""
         content_type = "application/octet-stream"
     digest = content_digest or hashlib.sha256(body).hexdigest()
-    headers = signed_headers(method, urllib.parse.urlsplit(path).path, digest, secret)
-    headers.update({"content-type": content_type, "content-length": str(len(body))})
     url = endpoint.rstrip("/") + path
     if shutil.which("curl"):
-        command = [
-            "curl", "--fail-with-body", "--silent", "--show-error",
-            "--max-time", "60", "--request", method.upper(),
-        ]
-        if method.upper() != "GET":
-            command.extend(("--header", f"content-type: {content_type}"))
-        for name, value in headers.items():
-            command.extend(("--header", f"{name}: {value}"))
-        if method.upper() != "GET":
-            command.extend(("--data-binary", "@-"))
-        command.append(url)
-        completed = subprocess.run(command, input=body, capture_output=True, check=False)
-        try:
-            result = json.loads(completed.stdout.decode())
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            detail = completed.stderr.decode(errors="replace").strip()
-            raise ShadowDeliveryError(f"CLOUDFLARE_INGEST_UNAVAILABLE: {detail or 'invalid response'}") from error
-        if completed.returncode != 0:
-            raise ShadowDeliveryError(str(result.get("error") or f"CURL_{completed.returncode}"))
-        if not isinstance(result, dict) or not result.get("ok"):
-            raise ShadowDeliveryError(str(result.get("error") if isinstance(result, dict) else "INVALID_RESPONSE"))
-        return result
+        retry_delays = (30, 120, 300)
+        last_decode_error: Exception | None = None
+        for attempt in range(len(retry_delays) + 1):
+            headers = signed_headers(method, urllib.parse.urlsplit(path).path, digest, secret)
+            headers.update({"content-type": content_type, "content-length": str(len(body))})
+            command = [
+                "curl", "--fail-with-body", "--silent", "--show-error",
+                "--max-time", "60", "--request", method.upper(),
+            ]
+            if method.upper() != "GET":
+                command.extend(("--header", f"content-type: {content_type}"))
+            for name, value in headers.items():
+                command.extend(("--header", f"{name}: {value}"))
+            if method.upper() != "GET":
+                command.extend(("--data-binary", "@-"))
+            command.append(url)
+            completed = subprocess.run(command, input=body, capture_output=True, check=False)
+            try:
+                result = json.loads(completed.stdout.decode())
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                last_decode_error = error
+                if attempt < len(retry_delays):
+                    time.sleep(retry_delays[attempt])
+                    continue
+                detail = completed.stderr.decode(errors="replace").strip()
+                raise ShadowDeliveryError(
+                    f"CLOUDFLARE_INGEST_UNAVAILABLE: {detail or 'invalid response'}"
+                ) from error
+            if completed.returncode != 0:
+                raise ShadowDeliveryError(str(result.get("error") or f"CURL_{completed.returncode}"))
+            if not isinstance(result, dict) or not result.get("ok"):
+                raise ShadowDeliveryError(
+                    str(result.get("error") if isinstance(result, dict) else "INVALID_RESPONSE")
+                )
+            return result
+        raise ShadowDeliveryError("CLOUDFLARE_INGEST_UNAVAILABLE: invalid response") from last_decode_error
+    headers = signed_headers(method, urllib.parse.urlsplit(path).path, digest, secret)
+    headers.update({"content-type": content_type, "content-length": str(len(body))})
     request = urllib.request.Request(
         url,
         data=body if method.upper() != "GET" else None,
@@ -317,6 +331,18 @@ def deliver(
     manifest_path, files_root = bundle_paths(run_id, root)
     payload, uploads = build_shadow_manifest(manifest_path, files_root)
     state_path = manifest_path.parent / "shadow-delivery.json"
+    previous_state: dict[str, Any] = {}
+    if state_path.is_file():
+        try:
+            loaded_state = json.loads(state_path.read_text(encoding="utf-8"))
+            if (
+                isinstance(loaded_state, dict)
+                and loaded_state.get("runId") == run_id
+                and loaded_state.get("endpoint") == endpoint
+            ):
+                previous_state = loaded_state
+        except (OSError, json.JSONDecodeError):
+            previous_state = {}
     try:
         validate_shadow_limits(payload)
     except ShadowDeliveryError as error:
@@ -330,14 +356,31 @@ def deliver(
             "endpoint": endpoint,
         })
         raise
-    save_state(state_path, {"runId": run_id, "status": "registering", "endpoint": endpoint})
     header, chunks = registration_payloads(payload)
+    previous_status = str(previous_state.get("status") or "")
+    registered_chunks = int(previous_state.get("registeredChunks") or 0)
+    uploaded_count = int(previous_state.get("uploaded") or 0)
+    if previous_status in {"uploading", "queued", "processing"}:
+        registered_chunks = len(chunks)
+    registered_chunks = min(max(registered_chunks, 0), len(chunks))
+    uploaded_count = min(max(uploaded_count, 0), len(uploads))
+    save_state(state_path, {
+        "runId": run_id,
+        "status": "registering",
+        "registeredChunks": registered_chunks,
+        "totalChunks": len(chunks),
+        "uploaded": uploaded_count,
+        "totalUploads": len(uploads),
+        "endpoint": endpoint,
+    })
     registered = request_json(endpoint, "POST", "/v1/releases", secret, payload=header)
     if registered.get("status") in TERMINAL:
         last = request_json(endpoint, "GET", f"/v1/releases/{run_id}", secret)
         save_state(state_path, {"runId": run_id, **last, "endpoint": endpoint})
         return last
     for index, chunk in enumerate(chunks, start=1):
+        if index <= registered_chunks:
+            continue
         request_json(
             endpoint,
             "POST",
@@ -354,6 +397,8 @@ def deliver(
             "endpoint": endpoint,
         })
     for index, (item, candidate) in enumerate(uploads, start=1):
+        if index <= uploaded_count:
+            continue
         multipart = item.get("multipart")
         if multipart:
             with candidate.open("rb") as handle:
