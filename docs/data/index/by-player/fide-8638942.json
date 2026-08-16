@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-31T16:59:57+00:00",
+  "generatedAt": "2026-08-16T01:51:12+00:00",
   "player": {
     "fideID": "8638942",
     "id": "fide-8638942",
@@ -18,12 +18,13 @@
     ]
   },
   "totals": {
-    "games": 9,
-    "events": 1,
-    "packages": 2,
-    "bytes": 78382,
+    "games": 10,
+    "events": 2,
+    "packages": 3,
+    "bytes": 79759,
     "stages": {
-      "U14": 9
+      "U14": 9,
+      "U18": 1
     }
   },
   "packages": [
@@ -31,15 +32,17 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8638942/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8638942/all.pgn?sha=cb248f017c02997f",
-      "gameCount": 9,
-      "pgnBytes": 39191,
-      "sha256": "cb248f017c02997f561f39b77338fa902f0a69ab87acc7bfdfe5200f84998b67",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8638942/all.pgn?sha=ea4e0010c29464bd",
+      "gameCount": 10,
+      "pgnBytes": 39815,
+      "sha256": "ea4e0010c29464bd54899be35dd43c099c4d8d03e7947af2d1c1690d51c82006",
       "stages": {
-        "U14": 9
+        "U14": 9,
+        "U18": 1
       },
       "sources": [
-        "Lichess Broadcasts"
+        "Lichess Broadcasts",
+        "Static PGN"
       ]
     },
     {
@@ -56,9 +59,40 @@
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U18",
+      "label": "U18 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8638942/U18.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8638942/U18.pgn?sha=4c9cd731b7437d80",
+      "gameCount": 1,
+      "pgnBytes": 753,
+      "sha256": "4c9cd731b7437d80c83a89ecc13bf0c735a6c14386f24bb321368a06b486c98e",
+      "stages": {
+        "U18": 1
+      },
+      "sources": [
+        "Static PGN"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "static-pgn:927194",
+      "source": "Static PGN",
+      "name": "2024 Chinese chess championship (personal group B Men)",
+      "date": "2024-04-21",
+      "tournamentID": "927194",
+      "canonicalEventID": null,
+      "stage": "U18",
+      "naturalStage": "U18",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "ev-e8b5231be8af51bc",
       "source": "Lichess Broadcasts",
@@ -79,6 +113,22 @@
     }
   ],
   "games": [
+    {
+      "id": "05773b8d4ef6f99d80d8cc509afd6d0967e406b1a1c81e2754d72e2ed1053864",
+      "event": "2024 Chinese chess championship (personal group B Men)",
+      "date": "2024-04-21",
+      "white": "Guo, Runpeng",
+      "black": "Jiang, Qinyu",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "1",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "white",
+      "tournamentID": "927194",
+      "sourcePgnPath": "data/pgn/chess-results/tnr927194/fide-8638942-927194.pgn",
+      "sha256": "05773b8d4ef6f99d80d8cc509afd6d0967e406b1a1c81e2754d72e2ed1053864"
+    },
     {
       "id": "29fc298749e0551becce404539553e1a3fa5d03f3b73f0e27be8d5c21f883038",
       "event": "4th World Championship for People with Disabilities",
