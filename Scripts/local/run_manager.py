@@ -935,6 +935,38 @@ OUTBOX_STATUSES = {
     "online-verified", "abandoned",
 }
 
+HUMAN_REQUIRED_DELIVERY_ERRORS = frozenset({
+    "RELEASE_BASE_CONFLICT",
+    "RELEASE_HASH_MISMATCH",
+    "RELEASE_MANIFEST_INVALID",
+    "RELEASE_PATH_INVALID",
+    "API_DELIVERY_BLOCKED",
+    "API_DELIVERY_BASELINE_MISSING",
+    "API_DELIVERY_TREE_TRUNCATED",
+    "GIT_FALLBACK_BASE_MISMATCH",
+    "ONLINE_HASH_MISMATCH",
+})
+
+
+def delivery_attention_code(delivery: dict[str, Any]) -> str | None:
+    """Return a durable, non-retryable delivery error for one outbox row."""
+    code = str(delivery.get("lastError") or "")
+    if (
+        code in HUMAN_REQUIRED_DELIVERY_ERRORS
+        or code.startswith("RELEASE_BASE_")
+        or code.startswith("RELEASE_PATH_")
+    ):
+        return code
+    online = (delivery.get("receipts") or {}).get("online") or {}
+    if (
+        online.get("ok") is False
+        and online.get("expected")
+        and online.get("actual")
+        and online.get("expected") != online.get("actual")
+    ):
+        return "ONLINE_HASH_MISMATCH"
+    return None
+
 
 def outbox_root() -> pathlib.Path:
     root = local_state_root() / "outbox"
@@ -1008,7 +1040,11 @@ def outbox_import(repo: pathlib.Path, commit: str) -> dict[str, Any]:
     return {"outbox": str(entry), "runId": manifest.get("runId"), "commit": commit}
 
 
-def outbox_entries(status: str | None = None) -> list[dict[str, Any]]:
+def outbox_entries(
+    status: str | None = None,
+    *,
+    retryable_only: bool = False,
+) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     root = outbox_root()
     for path in sorted(root.iterdir()):
@@ -1018,6 +1054,8 @@ def outbox_entries(status: str | None = None) -> list[dict[str, Any]]:
         if not delivery:
             continue
         if status and delivery.get("status") != status:
+            continue
+        if retryable_only and delivery_attention_code(delivery):
             continue
         delivery["path"] = str(path)
         entries.append(delivery)
@@ -1169,6 +1207,11 @@ def parser() -> argparse.ArgumentParser:
     outbox_import_p.add_argument("--commit", required=True)
     outbox_list_p = sub.add_parser("outbox-list")
     outbox_list_p.add_argument("--status")
+    outbox_list_p.add_argument(
+        "--retryable-only",
+        action="store_true",
+        help="exclude bundles with durable policy/baseline/hash attention errors",
+    )
     outbox_list_p.add_argument("--plain", action="store_true", help="print runId<TAB>commit lines for shell use")
     outbox_update_p = sub.add_parser("outbox-update")
     outbox_update_p.add_argument("--run-id", required=True)
@@ -1294,7 +1337,7 @@ def main() -> int:
         elif args.action == "outbox-import":
             print(json.dumps(outbox_import(args.repo, args.commit), ensure_ascii=False))
         elif args.action == "outbox-list":
-            entries = outbox_entries(args.status)
+            entries = outbox_entries(args.status, retryable_only=args.retryable_only)
             if args.plain:
                 for item in entries:
                     print(f"{item.get('runId')}\t{item.get('commit')}")

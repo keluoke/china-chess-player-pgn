@@ -34,7 +34,7 @@ from source_policy import local_state_root  # noqa: E402
 import run_manager  # noqa: E402
 
 
-TERMINAL = {"complete", "conflict", "failed"}
+TERMINAL = {"complete", "conflict", "failed", "ineligible"}
 KEYCHAIN_SERVICE = "china-chess-cloudflare-ingest-shadow"
 DEFAULT_ENDPOINT = "https://chess-data-ingest-shadow.seanyan099.workers.dev"
 # Logical snapshot limits.  Registration and merge work is split into small
@@ -88,15 +88,16 @@ def request_json(
         content_type = "application/octet-stream"
     digest = content_digest or hashlib.sha256(body).hexdigest()
     url = endpoint.rstrip("/") + path
+    request_timeout = max(1, min(60, int(os.environ.get("CLOUDFLARE_INGEST_REQUEST_TIMEOUT", "60"))))
     if shutil.which("curl"):
-        retry_delays = (30, 120, 300)
+        retry_delays = () if os.environ.get("CLOUDFLARE_INGEST_SINGLE_ATTEMPT") == "1" else (30, 120, 300)
         last_decode_error: Exception | None = None
         for attempt in range(len(retry_delays) + 1):
             headers = signed_headers(method, urllib.parse.urlsplit(path).path, digest, secret)
             headers.update({"content-type": content_type, "content-length": str(len(body))})
             command = [
                 "curl", "--fail-with-body", "--silent", "--show-error",
-                "--max-time", "60", "--request", method.upper(),
+                "--max-time", str(request_timeout), "--request", method.upper(),
             ]
             if method.upper() != "GET":
                 command.extend(("--header", f"content-type: {content_type}"))
@@ -143,7 +144,7 @@ def request_json(
             ca_file = "/etc/ssl/cert.pem" if pathlib.Path("/etc/ssl/cert.pem").is_file() else ""
     context = ssl.create_default_context(cafile=ca_file or None)
     try:
-        with urllib.request.urlopen(request, timeout=60, context=context) as response:
+        with urllib.request.urlopen(request, timeout=request_timeout, context=context) as response:
             result = json.loads(response.read().decode())
     except urllib.error.HTTPError as error:
         try:
@@ -479,6 +480,22 @@ def main() -> int:
     try:
         result = deliver(args.run_id, args.endpoint, secret, args.state_root, max(0, args.wait_seconds))
     except (ShadowDeliveryError, run_manager.RunManagerError, OSError, json.JSONDecodeError) as error:
+        try:
+            manifest_path, _files_root = bundle_paths(args.run_id, args.state_root)
+            state_path = manifest_path.parent / "shadow-delivery.json"
+            current = run_manager.read_json(state_path)
+            if str(current.get("status") or "") not in TERMINAL:
+                message = str(error)
+                save_state(state_path, {
+                    **current,
+                    "runId": args.run_id,
+                    "status": "paused",
+                    "errorCode": message.split(":", 1)[0],
+                    "message": message,
+                    "endpoint": args.endpoint,
+                })
+        except (run_manager.RunManagerError, OSError, json.JSONDecodeError):
+            pass
         print(str(error), file=sys.stderr)
         return 1
     print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -41,6 +41,51 @@ class CloudflareIngestClientTests(unittest.TestCase):
         self.assertEqual(sign.call_count, 2)
         sleep.assert_called_once_with(30)
 
+    def test_automatic_shadow_request_is_single_attempt_and_bounded(self):
+        failed = subprocess.CompletedProcess(
+            args=["curl"], returncode=28, stdout=b"", stderr=b"timed out",
+        )
+        with (
+            mock.patch.dict(os.environ, {
+                "CLOUDFLARE_INGEST_SINGLE_ATTEMPT": "1",
+                "CLOUDFLARE_INGEST_REQUEST_TIMEOUT": "15",
+            }),
+            mock.patch.object(cloudflare_ingest.shutil, "which", return_value="/usr/bin/curl"),
+            mock.patch.object(cloudflare_ingest.subprocess, "run", return_value=failed) as run,
+            mock.patch.object(cloudflare_ingest.time, "sleep") as sleep,
+        ):
+            with self.assertRaisesRegex(
+                cloudflare_ingest.ShadowDeliveryError,
+                "CLOUDFLARE_INGEST_UNAVAILABLE",
+            ):
+                cloudflare_ingest.request_json(
+                    "https://shadow.invalid", "GET", "/v1/quota", "secret",
+                )
+        self.assertEqual(run.call_count, 1)
+        sleep.assert_not_called()
+        self.assertIn("15", run.call_args.args[0])
+
+    def test_main_persists_network_failure_as_paused(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            run_id = "20260820-120000-a11ce001"
+            bundle = root / "outbox" / run_id
+            (bundle / "files").mkdir(parents=True)
+            (bundle / "manifest.json").write_text("{}", encoding="utf-8")
+            with (
+                mock.patch.dict(os.environ, {"CLOUDFLARE_INGEST_HMAC_SECRET": "secret"}),
+                mock.patch.object(cloudflare_ingest, "deliver", side_effect=
+                    cloudflare_ingest.ShadowDeliveryError("CLOUDFLARE_INGEST_UNAVAILABLE: timeout")),
+                mock.patch.object(os.sys, "argv", [
+                    "cloudflare_ingest.py", "--run-id", run_id,
+                    "--state-root", str(root),
+                ]),
+            ):
+                self.assertEqual(cloudflare_ingest.main(), 1)
+            state = json.loads((bundle / "shadow-delivery.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["status"], "paused")
+            self.assertEqual(state["errorCode"], "CLOUDFLARE_INGEST_UNAVAILABLE")
+
     def test_bundle_hash_is_verified_before_upload(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)

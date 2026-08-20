@@ -1087,6 +1087,32 @@ class OutboxTests(unittest.TestCase):
         pending = run_manager.outbox_entries("pending")
         self.assertEqual([item["runId"] for item in pending], ["outbox-test-run", "outbox-test-run-2"])
 
+    def test_attention_bundle_does_not_block_later_retryable_bundle(self) -> None:
+        sha = self.prepare_commit()
+        run_manager.outbox_save(self.repo, self.run_dir, sha)
+        run_manager.atomic_json(
+            self.run_dir / "run.json",
+            {"runId": "outbox-test-run-2", "command": "registry", "status": "running"},
+        )
+        manifest = json.loads((self.run_dir / "release-manifest.json").read_text())
+        manifest["runId"] = "outbox-test-run-2"
+        run_manager.atomic_json(self.run_dir / "release-manifest.json", manifest)
+        run_manager.outbox_save(self.repo, self.run_dir, sha)
+        run_manager.outbox_update(
+            "outbox-test-run", "pending", None, None, "RELEASE_BASE_CONFLICT",
+        )
+
+        retryable = run_manager.outbox_entries("pending", retryable_only=True)
+        self.assertEqual([item["runId"] for item in retryable], ["outbox-test-run-2"])
+        self.assertEqual(
+            run_manager.delivery_attention_code(run_manager.outbox_entries("pending")[0]),
+            "RELEASE_BASE_CONFLICT",
+        )
+        self.assertEqual(
+            run_manager.delivery_attention_code({"lastError": "RELEASE_PATH_MISSING"}),
+            "RELEASE_PATH_MISSING",
+        )
+
 
 class ApiFallbackPolicyTests(unittest.TestCase):
     def test_fails_closed_without_a_validated_bundle(self) -> None:
@@ -1499,6 +1525,29 @@ class GitTransportTests(unittest.TestCase):
         self.assertIsNotNone(commit_block)
         self.assertIn("DELIVERY_PENDING=true", commit_block.group(1))
         self.assertNotIn("deliver_outbox || return 1", commit_block.group(1))
+
+    def test_delivery_skips_attention_bundles_and_keeps_advancing(self) -> None:
+        source = REFRESH_SH.read_text(encoding="utf-8")
+        block = re.search(r"deliver_outbox\(\) \{(.*?)\n\}", source, re.DOTALL)
+        self.assertIsNotNone(block)
+        body = block.group(1)
+        self.assertIn("outbox-list --status pending --retryable-only --plain", body)
+        self.assertIn("转入人工关注；继续推进后续独立包", body)
+        self.assertNotIn("policy:*", body)
+
+        publish_start = source.index("  publish|deliver)")
+        publish_end = source.index("\n  receipts)", publish_start)
+        publish = source[publish_start:publish_end]
+        self.assertLess(publish.index("deliver_outbox"), publish.index("shadow_retry_existing"))
+        self.assertNotIn("所有 GitHub 路线均不可用", publish)
+
+    def test_shadow_automatic_failure_is_bounded_and_pauses_only_shadow(self) -> None:
+        source = REFRESH_SH.read_text(encoding="utf-8")
+        self.assertIn("CLOUDFLARE_INGEST_SINGLE_ATTEMPT=1", source)
+        self.assertIn("CLOUDFLARE_INGEST_REQUEST_TIMEOUT=15", source)
+        self.assertIn('"shadowEnabled": False', source)
+        self.assertIn('"shadowPauseReason": sys.argv[2]', source)
+        self.assertNotIn('"enabled": False', source[source.index("pause_shadow_automation()"):])
 
 
 class SharedStateProjectionTests(unittest.TestCase):

@@ -111,6 +111,7 @@ PUSH_SUMMARY=""
 DATA_COMMITTED=false
 DELIVERY_PENDING=false
 DELIVERED_COUNT=0
+DELIVERY_ATTENTION_COUNT=0
 SHADOW_SUMMARY=""
 RUN_DIR=""
 
@@ -449,7 +450,7 @@ push_commit_with_routes() {
 
 classify_api_delivery_error() {
   local output="$1" code
-  code="$(printf '%s' "$output" | grep -Eo 'RELEASE_BASE_CONFLICT|RELEASE_HASH_MISMATCH|RELEASE_MANIFEST_INVALID|RELEASE_PATH_[A-Z_]+|API_DELIVERY_BLOCKED|API_DELIVERY_BASELINE_MISSING|API_DELIVERY_TREE_TRUNCATED' | tail -1)"
+  code="$(printf '%s' "$output" | grep -Eo 'RELEASE_BASE_[A-Z_]+|RELEASE_HASH_MISMATCH|RELEASE_MANIFEST_INVALID|RELEASE_PATH_[A-Z_]+|API_DELIVERY_BLOCKED|API_DELIVERY_BASELINE_MISSING|API_DELIVERY_TREE_TRUNCATED' | tail -1)"
   if [ -n "$code" ]; then
     printf 'policy\t%s\n' "$code"
   else
@@ -478,8 +479,9 @@ api_deliver() {
 }
 
 deliver_outbox() {
-  # Deliver every pending release bundle, oldest first. Never re-scrapes.
-  local line run_id sha delivered=0 failed=0
+  # Deliver retryable pending bundles oldest first. Attention bundles remain
+  # immutable and visible, but never block a later independent bundle.
+  local line run_id sha error delivered=0 attention=0 failed=0
   while IFS=$'\t' read -r run_id sha; do
     [ -n "$run_id" ] || continue
     echo "投递 outbox release ${run_id}（commit ${sha}）"
@@ -493,17 +495,22 @@ deliver_outbox() {
       if [ "$API_DELIVERY_CLASS" = "policy" ]; then
         LAST_PUSH_ERROR="$API_DELIVERY_ERROR"
       fi
+      error="${LAST_PUSH_ERROR:-${API_DELIVERY_ERROR:-GIT_PUSH_FAILED}}"
       py "$RUN_MANAGER" outbox-update --run-id "$run_id" --status pending \
-        --error "${LAST_PUSH_ERROR:-${API_DELIVERY_ERROR:-GIT_PUSH_FAILED}}" >/dev/null || true
+        --error "$error" >/dev/null || true
+      if [ "$API_DELIVERY_CLASS" = "policy" ] || [ "$error" = "GIT_FALLBACK_BASE_MISMATCH" ]; then
+        attention=$((attention + 1))
+        echo "WARNING: 发布包 ${run_id} 已因 ${error} 转入人工关注；继续推进后续独立包。" >&2
+        continue
+      fi
       failed=$((failed + 1))
-      # Deterministic auth/policy failures affect every bundle equally.
-      case "$API_DELIVERY_CLASS:${LAST_PUSH_ERROR}" in
-        policy:*|*:GIT_AUTH_FAILED|*:GIT_REMOTE_REJECTED|*:GIT_FALLBACK_BASE_MISMATCH) break
-        ;;
+      case "$error" in
+        GIT_AUTH_FAILED|GIT_REMOTE_REJECTED) break ;;
       esac
     fi
-  done < <(py "$RUN_MANAGER" outbox-list --status pending --plain)
+  done < <(py "$RUN_MANAGER" outbox-list --status pending --retryable-only --plain)
   DELIVERED_COUNT="$delivered"
+  DELIVERY_ATTENTION_COUNT="$attention"
   [ "$failed" -eq 0 ]
 }
 
@@ -530,6 +537,38 @@ raise SystemExit(0 if enabled else 1)
 PY
 }
 
+pause_shadow_automation() {
+  local reason="$1"
+  python3 - "$STATE_ROOT/automation.json" "$reason" <<'PY'
+import datetime, json, os, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+try:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    payload = {}
+payload.update({
+    "schemaVersion": 1,
+    "shadowEnabled": False,
+    "shadowPausedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "shadowPauseReason": sys.argv[2],
+})
+path.parent.mkdir(parents=True, exist_ok=True)
+tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+os.replace(tmp, path)
+PY
+}
+
+shadow_error_code() {
+  python3 - "$STATE_ROOT/outbox/$1/shadow-delivery.json" <<'PY'
+import json, pathlib, sys
+try:
+    print(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")).get("errorCode") or "")
+except Exception:
+    print("")
+PY
+}
+
 shadow_deliver_one() {
   local run_id="$1" wait_seconds="${2:-30}" force="${3:-false}" status
   status="$(shadow_status "$run_id")"
@@ -537,7 +576,8 @@ shadow_deliver_one() {
     complete|conflict|ineligible) return 0 ;;
     "") [ "$force" = "true" ] || return 0 ;;
   esac
-  if py Scripts/local/cloudflare_ingest.py --run-id "$run_id" \
+  if CLOUDFLARE_INGEST_SINGLE_ATTEMPT=1 CLOUDFLARE_INGEST_REQUEST_TIMEOUT=15 \
+      py Scripts/local/cloudflare_ingest.py --run-id "$run_id" \
       --wait-seconds "$wait_seconds" --accept-queued; then
     SHADOW_SUMMARY="Cloudflare 影子已接收或完成"
     return 0
@@ -545,22 +585,33 @@ shadow_deliver_one() {
   status="$(shadow_status "$run_id")"
   case "$status" in
     conflict) SHADOW_SUMMARY="Cloudflare 影子发现基线冲突，生产 GitHub 不受影响" ;;
-    ineligible) SHADOW_SUMMARY="发布包超过影子免费层单包门禁，仅继续 GitHub 生产发布" ;;
-    *) SHADOW_SUMMARY="Cloudflare 影子暂不可用，已保留独立状态供自动重试" ;;
+    ineligible)
+      SHADOW_SUMMARY="发布包超过影子免费层单包门禁，仅继续 GitHub 生产发布"
+      echo "WARNING: ${SHADOW_SUMMARY}（run ${run_id}）。" >&2
+      return 0
+      ;;
+    *) SHADOW_SUMMARY="Cloudflare 影子暂不可用，已保留独立状态" ;;
   esac
   echo "WARNING: ${SHADOW_SUMMARY}（run ${run_id}）。" >&2
   return 1
 }
 
 shadow_retry_existing() {
-  local line run_id sha retried=0
+  local line run_id sha error retried=0
   while IFS=$'\t' read -r run_id sha; do
     [ -n "$run_id" ] || continue
     [ -f "$STATE_ROOT/outbox/$run_id/shadow-delivery.json" ] || continue
     case "$(shadow_status "$run_id")" in
       complete|conflict|ineligible) continue ;;
     esac
-    shadow_deliver_one "$run_id" 30 true || true
+    if ! shadow_deliver_one "$run_id" 30 true; then
+      error="$(shadow_error_code "$run_id")"
+      error="${error:-CLOUDFLARE_INGEST_UNAVAILABLE}"
+      pause_shadow_automation "$error"
+      SHADOW_SUMMARY="Cloudflare 影子因 ${error} 已自动暂停；GitHub 生产继续"
+      echo "WARNING: ${SHADOW_SUMMARY}。" >&2
+      return 1
+    fi
     retried=$((retried + 1))
   done < <(py "$RUN_MANAGER" outbox-list --plain)
   [ "$retried" -gt 0 ] && SHADOW_SUMMARY="已推进 ${retried} 个 Cloudflare 影子回执" || true
@@ -1033,7 +1084,6 @@ case "$command" in
 
   publish|deliver)
     state "delivering" "推进 GitHub 生产投递与已启用的 Cloudflare 影子回执；不重新访问任何数据源"
-    shadow_auto_enabled && shadow_retry_existing || true
     if [ -z "$(py "$RUN_MANAGER" outbox-list --status pending --plain)" ]; then
       # Legacy fallback: HEAD carries a committed manifest from before the
       # outbox existed and it has not been pushed yet. Import it as a bundle.
@@ -1041,12 +1091,15 @@ case "$command" in
         py "$RUN_MANAGER" outbox-import --repo "$REPO_ROOT" --commit "$(git rev-parse HEAD)" >/dev/null 2>&1 || true
       fi
     fi
-    if [ -z "$(py "$RUN_MANAGER" outbox-list --status pending --plain)" ]; then
-      PUSH_SUMMARY="GitHub outbox 没有待投递发布包${SHADOW_SUMMARY:+；$SHADOW_SUMMARY}"
+    if [ -z "$(py "$RUN_MANAGER" outbox-list --status pending --retryable-only --plain)" ]; then
+      PUSH_SUMMARY="GitHub outbox 没有可自动重试的发布包；需人工关注的包保持隔离"
     else
-      deliver_outbox || fail "${LAST_PUSH_ERROR:-GIT_PUSH_FAILED}" "所有 GitHub 路线均不可用；发布包保留在 outbox，网络恢复后重试 deliver。"
-      PUSH_SUMMARY="已投递 ${DELIVERED_COUNT:-0} 个 GitHub 发布包${SHADOW_SUMMARY:+；$SHADOW_SUMMARY}"
+      deliver_outbox || fail "${LAST_PUSH_ERROR:-GIT_PUSH_FAILED}" \
+        "GitHub 传输或认证失败；可重试发布包保留在 outbox。策略冲突包已单独隔离。"
+      PUSH_SUMMARY="已投递 ${DELIVERED_COUNT:-0} 个 GitHub 发布包；新增人工关注 ${DELIVERY_ATTENTION_COUNT:-0} 个"
     fi
+    shadow_auto_enabled && shadow_retry_existing || true
+    [ -n "$SHADOW_SUMMARY" ] && PUSH_SUMMARY="${PUSH_SUMMARY}；${SHADOW_SUMMARY}"
     ;;
 
   receipts)
@@ -1060,7 +1113,8 @@ case "$command" in
     shadow_auto_enabled || fail "CLOUDFLARE_SHADOW_NOT_AUTHORIZED" \
       "Cloudflare 自动影子双写未启用；请先在本机面板明确授权。"
     state "shadow-delivering" "仅推进已授权的 Cloudflare 影子回执；不访问来源、不触碰 GitHub"
-    shadow_retry_existing
+    shadow_retry_existing || fail "CLOUDFLARE_SHADOW_AUTO_PAUSED" \
+      "影子端点不可用或状态不确定，自动影子双写已暂停；GitHub 生产不受影响。"
     PUSH_SUMMARY="${SHADOW_SUMMARY:-Cloudflare 影子没有待推进回执}"
     ;;
 

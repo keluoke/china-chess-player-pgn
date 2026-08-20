@@ -24,7 +24,13 @@ SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-from run_manager import atomic_json, current_payload, outbox_entries, process_alive  # noqa: E402
+from run_manager import (  # noqa: E402
+    atomic_json,
+    current_payload,
+    delivery_attention_code,
+    outbox_entries,
+    process_alive,
+)
 from source_policy import local_state_root  # noqa: E402
 from event_targeting import DISCOVERY_POOL, localized_event_names, merged_target_items  # noqa: E402
 # The panel and the scheduler must share one state projection: the same
@@ -72,17 +78,6 @@ STATUS_LABELS = {
 
 DELIVERED_STATUSES = {
     "pushed", "ingested-to-main", "indexes-rebuilt", "deployed", "online-verified",
-}
-HUMAN_REQUIRED_DELIVERY_ERRORS = {
-    "RELEASE_BASE_CONFLICT",
-    "RELEASE_HASH_MISMATCH",
-    "RELEASE_MANIFEST_INVALID",
-    "RELEASE_PATH_INVALID",
-    "API_DELIVERY_BLOCKED",
-    "API_DELIVERY_BASELINE_MISSING",
-    "API_DELIVERY_TREE_TRUNCATED",
-    "GIT_FALLBACK_BASE_MISMATCH",
-    "ONLINE_HASH_MISMATCH",
 }
 SHADOW_TERMINAL = {"complete", "conflict", "failed", "ineligible"}
 TNR_RELEASE_PATH = re.compile(r"(?:^|/)tnr(\d{4,9})(?:[./-]|$)")
@@ -191,28 +186,14 @@ def automation_payload() -> dict:
     payload = _read_json_file(AUTOMATION_PATH)
     entries = outbox_entries()
 
-    def attention_code(item: dict) -> str | None:
-        code = item.get("lastError")
-        if code in HUMAN_REQUIRED_DELIVERY_ERRORS:
-            return str(code)
-        online = (item.get("receipts") or {}).get("online") or {}
-        if (
-            online.get("ok") is False
-            and online.get("expected")
-            and online.get("actual")
-            and online.get("expected") != online.get("actual")
-        ):
-            return "ONLINE_HASH_MISMATCH"
-        return None
-
     attention = [
         {
             "runId": item.get("runId"),
             "status": item.get("status"),
-            "errorCode": attention_code(item),
+            "errorCode": delivery_attention_code(item),
         }
         for item in entries
-        if attention_code(item)
+        if delivery_attention_code(item)
     ]
     attention_ids = {str(item.get("runId")) for item in attention}
     shadow_rows = []
@@ -223,7 +204,7 @@ def automation_payload() -> dict:
     shadow_attention = [
         {"runId": item.get("runId"), "status": item.get("status"), "errorCode": item.get("errorCode")}
         for item in shadow_rows
-        if item.get("status") in {"conflict", "failed", "ineligible"}
+        if item.get("status") in {"conflict", "failed", "ineligible", "paused"}
     ]
     return {
         "enabled": payload.get("enabled", True),
@@ -231,6 +212,8 @@ def automation_payload() -> dict:
         "lastAction": payload.get("lastAction"),
         "lastActionAt": payload.get("lastActionAt"),
         "nextCheckAt": payload.get("nextCheckAt"),
+        "shadowPausedAt": payload.get("shadowPausedAt"),
+        "shadowPauseReason": payload.get("shadowPauseReason"),
         "attention": attention,
         "pending": sum(1 for item in entries if item.get("status") == "pending"),
         "advancing": sum(
@@ -259,6 +242,9 @@ def update_automation(body: dict) -> dict:
     fields: dict[str, object] = {}
     if "shadowEnabled" in body:
         fields["shadowEnabled"] = bool(body.get("shadowEnabled"))
+        if fields["shadowEnabled"]:
+            fields["shadowPausedAt"] = None
+            fields["shadowPauseReason"] = None
     return set_automation(enabled, **fields)
 
 
@@ -276,14 +262,14 @@ def automation_monitor() -> None:
         pending = [
             item for item in entries
             if item.get("status") == "pending"
-            and item.get("lastError") not in HUMAN_REQUIRED_DELIVERY_ERRORS
+            and not delivery_attention_code(item)
         ] if git_enabled else []
         advancing = [
             item for item in entries
             if item.get("status") in {
                 "pushed", "ingested-to-main", "indexes-rebuilt", "deployed",
             }
-            and item.get("lastError") not in HUMAN_REQUIRED_DELIVERY_ERRORS
+            and not delivery_attention_code(item)
             and not (
                 ((item.get("receipts") or {}).get("online") or {}).get("ok") is False
                 and ((item.get("receipts") or {}).get("online") or {}).get("expected")
@@ -1024,7 +1010,7 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function post(path,body){return fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Panel-Token":TOKEN},body:JSON.stringify(body)}).then(r=>r.json())}
 async function runCmd(cmd,extra,full){if(full&&!confirm("全量刷新会消耗大量流量，确认继续？"))return;const r=await post('/api/run',{cmd,extra});if(!r.ok)alert(r.message);setTimeout(poll,400)}
 async function stopJob(){if(!confirm("中止当前任务？已抓页面与检查点会保留，续跑只补缺页。"))return;const r=await post('/api/stop',{});alert(r.message)}
-async function loadAutomation(){const a=await(await fetch('/api/automation')).json();$('#autoAdvance').checked=!!a.enabled;$('#shadowAdvance').checked=!!a.shadowEnabled;$('#automationMeta').textContent=`不访问来源 · 待投递 ${a.pending||0} · 推进中 ${a.advancing||0}${(a.attention||[]).length?' · 需处理 '+a.attention.length:''}`;$('#shadowMeta').textContent=`${a.shadowEnabled?'已授权自动双写':'未授权，保持关闭'} · 完成 ${a.shadowComplete||0} · 待推进 ${a.shadowPending||0} · 需处理 ${(a.shadowAttention||[]).length}`}
+async function loadAutomation(){const a=await(await fetch('/api/automation')).json();$('#autoAdvance').checked=!!a.enabled;$('#shadowAdvance').checked=!!a.shadowEnabled;$('#automationMeta').textContent=`不访问来源 · 待投递 ${a.pending||0} · 推进中 ${a.advancing||0}${(a.attention||[]).length?' · 需处理 '+a.attention.length:''}`;$('#shadowMeta').textContent=`${a.shadowEnabled?'已授权自动双写':a.shadowPauseReason?'已自动暂停：'+a.shadowPauseReason:'未授权，保持关闭'} · 完成 ${a.shadowComplete||0} · 待推进 ${a.shadowPending||0} · 需处理 ${(a.shadowAttention||[]).length}`}
 async function toggleAutomation(){const a=await post('/api/automation',{enabled:$('#autoAdvance').checked});$('#automationMeta').textContent=a.enabled?'自动推进已开启；不会自动抓取。':'自动推进已暂停。'}
 async function toggleShadow(){const enabled=$('#shadowAdvance').checked;if(enabled&&!confirm('启用后，未来符合免费层门禁的清洗后机器数据 outbox 将自动写入专用 Cloudflare 影子 Worker/R2/D1。原始 HTML、人工数据和代码不会上传。确认启用？')){$('#shadowAdvance').checked=false;return}await post('/api/automation',{shadowEnabled:enabled});loadAutomation()}
 function queueTop(n){runCmd('event-queue',['--from-queue',String(n)],false);watchRun('队列前 '+n+' 个')}
