@@ -1,8 +1,8 @@
 {
   "schemaVersion": 4,
-  "snapshotId": "20260820T124840Z-47d4b461",
-  "generatedAt": "2026-08-20T12:51:06+00:00",
-  "inputCommit": "f9d56337e0f8d8457a3c3c1f8e5a4aa66b775cc4",
+  "snapshotId": "20260820T130042Z-85a22051",
+  "generatedAt": "2026-08-20T13:03:04+00:00",
+  "inputCommit": "5fba06aaa47353744d1c39dccad7e9f23d9ff66f",
   "producerVersion": "build-release-snapshot-v4",
   "inputs": [
     {
@@ -36,14 +36,14 @@
       "path": "data/generated/person-observations.meta.json",
       "present": true,
       "bytes": 589,
-      "sha256": "9fc2716301b95e886b8966e0cf39091e678905ff1cd2e511170cbe8f7d2241d8",
+      "sha256": "9c59c9efcf00f6d4219178dd4bc75b9ba3b341e1dd2816becaeee0bdc4cef69f",
       "schemaVersion": 2
     },
     {
       "path": "data/generated/event-completeness-report.json",
       "present": true,
       "bytes": 2462427,
-      "sha256": "7aff0917f8fe0f1d7a714d783829e43fe565386f975395a1b0a66727ab92ae7d",
+      "sha256": "ffdbdd0c72bea461c80b1d838a74e508ba1a5469352b51db53553eb3076f1cf5",
       "schemaVersion": 2,
       "eventCount": 1063
     },
@@ -61,7 +61,7 @@
       "path": "data/generated/pgn-collection-status.json",
       "present": true,
       "bytes": 235928,
-      "sha256": "4d7dac1cc863b01c1eb0a12beaaaa332f955c74aab02013a11b737c427dbbf0b",
+      "sha256": "514a22b71f33fdb6295290d95287bad705fb3dbc8a5d8e7b6303fc665965da54",
       "schemaVersion": 1,
       "eventCount": 1063
     },
@@ -95,7 +95,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/apply_aliases_to_registry.py",
       "status": "built",
-      "seconds": 0.5
+      "seconds": 0.4
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/validate_registry_release.py --registry docs/data/registry --corrections data/community/name-corrections.csv",
@@ -105,52 +105,52 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/sync_static_pgn.py",
       "status": "built",
-      "seconds": 2.8
+      "seconds": 3.7
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_static_player_pgn.py",
       "status": "built",
-      "seconds": 63.8
+      "seconds": 62.5
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_pgn_collection_status.py",
       "status": "built",
-      "seconds": 2.1
+      "seconds": 1.9
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_completeness_report.py",
       "status": "built",
-      "seconds": 12.5
+      "seconds": 12.2
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_event_details.py",
       "status": "built",
-      "seconds": 10.6
+      "seconds": 10.3
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_person_observations.py",
       "status": "built",
-      "seconds": 2.3
+      "seconds": 2.2
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/sync_domestic_players.py",
       "status": "built",
-      "seconds": 17.9
+      "seconds": 17.2
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/validate_identity_clustering.py",
       "status": "built",
-      "seconds": 3.5
+      "seconds": 3.4
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_domestic_progressions.py",
       "status": "built",
-      "seconds": 1.1
+      "seconds": 1.0
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_event_catalog.py",
       "status": "built",
-      "seconds": 1.0
+      "seconds": 0.9
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_master_series_summary.py",
@@ -175,12 +175,12 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_data_quality_audit.py",
       "status": "built",
-      "seconds": 1.9
+      "seconds": 1.8
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/reconcile_pgn_sources.py --write-audit",
       "status": "built",
-      "seconds": 1.4
+      "seconds": 1.3
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_search_bootstrap.py",
@@ -200,7 +200,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_api.py",
       "status": "built",
-      "seconds": 1.5
+      "seconds": 1.4
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/build_changelog.py",
@@ -215,7 +215,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/validate_registry_authority.py",
       "status": "built",
-      "seconds": 2.6
+      "seconds": 2.5
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/validate_public_metrics.py",
@@ -225,7 +225,7 @@
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/validate_public_privacy.py",
       "status": "built",
-      "seconds": 11.6
+      "seconds": 11.4
     },
     {
       "command": "/opt/hostedtoolcache/Python/3.14.7/x64/bin/python3 Scripts/validate_snapshot_consistency.py",
