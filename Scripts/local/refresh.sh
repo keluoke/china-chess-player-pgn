@@ -1099,7 +1099,9 @@ case "$command" in
       PUSH_SUMMARY="已投递 ${DELIVERED_COUNT:-0} 个 GitHub 发布包；新增人工关注 ${DELIVERY_ATTENTION_COUNT:-0} 个"
     fi
     shadow_auto_enabled && shadow_retry_existing || true
-    [ -n "$SHADOW_SUMMARY" ] && PUSH_SUMMARY="${PUSH_SUMMARY}；${SHADOW_SUMMARY}"
+    if [ -n "$SHADOW_SUMMARY" ]; then
+      PUSH_SUMMARY="${PUSH_SUMMARY}；${SHADOW_SUMMARY}"
+    fi
     ;;
 
   receipts)

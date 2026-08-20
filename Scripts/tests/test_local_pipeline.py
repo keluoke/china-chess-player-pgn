@@ -1540,6 +1540,8 @@ class GitTransportTests(unittest.TestCase):
         publish = source[publish_start:publish_end]
         self.assertLess(publish.index("deliver_outbox"), publish.index("shadow_retry_existing"))
         self.assertNotIn("所有 GitHub 路线均不可用", publish)
+        self.assertIn('if [ -n "$SHADOW_SUMMARY" ]; then', publish)
+        self.assertNotIn('[ -n "$SHADOW_SUMMARY" ] &&', publish)
 
     def test_shadow_automatic_failure_is_bounded_and_pauses_only_shadow(self) -> None:
         source = REFRESH_SH.read_text(encoding="utf-8")
