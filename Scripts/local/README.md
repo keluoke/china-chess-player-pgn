@@ -376,8 +376,13 @@ PR/隔离时才建短命分支。普通 Git 不通时使用 API 发布器（以�
 先做 dry-run 三方合并冲突检查）：
 
 ```bash
+python3 Scripts/local/publish_data_via_api.py --outbox <run-id> --dry-run
 python3 Scripts/local/publish_code_via_api.py --help
 ```
+
+数据 API 发布器的 `--dry-run` 只读取并校验当前 `main`，完整列出冲突路径，且在
+创建 blob/tree/commit 或更新 ref 前退出。人工处理 attention 发布包时必须先用
+该模式预检，禁止用实际 force-push 试探冲突是否仍存在。
 
 ## 本地不 pull
 

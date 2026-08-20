@@ -1124,6 +1124,21 @@ class ApiFallbackPolicyTests(unittest.TestCase):
                     publish_data_via_api.load_bundle(None)
         self.assertIn("API_DELIVERY_BLOCKED", str(caught.exception))
 
+    def test_data_api_dry_run_exits_before_every_remote_write(self) -> None:
+        import publish_data_via_api
+
+        source = pathlib.Path(publish_data_via_api.__file__).read_text(encoding="utf-8")
+        dry_run = source.index("if args.dry_run:")
+        for remote_write in (
+            "uploaded_blobs = upload_blobs",
+            'api(repository, "POST", "/git/blobs"',
+            'api(repository, "POST", "/git/trees"',
+            'api(repository, "POST", "/git/commits"',
+        ):
+            self.assertLess(dry_run, source.index(remote_write, dry_run))
+        self.assertIn('"conflicts": conflicts', source[dry_run:])
+        self.assertIn('"safeToDeliver": not conflicts', source[dry_run:])
+
     def test_api_path_shares_the_single_manifest_policy(self) -> None:
         # The API transport validates through run_manager.validate_manifest:
         # manual/community/incoming and raw HTML are rejected identically.

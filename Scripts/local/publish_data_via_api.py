@@ -242,6 +242,11 @@ def main() -> int:
     parser.add_argument("--outbox", metavar="RUN_ID", help="deliver this pending outbox bundle (default: oldest)")
     parser.add_argument("--data-branch", default="local-data")
     parser.add_argument("--base-branch", default="main")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="read and validate current main, report conflicts, and exit before every remote write",
+    )
     args = parser.parse_args()
 
     entry, manifest, _delivery = load_bundle(args.outbox)
@@ -296,6 +301,17 @@ def main() -> int:
         else:
             item["deliveryBaseSha256"] = None
         prepared.append((item, content, candidate_oid))
+
+    if args.dry_run:
+        print(json.dumps({
+            "dryRun": True,
+            "runId": run_id,
+            "baseCommit": parent,
+            "files": len(files),
+            "conflicts": conflicts,
+            "safeToDeliver": not conflicts,
+        }, ensure_ascii=False, indent=2))
+        return 2 if conflicts else 0
 
     if conflicts:
         raise SystemExit(
