@@ -37,7 +37,11 @@ from event_targeting import DISCOVERY_POOL, localized_event_names, merged_target
 # should_skip_target() the collector's queue selection uses decides what the
 # panel shows as "可立即抓取", so the displayed pending count always equals
 # what the next run will actually attempt.
-from sync_chess_results_event import PARSER_VERSION, should_skip_target  # noqa: E402
+from sync_chess_results_event import (  # noqa: E402
+    PARSER_VERSION,
+    queue_item_skip_reason,
+    should_skip_target,
+)
 
 REFRESH = SCRIPT_DIR / "refresh.sh"
 QUEUE_PATH = REPO_ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json"
@@ -382,7 +386,7 @@ def queue_payload() -> dict:
         capture_status = capture.get("status") or ""
         # Exactly the scheduler's projection: a target is schedulable iff the
         # queue wants it and should_skip_target() would not skip it.
-        skip_reason = should_skip_target(capture, REFRESH_DAYS) if capture else ""
+        skip_reason = queue_item_skip_reason(item) or (should_skip_target(capture, REFRESH_DAYS) if capture else "")
         schedulable = next_action in {"capture-event", "refresh-snapshot"} and not skip_reason
         if schedulable:
             summary["schedulable"] += 1

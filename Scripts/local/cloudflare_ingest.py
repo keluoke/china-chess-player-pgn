@@ -35,6 +35,11 @@ import run_manager  # noqa: E402
 
 
 TERMINAL = {"complete", "conflict", "failed", "ineligible"}
+NON_RETRYABLE_ERRORS = {
+    "RELEASE_CHUNK_HASH_MISMATCH",
+    "RELEASE_CHUNK_MISMATCH",
+    "RELEASE_REGISTRATION_MISMATCH",
+}
 KEYCHAIN_SERVICE = "china-chess-cloudflare-ingest-shadow"
 DEFAULT_ENDPOINT = "https://chess-data-ingest-shadow.seanyan099.workers.dev"
 # Logical snapshot limits.  Registration and merge work is split into small
@@ -69,6 +74,44 @@ def signed_headers(method: str, path: str, body_digest: str, secret: str) -> dic
     }
 
 
+def parse_macos_proxy(output: str) -> str:
+    """Return the enabled HTTPS or SOCKS proxy reported by ``scutil``."""
+    values: dict[str, str] = {}
+    for line in output.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        values[key.strip()] = value.strip()
+    if values.get("HTTPSEnable") == "1" and values.get("HTTPSProxy"):
+        return f"http://{values['HTTPSProxy']}:{values.get('HTTPSPort') or '8080'}"
+    if values.get("SOCKSEnable") == "1" and values.get("SOCKSProxy"):
+        return f"socks5h://{values['SOCKSProxy']}:{values.get('SOCKSPort') or '1080'}"
+    return ""
+
+
+def cloudflare_proxy() -> str:
+    """Resolve an explicit route for Cloudflare without affecting scrapers.
+
+    launchd jobs do not inherit the interactive shell's proxy variables.  On
+    networks where ``workers.dev`` direct DNS/443 is unavailable, honoring the
+    enabled macOS HTTPS proxy here prevents a healthy Worker from being
+    mislabeled as an unavailable endpoint.  This module never contacts a chess
+    source, so the proxy cannot leak into source collection.
+    """
+    configured = os.environ.get("CLOUDFLARE_INGEST_PROXY", "").strip()
+    if configured:
+        return configured
+    if sys.platform == "darwin" and shutil.which("scutil"):
+        result = subprocess.run(
+            ["scutil", "--proxy"], capture_output=True, text=True, check=False,
+        )
+        if result.returncode == 0:
+            proxy = parse_macos_proxy(result.stdout)
+            if proxy:
+                return proxy
+    return (os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or "").strip()
+
+
 def request_json(
     endpoint: str,
     method: str,
@@ -90,6 +133,7 @@ def request_json(
     url = endpoint.rstrip("/") + path
     request_timeout = max(1, min(60, int(os.environ.get("CLOUDFLARE_INGEST_REQUEST_TIMEOUT", "60"))))
     if shutil.which("curl"):
+        proxy = cloudflare_proxy()
         retry_delays = () if os.environ.get("CLOUDFLARE_INGEST_SINGLE_ATTEMPT") == "1" else (30, 120, 300)
         last_decode_error: Exception | None = None
         for attempt in range(len(retry_delays) + 1):
@@ -99,6 +143,12 @@ def request_json(
                 "curl", "--fail-with-body", "--silent", "--show-error",
                 "--max-time", str(request_timeout), "--request", method.upper(),
             ]
+            if proxy:
+                command.extend(("--proxy", proxy))
+            else:
+                # Do not accidentally inherit a stale shell proxy.  When no
+                # explicit route exists this is a deliberate direct request.
+                command.extend(("--noproxy", "*"))
             if method.upper() != "GET":
                 command.extend(("--header", f"content-type: {content_type}"))
             for name, value in headers.items():
@@ -486,11 +536,12 @@ def main() -> int:
             current = run_manager.read_json(state_path)
             if str(current.get("status") or "") not in TERMINAL:
                 message = str(error)
+                code = message.split(":", 1)[0]
                 save_state(state_path, {
                     **current,
                     "runId": args.run_id,
-                    "status": "paused",
-                    "errorCode": message.split(":", 1)[0],
+                    "status": "failed" if code in NON_RETRYABLE_ERRORS else "paused",
+                    "errorCode": code,
                     "message": message,
                     "endpoint": args.endpoint,
                 })

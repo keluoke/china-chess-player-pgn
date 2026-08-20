@@ -11,6 +11,19 @@ from Scripts.local import cloudflare_ingest
 
 
 class CloudflareIngestClientTests(unittest.TestCase):
+    def test_macos_https_proxy_is_parsed_for_shadow_only(self):
+        output = """
+        <dictionary> {
+          HTTPSEnable : 1
+          HTTPSPort : 15236
+          HTTPSProxy : 127.0.0.1
+          SOCKSEnable : 1
+          SOCKSPort : 15235
+          SOCKSProxy : 127.0.0.1
+        }
+        """
+        self.assertEqual(cloudflare_ingest.parse_macos_proxy(output), "http://127.0.0.1:15236")
+
     def test_signed_headers_match_canonical_hmac(self):
         with mock.patch.object(cloudflare_ingest.time, "time", return_value=123), mock.patch.object(
             cloudflare_ingest.secrets, "token_hex", return_value="f" * 32
@@ -29,6 +42,7 @@ class CloudflareIngestClientTests(unittest.TestCase):
         )
         with (
             mock.patch.object(cloudflare_ingest.shutil, "which", return_value="/usr/bin/curl"),
+            mock.patch.object(cloudflare_ingest, "cloudflare_proxy", return_value="http://127.0.0.1:15236"),
             mock.patch.object(cloudflare_ingest.subprocess, "run", side_effect=[failed, succeeded]) as run,
             mock.patch.object(cloudflare_ingest.time, "sleep") as sleep,
             mock.patch.object(cloudflare_ingest, "signed_headers", wraps=cloudflare_ingest.signed_headers) as sign,
@@ -40,6 +54,8 @@ class CloudflareIngestClientTests(unittest.TestCase):
         self.assertEqual(run.call_count, 2)
         self.assertEqual(sign.call_count, 2)
         sleep.assert_called_once_with(30)
+        self.assertIn("--proxy", run.call_args.args[0])
+        self.assertIn("http://127.0.0.1:15236", run.call_args.args[0])
 
     def test_automatic_shadow_request_is_single_attempt_and_bounded(self):
         failed = subprocess.CompletedProcess(
@@ -51,6 +67,7 @@ class CloudflareIngestClientTests(unittest.TestCase):
                 "CLOUDFLARE_INGEST_REQUEST_TIMEOUT": "15",
             }),
             mock.patch.object(cloudflare_ingest.shutil, "which", return_value="/usr/bin/curl"),
+            mock.patch.object(cloudflare_ingest, "cloudflare_proxy", return_value=""),
             mock.patch.object(cloudflare_ingest.subprocess, "run", return_value=failed) as run,
             mock.patch.object(cloudflare_ingest.time, "sleep") as sleep,
         ):
@@ -64,6 +81,7 @@ class CloudflareIngestClientTests(unittest.TestCase):
         self.assertEqual(run.call_count, 1)
         sleep.assert_not_called()
         self.assertIn("15", run.call_args.args[0])
+        self.assertIn("--noproxy", run.call_args.args[0])
 
     def test_main_persists_network_failure_as_paused(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -85,6 +103,30 @@ class CloudflareIngestClientTests(unittest.TestCase):
             state = json.loads((bundle / "shadow-delivery.json").read_text(encoding="utf-8"))
             self.assertEqual(state["status"], "paused")
             self.assertEqual(state["errorCode"], "CLOUDFLARE_INGEST_UNAVAILABLE")
+
+    def test_main_persists_chunk_protocol_mismatch_as_terminal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            run_id = "20260820-120000-a11ce002"
+            bundle = root / "outbox" / run_id
+            (bundle / "files").mkdir(parents=True)
+            (bundle / "manifest.json").write_text("{}", encoding="utf-8")
+            with (
+                mock.patch.dict(os.environ, {"CLOUDFLARE_INGEST_HMAC_SECRET": "secret"}),
+                mock.patch.object(
+                    cloudflare_ingest,
+                    "deliver",
+                    side_effect=cloudflare_ingest.ShadowDeliveryError("RELEASE_CHUNK_HASH_MISMATCH"),
+                ),
+                mock.patch.object(os.sys, "argv", [
+                    "cloudflare_ingest.py", "--run-id", run_id,
+                    "--state-root", str(root),
+                ]),
+            ):
+                self.assertEqual(cloudflare_ingest.main(), 1)
+            state = json.loads((bundle / "shadow-delivery.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["status"], "failed")
+            self.assertEqual(state["errorCode"], "RELEASE_CHUNK_HASH_MISMATCH")
 
     def test_bundle_hash_is_verified_before_upload(self):
         with tempfile.TemporaryDirectory() as temporary:

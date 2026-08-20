@@ -47,13 +47,13 @@ EVENT_QUEUE = ROOT / "data" / "generated" / "audit" / "domestic-event-queue.json
 CAPTURE_STATE = local_state_root() / "chess-results" / "capture-state.json"
 USER_AGENT = "ChinaChessPlayerPGN/EventDetailSync"
 
-# v8: v7 plus canonical handling for Swiss-Manager's ``-1 / bye`` pairing
-# rows. Explicit non-player opponents never become roster references, so a
-# valid bye cannot quarantine an otherwise complete event.
+# v9: v8 plus future-event queue gating, exact ``Date`` table parsing and
+# semantic empty-pairing detection. Scheduled events no longer consume source
+# requests or become false parser-layout quarantines before their end date.
 # Bumping the version releases affected targets for one evidence-backed retry;
 # cached starting-rank pages are replayed locally before any missing page is
 # requested.
-PARSER_VERSION = "chess-results-v8"
+PARSER_VERSION = "chess-results-v9"
 TOURNAMENT_DETAILS_ART = -1
 QUARANTINE_DAYS = 7
 STRUCTURE_QUARANTINE_THRESHOLD = 2
@@ -210,6 +210,26 @@ def normalize_event_date(value: str) -> str:
 
 def extract_event_dates(*parsers: TableParser) -> tuple[str, str]:
     """Extract only explicitly labelled event dates, never upload timestamps."""
+    for parser in parsers:
+        for table in parser.tables:
+            for row in table:
+                if len(row) < 2:
+                    continue
+                label = clean(row[0].text).casefold().rstrip(":：")
+                if label not in {"date", "tournament date", "event date", "赛事日期", "比赛日期"}:
+                    continue
+                value = clean(row[1].text)
+                range_match = re.fullmatch(
+                    rf"({DATE_TOKEN})\s*(?:to|until|[-–—至])\s*({DATE_TOKEN})",
+                    value,
+                    re.IGNORECASE,
+                )
+                if range_match:
+                    return normalize_event_date(range_match.group(1)), normalize_event_date(range_match.group(2))
+                if re.fullmatch(DATE_TOKEN, value):
+                    normalized = normalize_event_date(value)
+                    return normalized, normalized
+
     text = clean(" ".join(part for parser in parsers for part in parser.text_parts))
     range_match = re.search(
         rf"(?:tournament\s+dates?|event\s+dates?|赛事日期|比赛日期)\s*[:：]?\s*"
@@ -372,6 +392,24 @@ def find_table(parser: TableParser, required: set[str]) -> list[list[Cell]]:
 
 def data_row_count(parser: TableParser) -> int:
     return sum(max(0, len(table) - 1) for table in parser.tables)
+
+
+def pairing_data_row_count(parser: TableParser) -> int:
+    """Count rows only in a semantically recognizable pairing table.
+
+    Chess-Results still renders navigation and tournament-detail tables when a
+    requested round has not been published. Counting every table made those
+    scheduled empty pages look like parser regressions.
+    """
+    for table in parser.tables:
+        for header_index, row in enumerate(table):
+            headers = {normalized_header(cell.text) for cell in row}
+            has_sides = {"white", "black"}.issubset(headers)
+            has_result = "result" in headers or "res" in headers
+            has_board = bool(headers & {"bo", "board", "no"})
+            if has_sides and has_result and has_board:
+                return sum(1 for candidate in table[header_index + 1:] if any(cell.text for cell in candidate))
+    return 0
 
 
 def cell_map(table: list[list[Cell]], row: list[Cell]) -> dict[str, Cell]:
@@ -1026,7 +1064,7 @@ class EventCollector:
                     if looks_like_team_page(round_page):
                         status, error_code = "partial", "TEAM_FORMAT_UNSUPPORTED"
                         event_format = "team"
-                    elif data_row_count(round_page) < 2:
+                    elif pairing_data_row_count(round_page) == 0:
                         status, error_code = "partial", "PAIRINGS_NOT_PUBLISHED"
                     else:
                         status, error_code = "partial", "PARSER_LAYOUT_CHANGED"
@@ -1199,6 +1237,23 @@ def should_skip_target(entry: dict[str, Any], refresh_days: int) -> str:
     return ""
 
 
+def queue_item_skip_reason(item: dict[str, Any], today: dt.date | None = None) -> str:
+    """Return a queue-only schedule gate without affecting explicit TNR runs.
+
+    Player discovery records ``date`` as the event end date. Reviewed queue
+    rows may use the more explicit end-date field names. Unknown or malformed
+    dates remain eligible so a metadata defect cannot starve a real event.
+    """
+    value = clean(item.get("dateEnd") or item.get("endDate") or item.get("date"))
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return ""
+    try:
+        event_end = dt.date.fromisoformat(value)
+    except ValueError:
+        return ""
+    return "event-not-due" if event_end > (today or dt.date.today()) else ""
+
+
 def queue_targets(limit: int, refresh_days: int) -> list[str]:
     if not EVENT_QUEUE.exists():
         raise SystemExit("赛事线索队列不存在；请先在社区/人工数据变更后离线重建队列。")
@@ -1208,6 +1263,8 @@ def queue_targets(limit: int, refresh_days: int) -> list[str]:
     targets = []
     for item in merged_target_items(queue_path=EVENT_QUEUE, pool_path=DISCOVERY_POOL):
         if item.get("nextAction") not in {"capture-event", "refresh-snapshot"}:
+            continue
+        if queue_item_skip_reason(item):
             continue
         tournament = clean(item.get("tournamentID"))
         if not tournament:

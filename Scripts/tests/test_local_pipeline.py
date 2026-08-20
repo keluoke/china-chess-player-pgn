@@ -1565,6 +1565,7 @@ class GitTransportTests(unittest.TestCase):
         self.assertIn('"shadowEnabled": False', source)
         self.assertIn('"shadowPauseReason": sys.argv[2]', source)
         self.assertNotIn('"enabled": False', source[source.index("pause_shadow_automation()"):])
+        self.assertGreaterEqual(source.count("complete|conflict|failed|ineligible"), 2)
 
 
 class SharedStateProjectionTests(unittest.TestCase):
@@ -1580,6 +1581,7 @@ class SharedStateProjectionTests(unittest.TestCase):
                 {"nextAction": "capture-event", "tournamentID": "100002", "eventName": "B"},
                 {"nextAction": "capture-event", "tournamentID": "100003", "eventName": "C"},
                 {"nextAction": "monitor", "tournamentID": "100004", "eventName": "D"},
+                {"nextAction": "capture-event", "tournamentID": "100005", "eventName": "Future", "date": "2999-01-01"},
             ]}))
             state_path.write_text(json.dumps({"schemaVersion": 2, "events": {
                 "100001": {"status": "complete", "capturedAt": "2999-01-01T00:00:00+00:00"},
@@ -1602,6 +1604,9 @@ class SharedStateProjectionTests(unittest.TestCase):
             self.assertEqual(schedulable, scheduler)
             self.assertEqual(panel_view["summary"]["schedulable"], len(scheduler))
             self.assertEqual(panel_view["upcoming"], scheduler)
+            future = next(item for item in panel_view["targets"] if item["tournamentID"] == "100005")
+            self.assertFalse(future["schedulable"])
+            self.assertEqual(future["skipReason"], "event-not-due")
 
     def test_recent_captures_include_off_queue_targets(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -2565,6 +2570,7 @@ class PrivateCaptureQueueTests(unittest.TestCase):
             queue_path.write_text(json.dumps({"targets": [
                 {"nextAction": "capture-event", "tournamentID": "123456"},
                 {"nextAction": "capture-event", "tournamentID": "234567"},
+                {"nextAction": "capture-event", "tournamentID": "345678", "date": "2999-01-01"},
             ]}))
             state_path.write_text(json.dumps({"events": {
                 "123456": {"capturedAt": "2999-01-01T00:00:00+00:00"},

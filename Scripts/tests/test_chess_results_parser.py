@@ -98,12 +98,45 @@ class ParserMatrixTests(unittest.TestCase):
         )
         self.assertEqual(sce.extract_event_dates(page), ("2026-07-01", "2026-07-09"))
 
+    def test_chess_results_date_table_range_is_parsed(self) -> None:
+        page = sce.parse_html(
+            """
+            <table><tr><td>Date</td><td>2026/09/08 to 2026/09/13</td></tr></table>
+            <p>Last update 18.08.2026 12:17:58</p>
+            """,
+            "https://chess-results.com/tnr1477320.aspx",
+        )
+        self.assertEqual(sce.extract_event_dates(page), ("2026-09-08", "2026-09-13"))
+
     def test_last_update_alone_is_not_treated_as_event_date(self) -> None:
         page = sce.parse_html(
             "<p>Last update 10.07.2026 08:30:00</p>",
             "https://chess-results.com/tnr999001.aspx",
         )
         self.assertEqual(sce.extract_event_dates(page), ("", ""))
+
+    def test_navigation_rows_do_not_make_an_empty_round_a_layout_change(self) -> None:
+        page = sce.parse_html(
+            """
+            <table><tr><th>Parameters</th><th>Value</th></tr><tr><td>Lists</td><td>Starting rank</td></tr></table>
+            <h2>Pairings/Results</h2>
+            """,
+            "https://chess-results.com/tnr1477320.aspx?art=2&rd=1",
+        )
+        self.assertGreaterEqual(sce.data_row_count(page), 1)
+        self.assertEqual(sce.pairing_data_row_count(page), 0)
+
+    def test_semantic_pairing_rows_remain_layout_evidence(self) -> None:
+        page = sce.parse_html(
+            """
+            <table>
+              <tr><th>Bo.</th><th>White</th><th>Result</th><th>Black</th></tr>
+              <tr><td>1</td><td>Alpha</td><td>1 - 0</td><td>Beta</td></tr>
+            </table>
+            """,
+            "https://chess-results.com/tnr999001.aspx?art=2&rd=1",
+        )
+        self.assertEqual(sce.pairing_data_row_count(page), 1)
 
     def test_individual_starting_rank(self) -> None:
         players = sce.parse_players(parse("starting_rank_individual.html"))
@@ -301,6 +334,12 @@ class RoundDiscoveryTests(unittest.TestCase):
 
 
 class SchedulingStateTests(unittest.TestCase):
+    def test_future_queue_item_is_not_due_until_its_end_date(self) -> None:
+        today = sce.dt.date(2026, 8, 21)
+        self.assertEqual(sce.queue_item_skip_reason({"date": "2026-09-13"}, today), "event-not-due")
+        self.assertEqual(sce.queue_item_skip_reason({"date": "2026-08-21"}, today), "")
+        self.assertEqual(sce.queue_item_skip_reason({"date": "unknown"}, today), "")
+
     def test_v1_entries_migrate_to_complete(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             state = pathlib.Path(temp) / "capture-state.json"

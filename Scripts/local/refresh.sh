@@ -573,7 +573,7 @@ shadow_deliver_one() {
   local run_id="$1" wait_seconds="${2:-30}" force="${3:-false}" status
   status="$(shadow_status "$run_id")"
   case "$status" in
-    complete|conflict|ineligible) return 0 ;;
+    complete|conflict|failed|ineligible) return 0 ;;
     "") [ "$force" = "true" ] || return 0 ;;
   esac
   if CLOUDFLARE_INGEST_SINGLE_ATTEMPT=1 CLOUDFLARE_INGEST_REQUEST_TIMEOUT=15 \
@@ -602,7 +602,7 @@ shadow_retry_existing() {
     [ -n "$run_id" ] || continue
     [ -f "$STATE_ROOT/outbox/$run_id/shadow-delivery.json" ] || continue
     case "$(shadow_status "$run_id")" in
-      complete|conflict|ineligible) continue ;;
+      complete|conflict|failed|ineligible) continue ;;
     esac
     if ! shadow_deliver_one "$run_id" 30 true; then
       error="$(shadow_error_code "$run_id")"
