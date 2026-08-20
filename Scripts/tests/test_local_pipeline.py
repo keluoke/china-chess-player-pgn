@@ -1566,6 +1566,8 @@ class GitTransportTests(unittest.TestCase):
         self.assertIn('"shadowPauseReason": sys.argv[2]', source)
         self.assertNotIn('"enabled": False', source[source.index("pause_shadow_automation()"):])
         self.assertGreaterEqual(source.count("complete|conflict|failed|ineligible"), 2)
+        failed_case = source[source.index('    failed)\n', source.index("shadow_deliver_one()")):]
+        self.assertLess(failed_case.index("return 0"), failed_case.index("    ineligible)"))
 
 
 class SharedStateProjectionTests(unittest.TestCase):

@@ -585,6 +585,11 @@ shadow_deliver_one() {
   status="$(shadow_status "$run_id")"
   case "$status" in
     conflict) SHADOW_SUMMARY="Cloudflare 影子发现基线冲突，生产 GitHub 不受影响" ;;
+    failed)
+      SHADOW_SUMMARY="Cloudflare 影子包遇到不可重试协议错误，已停止该包并继续后续包"
+      echo "WARNING: ${SHADOW_SUMMARY}（run ${run_id}）。" >&2
+      return 0
+      ;;
     ineligible)
       SHADOW_SUMMARY="发布包超过影子免费层单包门禁，仅继续 GitHub 生产发布"
       echo "WARNING: ${SHADOW_SUMMARY}（run ${run_id}）。" >&2
