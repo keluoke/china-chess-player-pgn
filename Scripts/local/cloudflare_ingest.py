@@ -16,6 +16,7 @@ import os
 import pathlib
 import secrets
 import shutil
+import socket
 import ssl
 import subprocess
 import sys
@@ -109,7 +110,19 @@ def cloudflare_proxy() -> str:
             proxy = parse_macos_proxy(result.stdout)
             if proxy:
                 return proxy
-    return (os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or "").strip()
+    inherited = (os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or "").strip()
+    if inherited:
+        return inherited
+    # launchd does not inherit shell variables and some proxy applications run
+    # a loopback listener without publishing it through ``scutil``.  Probe only
+    # the project's documented local HTTP proxy; never discover or forward a
+    # chess-source request because this client talks exclusively to Cloudflare.
+    try:
+        connection = socket.create_connection(("127.0.0.1", 15236), timeout=0.25)
+    except OSError:
+        return ""
+    connection.close()
+    return "http://127.0.0.1:15236"
 
 
 def request_json(

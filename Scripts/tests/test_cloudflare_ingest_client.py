@@ -24,6 +24,25 @@ class CloudflareIngestClientTests(unittest.TestCase):
         """
         self.assertEqual(cloudflare_ingest.parse_macos_proxy(output), "http://127.0.0.1:15236")
 
+    def test_launchd_falls_back_to_listening_project_proxy(self):
+        connection = mock.Mock()
+        with (
+            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.object(cloudflare_ingest.sys, "platform", "darwin"),
+            mock.patch.object(cloudflare_ingest.shutil, "which", return_value=None),
+            mock.patch.object(
+                cloudflare_ingest.socket,
+                "create_connection",
+                return_value=connection,
+            ) as connect,
+        ):
+            self.assertEqual(
+                cloudflare_ingest.cloudflare_proxy(),
+                "http://127.0.0.1:15236",
+            )
+        connect.assert_called_once_with(("127.0.0.1", 15236), timeout=0.25)
+        connection.close.assert_called_once_with()
+
     def test_signed_headers_match_canonical_hmac(self):
         with mock.patch.object(cloudflare_ingest.time, "time", return_value=123), mock.patch.object(
             cloudflare_ingest.secrets, "token_hex", return_value="f" * 32
