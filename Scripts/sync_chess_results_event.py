@@ -1428,7 +1428,11 @@ def main() -> int:
         private_root.mkdir(parents=True, exist_ok=True)
         private_root.chmod(0o700)
     snapshot_output = private_root / "raw" / "chess-results"
-    output_root = PUBLIC_OUTPUT if publish else private_root / "extracted" / "chess-results-event-details"
+    # Every capture is written to the private run first.  Publication is a
+    # separate promotion step below and is allowed only for complete events;
+    # a standings-only/partial retry must never overwrite or create a machine
+    # release candidate under data/generated.
+    output_root = private_root / "extracted" / "chess-results-event-details"
     queued_ids = queue_targets(args.from_queue, args.refresh_days) if args.from_queue > 0 else []
     ids = [tournament_id(value) for value in [*args.targets, *args.tournament_id, *queued_ids]]
     ids = list(dict.fromkeys(value for value in ids if value))
@@ -1543,30 +1547,43 @@ def main() -> int:
             tid, options, store, queue_rounds=rounds_metadata.get(tid, 0), progress=progress_writer,
         )
         output = output_root / f"tnr{tid}.json"
+        public_output = PUBLIC_OUTPUT / f"tnr{tid}.json"
+        preview_output = output
         try:
-            if output.exists() and not args.overwrite and not args.force_source and tid not in queued_ids and not args.replay:
-                payload = json.loads(output.read_text(encoding="utf-8"))
+            reusable_output = public_output if publish else output
+            if (
+                reusable_output.exists()
+                and not args.overwrite
+                and not args.force_source
+                and tid not in queued_ids
+                and not args.replay
+            ):
+                payload = json.loads(reusable_output.read_text(encoding="utf-8"))
+                preview_output = reusable_output
             else:
                 payload = collector.collect()
                 payload["releasePolicy"] = chess_results_release_policy()
                 if not args.dry_run:
                     output.parent.mkdir(parents=True, exist_ok=True)
-                    if publish:
+                    write_private_json(output, payload)
+                    if publish and (payload.get("captureStatus") or "complete") == "complete":
                         # Compare-and-merge against the already-published copy
-                        # (the worktree mirrors cloud main for machine paths).
-                        # Unchanged events are skipped and never re-enter the
-                        # release manifest.
+                        # only after the private capture is known complete.
+                        # Unchanged complete events are skipped and never
+                        # re-enter the release manifest.
                         try:
-                            existing = json.loads(output.read_text(encoding="utf-8"))
+                            existing = json.loads(public_output.read_text(encoding="utf-8"))
                         except (OSError, json.JSONDecodeError):
                             existing = None
-                        payload, changed = merge_event_payload(existing, payload)
+                        published_payload, changed = merge_event_payload(existing, payload)
                         if changed:
-                            tmp = output.with_name(f".{output.name}.{os.getpid()}.tmp")
-                            tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-                            os.replace(tmp, output)
-                    else:
-                        write_private_json(output, payload)
+                            public_output.parent.mkdir(parents=True, exist_ok=True)
+                            tmp = public_output.with_name(f".{public_output.name}.{os.getpid()}.tmp")
+                            tmp.write_text(
+                                json.dumps(published_payload, ensure_ascii=False, indent=2) + "\n",
+                                encoding="utf-8",
+                            )
+                            os.replace(tmp, public_output)
         except EventCaptureError as error:
             entry = record_target_result(
                 captured_events, tid,
@@ -1623,7 +1640,7 @@ def main() -> int:
             errorCode=payload.get("captureErrorCode"), failedPage=payload.get("failedPage"),
             players=len(payload.get("players", [])), rounds=len(payload.get("rounds", [])),
             standings=len(payload.get("standings", [])), cachedPages=collector.pages_cached,
-            preview=str(output) if not args.dry_run else None,
+            preview=str(preview_output) if not args.dry_run else None,
         )
         if not args.dry_run:
             if status == "complete":

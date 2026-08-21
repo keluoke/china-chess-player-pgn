@@ -419,6 +419,8 @@ class FakeFetcher:
                 return fixture("pairings_out_of_roster.html"), url
             if tid == "999007":
                 return fixture("pairings_missing_refs.html"), url
+            if tid == "999009" and rd == 2:
+                return fixture("empty_event.html"), url
             return fixture("pairings_round.html"), url
         raise AssertionError(f"unexpected page request {key}")
 
@@ -512,6 +514,57 @@ class BatchIsolationTests(unittest.TestCase):
             self.assertEqual(result["targets"]["999001"]["status"], "complete")
             self.assertEqual(result["postSteps"][0]["step"], "event-pgn")
             self.assertEqual(result["postSteps"][0]["code"], "POST_STEP_FAILED")
+
+    def test_partial_publication_stays_private_and_preserves_last_good(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
+            temp = pathlib.Path(name)
+            run_root = temp / "run1"
+            public_root = temp / "public-details"
+            public_root.mkdir()
+            last_good = {
+                "schemaVersion": 2,
+                "tournamentID": "999009",
+                "captureStatus": "complete",
+                "players": [{"playerNo": "1", "name": "Last Good"}],
+                "standings": [{"rank": "1", "playerNo": "1"}],
+                "rounds": [{"round": 1, "pairings": []}],
+            }
+            public_path = public_root / "tnr999009.json"
+            public_path.write_text(json.dumps(last_good), encoding="utf-8")
+            state = temp / "capture-state.json"
+            queue = temp / "queue.json"
+            queue.write_text('{"targets":[]}', encoding="utf-8")
+            argv = [
+                "sync_chess_results_event.py",
+                "999009",
+                "--private-root", str(run_root),
+                "--delay", "0",
+                "--publish",
+                "--overwrite",
+                "--no-players",
+                "--no-pgn",
+                "--no-rebuild",
+            ]
+            with (
+                mock.patch.object(sce, "CAPTURE_STATE", state),
+                mock.patch.object(sce, "EVENT_QUEUE", queue),
+                mock.patch.object(sce, "PUBLIC_OUTPUT", public_root),
+                mock.patch.object(sce, "fetch_page_body", FakeFetcher()),
+                mock.patch.object(sce, "require_chess_results_publication"),
+                mock.patch.object(sys, "argv", argv),
+            ):
+                code = sce.main()
+            self.assertEqual(code, 4)
+            self.assertEqual(json.loads(public_path.read_text(encoding="utf-8")), last_good)
+            private_path = run_root / "extracted/chess-results-event-details/tnr999009.json"
+            partial = json.loads(private_path.read_text(encoding="utf-8"))
+            self.assertEqual(partial["captureStatus"], "partial")
+            self.assertEqual(partial["captureErrorCode"], "PAIRINGS_NOT_PUBLISHED")
+            result = json.loads((run_root / "result.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                pathlib.Path(result["targets"]["999009"]["preview"]).resolve(),
+                private_path.resolve(),
+            )
 
     def test_tournament_details_network_failure_never_becomes_missing_event_id(self) -> None:
         with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
