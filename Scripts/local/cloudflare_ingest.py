@@ -144,7 +144,15 @@ def request_json(
         content_type = "application/octet-stream"
     digest = content_digest or hashlib.sha256(body).hexdigest()
     url = endpoint.rstrip("/") + path
-    request_timeout = max(1, min(60, int(os.environ.get("CLOUDFLARE_INGEST_REQUEST_TIMEOUT", "60"))))
+    configured_timeout = max(
+        1,
+        min(600, int(os.environ.get("CLOUDFLARE_INGEST_REQUEST_TIMEOUT", "60"))),
+    )
+    # A launchd shadow job may upload through a residential loopback proxy.
+    # Keep metadata requests tightly bounded, but give request bodies enough
+    # time for a conservative 32 KiB/s transfer plus connection overhead.
+    upload_timeout = 30 + ((len(body) + (32 * 1024) - 1) // (32 * 1024)) if body else 0
+    request_timeout = min(600, max(configured_timeout, upload_timeout))
     if shutil.which("curl"):
         proxy = cloudflare_proxy()
         retry_delays = () if os.environ.get("CLOUDFLARE_INGEST_SINGLE_ATTEMPT") == "1" else (30, 120, 300)
@@ -424,7 +432,7 @@ def deliver(
     previous_status = str(previous_state.get("status") or "")
     registered_chunks = int(previous_state.get("registeredChunks") or 0)
     uploaded_count = int(previous_state.get("uploaded") or 0)
-    if previous_status in {"uploading", "queued", "processing"}:
+    if previous_status in {"uploading", "queued", "processing"} or uploaded_count > 0:
         registered_chunks = len(chunks)
     registered_chunks = min(max(registered_chunks, 0), len(chunks))
     uploaded_count = min(max(uploaded_count, 0), len(uploads))
@@ -457,6 +465,8 @@ def deliver(
             "status": "registering",
             "registeredChunks": index,
             "totalChunks": len(chunks),
+            "uploaded": uploaded_count,
+            "totalUploads": len(uploads),
             "files": len(payload.get("files") or []),
             "endpoint": endpoint,
         })
@@ -491,17 +501,35 @@ def deliver(
         save_state(state_path, {
             "runId": run_id,
             "status": "uploading",
+            "registeredChunks": len(chunks),
+            "totalChunks": len(chunks),
             "uploaded": index,
             "totalUploads": len(uploads),
             "endpoint": endpoint,
         })
     committed = request_json(endpoint, "POST", f"/v1/releases/{run_id}/commit", secret, payload={})
-    save_state(state_path, {"runId": run_id, "status": committed["status"], "endpoint": endpoint})
+    save_state(state_path, {
+        "runId": run_id,
+        "status": committed["status"],
+        "registeredChunks": len(chunks),
+        "totalChunks": len(chunks),
+        "uploaded": len(uploads),
+        "totalUploads": len(uploads),
+        "endpoint": endpoint,
+    })
     deadline = time.monotonic() + wait_seconds
     last = committed
     while wait_seconds > 0 and time.monotonic() < deadline:
         last = request_json(endpoint, "GET", f"/v1/releases/{run_id}", secret)
-        save_state(state_path, {"runId": run_id, **last, "endpoint": endpoint})
+        save_state(state_path, {
+            "runId": run_id,
+            **last,
+            "registeredChunks": len(chunks),
+            "totalChunks": len(chunks),
+            "uploaded": len(uploads),
+            "totalUploads": len(uploads),
+            "endpoint": endpoint,
+        })
         if last.get("status") in TERMINAL:
             return last
         time.sleep(2)

@@ -102,6 +102,27 @@ class CloudflareIngestClientTests(unittest.TestCase):
         self.assertIn("15", run.call_args.args[0])
         self.assertIn("--noproxy", run.call_args.args[0])
 
+    def test_large_upload_gets_bandwidth_aware_timeout(self):
+        succeeded = subprocess.CompletedProcess(
+            args=["curl"], returncode=0, stdout=b'{"ok":true}', stderr=b"",
+        )
+        body = b"x" * (3 * 1024 * 1024)
+        with (
+            mock.patch.dict(os.environ, {
+                "CLOUDFLARE_INGEST_SINGLE_ATTEMPT": "1",
+                "CLOUDFLARE_INGEST_REQUEST_TIMEOUT": "15",
+            }),
+            mock.patch.object(cloudflare_ingest.shutil, "which", return_value="/usr/bin/curl"),
+            mock.patch.object(cloudflare_ingest, "cloudflare_proxy", return_value=""),
+            mock.patch.object(cloudflare_ingest.subprocess, "run", return_value=succeeded) as run,
+        ):
+            cloudflare_ingest.request_json(
+                "https://shadow.invalid", "PUT", "/v1/file", "secret", raw_body=body,
+            )
+        command = run.call_args.args[0]
+        timeout = int(command[command.index("--max-time") + 1])
+        self.assertGreaterEqual(timeout, 126)
+
     def test_main_persists_network_failure_as_paused(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
@@ -362,6 +383,66 @@ class CloudflareIngestClientTests(unittest.TestCase):
                 [path for path in called_paths if "/files/" in path],
                 [f"/v1/releases/{run_id}/files/{manifest_files[2]['sha256']}"],
             )
+
+    def test_paused_upload_preserves_registration_and_upload_checkpoints(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            run_id = "20260814-120000-resume02"
+            bundle = root / "outbox" / run_id
+            files_root = bundle / "files"
+            manifest_files = []
+            for index in range(2):
+                relative = f"data/generated/chess-results-event-details/tnr{index}.json"
+                candidate = files_root / relative
+                candidate.parent.mkdir(parents=True, exist_ok=True)
+                body = f"{{\"index\":{index}}}\n".encode()
+                candidate.write_bytes(body)
+                manifest_files.append({
+                    "path": relative,
+                    "operation": "upsert",
+                    "sha256": hashlib.sha256(body).hexdigest(),
+                    "bytes": len(body),
+                    "baseBlobOid": "b" * 40,
+                    "baseSha256": hashlib.sha256(body).hexdigest(),
+                })
+            (bundle / "manifest.json").write_text(json.dumps({
+                "schemaVersion": 1,
+                "runId": run_id,
+                "command": "baseline-migrate",
+                "baseCommit": "a" * 40,
+                "source": {"source": "Chess-Results", "releasePolicy": "full-data"},
+                "files": manifest_files,
+            }), encoding="utf-8")
+            (bundle / "shadow-delivery.json").write_text(json.dumps({
+                "schemaVersion": 1,
+                "runId": run_id,
+                "status": "paused",
+                "uploaded": 1,
+                "totalUploads": 2,
+                "endpoint": "https://shadow.invalid",
+            }), encoding="utf-8")
+            with mock.patch.object(
+                cloudflare_ingest,
+                "request_json",
+                side_effect=[
+                    {"ok": True, "status": "registered"},
+                    {"ok": True, "status": "uploaded"},
+                    {"ok": True, "status": "queued"},
+                ],
+            ) as request:
+                result = cloudflare_ingest.deliver(
+                    run_id, "https://shadow.invalid", "secret", root, wait_seconds=0,
+                )
+            self.assertEqual(result["status"], "queued")
+            called_paths = [call.args[2] for call in request.call_args_list]
+            self.assertNotIn(f"/v1/releases/{run_id}/chunks/0", called_paths)
+            self.assertEqual(
+                [path for path in called_paths if "/files/" in path],
+                [f"/v1/releases/{run_id}/files/{manifest_files[1]['sha256']}"],
+            )
+            state = json.loads((bundle / "shadow-delivery.json").read_text(encoding="utf-8"))
+            self.assertEqual(state["registeredChunks"], 1)
+            self.assertEqual(state["uploaded"], 2)
 
     def test_truly_oversized_bundle_writes_receipt_without_network_request(self):
         with tempfile.TemporaryDirectory() as temporary:
