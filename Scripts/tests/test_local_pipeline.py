@@ -1115,6 +1115,27 @@ class OutboxTests(unittest.TestCase):
 
 
 class ApiFallbackPolicyTests(unittest.TestCase):
+    def test_api_retries_gets_but_never_writes(self) -> None:
+        import publish_data_via_api
+
+        failure = subprocess.CalledProcessError(1, ["gh", "api"])
+        success = subprocess.CompletedProcess(["gh", "api"], 0, stdout=b'{"ok":true}')
+        with (
+            mock.patch.object(publish_data_via_api.subprocess, "run", side_effect=[failure, success]) as run,
+            mock.patch.object(publish_data_via_api.time, "sleep") as sleep,
+        ):
+            self.assertEqual(
+                publish_data_via_api.api("owner/repo", "GET", "/git/ref/heads/main"),
+                {"ok": True},
+            )
+        self.assertEqual(run.call_count, 2)
+        sleep.assert_called_once_with(1)
+
+        with mock.patch.object(publish_data_via_api.subprocess, "run", side_effect=failure) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                publish_data_via_api.api("owner/repo", "POST", "/git/blobs", {"content": "x"})
+        run.assert_called_once()
+
     def test_fails_closed_without_a_validated_bundle(self) -> None:
         import publish_data_via_api
 

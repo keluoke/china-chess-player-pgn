@@ -21,6 +21,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parents[1]
@@ -50,8 +51,21 @@ def api(repository: str, method: str, path: str, payload=None):
     if payload is not None:
         command += ["--input", "-"]
         encoded = json.dumps(payload).encode("utf-8")
-    result = subprocess.run(command, input=encoded, cwd=ROOT, check=True, capture_output=True, timeout=360)
-    return json.loads(result.stdout or b"{}")
+    # GitHub/proxy reads can fail transiently before any publication object is
+    # created. Retry GETs only; writes keep single-attempt semantics so an
+    # ambiguous ref mutation is never repeated automatically.
+    attempts = 4 if method == "GET" else 1
+    for attempt in range(attempts):
+        try:
+            result = subprocess.run(
+                command, input=encoded, cwd=ROOT, check=True, capture_output=True, timeout=360,
+            )
+            return json.loads(result.stdout or b"{}")
+        except subprocess.CalledProcessError:
+            if attempt + 1 >= attempts:
+                raise
+            time.sleep(min(2 ** attempt, 4))
+    raise AssertionError("unreachable")
 
 
 def load_bundle(run_id: str | None) -> tuple[pathlib.Path, dict, dict]:
