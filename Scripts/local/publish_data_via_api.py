@@ -257,6 +257,10 @@ def main() -> int:
     parser.add_argument("--data-branch", default="local-data")
     parser.add_argument("--base-branch", default="main")
     parser.add_argument(
+        "--workers", type=int, default=4,
+        help="concurrent content-addressed blob uploads (use 1 on a constrained proxy)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="read and validate current main, report conflicts, and exit before every remote write",
@@ -337,7 +341,7 @@ def main() -> int:
     # Re-run the shared validator after adding the delivery baseline.
     files = run_manager.validate_manifest(manifest)
 
-    uploaded_blobs = upload_blobs(repository, entry, prepared)
+    uploaded_blobs = upload_blobs(repository, entry, prepared, workers=max(1, args.workers))
     tree_entries: list[dict] = []
     for item, content, candidate_oid in prepared:
         path = item["path"]

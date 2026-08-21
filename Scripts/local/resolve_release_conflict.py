@@ -3,8 +3,9 @@
 
 The source outbox bundles remain untouched.  Candidate files are selected in
 the supplied run order (later runs win duplicate paths), explicit rejected
-paths are omitted, and the successor records separate production-main and
-Cloudflare-shadow baselines.  This command never contacts a chess source.
+paths are either omitted or converted to reviewed deletes, and the successor
+records separate production-main and Cloudflare-shadow baselines.  This
+command never contacts a chess source.
 """
 
 from __future__ import annotations
@@ -86,7 +87,12 @@ def load_sources(
 def select_candidates(
     sources: list[tuple[str, pathlib.Path, dict[str, Any]]],
     dropped_paths: set[str],
+    deleted_paths: set[str] | None = None,
 ) -> dict[str, tuple[str, pathlib.Path, dict[str, Any]]]:
+    deleted_paths = deleted_paths or set()
+    overlap = dropped_paths & deleted_paths
+    if overlap:
+        raise SuccessorError(f"PATH_DECISION_AMBIGUOUS: {sorted(overlap)[0]}")
     selected: dict[str, tuple[str, pathlib.Path, dict[str, Any]]] = {}
     seen_paths: set[str] = set()
     for run_id, entry, manifest in sources:
@@ -94,11 +100,17 @@ def select_candidates(
             path = str(item["path"])
             seen_paths.add(path)
             selected[path] = (run_id, entry, item)
-    unknown = sorted(dropped_paths - seen_paths)
+    unknown = sorted((dropped_paths | deleted_paths) - seen_paths)
     if unknown:
-        raise SuccessorError(f"DROP_PATH_NOT_IN_SOURCES: {unknown[0]}")
+        raise SuccessorError(f"DECISION_PATH_NOT_IN_SOURCES: {unknown[0]}")
     for path in dropped_paths:
         selected.pop(path, None)
+    for path in deleted_paths:
+        selected[path] = (
+            "human-reviewed-delete",
+            pathlib.Path(),
+            {"path": path, "operation": "delete", "sha256": None, "bytes": 0},
+        )
     return selected
 
 
@@ -153,6 +165,7 @@ def build_manifest(
     sources: list[tuple[str, pathlib.Path, dict[str, Any]]],
     selected: dict[str, tuple[str, pathlib.Path, dict[str, Any]]],
     dropped_paths: set[str],
+    deleted_paths: set[str],
     production_commit: str,
     production_oids: dict[str, str],
     production_contents: dict[str, bytes],
@@ -194,7 +207,8 @@ def build_manifest(
             "kind": "human-reviewed-conflict-successor",
             "sourceRunIds": [item[0] for item in sources],
             "droppedPaths": sorted(dropped_paths),
-            "pathDecision": "keep-current-delete",
+            "deletedPaths": sorted(deleted_paths),
+            "pathDecision": "explicit-per-path",
         },
         "files": files,
     }
@@ -250,6 +264,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-run", action="append", required=True)
     parser.add_argument("--drop-path", action="append", default=[])
+    parser.add_argument("--delete-path", action="append", default=[])
     parser.add_argument("--run-id", default=default_run_id())
     parser.add_argument("--state-root", type=pathlib.Path, default=local_state_root())
     parser.add_argument("--endpoint", default=cloudflare_ingest.DEFAULT_ENDPOINT)
@@ -262,7 +277,8 @@ def main() -> int:
         state_root = args.state_root.resolve()
         sources = load_sources(state_root, args.source_run)
         dropped_paths = {str(path) for path in args.drop_path}
-        selected = select_candidates(sources, dropped_paths)
+        deleted_paths = {str(path) for path in args.delete_path}
+        selected = select_candidates(sources, dropped_paths, deleted_paths)
         reject_partial_event_candidates(selected)
 
         repository = publish_data_via_api.repository_name()
@@ -303,6 +319,7 @@ def main() -> int:
             sources=sources,
             selected=selected,
             dropped_paths=dropped_paths,
+            deleted_paths=deleted_paths,
             production_commit=str(production_commit),
             production_oids=production_oids,
             production_contents=production_contents,
@@ -314,6 +331,7 @@ def main() -> int:
             "runId": args.run_id,
             "sourceRunIds": args.source_run,
             "droppedPaths": sorted(dropped_paths),
+            "deletedPaths": sorted(deleted_paths),
             "baseCommit": production_commit,
             "files": len(manifest["files"]),
             "bytes": sum(int(item.get("bytes") or 0) for item in manifest["files"]),

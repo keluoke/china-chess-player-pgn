@@ -63,6 +63,18 @@ class ReleaseConflictSuccessorTests(unittest.TestCase):
             with self.assertRaisesRegex(successor.SuccessorError, "PARTIAL_EVENT_CANDIDATE_FORBIDDEN"):
                 successor.reject_partial_event_candidates(selected)
 
+    def test_reviewed_partial_can_become_explicit_delete(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            path = "data/generated/chess-results-event-details/tnr1.json"
+            source = self.source(root, "20260819-100000-11111111", [
+                (path, {"captureStatus": "partial"}),
+            ])
+            selected = successor.select_candidates([source], set(), {path})
+            successor.reject_partial_event_candidates(selected)
+            self.assertEqual(selected[path][2]["operation"], "delete")
+            self.assertIsNone(successor.candidate_content(selected[path][1], selected[path][2]))
+
     def test_manifest_records_separate_production_and_shadow_baselines(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
@@ -77,6 +89,7 @@ class ReleaseConflictSuccessorTests(unittest.TestCase):
                 sources=[source],
                 selected=selected,
                 dropped_paths=set(),
+                deleted_paths=set(),
                 production_commit="b" * 40,
                 production_oids={path: "c" * 40},
                 production_contents={path: b"old"},
