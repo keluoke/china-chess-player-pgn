@@ -2719,9 +2719,10 @@ class StableJSONTests(unittest.TestCase):
             "scope": "test",
             "totals": {"playersWithGames": 9, "games": 10},
         }
-        first = build_public_metrics.enrich_index_manifest(index, metrics)
-        second = build_public_metrics.enrich_index_manifest(first, metrics)
+        first = build_public_metrics.enrich_index_manifest(index, metrics, snapshot="snap-current")
+        second = build_public_metrics.enrich_index_manifest(first, metrics, snapshot="snap-current")
         self.assertEqual(first, second)
+        self.assertEqual(second["snapshotId"], "snap-current")
         self.assertEqual(second["sourceTotals"], source_totals)
         self.assertEqual(second["totals"]["players"], 9)
         self.assertEqual(second["totals"]["games"], 10)
