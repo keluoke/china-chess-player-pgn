@@ -1,25 +1,98 @@
 {
   "schemaVersion": 1,
-  "runId": "20260821-124254-89061a42",
-  "command": "event-queue",
-  "createdAt": "2026-08-21T04:43:49+00:00",
-  "baseCommit": "dce95b9eb0fa3808f6f19a28da1de17012d7e856",
+  "runId": "20260824-102905-be7aa9ec",
+  "command": "conflict-successor",
+  "baseCommit": "f1a4d3d5f7168e7c52cc3a89894dd17bf56f7d25",
+  "createdAt": "2026-08-24T10:30:29+00:00",
   "source": {
-    "source": "Chess-Results",
-    "releasePolicy": "full-data",
-    "sourceURL": "https://chess-results.com/"
+    "source": "Lichess Broadcasts",
+    "releasePolicy": "cc-by-sa-4.0",
+    "license": "Creative Commons Attribution-ShareAlike 4.0",
+    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "attributionURL": "https://database.lichess.org/"
+  },
+  "resolution": {
+    "kind": "human-reviewed-conflict-successor",
+    "sourceRunIds": [
+      "20260824-173414-f44d5fdb"
+    ],
+    "droppedPaths": [],
+    "deletedPaths": [],
+    "pathDecision": "explicit-per-path"
   },
   "files": [
     {
-      "path": "data/generated/r2-object-receipts/events--chess-results.json",
+      "path": "docs/data/bulk/lichess-broadcast/manifest.json",
       "operation": "upsert",
-      "sha256": "b41b3cea767d4d19ce81f782690a3e2e220d75b04190a8bc84b3ddd78e6ea80b",
-      "bytes": 3567292,
-      "baseBlobOid": "c39dc8f1e7babc8705ee05e3c3c24cc7008fede6",
-      "baseSha256": "69da43880c417618ea7d4da8d942494d183df83f9025240274128bda34e0a3f5",
-      "deliveryBaseBlobOid": "ded7d0b73b89a354843b886b98ad36364d718f31",
-      "deliveryBaseSha256": "7511bf0efecf322a33d565c7e4783817891fd4588c069b4735e1ec94f0e3d133"
+      "sha256": "7a9488e0229eafdf41fbb0ede19dec458851a158f0d55611868f4f48fd460df0",
+      "bytes": 42554,
+      "baseBlobOid": "0c845e9a8e452f48e34c69cf674b10649c2e6284",
+      "baseSha256": "12c8d320a2ef6b8c94fd3816c8584b494295ae2dbe70b9f3ec56ab4693042784",
+      "shadowBaseSha256": "12c8d320a2ef6b8c94fd3816c8584b494295ae2dbe70b9f3ec56ab4693042784",
+      "sourceRunId": "20260824-173414-f44d5fdb",
+      "deliveryBaseBlobOid": "0c845e9a8e452f48e34c69cf674b10649c2e6284",
+      "deliveryBaseSha256": "12c8d320a2ef6b8c94fd3816c8584b494295ae2dbe70b9f3ec56ab4693042784"
+    },
+    {
+      "path": "docs/data/bulk/lichess-events/manifest.json",
+      "operation": "upsert",
+      "sha256": "dc8f60488937a319354f3d6cabff8945df8b431ba76106cc01a486144e812117",
+      "bytes": 72024,
+      "baseBlobOid": "1bc11d13510713e130efab1ee13d6b10d79e748a",
+      "baseSha256": "4c570e21978ba1b72c376eb6b5117b2dad8c8ca3246c8540ccec0899b9bbd5de",
+      "shadowBaseSha256": "4c570e21978ba1b72c376eb6b5117b2dad8c8ca3246c8540ccec0899b9bbd5de",
+      "sourceRunId": "20260824-173414-f44d5fdb",
+      "deliveryBaseBlobOid": "1bc11d13510713e130efab1ee13d6b10d79e748a",
+      "deliveryBaseSha256": "4c570e21978ba1b72c376eb6b5117b2dad8c8ca3246c8540ccec0899b9bbd5de"
+    },
+    {
+      "path": "docs/data/bulk/lichess-events/pgn/tnr1234781.pgn",
+      "operation": "upsert",
+      "sha256": "2c2b8da8056bd839c37856074aa0459acf98829796f34b86d7859f450b842952",
+      "bytes": 2225265,
+      "baseBlobOid": null,
+      "baseSha256": null,
+      "shadowBaseSha256": null,
+      "sourceRunId": "20260824-173414-f44d5fdb",
+      "deliveryBaseBlobOid": null,
+      "deliveryBaseSha256": null
+    },
+    {
+      "path": "docs/data/bulk/lichess-events/pgn/tnr859400.pgn",
+      "operation": "upsert",
+      "sha256": "c7d20f45a85cfdc049ec2394c4528e70bbd25d084f10fd8899434fe2d1733384",
+      "bytes": 345315,
+      "baseBlobOid": null,
+      "baseSha256": null,
+      "shadowBaseSha256": null,
+      "sourceRunId": "20260824-173414-f44d5fdb",
+      "deliveryBaseBlobOid": null,
+      "deliveryBaseSha256": null
+    },
+    {
+      "path": "docs/data/bulk/lichess-events/pgn/tnr859409.pgn",
+      "operation": "upsert",
+      "sha256": "e74ca4d6999c56404a0023c9172c002b8c37593a7c4fc97f691217430671a588",
+      "bytes": 361860,
+      "baseBlobOid": null,
+      "baseSha256": null,
+      "shadowBaseSha256": null,
+      "sourceRunId": "20260824-173414-f44d5fdb",
+      "deliveryBaseBlobOid": null,
+      "deliveryBaseSha256": null
+    },
+    {
+      "path": "docs/data/bulk/manifest.json",
+      "operation": "upsert",
+      "sha256": "7a9488e0229eafdf41fbb0ede19dec458851a158f0d55611868f4f48fd460df0",
+      "bytes": 42554,
+      "baseBlobOid": "0c845e9a8e452f48e34c69cf674b10649c2e6284",
+      "baseSha256": "12c8d320a2ef6b8c94fd3816c8584b494295ae2dbe70b9f3ec56ab4693042784",
+      "shadowBaseSha256": "12c8d320a2ef6b8c94fd3816c8584b494295ae2dbe70b9f3ec56ab4693042784",
+      "sourceRunId": "20260824-173414-f44d5fdb",
+      "deliveryBaseBlobOid": "0c845e9a8e452f48e34c69cf674b10649c2e6284",
+      "deliveryBaseSha256": "12c8d320a2ef6b8c94fd3816c8584b494295ae2dbe70b9f3ec56ab4693042784"
     }
   ],
-  "deliveryBaseCommit": "f86f0843b281c0911171f73bfdb5aa82d8598d2c"
+  "deliveryBaseCommit": "f1a4d3d5f7168e7c52cc3a89894dd17bf56f7d25"
 }
