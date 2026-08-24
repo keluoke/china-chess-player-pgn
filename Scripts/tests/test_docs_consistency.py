@@ -19,7 +19,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 # Keep in sync with the refresh.sh command router.
 SAFE_COMMANDS = {
     "health", "all", "registry", "event-queue", "discover-events", "candidates",
-    "bulk", "bulk-full", "publish", "deliver", "receipts", "reindex",
+    "bulk", "bulk-full", "bulk-reindex", "publish", "deliver", "receipts", "reindex",
     "recover-events", "storage-migrate", "shadow-publish", "shadow-deliver", "help",
 }
 RETIRED_COMMANDS = {
@@ -52,6 +52,14 @@ class RefreshCommandContractTests(unittest.TestCase):
         self.assertIn('recovery-list --repo "$REPO_ROOT"', refresh)
         self.assertIn('--file-list "$file_list"', refresh)
         self.assertIn('"data/pgn" "playerObjects"', refresh)
+
+    def test_lichess_offline_reindex_cannot_fetch_or_mirror(self) -> None:
+        refresh = (REPO / "Scripts" / "local" / "refresh.sh").read_text(encoding="utf-8")
+        block = re.search(r"run_lichess_reindex\(\) \{(.*?)\n\}", refresh, re.DOTALL)
+        self.assertIsNotNone(block)
+        self.assertIn("--offline-reindex --index-target-events", block.group(1))
+        self.assertNotIn("--mirror", block.group(1))
+        self.assertNotIn("--metadata-only", block.group(1))
 
     def test_every_documented_refresh_command_is_in_the_safe_whitelist(self) -> None:
         violations = []

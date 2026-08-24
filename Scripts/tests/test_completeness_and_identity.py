@@ -183,6 +183,29 @@ class ArchiveFirstMatchingTest(unittest.TestCase):
         queue = ccr.supplement_queue([report], leads={})
         self.assertEqual(queue[0]["nextAction"], "offline-rematch-lichess-residual")
 
+    def test_incomplete_lichess_residual_has_distinct_action(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Player, A", 2, "Player, B", has_pgn=False),
+        ]}]
+        payload = payload_with_rounds(rounds)
+        with mock.patch.object(ccr, "parse_event_archive", return_value=[]):
+            report = ccr.event_report(
+                payload,
+                by_player_games={},
+                lichess_status={
+                    "broadcastComplete": False,
+                    "linkedContainerGames": 1,
+                    "linkedContainerUnmatchedGames": 1,
+                    "linkedContainerIncompleteGames": 1,
+                },
+            )
+        self.assertFalse(report["lichessScopeVerified"])
+        self.assertEqual(report["counts"]["lichessIncompleteResidual"], 1)
+        self.assertEqual(
+            ccr.supplement_queue([report], leads={})[0]["nextAction"],
+            "review-incomplete-lichess-records",
+        )
+
 
 class NaturalKeyMatchingTest(unittest.TestCase):
     """§7.2: same names, reversed colors and different boards never mis-match."""

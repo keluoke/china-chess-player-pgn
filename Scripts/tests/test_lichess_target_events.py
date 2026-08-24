@@ -14,6 +14,32 @@ import sync_lichess_broadcast_bulk as lichess  # noqa: E402
 
 
 class LichessTargetEventTests(unittest.TestCase):
+    def test_offline_reindex_never_fetches_source_metadata(self) -> None:
+        with (
+            mock.patch.object(sys, "argv", ["sync", "--offline-reindex", "--index-target-events"]),
+            mock.patch.object(lichess, "load_local_broadcast_metadata", return_value=([], {})),
+            mock.patch.object(lichess, "fetch_broadcast_metadata", side_effect=AssertionError("network forbidden")),
+            mock.patch.object(lichess, "enrich_local_shards"),
+            mock.patch.object(lichess, "write_bulk_manifest"),
+            mock.patch.object(lichess, "build_target_event_archives", return_value={"targetEvents": 0}),
+        ):
+            self.assertEqual(lichess.main(), 0)
+
+    def test_target_player_key_accepts_reordered_name_with_trailing_initial(self) -> None:
+        self.assertEqual(
+            lichess.target_player_key("Dhanush, Ram M", allow_trailing_initial=True),
+            lichess.target_player_key("Ram Dhanush", allow_trailing_initial=True),
+        )
+        self.assertEqual(
+            lichess.target_player_key("Aswinika, Mani R", allow_trailing_initial=True),
+            lichess.target_player_key("Mani Aswinika", allow_trailing_initial=True),
+        )
+
+    def test_target_result_requires_same_completed_result(self) -> None:
+        self.assertTrue(lichess.target_result_compatible("½ - ½", "1/2-1/2"))
+        self.assertFalse(lichess.target_result_compatible("1 - 0", "*"))
+        self.assertFalse(lichess.target_result_compatible("0 - 1", "1-0"))
+
     def test_skippable_zstd_preamble_is_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             path = pathlib.Path(temp) / "broadcast.pgn.zst"
@@ -131,6 +157,74 @@ class LichessTargetEventTests(unittest.TestCase):
         self.assertIn('[Source "Lichess Broadcasts"]', archive)
         self.assertIn('[License "CC BY-SA 4.0"]', archive)
         self.assertTrue(manifest["events"][0]["broadcastComplete"])
+
+    def test_incomplete_broadcast_record_is_preserved_as_residual(self) -> None:
+        detail = {
+            "players": [
+                {"playerNo": "1", "name": "Aswinika, Mani R"},
+                {"playerNo": "2", "name": "Olandag, Meghan Gabrielle"},
+                {"playerNo": "3", "name": "Player, Complete"},
+                {"playerNo": "4", "name": "Opponent, Complete"},
+            ],
+            "rounds": [{
+                "round": "1",
+                "pairings": [{
+                    "board": "11",
+                    "white": {"playerNo": "1", "name": "Aswinika, Mani R"},
+                    "black": {"playerNo": "2", "name": "Olandag, Meghan Gabrielle"},
+                    "result": "1 - 0",
+                }, {
+                    "board": "12",
+                    "white": {"playerNo": "3", "name": "Player, Complete"},
+                    "black": {"playerNo": "4", "name": "Opponent, Complete"},
+                    "result": "1 - 0",
+                }],
+            }],
+        }
+        incomplete_game = "\n".join([
+            '[Event "Round 1: Mani Aswinika - Meghan Gabrielle Olandag"]',
+            '[White "Mani Aswinika"]',
+            '[Black "Meghan Gabrielle Olandag"]',
+            '[Result "*"]',
+            '[BroadcastName "Asian Youth Chess Championships Test | G14"]',
+            "",
+            "*",
+        ])
+        complete_game = "\n".join([
+            '[Event "Round 1: Player, Complete - Opponent, Complete"]',
+            '[White "Player, Complete"]',
+            '[Black "Opponent, Complete"]',
+            '[Result "1-0"]',
+            '[BroadcastName "Asian Youth Chess Championships Test | G14"]',
+            "",
+            "1. e4 e5 1-0",
+        ])
+        with tempfile.TemporaryDirectory() as temp:
+            docs_data = pathlib.Path(temp)
+            shard_path = docs_data / "bulk" / "lichess-broadcast" / "shards" / "test.pgn.zst"
+            shard_path.parent.mkdir(parents=True)
+            shard_path.write_bytes(b"placeholder")
+            shard = lichess.BroadcastShard("2023-12", "", shard_path.name, "", 11, 1, "")
+            with (
+                mock.patch.object(lichess, "DOCS_DATA", docs_data),
+                mock.patch.object(lichess, "PUBLIC_DOCS_DATA", docs_data),
+                mock.patch.object(lichess, "EXISTING_SHARD_ROOT", shard_path.parent),
+                mock.patch.object(lichess, "LICHESS_EVENT_ROOT", docs_data / "bulk" / "lichess-events"),
+                mock.patch.object(lichess, "reviewed_offline_rematch_events", return_value={"999002"}),
+                mock.patch.object(lichess, "target_event_rows", return_value=[{
+                    "tournamentID": "999002", "series": "asian-youth",
+                    "name": "Asian Youth Chess Championships Test G14",
+                    "date": "2023-12-21", "year": "2023", "detail": detail,
+                }]),
+                mock.patch.object(lichess, "iter_zst_pgn_games", return_value=iter([complete_game, incomplete_game])),
+            ):
+                lichess.build_target_event_archives([shard], dry_run=False)
+                manifest = json.loads((docs_data / "bulk" / "lichess-events" / "manifest.json").read_text())
+        event = manifest["events"][0]
+        self.assertEqual(event["broadcastGames"], 1)
+        self.assertEqual(event["linkedContainerUnmatchedGames"], 1)
+        self.assertEqual(event["linkedContainerIncompleteGames"], 1)
+        self.assertFalse(event["broadcastComplete"])
 
 
 if __name__ == "__main__":

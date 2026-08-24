@@ -42,6 +42,7 @@ python3 -m http.server 4173 -d docs
 | `event-queue` / `candidates` | Chess-Results | 私有采集，不写人工层或公开数据 |
 | `registry` | FIDE | staging + last-good + registry/勘误校验 + manifest |
 | `bulk` | Lichess | 验证分片，保留 CC BY-SA 4.0 署名并按 manifest 发布 |
+| `bulk-reindex` | 本地 Lichess 分片 | 不访问来源，离线重建严格赛事投影并按 manifest 发布 |
 | `publish` / `deliver` | GitHub + 可选 Cloudflare 影子 | 推进不可变 outbox 和回执，不重新抓取 |
 
 ### 索引/部署类（GitHub Actions，自动）

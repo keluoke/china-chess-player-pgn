@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import codecs
+import csv
 import datetime as dt
 import hashlib
 import html.parser
@@ -42,6 +43,7 @@ REGISTRY_PLAYERS_JSON = PUBLIC_DOCS_DATA / "registry" / "players.json"
 MANUAL_ALIAS_CSV = REPO_ROOT / "data" / "manual" / "player-aliases.csv"
 EVENT_DETAILS_ROOT = REPO_ROOT / "data" / "generated" / "chess-results-event-details"
 PUBLIC_EVENTS_JSON = PUBLIC_DOCS_DATA / "index" / "public-events.json"
+OFFLINE_REMATCH_EVIDENCE = REPO_ROOT / "data" / "manual" / "offline-pgn-rematch-evidence.csv"
 DATABASE_URL = "https://database.lichess.org/"
 USER_AGENT = "ChinaChessPlayerPGNBulkSync/1.0"
 COMPETITION_YEAR = 2026
@@ -166,13 +168,18 @@ def main() -> int:
     parser.add_argument("--metadata-only", action="store_true", help="only refresh bulk manifests")
     parser.add_argument("--mirror", action="store_true", help="download .pgn.zst shards into docs/data/bulk")
     parser.add_argument("--index-youth", action="store_true", help="build per-age CHN PGN packs (U8-U18 + adult 19+) from mirrored shards")
+    parser.add_argument("--index-target-events", action="store_true", help="rebuild strict TNR event projections from mirrored shards")
+    parser.add_argument("--offline-reindex", action="store_true", help="reuse the verified local shard manifest without any source request")
     parser.add_argument("--max-shards", type=int, default=0, help="limit shards for mirror/index; 0 means all")
     parser.add_argument("--delay", type=float, default=0.2)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    all_shards, source_meta = fetch_broadcast_metadata()
+    if args.offline_reindex:
+        all_shards, source_meta = load_local_broadcast_metadata()
+    else:
+        all_shards, source_meta = fetch_broadcast_metadata()
     selected_shards = all_shards[: args.max_shards] if args.max_shards else all_shards
 
     if args.mirror:
@@ -185,6 +192,7 @@ def main() -> int:
     target_event_stats = None
     if args.index_youth:
         youth_stats = build_youth_index(selected_shards, args.dry_run)
+    if args.index_youth or args.index_target_events:
         target_event_stats = build_target_event_archives(selected_shards, args.dry_run)
     elif not args.dry_run and not (YOUTH_ROOT / "manifest.json").exists():
         write_empty_youth_manifest()
@@ -199,6 +207,40 @@ def main() -> int:
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
+
+
+def load_local_broadcast_metadata() -> tuple[list[BroadcastShard], dict[str, Any]]:
+    """Load the last verified shard inventory without touching the network."""
+    manifest_path = PUBLIC_DOCS_DATA / "bulk" / "lichess-broadcast" / "manifest.json"
+    manifest = read_json(manifest_path)
+    rows = manifest.get("shards") or []
+    sources = manifest.get("sources") or []
+    if not rows or not sources:
+        raise SystemExit("OFFLINE_LICHESS_MANIFEST_MISSING: verified shard inventory is empty")
+    source_meta = {
+        key: value
+        for key, value in sources[0].items()
+        if key not in {"shards", "games", "compressedBytesEstimated", "mirroredShards", "mirroredBytes"}
+    }
+    shards = [
+        BroadcastShard(
+            month=clean(row.get("month")),
+            url=clean(row.get("url")),
+            file_name=clean(row.get("fileName")),
+            size_text=clean(row.get("size")),
+            size_bytes=int(row.get("sizeBytes") or 0),
+            games=int(row.get("games") or 0),
+            calendar_url=clean(row.get("calendarURL")),
+            local_path=clean(row.get("path")),
+            sha256=clean(row.get("sha256")),
+            mirrored=bool(row.get("mirrored")),
+        )
+        for row in rows
+    ]
+    missing = [shard.file_name for shard in shards if shard.mirrored and not shard.shard_path.is_file()]
+    if missing:
+        raise SystemExit(f"OFFLINE_LICHESS_SHARD_MISSING: {', '.join(missing[:5])}")
+    return shards, source_meta
 
 
 def fetch_broadcast_metadata() -> tuple[list[BroadcastShard], dict[str, Any]]:
@@ -515,11 +557,35 @@ def target_event_rows() -> list[dict[str, Any]]:
     return sorted(result.values(), key=lambda item: (item["year"], item["tournamentID"]))
 
 
-def target_player_key(value: Any) -> str:
+def target_player_key(value: Any, *, allow_trailing_initial: bool = False) -> str:
     """Order-insensitive Latin token key, with domestic region suffix removed."""
     text = re.sub(r"\([^)]*\)", "", clean(value).casefold())
     tokens = re.findall(r"[0-9a-z\u4e00-\u9fff]+", text)
+    if allow_trailing_initial and len(tokens) >= 3:
+        tokens = [token for token in tokens if not re.fullmatch(r"[a-z]", token)]
     return "".join(sorted(tokens))
+
+
+def reviewed_offline_rematch_events() -> set[str]:
+    if not OFFLINE_REMATCH_EVIDENCE.is_file():
+        return set()
+    with OFFLINE_REMATCH_EVIDENCE.open(encoding="utf-8", newline="") as handle:
+        return {
+            clean(row.get("tournament_id"))
+            for row in csv.DictReader(handle)
+            if clean(row.get("tournament_id"))
+        }
+
+
+def completed_result(value: Any) -> str:
+    result = clean(value).replace(" ", "").replace("½-½", "1/2-1/2")
+    return result if result in {"1-0", "0-1", "1/2-1/2"} else ""
+
+
+def target_result_compatible(pairing_result: Any, broadcast_result: Any) -> bool:
+    expected = completed_result(pairing_result)
+    observed = completed_result(broadcast_result)
+    return bool(expected and observed and expected == observed)
 
 
 def target_round(value: Any) -> str:
@@ -624,8 +690,10 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
     rapid/standard events or repeated opponents.
     """
     events = target_event_rows()
+    reviewed_events = reviewed_offline_rematch_events()
     by_id: dict[tuple[str, str, tuple[str, str]], list[tuple[str, str]]] = {}
     by_name: dict[tuple[str, str, tuple[str, str]], list[tuple[str, str]]] = {}
+    by_relaxed_name: dict[tuple[str, str, tuple[str, str]], list[tuple[str, str]]] = {}
     event_meta: dict[str, dict[str, Any]] = {}
 
     for event in events:
@@ -656,6 +724,13 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
                     by_id.setdefault((event["year"], round_no, id_pair), []).append(ref)
                 if all(name_pair):
                     by_name.setdefault((event["year"], round_no, name_pair), []).append(ref)
+                    if event["tournamentID"] in reviewed_events:
+                        relaxed_pair = tuple(sorted((
+                            target_player_key(white.get("name"), allow_trailing_initial=True),
+                            target_player_key(black.get("name"), allow_trailing_initial=True),
+                        )))
+                        if all(relaxed_pair):
+                            by_relaxed_name.setdefault((event["year"], round_no, relaxed_pair), []).append(ref)
                 played += 1
         event_meta[event["tournamentID"]] = {
             **event,
@@ -667,12 +742,20 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
             "sourceShards": set(),
             "idMatches": 0,
             "nameMatches": 0,
+            "pairingResults": {},
         }
+        for round_row in detail.get("rounds", []):
+            round_no = target_round(round_row.get("round"))
+            for pairing in round_row.get("pairings", []):
+                board = clean(pairing.get("board"))
+                if round_no and board:
+                    event_meta[event["tournamentID"]]["pairingResults"][(round_no, board)] = clean(pairing.get("result"))
 
     ambiguous = 0
     scanned = 0
     container_games: dict[str, int] = {}
     container_matches: dict[str, int] = {}
+    container_incomplete: dict[str, int] = {}
     for shard in shards:
         if not shard.shard_path.exists() or shard.month[:4] not in {event["year"] for event in events}:
             continue
@@ -683,6 +766,8 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
             container = clean(headers.get("BroadcastName") or headers.get("Event"))
             if container:
                 container_games[container] = container_games.get(container, 0) + 1
+                if not completed_result(headers.get("Result")):
+                    container_incomplete[container] = container_incomplete.get(container, 0) + 1
             year = normalize_pgn_date(
                 headers.get("EventDate") or headers.get("Date") or headers.get("UTCDate") or ""
             )[:4] or shard.month[:4]
@@ -700,10 +785,25 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
             if not refs and all(name_pair):
                 refs = by_name.get((year, round_no, name_pair), [])
                 match_kind = "name"
+            if not refs:
+                relaxed_pair = tuple(sorted((
+                    target_player_key(headers.get("White"), allow_trailing_initial=True),
+                    target_player_key(headers.get("Black"), allow_trailing_initial=True),
+                )))
+                if all(relaxed_pair):
+                    refs = by_relaxed_name.get((year, round_no, relaxed_pair), [])
+                    match_kind = "name"
             refs = [
                 ref
                 for ref in dict.fromkeys(refs)
                 if compatible_target_broadcast(event_meta[ref[0]], headers)
+                and (
+                    ref[0] not in reviewed_events
+                    or target_result_compatible(
+                        event_meta[ref[0]]["pairingResults"].get((round_no, ref[1])),
+                        headers.get("Result"),
+                    )
+                )
             ]
             if len(refs) != 1:
                 ambiguous += int(len(refs) > 1)
@@ -728,11 +828,13 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
         games = meta.pop("games")
         hashes = meta.pop("gameHashes")
         matched_boards = meta.pop("matchedBoards")
+        meta.pop("pairingResults")
         broadcast_names = sorted(meta.pop("broadcastNames"))
         source_shards = sorted(meta.pop("sourceShards"))
         linked_container_games = sum(container_games.get(name, 0) for name in broadcast_names)
         linked_container_matches = sum(container_matches.get(name, 0) for name in broadcast_names)
         linked_container_unmatched = max(0, linked_container_games - linked_container_matches)
+        linked_container_incomplete = sum(container_incomplete.get(name, 0) for name in broadcast_names)
         path = LICHESS_EVENT_ROOT / "pgn" / f"tnr{tid}.pgn"
         if games and not dry_run:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -749,6 +851,7 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
             "linkedContainerGames": linked_container_games,
             "linkedContainerMatchedToTargetEvents": linked_container_matches,
             "linkedContainerUnmatchedGames": linked_container_unmatched,
+            "linkedContainerIncompleteGames": linked_container_incomplete,
             "broadcastComplete": bool(games) and linked_container_unmatched == 0,
             **({
                 "pgnPath": public_data_path(path),
@@ -778,6 +881,7 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
                 "games": container_games[name],
                 "matchedToTargetEvents": container_matches.get(name, 0),
                 "unmatchedGames": container_games[name] - container_matches.get(name, 0),
+                "incompleteGames": container_incomplete.get(name, 0),
             }
             for name in sorted({name for row in event_rows for name in row["broadcastNames"]})
         ],

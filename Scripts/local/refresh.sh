@@ -24,6 +24,7 @@
 #   candidates   Collect starting-rank name candidates privately for review.
 #   bulk         Mirror Lichess Broadcasts under CC BY-SA 4.0 and release.
 #   bulk-full    Same as bulk, force-refresh every selected shard.
+#   bulk-reindex Rebuild target-event projections from verified local shards; no source access.
 #   publish      Advance GitHub production delivery and opted-in Cloudflare shadow receipts.
 #   deliver      CLI-compatible alias of publish; never re-scrapes.
 #   receipts     Sync cloud ingest/rebuild/deploy receipts + online check.
@@ -713,6 +714,11 @@ BULK_PATHS=(
   "docs/data/bulk/youth"
   "docs/data/bulk/lichess-events"
 )
+LICHESS_REINDEX_PATHS=(
+  "docs/data/bulk/manifest.json"
+  "docs/data/bulk/lichess-broadcast/manifest.json"
+  "docs/data/bulk/lichess-events"
+)
 EVENT_PATHS=(
   "data/generated/chess-results-event-details"
   "data/generated/chess-results-event-pgn"
@@ -964,6 +970,25 @@ run_lichess() {
   prepare_release bulk "${BULK_PATHS[@]}" || return $?
 }
 
+run_lichess_reindex() {
+  [ "${#EXTRA[@]}" -eq 0 ] || fail "UNSAFE_ARGUMENT_BLOCKED" "bulk-reindex 不接受额外参数。"
+  preflight_release "${LICHESS_REINDEX_PATHS[@]}" || return $?
+  ensure_pymod zstandard || command -v zstd >/dev/null 2>&1 || fail "DEPENDENCY_INSTALL_FAILED" "缺少 zstandard/zstd。"
+  local staging="$RUN_DIR/staging/lichess-offline/docs-data"
+  rm -rf "$staging" || return $?
+  mkdir -p "$staging/bulk" || return $?
+  export CHINA_CHESS_DOCS_DATA_OUTPUT="$staging"
+  state "offline-reindex" "仅从已验证本地 Lichess 分片重建赛事投影；不访问任何来源"
+  py_extra Scripts/sync_lichess_broadcast_bulk.py \
+    --offline-reindex --index-target-events || return $?
+  state "promoting" "晋升带 CC BY-SA 4.0 元数据的离线重匹配结果"
+  py "$RUN_MANAGER" promote --repo "$REPO_ROOT" --run-dir "$RUN_DIR" \
+    --file "$staging/bulk/manifest.json::docs/data/bulk/manifest.json" \
+    --file "$staging/bulk/lichess-broadcast/manifest.json::docs/data/bulk/lichess-broadcast/manifest.json" \
+    --tree "$staging/bulk/lichess-events::docs/data/bulk/lichess-events" || return $?
+  prepare_release bulk-reindex "${LICHESS_REINDEX_PATHS[@]}" || return $?
+}
+
 registry_due() {
   python3 - "docs/data/registry/manifest.json" <<'PY'
 import datetime as dt, json, pathlib, sys
@@ -1049,6 +1074,11 @@ case "$command" in
   bulk-full)
     run_lichess true
     commit_prepared_release "Release refreshed Lichess CC BY-SA broadcast data (local manifest)" || fail "GIT_PUSH_FAILED" "Lichess 发布提交成功，但推送失败。"
+    ;;
+
+  bulk-reindex)
+    run_lichess_reindex
+    commit_prepared_release "Release offline Lichess event rematch (local manifest)" || fail "GIT_PUSH_FAILED" "Lichess 离线重匹配已形成发布包，但推送失败。"
     ;;
 
   all)

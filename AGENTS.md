@@ -114,6 +114,8 @@
    使用 `refresh.sh health`；按 FIDE ID 发现最近赛事使用 `refresh.sh discover-events`
    （只写仓库外私有候选池，不抓赛事详情、不发布）；私有赛事采集使用
    `refresh.sh event-queue -- <tnr-or-url>`；
+   已验证本地 Lichess 分片的赛事投影离线重放使用 `refresh.sh bulk-reindex`
+   （禁止访问来源，只走 staging/manifest/outbox）；
    发布推进使用 `refresh.sh publish`（`deliver` 仅为命令行兼容别名）。
    `targeted_capture_panel.py`、`targeted_series_capture.py`、`import_event_list.py`
    及仓库内 `local-data-center` 第二控制面已退役并删除；采集面板唯一入口是

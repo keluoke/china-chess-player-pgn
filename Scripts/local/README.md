@@ -126,6 +126,8 @@ bash Scripts/local/refresh.sh candidates -- --tournament-id 1110333
 # 投影和 lichess-events 投影，不发布本地月度 .pgn.zst 原档。
 bash Scripts/local/refresh.sh bulk
 bash Scripts/local/refresh.sh bulk-full
+# 仅重放已验证本地分片，不访问 Lichess；用于严格赛事投影离线重匹配
+bash Scripts/local/refresh.sh bulk-reindex
 
 # 推进 GitHub 生产投递和已显式启用的 Cloudflare 影子回执，不重新抓取
 bash Scripts/local/refresh.sh publish

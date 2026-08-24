@@ -682,10 +682,13 @@ def event_report(
     lichess_games = [game for game in archive_games if clean(game.get("source")) == "Lichess Broadcasts"]
     fide_event_games = [game for game in archive_games if clean(game.get("source")) == "FIDE Event Report"]
     lichess_residual = int(lichess_status.get("linkedContainerUnmatchedGames") or 0)
+    lichess_incomplete = int(lichess_status.get("linkedContainerIncompleteGames") or 0)
+    lichess_container_games = int(lichess_status.get("linkedContainerGames") or 0)
     lichess_scope_verified = (
-        not lichess_games
+        not lichess_games and lichess_container_games == 0
         or (
-            lichess_status.get("broadcastComplete") is True
+            bool(lichess_games)
+            and lichess_status.get("broadcastComplete") is True
             and lichess_residual == 0
         )
     )
@@ -940,6 +943,7 @@ def event_report(
             "advertisedPGN": len(advertised_keys),
             "lichessBroadcastGames": len(lichess_games),
             "lichessUnmatchedResidual": lichess_residual,
+            "lichessIncompleteResidual": lichess_incomplete,
             "archivedGames": len(archive_games),
             "matchedPairings": matched,
             "localGameFingerprints": len(local_fingerprints),
@@ -969,7 +973,10 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
         if counts.get("unresolvedPairings"):
             priority, action = "P0", "repair-pairing-player-numbers"
         elif counts.get("lichessUnmatchedResidual"):
-            priority, action = "P0", "offline-rematch-lichess-residual"
+            if counts.get("lichessIncompleteResidual") == counts.get("lichessUnmatchedResidual"):
+                priority, action = "P0", "review-incomplete-lichess-records"
+            else:
+                priority, action = "P0", "offline-rematch-lichess-residual"
         elif counts.get("lichessBroadcastGames") and report.get("lichessScopeVerified") is False:
             priority, action = "P0", "audit-lichess-broadcast-scope"
         elif archive in ("archived-unmatched", "matched-partial"):
