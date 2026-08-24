@@ -317,12 +317,15 @@ def add_game(
             # checked-in source asset intact, but do not project an unresolved
             # game into a player's canonical package.
             return
-        else:
+        elif white_id and black_id:
             raise RuntimeError(
                 "CANONICAL_STATIC_PGN_PLAYER_HINT_MISMATCH: "
                 f"{repo_path(asset_path)} game {game_index}: hinted {hinted} "
                 f"does not match resolved players {white_id or '-'} / {black_id or '-'}"
             )
+        # With only one independently resolved side, the filename may refer to
+        # the still-unresolved opponent.  Do not infer that association and do
+        # not discard the confirmed side's game link.
     player_ids = sorted({value for value in (white_id, black_id) if value in registry})
     # Verified event-level archives also serve public event playback for two
     # unlinked/no-FIDE players.  Keep those canonical game facts explicitly

@@ -193,6 +193,31 @@ class CanonicalPlayerFactTest(unittest.TestCase):
         )
         self.assertEqual(games, {})
 
+    def test_filename_hint_does_not_override_single_resolved_side(self):
+        registry = {
+            "1001": {"fideID": "1001", "name": "Alpha, One"},
+            "1003": {"fideID": "1003", "name": "Gamma, Three"},
+        }
+        games = {}
+        partial = PGN.replace('[Black "Beta, Two"]', '[Black "??,  "]') \
+            .replace('[BlackFideId "1002"]\n', '')
+        bpf.add_game(
+            games,
+            game=partial,
+            asset_path=pathlib.Path("docs/data/pgn/fide-1003.pgn"),
+            game_index=0,
+            source_kind="canonical-static-pgn",
+            source_label="Static PGN",
+            registry=registry,
+            names={},
+            contexts={},
+            player_hint="1003",
+        )
+        fact = next(iter(games.values()))
+        self.assertEqual(fact["playerFideIDs"], ["1001"])
+        self.assertEqual(fact["whiteFideID"], "1001")
+        self.assertNotIn("blackFideID", fact)
+
     def test_player_package_bytes_are_cold_warm_deterministic(self):
         with tempfile.TemporaryDirectory() as directory:
             docs_data = pathlib.Path(directory) / "docs/data"
