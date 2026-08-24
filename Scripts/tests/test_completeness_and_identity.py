@@ -290,6 +290,28 @@ class PlayedGameDenominatorTest(unittest.TestCase):
         self.assertEqual(report["gates"]["pairings"]["status"], "complete")
         self.assertEqual(report["resultsStatus"], "results-complete")
 
+    def test_missing_whole_board_is_partial_against_independent_roster(self):
+        players = [
+            {"playerNo": str(number), "name": f"Player {number}"}
+            for number in range(1, 5)
+        ]
+        payload = payload_with_rounds([{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Player 1", 2, "Player 2", has_pgn=False),
+        ]}], players=players)
+        with mock.patch.object(ccr, "parse_event_archive", return_value=[]):
+            report = ccr.event_report(payload, by_player_games={})
+        gate = report["gates"]["pairings"]
+        self.assertEqual((gate["expected"], gate["actualNonBye"]), (2, 1))
+        self.assertEqual(gate["unexplainedMissing"], 1)
+        self.assertEqual(gate["status"], "partial")
+        self.assertEqual(report["resultsStatus"], "partial")
+
+    def test_unprovable_expected_pairings_stays_unknown(self):
+        payload = payload_with_rounds([], players=[], standings=[], round_count=0)
+        report = ccr.event_report(payload, by_player_games={})
+        self.assertIsNone(report["gates"]["pairings"]["expected"])
+        self.assertEqual(report["gates"]["pairings"]["status"], "unknown")
+
 
 class RequiredFactInputTest(unittest.TestCase):
     def test_invalid_required_json_fails_loudly(self):
@@ -332,6 +354,48 @@ class SnapshotConsistencyTest(unittest.TestCase):
         (docs / "data" / "index").mkdir(parents=True)
         (docs / "data" / "index" / "manifest.json").write_text(json.dumps({"snapshotId": ids[0]}))
         (docs / "data").joinpath("snapshot.json").write_text(json.dumps({"snapshotId": ids[1]}))
+        registry = docs / "data" / "registry"
+        registry.mkdir()
+        (registry / "players.json").write_text("[]", encoding="utf-8")
+
+        fact_refs = {}
+        for folder, kind, key in (
+            ("player-event-facts", "player-event-facts", "playerEvents"),
+            ("player-game-facts", "player-game-facts", "playerGames"),
+        ):
+            fact_root = root / "data" / "generated" / folder
+            fact_root.mkdir(parents=True)
+            data = fact_root / "facts.json"
+            data.write_text(json.dumps({"snapshotId": ids[0], "facts": []}), encoding="utf-8")
+            manifest = fact_root / "manifest.json"
+            manifest.write_text(json.dumps({
+                "snapshotId": ids[0], "kind": kind, "dataFile": "facts.json",
+                "dataSha256": __import__("hashlib").sha256(data.read_bytes()).hexdigest(),
+                "rows": 0,
+            }), encoding="utf-8")
+            fact_refs[key] = {
+                "sha256": __import__("hashlib").sha256(manifest.read_bytes()).hexdigest(),
+                "snapshotId": ids[0], "rows": 0,
+            }
+
+        by_player = docs / "data" / "index" / "by-player"
+        by_player.mkdir()
+        (by_player / "manifest.json").write_text(json.dumps({
+            "snapshotId": ids[0], "totals": {"players": 0, "games": 0},
+            "factInputs": fact_refs,
+        }), encoding="utf-8")
+        (by_player / "players.json").write_text("[]", encoding="utf-8")
+        participation = docs / "data" / "index" / "player-participation"
+        participation.mkdir()
+        (participation / "manifest.json").write_text(json.dumps({
+            "snapshotId": ids[0], "factInputs": {"playerEvents": fact_refs["playerEvents"]},
+        }), encoding="utf-8")
+        api = docs / "api" / "v1"
+        api.mkdir(parents=True)
+        (api / "manifest.json").write_text(json.dumps({
+            "snapshotId": ids[0], "totals": {"withGameData": 0, "games": 0},
+            "factInputs": fact_refs,
+        }), encoding="utf-8")
         return tmp, root, docs
 
     def test_mismatch_fails(self):
@@ -346,13 +410,23 @@ class SnapshotConsistencyTest(unittest.TestCase):
              mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
             self.assertEqual(vsc.main(), 0)
 
+    def test_missing_required_fact_manifest_fails(self):
+        tmp, root, docs = self._docs_tree(["snap-A", "snap-A"])
+        (root / "data/generated/player-game-facts/manifest.json").unlink()
+        with tmp, mock.patch.object(vsc, "ROOT", root), mock.patch.object(vsc, "DOCS", docs), \
+             mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
+            self.assertEqual(vsc.main(), 1)
+
     def test_published_event_missing_from_catalog_fails(self):
         tmp, root, docs = self._docs_tree(["snap-A", "snap-A"])
         details = docs / "data" / "index" / "event-details"
         details.mkdir()
         (details / "manifest.json").write_text(json.dumps({
             "snapshotId": "snap-A",
-            "events": [{"tournamentID": "1437533"}],
+            "events": [{
+                "tournamentID": "1437533",
+                "path": "data/index/event-details/tnr1437533.json",
+            }],
         }))
         (docs / "data" / "index" / "public-events.json").write_text(json.dumps({
             "snapshotId": "snap-A",
@@ -368,15 +442,75 @@ class SnapshotConsistencyTest(unittest.TestCase):
         details.mkdir()
         (details / "manifest.json").write_text(json.dumps({
             "snapshotId": "snap-A",
-            "events": [{"tournamentID": "1437533"}],
+            "events": [{
+                "tournamentID": "1437533",
+                "path": "data/index/event-details/tnr1437533.json",
+            }],
         }))
         (docs / "data" / "index" / "public-events.json").write_text(json.dumps({
             "snapshotId": "snap-A",
-            "events": [{"id": "event:1437533", "tournamentID": "1437533"}],
+            "events": [{
+                "id": "event:1437533",
+                "tournamentID": "1437533",
+                "detailStatus": "published",
+                "detailPath": "data/index/event-details/tnr1437533.json",
+            }],
         }))
         with tmp, mock.patch.object(vsc, "ROOT", root), mock.patch.object(vsc, "DOCS", docs), \
              mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
             self.assertEqual(vsc.main(), 0)
+
+    def test_same_tnr_without_published_detail_path_fails(self):
+        tmp, root, docs = self._docs_tree(["snap-A", "snap-A"])
+        details = docs / "data" / "index" / "event-details"
+        details.mkdir()
+        path = "data/index/event-details/tnr58153.json"
+        (details / "manifest.json").write_text(json.dumps({
+            "snapshotId": "snap-A",
+            "events": [{"tournamentID": "58153", "path": path}],
+        }))
+        (docs / "data" / "index" / "public-events.json").write_text(json.dumps({
+            "snapshotId": "snap-A",
+            "events": [{
+                "id": "static-pgn:58153",
+                "tournamentID": "58153",
+                "detailStatus": "missing-detail",
+                "detailPath": None,
+            }],
+        }))
+        with tmp, mock.patch.object(vsc, "ROOT", root), mock.patch.object(vsc, "DOCS", docs), \
+             mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
+            self.assertEqual(vsc.main(), 1)
+
+    def test_duplicate_or_wrong_published_detail_path_fails(self):
+        tmp, root, docs = self._docs_tree(["snap-A", "snap-A"])
+        details = docs / "data" / "index" / "event-details"
+        details.mkdir()
+        expected = "data/index/event-details/tnr58153.json"
+        (details / "manifest.json").write_text(json.dumps({
+            "snapshotId": "snap-A",
+            "events": [{"tournamentID": "58153", "path": expected}],
+        }))
+        (docs / "data" / "index" / "public-events.json").write_text(json.dumps({
+            "snapshotId": "snap-A",
+            "events": [
+                {
+                    "id": "chess-results:58153",
+                    "tournamentID": "58153",
+                    "detailStatus": "published",
+                    "detailPath": expected,
+                },
+                {
+                    "id": "static-pgn:58153",
+                    "tournamentID": "58153",
+                    "detailStatus": "published",
+                    "detailPath": "data/index/event-details/static-58153.json",
+                },
+            ],
+        }))
+        with tmp, mock.patch.object(vsc, "ROOT", root), mock.patch.object(vsc, "DOCS", docs), \
+             mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-A"}):
+            self.assertEqual(vsc.main(), 1)
 
     def test_failed_snapshot_gate_restores_previous_snapshot_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -457,23 +591,22 @@ class PublicEventArchiveTest(unittest.TestCase):
     def test_verified_archive_creates_no_fide_game_reference(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            archive_root = root / "event-pgn"
-            archive_root.mkdir()
-            archive = archive_root / "tnr999001.pgn"
-            archive.write_text(
-                '[Event "Example"]\n[Round "1"]\n[Board "2"]\n'
-                '[White "张三"]\n[Black "李四"]\n[Result "1-0"]\n\n1. e4 e5 1-0\n',
-                encoding="utf-8",
-            )
-            digest = __import__("hashlib").sha256(archive.read_bytes()).hexdigest()
-            receipt = root / "receipt.json"
-            receipt.write_text(json.dumps({"objects": [{
-                "key": "events/chess-results/tnr999001.pgn",
-                "sha256": digest,
-                "publicURL": "https://data.example/events/chess-results/tnr999001.pgn",
+            data = root / "facts.json"
+            digest = "a" * 64
+            data.write_text(json.dumps({"snapshotId": "snap-facts", "facts": [{
+                "id": "game-1", "tournamentID": "999001", "round": "1", "board": "2",
+                "white": "张三", "black": "李四", "result": "1-0",
+                "publicPgnPath": f"api/event-pgn?tnr=999001&sha={digest[:16]}",
+                "gameIndex": 0, "gameSha256": digest, "playerFideIDs": [],
             }]}), encoding="utf-8")
-            with mock.patch.object(bed, "EVENT_PGN", archive_root), \
-                 mock.patch.object(bed, "EVENT_PGN_RECEIPT", receipt):
+            manifest = root / "manifest.json"
+            manifest.write_text(json.dumps({
+                "snapshotId": "snap-facts", "kind": "player-game-facts",
+                "dataFile": "facts.json", "dataSha256": __import__("hashlib").sha256(data.read_bytes()).hexdigest(),
+                "rows": 1,
+            }), encoding="utf-8")
+            with mock.patch.object(bed, "PLAYER_GAME_FACTS", manifest), \
+                 mock.patch.dict("os.environ", {"SNAPSHOT_ID": "snap-facts"}):
                 lookup = bed.event_archive_game_lookup()
             game = lookup[("999001", "1", "2")]
             self.assertEqual(game["playerFideIDs"], [])

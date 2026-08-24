@@ -1069,23 +1069,33 @@ def outbox_update(run_id: str, status: str | None, remote_sha: str | None,
     delivery = read_json(entry / "delivery.json")
     if not delivery:
         raise RunManagerError("OUTBOX_ENTRY_MISSING", f"outbox 中没有 {run_id}")
+    timestamp = now()
     if status:
         if status not in OUTBOX_STATUSES:
             raise RunManagerError("OUTBOX_STATUS_INVALID", f"非法投递状态：{status}")
         delivery["status"] = status
+        # Receipt polls also update updatedAt. pushedAt is the stable anchor
+        # used to decide that an ingest event never appeared.
+        if status == "pushed":
+            delivery["pushedAt"] = timestamp
     if remote_sha:
         delivery["remoteSHA"] = remote_sha
     if route:
         delivery["route"] = route
     delivery["lastError"] = error or None
     delivery["attempts"] = int(delivery.get("attempts") or 0) + (1 if (error or status == "pushed") else 0)
-    delivery["updatedAt"] = now()
+    delivery["updatedAt"] = timestamp
     atomic_json(entry / "delivery.json", delivery)
     return delivery
 
 
 def prune_outbox(keep_delivered: int = 10) -> None:
-    delivered = [item for item in outbox_entries() if item.get("status") not in {"pending"}]
+    # Never delete an immutable bundle that is still waiting for one of the
+    # cloud receipts merely because newer releases arrived.
+    delivered = [
+        item for item in outbox_entries()
+        if item.get("status") in {"online-verified", "abandoned"}
+    ]
     delivered.sort(key=lambda item: str(item.get("updatedAt") or ""), reverse=True)
     for item in delivered[keep_delivered:]:
         shutil.rmtree(item["path"], ignore_errors=True)

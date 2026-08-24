@@ -9,7 +9,6 @@ available; they are never allowed to define whether a player participated.
 from __future__ import annotations
 
 import argparse
-import csv
 import datetime as dt
 import json
 import pathlib
@@ -17,14 +16,13 @@ from collections import defaultdict
 from typing import Any
 
 from build_event_catalog import TEST_NAME_RE, has_chinese_text
+from canonical_player_facts import PLAYER_EVENT_FACTS, load_fact_dataset, manifest_reference
 from snapshot_context import snapshot_id
 from stable_json import write_json
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-PLAYER_EVENTS = ROOT / "data/generated/chess-results-player-events.csv"
 PUBLIC_EVENTS = ROOT / "docs/data/index/public-events.json"
-PLAYER_DETAILS = ROOT / "docs/data/index/players"
 OUTPUT_ROOT = ROOT / "docs/data/index/player-participation"
 
 
@@ -47,91 +45,60 @@ def load_catalog(path: pathlib.Path) -> dict[str, dict[str, Any]]:
     }
 
 
-def load_pgn_coverage(root: pathlib.Path) -> dict[tuple[str, str], int]:
-    coverage: dict[tuple[str, str], int] = {}
-    if not root.is_dir():
-        return coverage
-    payloads: list[tuple[dict[str, Any], str]] = []
-    bucket_root = root.parent / "player-buckets"
-    bucket_files = sorted(bucket_root.glob("*.json")) if bucket_root.is_dir() else []
-    for path in bucket_files:
-        try:
-            bucket = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        payloads.extend((payload, fide_id) for fide_id, payload in (bucket.get("players") or {}).items())
-    if not bucket_files:
-        for path in root.glob("fide-*.json"):
-            try:
-                payloads.append((json.loads(path.read_text(encoding="utf-8")), path.stem.removeprefix("fide-")))
-            except (OSError, json.JSONDecodeError):
-                continue
-    for payload, fallback_id in payloads:
-        fide_id = clean(payload.get("fideID")) or fallback_id
-        for event in payload.get("events", []) or []:
-            tournament_id = clean(event.get("tournamentID"))
-            if not tournament_id:
-                continue
-            key = (fide_id, tournament_id)
-            coverage[key] = max(coverage.get(key, 0), int(event.get("gameCount") or 0))
-    return coverage
-
-
 def build_rows(
-    player_events_path: pathlib.Path,
+    event_facts: list[dict[str, Any]],
     catalog_path: pathlib.Path,
-    player_details_root: pathlib.Path,
 ) -> dict[str, list[dict[str, Any]]]:
     catalog = load_catalog(catalog_path)
-    pgn_coverage = load_pgn_coverage(player_details_root)
     today = dt.date.today().isoformat()
     by_player: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
-    with player_events_path.open("r", encoding="utf-8-sig", newline="") as handle:
-        for raw in csv.DictReader(handle):
-            fide_id = clean(raw.get("fide_id"))
-            tournament_id = clean(raw.get("tnrid"))
-            if not fide_id.isdigit() or not tournament_id:
-                continue
-            catalog_event = catalog.get(tournament_id, {})
-            # The public player history follows the curated event catalog.
-            # Raw player-search rows are often duplicated/truncated English
-            # source titles and may include parser tests; they remain evidence
-            # inputs but never become frontend rows on their own.
-            if not catalog_event:
-                continue
-            game_count = pgn_coverage.get((fide_id, tournament_id), 0)
-            event_id = clean(catalog_event.get("id"))
-            name = clean(
-                catalog_event.get("chineseName")
-                or catalog_event.get("displayName")
-                or catalog_event.get("name")
-            ) or "未命名赛事"
-            if TEST_NAME_RE.search(name) or not has_chinese_text(name):
-                continue
-            event_date = clean(catalog_event.get("date") or raw.get("end_date"))
-            row = {
-                **({"id": event_id} if event_id else {}),
-                "tournamentID": tournament_id,
-                "name": name,
-                "date": event_date,
-                "rank": clean(raw.get("rank")),
-                "rounds": clean(raw.get("rounds")),
-                "participants": clean(raw.get("participants")),
-                "resultStatus": "scheduled" if event_date and event_date > today else "recorded",
-                "pgnStatus": "available" if game_count else "not-archived",
-                "gameCount": game_count,
-                "cataloged": bool(event_id),
-            }
-            existing = by_player[fide_id].get(tournament_id)
-            if existing is None or sum(bool(v) for v in row.values()) > sum(bool(v) for v in existing.values()):
-                by_player[fide_id][tournament_id] = row
+    for fact in event_facts:
+        fide_id = clean(fact.get("fideID"))
+        tournament_id = clean(fact.get("tournamentID"))
+        if not fide_id.isdigit() or not tournament_id:
+            continue
+        catalog_event = catalog.get(tournament_id, {})
+        # Facts remain internal until the curated public catalog admits the
+        # event.  No raw crawler CSV or previous by-player projection is read.
+        if not catalog_event:
+            continue
+        game_count = int(fact.get("gameCount") or 0)
+        event_id = clean(catalog_event.get("id"))
+        name = clean(
+            catalog_event.get("chineseName")
+            or catalog_event.get("displayName")
+            or catalog_event.get("name")
+        ) or "未命名赛事"
+        if TEST_NAME_RE.search(name) or not has_chinese_text(name):
+            continue
+        event_date = clean(catalog_event.get("date") or fact.get("date"))
+        row = {
+            **({"id": event_id} if event_id else {}),
+            "tournamentID": tournament_id,
+            "name": name,
+            "date": event_date,
+            "rank": clean(fact.get("rank")),
+            "rounds": clean(fact.get("rounds")),
+            "participants": clean(fact.get("participants")),
+            "resultStatus": "scheduled" if event_date and event_date > today else "recorded",
+            "pgnStatus": "available" if game_count else "not-archived",
+            "gameCount": game_count,
+            "cataloged": bool(event_id),
+        }
+        existing = by_player[fide_id].get(tournament_id)
+        if existing is None or sum(bool(v) for v in row.values()) > sum(bool(v) for v in existing.values()):
+            by_player[fide_id][tournament_id] = row
     return {
         fide_id: sorted(events.values(), key=lambda row: (row.get("date", ""), row["tournamentID"]), reverse=True)
         for fide_id, events in by_player.items()
     }
 
 
-def write_output(rows: dict[str, list[dict[str, Any]]], output_root: pathlib.Path) -> None:
+def write_output(
+    rows: dict[str, list[dict[str, Any]]],
+    output_root: pathlib.Path,
+    fact_input: dict[str, Any] | None = None,
+) -> None:
     sid = snapshot_id()
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     buckets: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(dict)
@@ -158,6 +125,7 @@ def write_output(rows: dict[str, list[dict[str, Any]]], output_root: pathlib.Pat
         "generatedAt": generated_at,
         "storage": {"buckets": "data/index/player-participation/buckets/{bucket}.json"},
         "bucketRule": "integer FIDE ID modulo 256, lower-case hex",
+        **({"factInputs": {"playerEvents": fact_input}} if fact_input else {}),
         "totals": {
             "players": len(rows),
             "participations": sum(len(events) for events in rows.values()),
@@ -168,15 +136,13 @@ def write_output(rows: dict[str, list[dict[str, Any]]], output_root: pathlib.Pat
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--player-events", type=pathlib.Path, default=PLAYER_EVENTS)
+    parser.add_argument("--player-event-facts", type=pathlib.Path, default=PLAYER_EVENT_FACTS)
     parser.add_argument("--public-events", type=pathlib.Path, default=PUBLIC_EVENTS)
-    parser.add_argument("--player-details", type=pathlib.Path, default=PLAYER_DETAILS)
     parser.add_argument("--output-root", type=pathlib.Path, default=OUTPUT_ROOT)
     args = parser.parse_args()
-    if not args.player_events.is_file():
-        raise SystemExit(f"missing player-event facts: {args.player_events}")
-    rows = build_rows(args.player_events, args.public_events, args.player_details)
-    write_output(rows, args.output_root)
+    facts, manifest = load_fact_dataset(args.player_event_facts, "player-event-facts")
+    rows = build_rows(facts, args.public_events)
+    write_output(rows, args.output_root, manifest_reference(args.player_event_facts, manifest))
     print(json.dumps({"players": len(rows), "participations": sum(map(len, rows.values()))}, ensure_ascii=False))
     return 0
 

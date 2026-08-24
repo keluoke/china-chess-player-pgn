@@ -13,6 +13,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Reject tracked raw HTML/WARC evidence
+        run: python3 Scripts/validate_no_tracked_raw_evidence.py
+
       - name: Set up Python
         uses: ./.github/actions/setup-python-deps
         with:
@@ -61,14 +64,11 @@ jobs:
       - name: Reject scraped community payloads; validate target-only submissions
         run: python3 Scripts/validate_incoming.py
 
-      - name: Public manifests must share one metric contract
+      - name: Cold rebuild must produce one complete snapshot contract
         run: |
-          python3 Scripts/build_public_metrics.py
-          python3 Scripts/build_api.py
-          python3 Scripts/build_changelog.py
-          python3 Scripts/build_dashboard.py
-          python3 Scripts/build_master_series_summary.py
+          python3 Scripts/build_release_snapshot.py
           python3 Scripts/validate_public_metrics.py
+          python3 Scripts/validate_snapshot_consistency.py
 
       - name: Public surface must not expose raw club/school strings (minors)
         run: python3 Scripts/validate_public_privacy.py

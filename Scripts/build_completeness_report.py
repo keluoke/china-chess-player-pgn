@@ -25,12 +25,12 @@ import csv
 import datetime as dt
 import hashlib
 import json
-import os
 import pathlib
 import re
 from collections import defaultdict
 from typing import Any
 
+from canonical_player_facts import PLAYER_GAME_FACTS, load_fact_dataset, manifest_reference
 from stable_json import write_json
 
 try:
@@ -45,7 +45,6 @@ EVENT_PGN = ROOT / "data" / "generated" / "chess-results-event-pgn"
 LICHESS_EVENT_ROOT = ROOT / "docs" / "data" / "bulk" / "lichess-events"
 LICHESS_EVENT_PGN = LICHESS_EVENT_ROOT / "pgn"
 LICHESS_EVENT_MANIFEST = LICHESS_EVENT_ROOT / "manifest.json"
-BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
 OUTPUT = ROOT / "data" / "generated" / "event-completeness-report.json"
 QUEUE_OUTPUT = ROOT / "data" / "generated" / "pgn-supplement-queue.json"
 COLLECTION_STATUS = ROOT / "data" / "generated" / "pgn-collection-status.json"
@@ -337,21 +336,103 @@ def match_archive_games(
     }
 
 
-def by_player_game_index() -> dict[str, dict[tuple[str, tuple[str, str]], set[str]]]:
+def player_game_fact_index() -> tuple[dict[str, dict[tuple[str, tuple[str, str]], set[str]]], dict[str, Any]]:
+    """Index canonical current-snapshot game facts for archive recovery.
+
+    This is intentionally not a by-player fallback.  Missing or stale fact
+    manifests fail before completeness can reuse a previous projection.
+    """
     index: dict[str, dict[tuple[str, tuple[str, str]], set[str]]] = defaultdict(dict)
-    for path in sorted(BY_PLAYER.glob("fide-*.json")):
-        detail = read_json_required(path)
-        for game in detail.get("games", []) or []:
-            tid = clean(game.get("tournamentID"))
-            if not tid:
+    facts, manifest = load_fact_dataset(PLAYER_GAME_FACTS, "player-game-facts")
+    for game in facts:
+        tid = clean(game.get("tournamentID"))
+        if not tid:
+            continue
+        fingerprint = clean(game.get("fingerprint") or game.get("gameSha256") or game.get("id"))
+        key = (
+            round_number(game.get("round")),
+            tuple(sorted([normalize_name(game.get("white")), normalize_name(game.get("black"))])),
+        )
+        index[tid].setdefault(key, set()).add(fingerprint or f"fact:{tid}:{key}")
+    return index, manifest_reference(PLAYER_GAME_FACTS, manifest)
+
+
+def independent_pairing_expectation(payload: dict[str, Any]) -> dict[str, Any]:
+    """Expected non-bye boards from the independent roster page.
+
+    The starting list and round tables are captured separately.  For each
+    round the roster population, less players explicitly marked ``bye`` or
+    ``not paired``, yields the lower-bound board expectation.  ``floor(N/2)``
+    deliberately does not fail an odd roster merely because one player is
+    absent from the pairing rows.  Unknown roster/round-count evidence stays
+    unknown rather than being promoted to complete.
+    """
+    if payload.get("format") == "team":
+        return {"expected": None, "status": "unknown", "basis": "team-format-unsupported", "rounds": []}
+    roster = [clean(row.get("playerNo")) for row in payload.get("players") or [] if clean(row.get("playerNo"))]
+    unique_roster = set(roster)
+    round_count = int(payload.get("roundCount") or 0)
+    if not unique_roster or not round_count or len(unique_roster) != len(roster):
+        return {
+            "expected": None,
+            "status": "unknown",
+            "basis": "independent-roster-or-round-count-unavailable",
+            "rounds": [],
+        }
+    rounds = {
+        round_number(row.get("round")): row
+        for row in payload.get("rounds") or []
+        if round_number(row.get("round"))
+    }
+    rows = []
+    total_expected = total_actual = missing = excess = duplicate_refs = 0
+    for number in range(1, round_count + 1):
+        rid = str(number)
+        pairings = (rounds.get(rid) or {}).get("pairings") or []
+        explicitly_not_playing: set[str] = set()
+        seen_refs: list[str] = []
+        actual_non_bye = 0
+        for pairing in pairings:
+            if is_bye(pairing):
+                for side in ("white", "black"):
+                    player_no = side_player_number(pairing, side)
+                    if player_no in unique_roster:
+                        explicitly_not_playing.add(player_no)
                 continue
-            fingerprint = clean(game.get("sha256") or game.get("id"))
-            key = (
-                round_number(game.get("round")),
-                tuple(sorted([normalize_name(game.get("white")), normalize_name(game.get("black"))])),
-            )
-            index[tid].setdefault(key, set()).add(fingerprint or f"{path.name}:{key}")
-    return index
+            actual_non_bye += 1
+            for side in ("white", "black"):
+                player_no = side_player_number(pairing, side)
+                if player_no:
+                    seen_refs.append(player_no)
+        expected = max(0, (len(unique_roster) - len(explicitly_not_playing)) // 2)
+        round_missing = max(0, expected - actual_non_bye)
+        round_excess = max(0, actual_non_bye - expected)
+        duplicates = len(seen_refs) - len(set(seen_refs))
+        rows.append({
+            "round": rid,
+            "expected": expected,
+            "actual": actual_non_bye,
+            "explicitNonPlaying": len(explicitly_not_playing),
+            "unexplainedMissing": round_missing,
+            "unexpectedExtra": round_excess,
+            "duplicatePlayerRefs": duplicates,
+        })
+        total_expected += expected
+        total_actual += actual_non_bye
+        missing += round_missing
+        excess += round_excess
+        duplicate_refs += duplicates
+    status = "partial" if missing or excess or duplicate_refs else "complete"
+    return {
+        "expected": total_expected,
+        "actual": total_actual,
+        "status": status,
+        "basis": "starting-roster-minus-explicit-bye-or-not-paired",
+        "unexplainedMissing": missing,
+        "unexpectedExtra": excess,
+        "duplicatePlayerRefs": duplicate_refs,
+        "rounds": rows,
+    }
 
 
 def load_pgn_leads() -> dict[str, dict[str, str]]:
@@ -434,6 +515,7 @@ def event_report(
         if roster_nos:
             per_round_coverage.append(len(covered & roster_nos) / len(roster_nos))
     min_round_coverage = round(min(per_round_coverage), 4) if per_round_coverage else None
+    pairing_expectation = independent_pairing_expectation(payload)
 
     # --- archive matching (archives are first-class input, review §2.1) -----
     archive_games = parse_event_archive(tid, payload)
@@ -515,14 +597,24 @@ def event_report(
             ),
         },
         "pairings": {
-            "expected": None,  # no independent per-board expectation yet
+            "expected": pairing_expectation.get("expected"),
             "actual": len(pairings),
+            "actualNonBye": pairing_expectation.get("actual"),
+            "expectedBasis": pairing_expectation.get("basis"),
             "refViolations": pairing_ref_violations,
             "unresolved": len(unresolved_pairings),
+            "unexplainedMissing": pairing_expectation.get("unexplainedMissing"),
+            "unexpectedExtra": pairing_expectation.get("unexpectedExtra"),
+            "duplicatePlayerRefs": pairing_expectation.get("duplicatePlayerRefs"),
+            "byRound": pairing_expectation.get("rounds"),
             "minRoundRosterCoverage": min_round_coverage,
             "status": (
-                "unknown" if not pairings else
-                "complete" if pairing_ref_violations == 0 and not unresolved_pairings else "partial"
+                "unknown" if pairing_expectation.get("status") == "unknown" else
+                "complete" if (
+                    pairing_expectation.get("status") == "complete"
+                    and pairing_ref_violations == 0
+                    and not unresolved_pairings
+                ) else "partial"
             ),
         },
         "results": {"expected": len(non_bye), "valid": valid_results,
@@ -724,7 +816,7 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
         elif availability == "advertised-partial" and archive == "matched-advertised-complete":
             continue  # promised boards done
         elif archive == "locally-recoverable":
-            priority, action = "P1", "offline-restore-from-by-player-packs"
+            priority, action = "P1", "offline-restore-from-canonical-game-facts"
         elif lead:
             priority, action = "P1", f"follow-lead:{lead['leadType']}"
         else:
@@ -767,7 +859,7 @@ def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, s
 
 
 def build() -> dict[str, Any]:
-    games_index = by_player_game_index()
+    games_index, game_fact_input = player_game_fact_index()
     public_archives = verified_event_archives() | verified_lichess_event_archives()
     lichess_statuses = lichess_event_metadata()
     status_payload = read_json_optional(COLLECTION_STATUS, {})
@@ -804,25 +896,21 @@ def build() -> dict[str, Any]:
     return {
         "schemaVersion": 2,
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
+        "factInputs": {"playerGames": game_fact_input},
         "summary": summary,
         "events": reports,
     }
 
 
 def main() -> int:
-    # Shrink guard: environments without the full private capture layer keep
-    # the committed report instead of silently shrinking the publishable set.
     previous = read_json_optional(OUTPUT, {})
     visible = len(list(DETAILS.glob("tnr*.json")))
     committed = len(previous.get("events") or [])
-    if committed and visible < committed and not os.environ.get("FORCE_COMPLETENESS_SHRINK"):
-        print(json.dumps({
-            "skipped": "private capture layer incomplete",
-            "visibleDetails": visible,
-            "committedReportEvents": committed,
-            "hint": "run on the collector machine or set FORCE_COMPLETENESS_SHRINK=1",
-        }, ensure_ascii=False))
-        return 0
+    if committed and visible < committed:
+        raise SystemExit(
+            "COMPLETENESS_INPUT_INCOMPLETE: structured event inputs are fewer than "
+            f"the committed report ({visible} < {committed}); refusing warm-output fallback"
+        )
 
     report = build()
     write_json(OUTPUT, report, ensure_ascii=False, indent=2)

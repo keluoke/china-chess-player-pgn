@@ -99,7 +99,21 @@ NATIONAL_MASTER_ZH_RE = re.compile(r"全国国际象棋棋协大师赛")
 LICHENGZHI_ZH_RE = re.compile(r"李成智杯")
 WORLD_YOUTH_ZH_RE = re.compile(r"世界青少年")
 ASIAN_YOUTH_ZH_RE = re.compile(r"亚洲青少年")
-GROUP_TOKEN_RE = re.compile(r"\(?\b(open\s+)?([UGB])\s?(\d{1,2})\b\)?", re.IGNORECASE)
+GROUP_TOKEN_RE = re.compile(r"(?<![A-Za-z0-9])([UGBO])\s*(\d{1,2})(?!\d)", re.IGNORECASE)
+UNDER_AGE_RE = re.compile(r"\bunder\s*(\d{1,2})(?!\d)", re.IGNORECASE)
+PLAIN_AGE_RE = re.compile(r"(?<!\d)(0?[4-9]|1\d|2[0-5])(?!\d)")
+TITLE_UMBRELLA_RE = re.compile(r"\b(?:championships?|cup)\b", re.IGNORECASE)
+FEMALE_GROUP_RE = re.compile(
+    r"girls?(?![A-Za-z])|women(?:['’´]s)?(?![A-Za-z])|female(?![A-Za-z])",
+    re.IGNORECASE,
+)
+MALE_GROUP_RE = re.compile(
+    # ``men`` is a suffix of ``women`` and ``male`` is a suffix of ``female``.
+    # Guard their left edge so an explicit female title cannot be reclassified
+    # as male; keep concatenated labels such as ``CUPBoys 12`` supported.
+    r"boys?(?![A-Za-z])|(?<![A-Za-z])(?:men|male)(?![A-Za-z])|\bopen\b",
+    re.IGNORECASE,
+)
 EDITION_RE = re.compile(r"\b(\d{1,3})(?:st|nd|rd|th)\b", re.IGNORECASE)
 RAPID_RE = re.compile(r"\brapid\b|快棋", re.IGNORECASE)
 BLITZ_RE = re.compile(r"\bblitz\b|超快棋", re.IGNORECASE)
@@ -113,6 +127,22 @@ def read_json(path: pathlib.Path, default: Any) -> Any:
 
 def clean(value: Any) -> str:
     return " ".join(str(value or "").split()).strip()
+
+
+def event_namespace_key(source: str, tournament_id: str, name: str = "", date: str = "") -> tuple[str, str]:
+    """Return the single internal namespace for one source event.
+
+    A Chess-Results TNR is a global event identity, even when a per-player PGN
+    index labels its transport as ``Static PGN``.  Keeping that transport name
+    as a second namespace produced two rows for tnr58153: the published detail
+    lost its date/PGN facts while the static row lost the detailPath.  Collapse
+    only the static transport alias; Lichess remains independently attributed.
+    """
+    source_key = clean(source).lower().replace("-", " ")
+    tournament_id = clean(tournament_id)
+    if tournament_id and source_key in {"chess results", "static pgn"}:
+        return "chess-results", tournament_id
+    return clean(source).lower(), tournament_id or f"name:{clean(name)}|{clean(date)}"
 
 
 def event_id(
@@ -191,7 +221,12 @@ def static_event_stats() -> dict[tuple[str, str], dict[str, Any]]:
         for event in detail.get("events", []):
             source = clean(event.get("source")) or "Static PGN"
             tournament_id = clean(event.get("tournamentID"))
-            key = (source.lower(), tournament_id or f"name:{clean(event.get('name'))}|{clean(event.get('date'))}")
+            key = event_namespace_key(
+                source,
+                tournament_id,
+                clean(event.get("name")),
+                clean(event.get("date")),
+            )
             row = result[key]
             if fide_id:
                 row["players"].add(fide_id)
@@ -328,11 +363,16 @@ def build_mapping_only_event(
     mapping: dict[str, str],
     master_group: dict[str, str],
     detail: dict[str, Any],
+    stats: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Pure assembly of a reviewed-mapping-only event (no crawler row yet)."""
     source = "Chess-Results" if source_key == "chess-results" else source_key.title()
     chinese_name = mapping.get("chineseName") or ""
+    stats = stats or {}
     year = master_group.get("year") or ""
+    archived_dates = sorted(stats.get("dates", set()), reverse=True)
+    date = archived_dates[0] if archived_dates else ""
+    players = sorted(stats.get("players", set()))
     event = {
         "id": event_id(source, tournament_id, chinese_name, year),
         "source": source,
@@ -344,16 +384,16 @@ def build_mapping_only_event(
         # The master list identifies the season, not an exact start date.
         # Do not invent January 1st: consumers can display the year until the
         # direct Chess-Results sync supplies authoritative dates.
-        "date": None,
+        "date": date or None,
         "year": year or None,
         "url": mapping.get("evidenceURL") or None,
         "evidenceURL": mapping.get("evidenceURL") or None,
         "sourceRefs": [{"source": source, "tournamentID": tournament_id, "url": mapping.get("evidenceURL") or None}],
-        "players": [],
-        "playerCount": 0,
-        "pgnPlayerCount": 0,
-        "pgnCount": 0,
-        "gameCount": 0,
+        "players": players,
+        "playerCount": len(players),
+        "pgnPlayerCount": len(players),
+        "pgnCount": int(stats.get("pgnCount") or 0),
+        "gameCount": int(stats.get("gameCount") or 0),
         "coverageScope": "metadata-only",
         "sectionID": master_group.get("section_id") or None,
         "groupCode": master_group.get("group_code") or None,
@@ -372,12 +412,20 @@ def build_detail_only_event(
     detail: dict[str, Any],
     mapping: dict[str, str],
     master_group: dict[str, str],
+    stats: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create the catalog row promised by a published event-detail manifest."""
+    stats = stats or {}
     display_name = clean(mapping.get("chineseName") or detail.get("displayName")) or f"赛事 {tournament_id}"
-    date = clean(detail.get("dateEnd") or detail.get("dateBegin"))
+    name, aliases = best_source_name(display_name, set(stats.get("names", set())))
+    archived_dates = sorted(stats.get("dates", set()), reverse=True)
+    date = clean(detail.get("dateEnd") or detail.get("dateBegin")) or (
+        archived_dates[0] if archived_dates else ""
+    )
+    players = sorted(stats.get("players", set()))
     year_match = re.search(r"(20\d{2})", " ".join([
         display_name,
+        date,
         clean(mapping.get("canonicalEventID")),
         clean(master_group.get("year")),
     ]))
@@ -386,7 +434,8 @@ def build_detail_only_event(
         "source": "Chess-Results",
         "tournamentID": tournament_id,
         "canonicalEventID": mapping.get("canonicalEventID") or None,
-        "name": display_name,
+        "name": name or display_name,
+        "aliases": aliases or None,
         "chineseName": mapping.get("chineseName") or None,
         "displayName": display_name,
         "date": date or None,
@@ -395,11 +444,11 @@ def build_detail_only_event(
         "year": year_match.group(1) if year_match else None,
         "rounds": detail.get("roundCount") or None,
         "participants": detail.get("standingCount") or None,
-        "players": [],
-        "playerCount": 0,
-        "pgnPlayerCount": 0,
-        "pgnCount": 0,
-        "gameCount": 0,
+        "players": players,
+        "playerCount": len(players),
+        "pgnPlayerCount": len(players),
+        "pgnCount": int(stats.get("pgnCount") or 0),
+        "gameCount": int(stats.get("gameCount") or 0),
         "detailPath": detail.get("path"),
         "standingCount": detail.get("standingCount"),
         "coverageScope": "domestic-full",
@@ -454,11 +503,14 @@ def build_catalog() -> list[dict[str, Any]]:
     mappings = load_mappings()
     master_groups = load_master_groups()
     coverage = static_event_stats()
-    details = {
-        clean(item.get("tournamentID")): item
-        for item in read_json(EVENT_DETAILS, {}).get("events", [])
-        if clean(item.get("tournamentID"))
-    }
+    details: dict[str, dict[str, Any]] = {}
+    for item in read_json(EVENT_DETAILS, {}).get("events", []):
+        tournament_id = clean(item.get("tournamentID"))
+        if not tournament_id:
+            continue
+        if tournament_id in details:
+            raise ValueError(f"duplicate event-detail manifest row: tnr{tournament_id}")
+        details[tournament_id] = item
     events: dict[tuple[str, str], dict[str, Any]] = {}
 
     # The crawler catalog supplies all recorded Chess-Results participations,
@@ -468,7 +520,7 @@ def build_catalog() -> list[dict[str, Any]]:
         if not tournament_id:
             continue
         source = clean(upstream.get("source")) or "Chess-Results"
-        key = (source.lower(), tournament_id)
+        key = event_namespace_key(source, tournament_id)
         events[key] = build_upstream_event(
             upstream,
             mappings.get(key, {}),
@@ -481,7 +533,7 @@ def build_catalog() -> list[dict[str, Any]]:
     # discovered participants. Keep these sections visible and let later
     # player/PGN refreshes enrich the same stable source key.
     for (source_key, tournament_id), mapping in mappings.items():
-        key = (source_key, tournament_id)
+        key = event_namespace_key(source_key, tournament_id)
         if key in events:
             continue
         events[key] = build_mapping_only_event(
@@ -490,6 +542,7 @@ def build_catalog() -> list[dict[str, Any]]:
             mapping,
             verified_master_group(master_groups.get(tournament_id, {})),
             details.get(tournament_id, {}),
+            coverage.pop(key, {}),
         )
 
     # A published detail is itself sufficient catalog evidence. Queue-direct
@@ -503,6 +556,7 @@ def build_catalog() -> list[dict[str, Any]]:
             detail,
             mappings.get(key, {}),
             verified_master_group(master_groups.get(tournament_id, {})),
+            coverage.pop(key, {}),
         )
 
     # Preserve event data sourced exclusively from PGN archives (for example
@@ -545,16 +599,89 @@ def classify_series(event: dict[str, Any]) -> str | None:
 
 
 def parse_group_token(text: str) -> tuple[str | None, str | None, str | None]:
-    """Extract (groupLabel, sex, ageGroup) from a source title like '(U14)'
-    or 'Open U12' or '亚洲青少年…G10'. B/U → open/boys, G → girls."""
-    match = GROUP_TOKEN_RE.search(text or "")
-    if not match:
+    """Extract one concrete youth section from a potentially umbrella title.
+
+    Explicit Girls/Women/Female and Boys/Men/Open wording wins over a generic
+    ``U`` token.  The age nearest that wording (or the right-most section token)
+    wins, so umbrella prefixes such as ``U14, U16 & U18 ... - G16`` cannot leak
+    their first age into every child section.
+    """
+    value = clean(text)
+    if not value:
         return None, None, None
-    letter = match.group(2).upper()
-    age = match.group(3)
-    sex = "F" if letter == "G" else "M"
-    label = f"{'女子' if sex == 'F' else '男子'}U{age}组" if letter != "G" else f"女子U{age}组"
-    return label, sex, f"U{age}"
+
+    ages: list[dict[str, Any]] = []
+    occupied: list[tuple[int, int]] = []
+    for match in GROUP_TOKEN_RE.finditer(value):
+        age = match.group(2)
+        if 4 <= int(age) <= 25:
+            ages.append({"start": match.start(), "end": match.end(), "age": age, "kind": "token"})
+            occupied.append((match.start(), match.end()))
+    for match in UNDER_AGE_RE.finditer(value):
+        age = match.group(1)
+        if 4 <= int(age) <= 25:
+            ages.append({"start": match.start(), "end": match.end(), "age": age, "kind": "under"})
+            occupied.append((match.start(), match.end()))
+    for match in PLAIN_AGE_RE.finditer(value):
+        if any(start <= match.start() and match.end() <= end for start, end in occupied):
+            continue
+        ages.append({"start": match.start(), "end": match.end(), "age": match.group(1), "kind": "plain"})
+
+    markers: list[dict[str, Any]] = []
+    for match in FEMALE_GROUP_RE.finditer(value):
+        markers.append({"start": match.start(), "end": match.end(), "sex": "F", "explicit": True})
+    for match in MALE_GROUP_RE.finditer(value):
+        markers.append({"start": match.start(), "end": match.end(), "sex": "M", "explicit": True})
+    for match in GROUP_TOKEN_RE.finditer(value):
+        letter = match.group(1).upper()
+        if letter in {"G", "B", "O"}:
+            markers.append({
+                "start": match.start(), "end": match.end(),
+                "sex": "F" if letter == "G" else "M", "explicit": False,
+            })
+
+    umbrella_end = max((match.end() for match in TITLE_UMBRELLA_RE.finditer(value)), default=-1)
+    distinct_ages = {item["age"] for item in ages}
+
+    def span_gap(marker: dict[str, Any], age: dict[str, Any]) -> int:
+        if age["end"] < marker["start"]:
+            return marker["start"] - age["end"]
+        if marker["end"] < age["start"]:
+            return age["start"] - marker["end"]
+        return 0
+
+    sex: str | None = None
+    chosen_age: dict[str, Any] | None = None
+    if markers:
+        pairs = [
+            (span_gap(marker, age), -max(marker["start"], age["start"]), marker, age)
+            for marker in markers for age in ages
+        ]
+        if pairs:
+            _, _, marker, chosen_age = min(pairs, key=lambda item: (item[0], item[1]))
+            sex = marker["sex"]
+        else:
+            marker = max(markers, key=lambda item: item["start"])
+            sex = marker["sex"]
+    elif ages:
+        token_ages = [item for item in ages if item["kind"] == "token"]
+        chosen_age = max(token_ages or ages, key=lambda item: item["start"])
+        sex = "M"
+
+    # A title listing several ages before "Championships/Cup" is an umbrella,
+    # not the last child section.  Keep an explicit gender if present, but do
+    # not invent an age unless a concrete suffix appears after the umbrella.
+    if chosen_age and len(distinct_ages) > 1 and chosen_age["end"] <= umbrella_end:
+        chosen_age = None
+        if not markers:
+            sex = None
+
+    if not sex:
+        return None, None, None
+    if not chosen_age:
+        return ("女子组" if sex == "F" else "男子组"), sex, None
+    age_group = f"U{chosen_age['age']}"
+    return f"{'女子' if sex == 'F' else '男子'}{age_group}组", sex, age_group
 
 
 def parse_chinese_group(chinese_name: str) -> tuple[str | None, str | None, str | None]:

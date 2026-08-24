@@ -21,13 +21,15 @@ GITHUB_PROXY_URL="${GITHUB_PROXY_URL:-http://127.0.0.1:15236}"
 
 usage() {
   cat <<'EOF'
-Usage: bash Scripts/local/code_workspace.sh <init|configure|sync|status|push> [path]
+Usage: bash Scripts/local/code_workspace.sh <init|configure|sync|status|push|collector-runtime-plan|collector-runtime-sync> [path]
 
   init       Create a blobless sparse code workspace from origin/main.
   configure  Apply the code-workspace marker, sparse paths and sidebar proxy.
   sync       Fetch origin/main through the explicit proxy and fast-forward main.
   status     Show the role, branch, size and working-tree status without network.
   push       Push main through the explicit proxy.
+  collector-runtime-plan  Compare the committed runtime allowlist with collector (read-only).
+  collector-runtime-sync  Atomically install that exact allowlist and its manifest.
 
 Environment:
   CODE_WORKSPACE    Override the sibling target path.
@@ -127,6 +129,20 @@ case "$command" in
       exit 3
     fi
     github_git -C "$CODE_ROOT" push origin main
+    ;;
+  collector-runtime-plan|collector-runtime-sync)
+    require_code_workspace
+    runtime_args=(
+      "${CHINA_CHESS_PYTHON:-python3}"
+      "$CODE_ROOT/Scripts/local/collector_runtime.py"
+      install
+      --source-root "$CODE_ROOT"
+      --collector-root "$COLLECTOR_ROOT"
+    )
+    if [ "$command" = "collector-runtime-sync" ]; then
+      runtime_args+=(--apply)
+    fi
+    "${runtime_args[@]}"
     ;;
   *)
     usage >&2

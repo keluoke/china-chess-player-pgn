@@ -24,6 +24,24 @@ SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
+import collector_runtime  # noqa: E402
+
+
+def _verify_collector_runtime_before_imports() -> None:
+    completed = subprocess.run(
+        ["git", "config", "--get", "chessdb.workspaceRole"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if completed.stdout.strip() == "collector":
+        collector_runtime.verify(REPO_ROOT, profile="panel")
+
+
+_verify_collector_runtime_before_imports()
+
 from run_manager import (  # noqa: E402
     atomic_json,
     current_payload,
@@ -105,6 +123,10 @@ def workspace_role(root: pathlib.Path = REPO_ROOT) -> str:
 def collector_workspace_error(root: pathlib.Path = REPO_ROOT) -> str:
     role = workspace_role(root)
     if role == "collector":
+        try:
+            collector_runtime.verify(root, profile="panel")
+        except collector_runtime.CollectorRuntimeError as error:
+            return str(error)
         return ""
     hint = ""
     if role == "code":

@@ -6,6 +6,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPTS = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
@@ -108,6 +109,33 @@ class StructuredFieldTests(unittest.TestCase):
         self.assertEqual(bec.parse_group_token("Asian Youth Rapid G10"), ("女子U10组", "F", "U10"))
         self.assertEqual(bec.parse_group_token("no group here"), (None, None, None))
 
+    def test_explicit_gender_and_nearest_or_trailing_age_win(self) -> None:
+        cases = {
+            "World Youth Chess Championship - U 14 Girls ID FIDE - 59423": ("女子U14组", "F", "U14"),
+            "World Youth Chess Championship 2026 Girls under 18": ("女子U18组", "F", "U18"),
+            "World Youth Chess Championship 2026 Open under 16": ("男子U16组", "M", "U16"),
+            "FIDE World Cadet Chess Championships 2024 Girls 10": ("女子U10组", "F", "U10"),
+            "FIDE WORLD CADETS CUPGirls 12": ("女子U12组", "F", "U12"),
+            "FIDE World Cadets Cup 2026 | O08": ("男子U08组", "M", "U08"),
+        }
+        for title, expected in cases.items():
+            with self.subTest(title=title):
+                self.assertEqual(bec.parse_group_token(title), expected)
+
+    def test_umbrella_age_list_does_not_override_concrete_suffix(self) -> None:
+        self.assertEqual(
+            bec.parse_group_token("World Youth U14, U16 & U18 Championships 2025 - G16"),
+            ("女子U16组", "F", "U16"),
+        )
+        self.assertEqual(
+            bec.parse_group_token("FIDE World Cadet U8, U10, U12 Championships 2025 Girls U12"),
+            ("女子U12组", "F", "U12"),
+        )
+        self.assertEqual(
+            bec.parse_group_token("FIDE World Youth U14, U16 & U18 Championships 2025"),
+            (None, None, None),
+        )
+
     def test_missing_structured_fields_are_rejected_not_downgraded(self) -> None:
         self.assertIsNone(bec.public_event({"id": "x", "tournamentID": ""}, "world-youth", {}))
         self.assertIsNone(bec.public_event({"id": "x", "tournamentID": "1", "date": None}, "world-youth", {}))
@@ -181,6 +209,61 @@ class StructuredFieldTests(unittest.TestCase):
         self.assertEqual(rows[0]["detailPath"], "data/index/event-details/tnr42.json")
         self.assertEqual(rows[0]["gameCount"], 9)
         self.assertEqual(rows[0]["playerCount"], 2)
+
+    def test_static_pgn_tnr_uses_chess_results_namespace(self) -> None:
+        self.assertEqual(
+            bec.event_namespace_key("Static PGN", "58153"),
+            ("chess-results", "58153"),
+        )
+        self.assertEqual(
+            bec.event_namespace_key("Lichess Broadcasts", "58153"),
+            ("lichess broadcasts", "58153"),
+        )
+
+    def test_detail_only_event_absorbs_static_facts_before_public_projection(self) -> None:
+        detail = {
+            "tournamentID": "58153",
+            "path": "data/index/event-details/tnr58153.json",
+            "displayName": "World Youth Chess Championship - U 14 Girls ID FIDE - 59423",
+            "roundCount": 9,
+            "standingCount": 86,
+        }
+        stats = {
+            "names": {"World Youth Chess Championship - U 14 Girls"},
+            "dates": {"2011-11-18"},
+            "players": {"8600001"},
+            "pgnCount": 1,
+            "gameCount": 5,
+            "canonicalEventIDs": set(),
+        }
+
+        def fake_read(path, default):
+            if path == bec.EVENT_DETAILS:
+                return {"events": [detail]}
+            if path == bec.CATALOG:
+                return []
+            return default
+
+        with (
+            mock.patch.object(bec, "read_json", side_effect=fake_read),
+            mock.patch.object(bec, "load_mappings", return_value={}),
+            mock.patch.object(bec, "load_master_groups", return_value={}),
+            mock.patch.object(
+                bec,
+                "static_event_stats",
+                return_value={("chess-results", "58153"): stats},
+            ),
+        ):
+            events = bec.build_catalog()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["id"], "chess-results:58153")
+        self.assertEqual(events[0]["date"], "2011-11-18")
+        self.assertEqual(events[0]["detailPath"], detail["path"])
+        self.assertEqual(events[0]["gameCount"], 5)
+        row = bec.public_event(events[0], "world-youth", {})
+        self.assertEqual(row["detailStatus"], "published")
+        self.assertEqual(row["detailPath"], detail["path"])
+        self.assertEqual((row["groupLabel"], row["sex"], row["ageGroup"]), ("女子U14组", "F", "U14"))
 
 
 class PublicFilterTests(unittest.TestCase):
@@ -264,14 +347,11 @@ class PlayerProjectionTests(unittest.TestCase):
     def test_participation_only_projects_curated_chinese_non_test_events(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
-            player_events = root / "player-events.csv"
-            player_events.write_text(
-                "fide_id,tnrid,tournament_name,end_date,rank,rounds,participants\n"
-                "8600001,1,Test Match,2026-01-01,1,9,10\n"
-                "8600001,2,English Open,2026-01-02,2,9,20\n"
-                "8600001,3,Raw English Title,2026-01-03,3,9,30\n",
-                encoding="utf-8",
-            )
+            facts = [
+                {"fideID": "8600001", "tournamentID": "1", "date": "2026-01-01", "rank": "1", "rounds": 9, "participants": 10},
+                {"fideID": "8600001", "tournamentID": "2", "date": "2026-01-02", "rank": "2", "rounds": 9, "participants": 20},
+                {"fideID": "8600001", "tournamentID": "3", "date": "2026-01-03", "rank": "3", "rounds": 9, "participants": 30},
+            ]
             catalog = root / "public-events.json"
             catalog.write_text(
                 '{"events":['
@@ -280,7 +360,7 @@ class PlayerProjectionTests(unittest.TestCase):
                 "]}\n",
                 encoding="utf-8",
             )
-            rows = bpp.build_rows(player_events, catalog, root / "missing-player-details")
+            rows = bpp.build_rows(facts, catalog)
         self.assertEqual([row["tournamentID"] for row in rows["8600001"]], ["2"])
         self.assertEqual(rows["8600001"][0]["name"], "2026年亚洲青少年国际象棋锦标赛")
 

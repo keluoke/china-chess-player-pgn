@@ -128,6 +128,16 @@
    必须传递并核对实际 main 提交 SHA；派生提交禁止在 push 冲突后 rebase 到更新的
    输入快照。snapshot 必须记录实际输入提交；线上回执还必须确认发布 run-id
    存在于该提交可达的 local-release-manifest 历史中。
+8b. 全量棋手 PGN 只以完整 SHA-256 内容寻址对象进入生产 R2。每次 rebuild 在提交
+   新快照前必须完成全量 `ListObjectsV2` key/size inventory、上传新增对象后 GET
+   回读正文哈希，并按 receipt 持久游标轮换抽验既有对象；bucket/endpoint、当前
+   snapshot/inputCommit、全包集合、对象 key/hash/bytes、配额和抽验记录任一不一致
+   即 fail-closed。deploy 必须再次验证同一 receipt 并记录其 SHA-256；禁止在该
+   原子链内预先改写 mutable alias。
+8c. collector 工作区执行的 runtime 与控制输入只能由代码工作区已提交的 `main`
+   通过 `collector-runtime-plan` / `collector-runtime-sync` 精确安装。面板必须在
+   导入其他受管模块前验证完整 panel profile；refresh 必须在创建 run 或访问来源前
+   验证相应 profile。禁止手工复制单文件、手改安装清单或让旧依赖绕过白名单。
 9. 修改管线后至少运行：`python3 -m unittest Scripts.tests.test_local_pipeline`、
    `python3 -m unittest Scripts.tests.test_chess_results_parser`、
    `python3 -m unittest Scripts.tests.test_docs_consistency`、

@@ -1,4 +1,5 @@
 name: Deploy static site
+run-name: Deploy exact ${{ inputs.target_sha || github.sha }}
 
 # Cloudflare Pages is the ONLY publishing target: GitHub manages code,
 # Cloudflare serves the site. (GitHub Pages deployment removed 2026-07.)
@@ -21,7 +22,17 @@ on:
       - ".github/workflows/deploy.yml"
       - ".github/actions/prepare-static-site/**"
   workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Exact repository commit to deploy.
+        required: true
+        type: string
   workflow_call:
+    inputs:
+      target_sha:
+        description: Exact repository commit to deploy.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -38,6 +49,42 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Verify exact deploy base
+        id: target
+        env:
+          EXPECTED_DEPLOY_SHA: ${{ inputs.target_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          if ! [[ "$EXPECTED_DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]] || [ "$actual" != "$EXPECTED_DEPLOY_SHA" ]; then
+            echo "DEPLOY_BASE_MISMATCH: expected $EXPECTED_DEPLOY_SHA, checked out $actual" >&2
+            exit 1
+          fi
+          snapshot_id="$(python3 -c 'import json; print(json.load(open("docs/data/snapshot.json")).get("snapshotId", ""))')"
+          input_commit="$(python3 -c 'import json; print(json.load(open("docs/data/snapshot.json")).get("inputCommit", ""))')"
+          if [ -z "$snapshot_id" ] || ! [[ "$input_commit" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "DEPLOY_RECEIPT_INVALID: snapshotId/inputCommit missing or invalid" >&2
+            exit 1
+          fi
+          echo "target_sha=$actual" >> "$GITHUB_OUTPUT"
+          echo "snapshot_id=$snapshot_id" >> "$GITHUB_OUTPUT"
+          echo "input_commit=$input_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Verify player PGN R2 receipt
+        id: r2-receipt
+        run: |
+          set -euo pipefail
+          python3 Scripts/validate_player_pgn_r2_receipt.py
+          receipt_sha="$(sha256sum docs/data/index/player-pgn-r2-receipt.json | awk '{print $1}')"
+          if ! [[ "$receipt_sha" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "DEPLOY_RECEIPT_INVALID: R2 receipt hash invalid" >&2
+            exit 1
+          fi
+          echo "sha256=$receipt_sha" >> "$GITHUB_OUTPUT"
 
       - name: Prepare site
         uses: ./.github/actions/prepare-static-site
@@ -46,6 +93,7 @@ jobs:
           max-file-mib: "25"
 
       - name: Deploy
+        id: deploy
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
         uses: cloudflare/wrangler-action@v3
         with:
@@ -60,3 +108,24 @@ jobs:
         run: |
           echo "CLOUDFLARE_API_TOKEN secret is not set; Cloudflare Pages was NOT deployed." >&2
           exit 1
+
+      - name: Record exact deployment receipt
+        if: ${{ always() }}
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.target_sha }}
+          SNAPSHOT_ID: ${{ steps.target.outputs.snapshot_id }}
+          INPUT_COMMIT: ${{ steps.target.outputs.input_commit }}
+          R2_RECEIPT_SHA256: ${{ steps.r2-receipt.outputs.sha256 }}
+        run: |
+          {
+            echo "## Exact deployment receipt"
+            echo
+            echo "- target SHA: \`$TARGET_SHA\`"
+            echo "- snapshot ID: \`$SNAPSHOT_ID\`"
+            echo "- snapshot input: \`$INPUT_COMMIT\`"
+            echo "- player PGN R2 receipt: \`$R2_RECEIPT_SHA256\`"
+            echo "- target gate: \`${{ steps.target.outcome }}\`"
+            echo "- R2 gate: \`${{ steps.r2-receipt.outcome }}\`"
+            echo "- deploy action: \`${{ steps.deploy.outcome }}\`"
+            echo "- conclusion: \`${{ job.status }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

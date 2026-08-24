@@ -87,6 +87,19 @@ reject_extra_flags() {
     done
   done
 }
+
+# The collector checkout never pulls, so its executable/control-input overlay
+# must be proven to come from one reviewed code-workspace commit. Verify before
+# run acquisition (and therefore before any provider request or state write).
+RUNTIME_PROFILE="core"
+case "$command" in
+  all|event-queue|discover-events|recover-events|candidates)
+    RUNTIME_PROFILE="event"
+    ;;
+esac
+py Scripts/local/collector_runtime.py verify \
+  --repo-root "$REPO_ROOT" --profile "$RUNTIME_PROFILE" >/dev/null || exit $?
+
 RUN_MANAGER="$REPO_ROOT/Scripts/local/run_manager.py"
 export CHINA_CHESS_MAINTAINER_LOCAL=1
 # Full-data is the contract standard (AGENTS.md): cleaned, structured event

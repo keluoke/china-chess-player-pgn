@@ -4,7 +4,7 @@
 Every derived artifact is rebuilt in dependency order (review §3.2) under one
 exported ``SNAPSHOT_ID``:
 
-    completeness → person observations → domestic identity → projections
+    canonical player facts → completeness → person observations → domestic identity → projections
     → aggregates → API → validators → snapshot-consistency gate
 
 Builders report structured outcomes: their stdout JSON may carry ``skipped``
@@ -71,6 +71,8 @@ def input_facts() -> list[dict]:
         ROOT / "data/generated/chess-results-player-name-map.csv",
         ROOT / "data/generated/pgn-collection-status.json",
         ROOT / "data/generated/r2-object-receipts/events--chess-results.json",
+        ROOT / "data/generated/player-event-facts/manifest.json",
+        ROOT / "data/generated/player-game-facts/manifest.json",
         ROOT / "data/manual/domestic-player-sightings.csv",
         ROOT / "data/manual/player-identity-links.csv",
         ROOT / "data/manual/presentation-disputes.csv",
@@ -86,11 +88,11 @@ def snapshot_document(
     steps: list[dict],
 ) -> dict:
     return {
-        "schemaVersion": 4,
+        "schemaVersion": 5,
         "snapshotId": snapshot_id,
         "generatedAt": generated_at,
         "inputCommit": input_commit,
-        "producerVersion": "build-release-snapshot-v4",
+        "producerVersion": "build-release-snapshot-v5",
         "inputs": facts,
         "steps": steps,
     }
@@ -180,7 +182,10 @@ def main() -> int:
     ]))
 
     # --- PGN / event fact layers ---------------------------------------
-    steps.append(step([py, "Scripts/sync_static_pgn.py"]))
+    # Canonical static PGNs are immutable inputs here. ``sync_static_pgn`` is
+    # an explicit migration/collection utility and must not read its previous
+    # indexes during a derived rebuild.
+    steps.append(step([py, "Scripts/build_player_facts.py"]))
     steps.append(step([py, "Scripts/build_static_player_pgn.py"]))
     steps.append(step([py, "Scripts/build_pgn_collection_status.py"], optional_script="Scripts/build_pgn_collection_status.py"))
     # CompletenessReport decides the publishable event set BEFORE any public

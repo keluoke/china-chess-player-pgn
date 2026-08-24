@@ -6,6 +6,7 @@ import gzip
 import hashlib
 import json
 import io
+import inspect
 import os
 import pathlib
 import re
@@ -36,6 +37,7 @@ import source_http  # noqa: E402
 import source_policy  # noqa: E402
 import stable_json  # noqa: E402
 import validate_incoming  # noqa: E402
+import validate_no_tracked_raw_evidence  # noqa: E402
 import validate_registry_authority  # noqa: E402
 import sync_chess_results_event  # noqa: E402
 import sync_static_pgn  # noqa: E402
@@ -750,18 +752,8 @@ class PolicyTests(unittest.TestCase):
         self.assertNotIn("club", unknown)
         self.assertNotIn("publicLocation", unknown)
 
-    def test_player_pgn_semantic_hash_ignores_created_timestamp(self) -> None:
-        old = "% Games: 1\n% Created: 2026-01-01T00:00:00+00:00\n\n[Event \"A\"]\n"
-        new = "% Games: 1\n% Created: 2026-07-13T00:00:00+00:00\n\n[Event \"A\"]\n"
-        changed = new.replace('[Event "A"]', '[Event "B"]')
-        self.assertEqual(
-            build_static_player_pgn.semantic_package_hash(old),
-            build_static_player_pgn.semantic_package_hash(new),
-        )
-        self.assertNotEqual(
-            build_static_player_pgn.semantic_package_hash(old),
-            build_static_player_pgn.semantic_package_hash(changed),
-        )
+    def test_player_pgn_package_bytes_do_not_include_build_time(self) -> None:
+        self.assertNotIn("% Created:", inspect.getsource(build_static_player_pgn.build_package))
 
 
 class RunManagerTests(unittest.TestCase):
@@ -1062,7 +1054,31 @@ class OutboxTests(unittest.TestCase):
         self.assertEqual(pending[0]["commit"], sha)
         updated = run_manager.outbox_update("outbox-test-run", "pushed", sha, "git", None)
         self.assertEqual(updated["status"], "pushed")
+        self.assertRegex(updated["pushedAt"], r"^\d{4}-")
         self.assertEqual(run_manager.outbox_entries("pending"), [])
+
+    def test_prune_never_deletes_inflight_bundles(self) -> None:
+        root = run_manager.outbox_root()
+        for index in range(12):
+            entry = root / f"pushed-{index:02d}"
+            entry.mkdir()
+            run_manager.atomic_json(entry / "delivery.json", {
+                "runId": entry.name,
+                "status": "pushed",
+                "createdAt": f"2026-08-23T00:{index:02d}:00+00:00",
+                "updatedAt": f"2026-08-23T00:{index:02d}:00+00:00",
+            })
+        terminal = root / "terminal"
+        terminal.mkdir()
+        run_manager.atomic_json(terminal / "delivery.json", {
+            "runId": "terminal",
+            "status": "online-verified",
+            "createdAt": "2026-08-22T00:00:00+00:00",
+            "updatedAt": "2026-08-22T00:00:00+00:00",
+        })
+        run_manager.prune_outbox(keep_delivered=0)
+        self.assertFalse(terminal.exists())
+        self.assertEqual(len(list(root.glob("pushed-*"))), 12)
 
     def test_bundle_content_must_match_manifest_hash(self) -> None:
         sha = self.prepare_commit()
@@ -1306,6 +1322,9 @@ class EventQueueEntrypointTests(unittest.TestCase):
             local.mkdir(parents=True)
             shutil.copy2(REFRESH_SH, local / "refresh.sh")
             shutil.copy2(LOCAL / "run_manager.py", local / "run_manager.py")
+            (local / "collector_runtime.py").write_text(
+                "#!/usr/bin/env python3\nraise SystemExit(0)\n", encoding="utf-8"
+            )
             shutil.copy2(SCRIPTS / "source_policy.py", repo / "Scripts/source_policy.py")
             receipt = repo / "data/generated/r2-object-receipts/events--chess-results.json"
             receipt.parent.mkdir(parents=True)
@@ -1388,6 +1407,7 @@ class DiscoverEventsEntrypointTests(unittest.TestCase):
             f"real_python={real_python}\n"
             '[ "$1" = "-u" ] && shift\n'
             'script="$1"\n'
+            'if [ "${script##*/}" = "collector_runtime.py" ]; then exit 0; fi\n'
             'if [ "${script##*/}" = "discover_player_events.py" ]; then\n'
             "  shift\n"
             '  private_root=""\n'
@@ -1911,6 +1931,66 @@ class PanelBatchResultTests(unittest.TestCase):
 
 
 class ReceiptAdvanceTests(unittest.TestCase):
+    def test_ingest_retry_requires_cancel_or_absent_run_timeout(self) -> None:
+        import check_receipts
+
+        now = check_receipts.parse_time("2026-08-23T00:20:00Z")
+        delivery = {"status": "pushed", "pushedAt": "2026-08-23T00:00:00Z"}
+        self.assertEqual(check_receipts.ingest_retry_reason(
+            delivery, [], checked_at=now, timeout_seconds=900,
+        ), "INGEST_RECEIPT_TIMEOUT")
+        self.assertEqual(check_receipts.ingest_retry_reason(
+            delivery, [{"status": "completed", "conclusion": "cancelled"}], checked_at=now,
+        ), "INGEST_RUN_CANCELLED")
+        self.assertIsNone(check_receipts.ingest_retry_reason(
+            delivery, [{"status": "queued", "conclusion": None}], checked_at=now,
+        ))
+        self.assertIsNone(check_receipts.ingest_retry_reason(
+            delivery, [{"status": "completed", "conclusion": "failure"}], checked_at=now,
+        ))
+        legacy = {
+            "status": "pushed",
+            "createdAt": "2026-08-23T00:00:00Z",
+            "updatedAt": "2026-08-23T00:19:59Z",
+        }
+        self.assertEqual(check_receipts.ingest_retry_reason(
+            legacy, [], checked_at=now, timeout_seconds=900,
+        ), "INGEST_RECEIPT_TIMEOUT")
+
+    def test_missing_ingest_receipt_requeues_immutable_bundle(self) -> None:
+        import check_receipts
+
+        with tempfile.TemporaryDirectory() as temp:
+            state = pathlib.Path(temp)
+            entry = state / "outbox" / "lost-run"
+            entry.mkdir(parents=True)
+            delivery = {
+                "runId": "lost-run", "commit": "a" * 40, "remoteSHA": "b" * 40,
+                "status": "pushed", "attempts": 1, "route": "git", "lastError": None,
+                "createdAt": "2026-08-22T00:00:00+00:00",
+                "updatedAt": "2026-08-22T00:00:00+00:00",
+                "pushedAt": "2026-08-22T00:00:00+00:00", "path": str(entry),
+            }
+            run_manager.atomic_json(entry / "delivery.json", delivery)
+            run_manager.atomic_json(entry / "manifest.json", {"runId": "lost-run", "files": []})
+            with (
+                mock.patch.object(run_manager, "local_state_root", return_value=state),
+                mock.patch.object(check_receipts, "workflow_runs", return_value=[]),
+            ):
+                result = check_receipts.check_entry("owner/repo", delivery)
+                retryable = run_manager.outbox_entries("pending", retryable_only=True)
+        self.assertTrue(result["requeued"])
+        self.assertEqual(result["reason"], "INGEST_RECEIPT_TIMEOUT")
+        self.assertEqual([row["runId"] for row in retryable], ["lost-run"])
+
+    def test_deploy_target_sha_prefers_exact_run_receipt(self) -> None:
+        import check_receipts
+
+        exact = "a" * 40
+        self.assertEqual(check_receipts.deploy_target_sha({
+            "display_title": f"Deploy exact {exact}", "head_sha": "b" * 40,
+        }), exact)
+
     def test_online_hash_mismatch_is_durable_and_non_retriable(self) -> None:
         import check_receipts
 
@@ -2122,6 +2202,10 @@ class ReceiptAdvanceTests(unittest.TestCase):
 
 
 class IngestWorkflowContractTests(unittest.TestCase):
+    def test_ingest_preserves_every_pending_release(self) -> None:
+        workflow = (SCRIPTS.parent / ".github" / "workflows" / "ingest-local-data.yml").read_text(encoding="utf-8")
+        self.assertIn("queue: max", workflow)
+
     def test_ingest_applies_the_immutable_event_sha(self) -> None:
         workflow = (SCRIPTS.parent / ".github" / "workflows" / "ingest-local-data.yml").read_text(encoding="utf-8")
         self.assertIn("github.sha", workflow)
@@ -2151,6 +2235,41 @@ class IngestWorkflowContractTests(unittest.TestCase):
         self.assertIn("ref: ${{ inputs.target_sha || github.sha }}", workflow)
         self.assertIn("REBUILD_BASE_MISMATCH", workflow)
         self.assertIn('CI_COMMIT_REBASE_ON_CONFLICT: "false"', workflow)
+
+    def test_deploy_checkout_and_receipt_are_exact(self) -> None:
+        deploy = (SCRIPTS.parent / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")
+        rebuild = (SCRIPTS.parent / ".github" / "workflows" / "rebuild-indexes.yml").read_text(encoding="utf-8")
+        funnel = (SCRIPTS.parent / ".github" / "workflows" / "update-contribution-funnel.yml").read_text(encoding="utf-8")
+        self.assertIn("run-name: Deploy exact", deploy)
+        self.assertIn("ref: ${{ inputs.target_sha || github.sha }}", deploy)
+        self.assertIn("DEPLOY_BASE_MISMATCH", deploy)
+        self.assertIn("GITHUB_STEP_SUMMARY", deploy)
+        self.assertIn('-f "target_sha=$DEPLOY_TARGET_SHA"', rebuild)
+        self.assertIn('-f "target_sha=$DEPLOY_TARGET_SHA"', funnel)
+
+
+class TrackedRawEvidencePolicyTests(unittest.TestCase):
+    def test_current_tree_has_zero_tracked_raw_evidence(self) -> None:
+        tracked = validate_no_tracked_raw_evidence.tracked_evidence_files(SCRIPTS.parent)
+        self.assertEqual(
+            validate_no_tracked_raw_evidence.violations(SCRIPTS.parent, tracked),
+            [],
+        )
+
+    def test_rejects_warc_and_unapproved_html(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            failures = validate_no_tracked_raw_evidence.violations(
+                root, [
+                    "private/event.warc.gz",
+                    "docs/raw-capture.html",
+                    "data/generated/event/standings.html.gz",
+                ],
+            )
+        self.assertEqual(len(failures), 3)
+        combined = "\n".join(failures)
+        self.assertIn("tracked WARC", combined)
+        self.assertIn("not an approved", combined)
 
 
 class SparseIngestApplyTests(unittest.TestCase):
@@ -2489,6 +2608,8 @@ class StableJSONTests(unittest.TestCase):
             leaderboards = root / "leaderboards.json"
             api_root = root / "api"
             api_v2_root = root / "apiv2"
+            event_facts = root / "facts/events/manifest.json"
+            game_facts = root / "facts/games/manifest.json"
             by_player.mkdir()
             registry.write_text(json.dumps([{
                 "fideID": "1",
@@ -2498,6 +2619,7 @@ class StableJSONTests(unittest.TestCase):
                 "inactive": False,
             }]))
             (by_player / "fide-1.json").write_text(json.dumps({
+                "snapshotId": "api-fixture",
                 "player": {"fideID": "1"},
                 "totals": {"games": 1},
                 "packages": [],
@@ -2514,13 +2636,34 @@ class StableJSONTests(unittest.TestCase):
                     "games": 1,
                 },
             }
+            for manifest_path, kind, facts in (
+                (event_facts, "player-event-facts", []),
+                (game_facts, "player-game-facts", [{"playerFideIDs": ["1"]}]),
+            ):
+                manifest_path.parent.mkdir(parents=True)
+                data_path = manifest_path.parent / "facts.json"
+                body = json.dumps({
+                    "snapshotId": "api-fixture", "facts": facts,
+                }, ensure_ascii=False, separators=(",", ":")).encode()
+                data_path.write_bytes(body)
+                manifest_path.write_text(json.dumps({
+                    "kind": kind,
+                    "dataFile": "facts.json",
+                    "dataSha256": hashlib.sha256(body).hexdigest(),
+                    "rows": len(facts),
+                    "snapshotId": "api-fixture",
+                }), encoding="utf-8")
             with (
+                mock.patch.dict(os.environ, {"SNAPSHOT_ID": "api-fixture"}),
                 mock.patch.object(build_api, "REGISTRY_PLAYERS", registry),
                 mock.patch.object(build_api, "BY_PLAYER_INDEX", by_player),
                 mock.patch.object(build_api, "LEADERBOARDS", leaderboards),
                 mock.patch.object(build_api, "API_ROOT", api_root),
                 mock.patch.object(build_api, "API_V2_ROOT", api_v2_root),
                 mock.patch.object(build_api, "REPO_ROOT", root),
+                mock.patch.object(build_api, "PLAYER_EVENT_FACTS", event_facts),
+                mock.patch.object(build_api, "PLAYER_GAME_FACTS", game_facts),
+                mock.patch.object(build_api, "snapshot_id", return_value="api-fixture"),
                 mock.patch.object(build_api, "canonical_public_metrics", return_value=metrics),
             ):
                 build_api.main()

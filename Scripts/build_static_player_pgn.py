@@ -22,6 +22,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from build_event_catalog import ROUND_ITEM_RE, TEST_NAME_RE, event_id, has_chinese_text
+from canonical_player_facts import (
+    PLAYER_EVENT_FACTS,
+    PLAYER_GAME_FACTS,
+    load_fact_dataset,
+    manifest_reference,
+)
 from snapshot_context import snapshot_id, stamp
 from stable_json import write_json as write_stable_json
 
@@ -37,6 +43,7 @@ OUTPUT_INDEX_ROOT = STATIC_INDEX_ROOT / "by-player"
 OUTPUT_BUCKET_ROOT = STATIC_INDEX_ROOT / "by-player-buckets"
 OUTPUT_PGN_ROOT = DOCS_DATA / "pgn" / "by-player"
 R2_PUBLIC_BASE = "https://data.chessdb.aigclabs.cc"
+R2_CONTENT_ROOT = "data/pgn/objects/sha256"
 SCHEMA_VERSION = 1
 
 
@@ -157,8 +164,15 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    event_facts, event_manifest = load_fact_dataset(PLAYER_EVENT_FACTS, "player-event-facts")
+    game_facts, game_manifest = load_fact_dataset(PLAYER_GAME_FACTS, "player-game-facts")
+    fact_contract = {
+        "playerEvents": manifest_reference(PLAYER_EVENT_FACTS, event_manifest),
+        "playerGames": manifest_reference(PLAYER_GAME_FACTS, game_manifest),
+    }
+
     if args.finalize:
-        manifest = finalize_from_details()
+        manifest = finalize_from_details(game_facts=game_facts, fact_contract=fact_contract)
         print(json.dumps(manifest["totals"], ensure_ascii=False, indent=2))
         return 0
 
@@ -171,23 +185,23 @@ def main() -> int:
         }
     buckets: dict[str, PlayerBucket] = {}
     stats = {
-        "eventGames": 0,
-        "bulkYouthGames": 0,
+        "factGames": 0,
         "dedupedGames": 0,
     }
 
-    stats["eventGames"] = ingest_static_event_pgns(buckets, profiles)
-    stats["bulkYouthGames"] = ingest_bulk_youth_pgns(buckets, profiles)
+    stats["factGames"] = ingest_player_game_facts(
+        buckets, profiles, game_facts, event_facts,
+    )
     stats["dedupedGames"] = sum(len(bucket.games) for bucket in buckets.values())
 
-    existing_packages = load_existing_package_metadata() if not args.dry_run else {}
     if not args.dry_run:
         ensure_output_roots()
     manifest = write_outputs(
         buckets,
         dry_run=args.dry_run,
-        existing_packages=existing_packages,
+        existing_packages={},
         write_aggregates=shard_count <= 1,
+        fact_contract=fact_contract,
     )
     if not args.dry_run and shard_count <= 1:
         prune_stale_outputs(buckets)
@@ -210,7 +224,11 @@ def shard_of(fide_id: str, shard_count: int) -> int:
     return int(hashlib.sha256(fide_id.encode("utf-8")).hexdigest(), 16) % shard_count
 
 
-def finalize_from_details() -> dict[str, Any]:
+def finalize_from_details(
+    *,
+    game_facts: list[dict[str, Any]] | None = None,
+    fact_contract: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Aggregate manifest/players.json from per-player detail files (used
     after sharded ingest runs so aggregates always describe every player)."""
     player_summaries: list[dict[str, Any]] = []
@@ -219,6 +237,11 @@ def finalize_from_details() -> dict[str, Any]:
     profiles = load_profiles()
     for detail_path in sorted(OUTPUT_INDEX_ROOT.glob("fide-*.json")):
         detail = read_json(detail_path)
+        if detail.get("snapshotId") != snapshot_id():
+            raise RuntimeError(
+                "BY_PLAYER_FINALIZE_SNAPSHOT_MISMATCH: "
+                f"{detail_path}: {detail.get('snapshotId')} != {snapshot_id()}"
+            )
         player = detail.get("player") or {}
         fide_id = clean(player.get("fideID"))
         if not fide_id or fide_id not in profiles:
@@ -252,6 +275,7 @@ def finalize_from_details() -> dict[str, Any]:
             "playerPgnRoot": "data/pgn/by-player",
             "playerIndexRoot": "data/index/by-player",
             "playerPgnPattern": "data/pgn/by-player/fide-<fideID>/<package>.pgn",
+            "playerPgnObjectPattern": "data/pgn/objects/sha256/<first-two>/<sha256>.pgn",
             "playerIndexPattern": "data/index/by-player/fide-<fideID>.json",
         },
         "totals": {
@@ -261,6 +285,7 @@ def finalize_from_details() -> dict[str, Any]:
             "bytes": all_bytes,
         },
         "sources": public_sources(sources),
+        **({"factInputs": fact_contract} if fact_contract else {}),
     })
     write_player_detail_buckets()
     manifest["storage"]["playerBucketRoot"] = "data/index/by-player-buckets"
@@ -268,7 +293,102 @@ def finalize_from_details() -> dict[str, Any]:
     manifest["storage"]["bucketRule"] = "integer FIDE ID modulo 256, lower-case hex"
     write_json(OUTPUT_INDEX_ROOT / "manifest.json", manifest)
     write_json(OUTPUT_INDEX_ROOT / "players.json", player_summaries)
+    if game_facts is not None:
+        expected: dict[str, int] = {}
+        for fact in game_facts:
+            for fide_id in fact.get("playerFideIDs") or []:
+                expected[str(fide_id)] = expected.get(str(fide_id), 0) + 1
+        actual = {str(item.get("fideID")): int(item.get("gameCount") or 0) for item in player_summaries}
+        if actual != expected:
+            raise RuntimeError(
+                "PLAYER_GAME_FACT_COVERAGE_MISMATCH: finalized by-player counts "
+                "do not equal canonical player-game links"
+            )
     return manifest
+
+
+def ingest_player_game_facts(
+    buckets: dict[str, PlayerBucket],
+    profiles: dict[str, PlayerProfile],
+    game_facts: list[dict[str, Any]],
+    event_facts: list[dict[str, Any]],
+) -> int:
+    """Build by-player rows only from this snapshot's canonical facts."""
+    ranks = {
+        (clean(fact.get("fideID")), clean(fact.get("tournamentID"))): fact.get("rank", "")
+        for fact in event_facts
+        if clean(fact.get("fideID")) and clean(fact.get("tournamentID"))
+    }
+    asset_cache: dict[pathlib.Path, list[str]] = {}
+    total = 0
+    for fact in game_facts:
+        asset_value = clean(fact.get("assetPath"))
+        if not asset_value:
+            raise RuntimeError(f"PLAYER_GAME_FACT_ASSET_MISSING: {fact.get('id')}")
+        asset = pathlib.Path(asset_value)
+        if not asset.is_absolute():
+            asset = REPO_ROOT / asset
+        if not asset.is_file():
+            raise RuntimeError(f"PLAYER_GAME_FACT_ASSET_UNREADABLE: {asset}")
+        games = asset_cache.get(asset)
+        if games is None:
+            games = split_pgn_games(asset.read_text(encoding="utf-8", errors="replace"))
+            asset_cache[asset] = games
+        position = fact.get("gameIndex")
+        if not isinstance(position, int) or position < 0 or position >= len(games):
+            raise RuntimeError(
+                f"PLAYER_GAME_FACT_INDEX_INVALID: {fact.get('id')}: {asset}:{position}"
+            )
+        game = repair_pgn_text(games[position])
+        actual_hash = stable_game_hash(game)
+        if actual_hash != clean(fact.get("gameSha256")):
+            raise RuntimeError(
+                f"PLAYER_GAME_FACT_GAME_HASH_MISMATCH: {fact.get('id')}: "
+                f"expected {fact.get('gameSha256')}, got {actual_hash}"
+            )
+        headers = pgn_headers(game)
+        tournament_id = clean(fact.get("tournamentID"))
+        event_name = clean(fact.get("event") or headers.get("Event"))
+        date = clean(fact.get("date"))
+        entered_stage = event_stage_from_name(event_name)
+        for raw_fide_id in fact.get("playerFideIDs") or []:
+            fide_id = clean(raw_fide_id)
+            profile = profiles.get(fide_id)
+            if profile is None:
+                raise RuntimeError(
+                    f"REGISTRY_AUTHORITY_MISMATCH: fact identity {fide_id} is absent from registry"
+                )
+            natural_stage = natural_stage_for_player(profile, date)
+            fact_stage = clean(fact.get("stage"))
+            role = (
+                "white" if fide_id == clean(fact.get("whiteFideID")) else
+                "black" if fide_id == clean(fact.get("blackFideID")) else
+                role_for_profile(profile, headers)
+            )
+            record = PlayerGame(
+                pgn=game,
+                event=event_name,
+                date=date,
+                white=clean(fact.get("white") or headers.get("White")),
+                black=clean(fact.get("black") or headers.get("Black")),
+                result=clean(fact.get("result") or headers.get("Result")),
+                source=clean(fact.get("source")) or "Static PGN",
+                broadcast_name=clean(headers.get("BroadcastName")),
+                round=clean(fact.get("round") or headers.get("Round")),
+                stage=fact_stage or natural_stage or entered_stage,
+                natural_stage=natural_stage,
+                event_stage=entered_stage,
+                source_pgn_path=clean(fact.get("publicPgnPath")),
+                source_index_path=clean(fact.get("sourceIndexPath")),
+                source_shard=clean(fact.get("sourceShard")),
+                role=role,
+                rank=ranks.get((fide_id, tournament_id), ""),
+                tournament_id=tournament_id,
+                sha256=actual_hash,
+            )
+            if bucket_for(buckets, profile).add(record):
+                total += 1
+    return total
 
 
 def ingest_static_event_pgns(
@@ -450,6 +570,7 @@ def write_outputs(
     dry_run: bool,
     existing_packages: dict[str, tuple[str, str]],
     write_aggregates: bool = True,
+    fact_contract: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     generated_at = now()
     player_summaries: list[dict[str, Any]] = []
@@ -498,6 +619,7 @@ def write_outputs(
         stage_counts = stage_game_counts(bucket.games)
         detail = {
             "schemaVersion": SCHEMA_VERSION,
+            "snapshotId": snapshot_id(),
             "generatedAt": generated_at,
             "player": bucket.profile.payload(),
             "totals": {
@@ -540,6 +662,7 @@ def write_outputs(
             "playerPgnRoot": "data/pgn/by-player",
             "playerIndexRoot": "data/index/by-player",
             "playerPgnPattern": "data/pgn/by-player/fide-<fideID>/<package>.pgn",
+            "playerPgnObjectPattern": "data/pgn/objects/sha256/<first-two>/<sha256>.pgn",
             "playerIndexPattern": "data/index/by-player/fide-<fideID>.json",
             "playerBucketRoot": "data/index/by-player-buckets",
             "playerBucketPattern": "data/index/by-player-buckets/<bucket>.json",
@@ -552,6 +675,7 @@ def write_outputs(
             "bytes": all_bytes,
         },
         "sources": public_sources(sources),
+        **({"factInputs": fact_contract} if fact_contract else {}),
     })
 
     if not dry_run and write_aggregates:
@@ -574,35 +698,32 @@ def build_package(
     # Upstream PGN wraps movetext with trailing spaces; normalize so packs
     # stay `git diff --check` clean without altering game semantics.
     body = "\n".join(line.rstrip() for line in body.split("\n"))
-    created_at = now()
-    semantic_text = "\n".join(
+    text = "\n".join(
         [
             "% Built by 中国棋手 PGN static by-player index",
             f"% FIDE: {fide_id}",
             f"% Package: {package_id}",
             f"% Games: {len(games)}",
-            "% Created:",
             "",
             body,
             "",
         ]
     )
-    relative = str(target.relative_to(OUTPUT_PGN_ROOT))
-    previous = existing_packages.get(relative)
-    semantic_hash = semantic_package_hash(semantic_text)
-    if previous and previous[1] == semantic_hash:
-        created_at = previous[0]
-    text = semantic_text.replace("% Created:\n", f"% Created: {created_at}\n", 1)
     if not dry_run:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(text, encoding="utf-8")
     byte_count = len(text.encode("utf-8"))
     content_sha256 = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    object_path = content_addressed_pgn_path(content_sha256)
     return {
         "id": package_id,
         "label": label,
         "pgnPath": public_data_path(target),
-        "publicURL": f"{R2_PUBLIC_BASE}/{public_data_path(target)}?sha={content_sha256[:16]}",
+        # The hash is part of the object key, not a cache-busting query on a
+        # mutable key.  A package can therefore be cached as immutable without
+        # ever serving bytes that disagree with the package metadata.
+        "publicURL": f"{R2_PUBLIC_BASE}/{object_path}",
+        "objectPath": object_path,
         "gameCount": len(games),
         "pgnBytes": byte_count,
         "sha256": content_sha256,
@@ -611,35 +732,15 @@ def build_package(
     }
 
 
+def content_addressed_pgn_path(sha256: str) -> str:
+    if not re.fullmatch(r"[0-9a-f]{64}", sha256):
+        raise ValueError(f"invalid PGN sha256: {sha256}")
+    return f"{R2_CONTENT_ROOT}/{sha256[:2]}/{sha256}.pgn"
+
+
 def public_sources(values: set[str]) -> list[str]:
     """Public source labels: Lichess attribution stays, Chess-Results never."""
     return sorted({v for v in values if v and not v.lower().startswith("chess-results")})
-
-
-def semantic_package_hash(text: str) -> str:
-    normalized = re.sub(r"^% Created:.*$", "% Created:", text, count=1, flags=re.MULTILINE)
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
-
-
-def load_existing_package_metadata() -> dict[str, tuple[str, str]]:
-    result: dict[str, tuple[str, str]] = {}
-    if not OUTPUT_PGN_ROOT.exists():
-        return result
-    for path in OUTPUT_PGN_ROOT.rglob("*.pgn"):
-        # The "% Created:" preamble sits in the first few lines; reading the
-        # whole multi-MB pack (× thousands of packs) made rebuilds minutes
-        # slower for no benefit. The semantic hash below still requires the
-        # full text, so it is only computed for packs whose header matched.
-        with path.open("r", encoding="utf-8", errors="replace") as handle:
-            head = handle.read(512)
-        match = re.search(r"^% Created:\s*(.+?)\s*$", head, flags=re.MULTILINE)
-        text = path.read_text(encoding="utf-8", errors="replace") if match else ""
-        if match:
-            result[str(path.relative_to(OUTPUT_PGN_ROOT))] = (
-                match.group(1),
-                semantic_package_hash(text),
-            )
-    return result
 
 
 _event_mappings: dict[str, dict[str, str]] | None = None

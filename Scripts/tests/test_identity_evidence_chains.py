@@ -214,24 +214,18 @@ class ParticipationChainTest(unittest.TestCase):
     def test_result_without_pgn_still_enters_history(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            events = root / "events.csv"
-            write_csv(events, [
-                "fide_id", "tnrid", "tournament_name", "end_date", "rank", "rounds",
-                "participants", "player_name", "club",
-            ], [{
-                "fide_id": "8608369", "tnrid": "123", "tournament_name": "全国国际象棋锦标赛",
-                "end_date": "2024-01-02", "rank": "7", "rounds": "9", "participants": "60",
-                "player_name": "戴文智", "club": "测试俱乐部",
-            }])
+            facts = [{
+                "fideID": "8608369", "tournamentID": "123", "event": "全国国际象棋锦标赛",
+                "date": "2024-01-02", "rank": "7", "rounds": "9", "participants": "60",
+                "gameCount": 0,
+            }]
             catalog = root / "catalog.json"
             catalog.write_text(json.dumps({"events": [{
                 "id": "chess-results:123",
                 "tournamentID": "123",
                 "displayName": "全国国际象棋锦标赛",
             }]}), encoding="utf-8")
-            details = root / "players"
-            details.mkdir()
-            rows = bpp.build_rows(events, catalog, details)
+            rows = bpp.build_rows(facts, catalog)
             self.assertEqual(len(rows["8608369"]), 1)
             self.assertEqual(rows["8608369"][0]["resultStatus"], "recorded")
             self.assertEqual(rows["8608369"][0]["pgnStatus"], "not-archived")
@@ -240,20 +234,17 @@ class ParticipationChainTest(unittest.TestCase):
     def test_future_event_is_not_labeled_as_final_result(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
-            events = root / "events.csv"
-            write_csv(events, ["fide_id", "tnrid", "tournament_name", "end_date"], [{
-                "fide_id": "8608369", "tnrid": "124", "tournament_name": "未来赛事",
-                "end_date": "2999-01-01",
-            }])
+            facts = [{
+                "fideID": "8608369", "tournamentID": "124", "event": "未来赛事",
+                "date": "2999-01-01", "gameCount": 0,
+            }]
             catalog = root / "catalog.json"
             catalog.write_text(json.dumps({"events": [{
                 "id": "chess-results:124",
                 "tournamentID": "124",
                 "displayName": "未来赛事",
             }]}), encoding="utf-8")
-            details = root / "players"
-            details.mkdir()
-            rows = bpp.build_rows(events, catalog, details)
+            rows = bpp.build_rows(facts, catalog)
             self.assertEqual(rows["8608369"][0]["resultStatus"], "scheduled")
 
 

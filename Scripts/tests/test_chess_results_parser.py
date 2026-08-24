@@ -340,6 +340,25 @@ class SchedulingStateTests(unittest.TestCase):
         self.assertEqual(sce.queue_item_skip_reason({"date": "2026-08-21"}, today), "")
         self.assertEqual(sce.queue_item_skip_reason({"date": "unknown"}, today), "")
 
+    def test_queue_selection_excludes_future_event_but_keeps_due_event(self) -> None:
+        with tempfile.TemporaryDirectory() as name:
+            root = pathlib.Path(name)
+            queue = root / "queue.json"
+            pool = root / "pool.json"
+            state = root / "capture-state.json"
+            queue.write_text(json.dumps({"targets": [
+                {"tournamentID": "999100", "date": "2999-09-13", "nextAction": "capture-event"},
+                {"tournamentID": "999101", "date": "2000-01-01", "nextAction": "capture-event"},
+            ]}), encoding="utf-8")
+            pool.write_text('{"candidates":{}}', encoding="utf-8")
+            state.write_text('{"schemaVersion":2,"events":{}}', encoding="utf-8")
+            with (
+                mock.patch.object(sce, "EVENT_QUEUE", queue),
+                mock.patch.object(sce, "DISCOVERY_POOL", pool),
+                mock.patch.object(sce, "CAPTURE_STATE", state),
+            ):
+                self.assertEqual(sce.queue_targets(10, 30), ["999101"])
+
     def test_v1_entries_migrate_to_complete(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             state = pathlib.Path(temp) / "capture-state.json"
@@ -530,7 +549,8 @@ class BatchIsolationTests(unittest.TestCase):
                 "rounds": [{"round": 1, "pairings": []}],
             }
             public_path = public_root / "tnr999009.json"
-            public_path.write_text(json.dumps(last_good), encoding="utf-8")
+            last_good_bytes = (json.dumps(last_good, indent=2) + "\n").encode("utf-8")
+            public_path.write_bytes(last_good_bytes)
             state = temp / "capture-state.json"
             queue = temp / "queue.json"
             queue.write_text('{"targets":[]}', encoding="utf-8")
@@ -555,6 +575,7 @@ class BatchIsolationTests(unittest.TestCase):
             ):
                 code = sce.main()
             self.assertEqual(code, 4)
+            self.assertEqual(public_path.read_bytes(), last_good_bytes)
             self.assertEqual(json.loads(public_path.read_text(encoding="utf-8")), last_good)
             private_path = run_root / "extracted/chess-results-event-details/tnr999009.json"
             partial = json.loads(private_path.read_text(encoding="utf-8"))
@@ -565,6 +586,79 @@ class BatchIsolationTests(unittest.TestCase):
                 pathlib.Path(result["targets"]["999009"]["preview"]).resolve(),
                 private_path.resolve(),
             )
+
+    def test_partial_publication_without_last_good_creates_no_public_candidate(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
+            temp = pathlib.Path(name)
+            run_root = temp / "run1"
+            public_root = temp / "public-details"
+            state = temp / "capture-state.json"
+            queue = temp / "queue.json"
+            queue.write_text('{"targets":[]}', encoding="utf-8")
+            argv = [
+                "sync_chess_results_event.py",
+                "999009",
+                "--private-root", str(run_root),
+                "--delay", "0",
+                "--publish",
+                "--overwrite",
+                "--no-players",
+                "--no-pgn",
+                "--no-rebuild",
+            ]
+            with (
+                mock.patch.object(sce, "CAPTURE_STATE", state),
+                mock.patch.object(sce, "EVENT_QUEUE", queue),
+                mock.patch.object(sce, "PUBLIC_OUTPUT", public_root),
+                mock.patch.object(sce, "fetch_page_body", FakeFetcher()),
+                mock.patch.object(sce, "require_chess_results_publication"),
+                mock.patch.object(sys, "argv", argv),
+            ):
+                code = sce.main()
+            self.assertEqual(code, 4)
+            self.assertFalse((public_root / "tnr999009.json").exists())
+            private = json.loads(
+                (run_root / "extracted/chess-results-event-details/tnr999009.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(private["captureStatus"], "partial")
+
+    def test_complete_publication_promotes_the_private_capture(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="cc-test-") as name:
+            temp = pathlib.Path(name)
+            run_root = temp / "run1"
+            public_root = temp / "public-details"
+            state = temp / "capture-state.json"
+            queue = temp / "queue.json"
+            queue.write_text('{"targets":[]}', encoding="utf-8")
+            argv = [
+                "sync_chess_results_event.py",
+                "999001",
+                "--private-root", str(run_root),
+                "--delay", "0",
+                "--publish",
+                "--overwrite",
+                "--no-players",
+                "--no-pgn",
+                "--no-rebuild",
+            ]
+            with (
+                mock.patch.object(sce, "CAPTURE_STATE", state),
+                mock.patch.object(sce, "EVENT_QUEUE", queue),
+                mock.patch.object(sce, "PUBLIC_OUTPUT", public_root),
+                mock.patch.object(sce, "fetch_page_body", FakeFetcher()),
+                mock.patch.object(sce, "require_chess_results_publication"),
+                mock.patch.object(sys, "argv", argv),
+            ):
+                code = sce.main()
+            self.assertEqual(code, 0)
+            private_path = run_root / "extracted/chess-results-event-details/tnr999001.json"
+            public_path = public_root / "tnr999001.json"
+            self.assertTrue(private_path.is_file())
+            self.assertTrue(public_path.is_file())
+            self.assertEqual(json.loads(public_path.read_text())["captureStatus"], "complete")
+            self.assertEqual(json.loads(state.read_text())["events"]["999001"]["status"], "complete")
 
     def test_tournament_details_network_failure_never_becomes_missing_event_id(self) -> None:
         with tempfile.TemporaryDirectory(prefix="cc-test-") as name:

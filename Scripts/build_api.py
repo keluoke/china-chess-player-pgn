@@ -21,6 +21,12 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from age_groups import LEADERBOARD_GROUPS  # noqa: E402
+from canonical_player_facts import (  # noqa: E402
+    PLAYER_EVENT_FACTS,
+    PLAYER_GAME_FACTS,
+    load_fact_dataset,
+    manifest_reference,
+)
 from public_metrics import canonical_public_metrics  # noqa: E402
 from snapshot_context import snapshot_id  # noqa: E402
 from stable_json import write_json as write_stable_json  # noqa: E402
@@ -30,6 +36,7 @@ DOCS = REPO_ROOT / "docs"
 REGISTRY_PLAYERS = DOCS / "data" / "registry" / "players.json"
 BY_PLAYER_INDEX = DOCS / "data" / "index" / "by-player"
 LEADERBOARDS = DOCS / "data" / "leaderboards.json"
+PUBLIC_EVENTS = DOCS / "data" / "index" / "public-events.json"
 API_ROOT = DOCS / "api" / "v1"
 API_V2_ROOT = DOCS / "api" / "v2"
 API_VERSION = "1"
@@ -99,7 +106,14 @@ def player_bucket(fide_id: str) -> str:
 
 def main() -> int:
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+    sid = snapshot_id()
     players = read_json(REGISTRY_PLAYERS)
+    event_facts, event_fact_manifest = load_fact_dataset(PLAYER_EVENT_FACTS, "player-event-facts")
+    game_facts, game_fact_manifest = load_fact_dataset(PLAYER_GAME_FACTS, "player-game-facts")
+    fact_inputs = {
+        "playerEvents": manifest_reference(PLAYER_EVENT_FACTS, event_fact_manifest),
+        "playerGames": manifest_reference(PLAYER_GAME_FACTS, game_fact_manifest),
+    }
     public_metrics = canonical_public_metrics()
     API_ROOT.mkdir(parents=True, exist_ok=True)
     player_api_root = API_ROOT / "players"
@@ -114,6 +128,7 @@ def main() -> int:
 
     # --- players.json: full registry, compact -------------------------------
     emit(API_ROOT / "players.json", {
+        "snapshotId": sid,
         "generatedAt": generated_at,
         "count": len(players),
         "players": [compact_player(p) for p in players],
@@ -121,6 +136,7 @@ def main() -> int:
 
     # --- search.json: alias -> fideID rows ----------------------------------
     emit(API_ROOT / "search.json", {
+        "snapshotId": sid,
         "generatedAt": generated_at,
         "rows": [[p.get("fideID"), "|".join(p.get("aliases", []))] for p in players],
     })
@@ -132,9 +148,52 @@ def main() -> int:
     # --- per-player endpoints (only players with PGN data) ------------------
     detailed = 0
     registry_by_id = {str(p.get("fideID")): p for p in players}
-    for detail_file in sorted(BY_PLAYER_INDEX.glob("fide-*.json")):
+    public_catalog = {
+        str(row.get("tournamentID") or "").strip(): row
+        for row in (read_json(PUBLIC_EVENTS).get("events") if PUBLIC_EVENTS.is_file() else []) or []
+        if str(row.get("tournamentID") or "").strip()
+    }
+    event_facts_by_player: dict[str, list[dict]] = {}
+    for fact in event_facts:
+        fide_id = str(fact.get("fideID") or "").strip()
+        tid = str(fact.get("tournamentID") or "").strip()
+        catalog_event = public_catalog.get(tid)
+        if not fide_id or not catalog_event:
+            continue
+        event_facts_by_player.setdefault(fide_id, []).append({
+            "tournamentID": tid,
+            "name": catalog_event.get("chineseName") or catalog_event.get("displayName") or catalog_event.get("name"),
+            "date": catalog_event.get("date") or fact.get("date"),
+            "rank": fact.get("rank"),
+        })
+    game_counts: dict[str, int] = {}
+    for fact in game_facts:
+        for fide_id in fact.get("playerFideIDs") or []:
+            fide_id = str(fide_id)
+            game_counts[fide_id] = game_counts.get(fide_id, 0) + 1
+
+    if (
+        int(public_metrics["totals"].get("playersWithGames") or 0) != len(game_counts)
+        or int(public_metrics["totals"].get("games") or 0) != sum(game_counts.values())
+    ):
+        raise RuntimeError(
+            "PUBLIC_METRICS_FACT_COVERAGE_MISMATCH: public metrics totals do not "
+            "equal canonical player-game links"
+        )
+
+    for fide_id in sorted(game_counts):
+        detail_file = BY_PLAYER_INDEX / f"fide-{fide_id}.json"
+        if not detail_file.is_file():
+            raise RuntimeError(f"PLAYER_GAME_FACT_PROJECTION_MISSING: {fide_id}: {detail_file}")
         detail = read_json(detail_file)
-        fide_id = str(detail.get("player", {}).get("fideID") or detail_file.stem.replace("fide-", ""))
+        detail_fide_id = str(detail.get("player", {}).get("fideID") or detail_file.stem.replace("fide-", ""))
+        if detail_fide_id != fide_id:
+            raise RuntimeError(f"PLAYER_GAME_FACT_PROJECTION_ID_MISMATCH: {fide_id} != {detail_fide_id}")
+        if detail.get("snapshotId") != sid:
+            raise RuntimeError(
+                f"PLAYER_GAME_FACT_PROJECTION_SNAPSHOT_MISMATCH: {fide_id}: "
+                f"{detail.get('snapshotId')} != {sid}"
+            )
         reg = registry_by_id.get(fide_id, {})
         if not reg:
             raise RuntimeError(f"REGISTRY_AUTHORITY_MISMATCH: by-player identity {fide_id} is absent from registry")
@@ -148,25 +207,26 @@ def main() -> int:
                 "sha256": pkg.get("sha256"),
                 "stages": pkg.get("stages"),
             })
-        events = [
-            {
-                "tournamentID": e.get("tournamentID"),
-                "name": e.get("name"),
-                "date": e.get("date"),
-                "rank": e.get("rank"),
-                "source": e.get("source"),
-            }
-            for e in detail.get("events", [])
-        ]
+        events = sorted(
+            event_facts_by_player.get(fide_id, []),
+            key=lambda row: (row.get("date") or "", row.get("tournamentID") or ""),
+            reverse=True,
+        )
+        if int(detail.get("totals", {}).get("games") or 0) != game_counts[fide_id]:
+            raise RuntimeError(
+                f"PLAYER_GAME_FACT_COVERAGE_MISMATCH: {fide_id}: "
+                f"by-player={detail.get('totals', {}).get('games')}, facts={game_counts[fide_id]}"
+            )
         # The registry is the only identity/rating authority. Never merge an
         # old by-player identity underneath a sparse registry row: missing
         # registry values must clear stale derivatives instead of reviving
         # them.
         identity = reg
         payload = {
+            "snapshotId": sid,
             "generatedAt": generated_at,
             **compact_player(identity),
-            "gameCount": detail.get("totals", {}).get("games"),
+            "gameCount": game_counts[fide_id],
             "eventCount": len(events),
             "packages": packages,
             "events": events,
@@ -192,7 +252,6 @@ def main() -> int:
     # official-ranking shards only. Per-player/event v2 shards and search
     # shards follow once bulk/PGN assets move to object storage (P2-2).
     v2_root = API_V2_ROOT
-    sid = snapshot_id()
     if LEADERBOARDS.exists():
         boards = read_json(LEADERBOARDS)
         basis_year = boards.get("basisYear")
@@ -248,6 +307,7 @@ def main() -> int:
             "scope": public_metrics["scope"],
             "source": "/data/public-metrics.json",
         },
+        "factInputs": fact_inputs,
         "ageGroups": [g["id"] for g in LEADERBOARD_GROUPS] + ["adult"],
         "endpoints": {
             "players": "/api/v1/players.json",

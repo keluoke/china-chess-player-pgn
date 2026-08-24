@@ -27,7 +27,7 @@ on:
     inputs:
       target_sha:
         description: Exact main commit whose inputs must be rebuilt.
-        required: false
+        required: true
         type: string
 
 permissions:
@@ -65,10 +65,48 @@ jobs:
       - name: Set up Python
         uses: ./.github/actions/setup-python-deps
         with:
-          packages: pypinyin==0.55.0
+          packages: pypinyin==0.55.0 boto3==1.43.51
 
       - name: Rebuild derived indexes
         uses: ./.github/actions/rebuild-indexes
+
+      - name: Upload and certify full player PGN snapshot in R2
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          for name in R2_ENDPOINT R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+            if [ -z "${!name:-}" ]; then
+              echo "R2_CONFIG_MISSING: $name" >&2
+              exit 1
+            fi
+          done
+          if [ "$R2_BUCKET" != "chess-data" ]; then
+            echo "R2_BUCKET_INVALID: expected chess-data" >&2
+            exit 1
+          fi
+          find docs/data/pgn/by-player -type f -name '*.pgn' -print \
+            | sed 's#^docs/data/pgn/##' \
+            | LC_ALL=C sort > /tmp/player-pgn-files.txt
+          if [ ! -s /tmp/player-pgn-files.txt ]; then
+            echo "PLAYER_PGN_SOURCE_EMPTY" >&2
+            exit 1
+          fi
+          python3 Scripts/local/upload_bulk_to_r2.py \
+            --content-addressed \
+            --prefix data/pgn \
+            --source-root docs/data/pgn \
+            --file-list /tmp/player-pgn-files.txt \
+            --receipt-path docs/data/index/player-pgn-r2-receipt.json \
+            --receipt-field playerObjects \
+            --audit-sample 384 \
+            --max-class-a 10000 \
+            --max-class-b 10000 \
+            --workers 4
+          python3 Scripts/validate_player_pgn_r2_receipt.py
 
       - name: Commit rebuilt indexes
         id: commit
@@ -76,7 +114,21 @@ jobs:
           # A snapshot built from one main commit must never be rebased onto
           # newer machine inputs. A newer ingest dispatches its own rebuild.
           CI_COMMIT_REBASE_ON_CONFLICT: "false"
-        run: bash Scripts/ci_commit_push.sh "Rebuild derived indexes" docs/data docs/api
+        run: >-
+          bash Scripts/ci_commit_push.sh "Rebuild derived indexes"
+          data/generated/player-event-facts data/generated/player-game-facts
+          docs/data docs/api
+
+      - name: Resolve exact deploy SHA
+        id: deploy-target
+        run: |
+          set -euo pipefail
+          deploy_sha="$(git rev-parse HEAD)"
+          if ! [[ "$deploy_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "DEPLOY_TARGET_INVALID: $deploy_sha" >&2
+            exit 1
+          fi
+          echo "deploy_sha=$deploy_sha" >> "$GITHUB_OUTPUT"
 
       # Always dispatch the deploy: even if the rebuild itself produced no new
       # commit, the push that triggered this run already changed docs/data,
@@ -84,10 +136,12 @@ jobs:
       - name: Deploy static site
         env:
           GH_TOKEN: ${{ github.token }}
+          DEPLOY_TARGET_SHA: ${{ steps.deploy-target.outputs.deploy_sha }}
         run: |
           # GitHub's dispatch API occasionally 500s; retry before failing.
           for i in 1 2 3; do
-            gh workflow run deploy.yml --ref main -R "$GITHUB_REPOSITORY" && exit 0
+            gh workflow run deploy.yml --ref main -R "$GITHUB_REPOSITORY" \
+              -f "target_sha=$DEPLOY_TARGET_SHA" && exit 0
             echo "dispatch attempt $i failed; retrying in 20s" >&2
             sleep 20
           done

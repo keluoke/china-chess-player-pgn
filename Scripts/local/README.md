@@ -287,6 +287,11 @@ FIDE/Lichess/Chess-Results 发布前必须满足：
    实际输入提交 `inputCommit`。回执沿该提交可达的 local-release-manifest 历史
    核对发布 `runId`；即使后续发布替换当前 manifest，也只有确认该发布已进入
    线上快照的输入历史时才能推进到 `online-verified`。
+10. rebuild 生成全量棋手 PGN 后、提交新快照前，以完整 SHA-256 内容寻址 key 上传
+    生产 R2；先做全量 key/size inventory，再对新增对象 GET 回读正文哈希，并按
+    receipt 游标每轮轮换抽验最多 384 个既有对象。receipt 必须精确绑定 bucket、
+    endpoint、snapshotId、inputCommit、全包集合、配额和抽验记录；deploy 再次校验
+    receipt 并记录其 SHA-256。任一门禁失败时不提交、不部署，旧快照继续服务。
 
 发布准备使用与 preflight 相同的机器路径口径，包括 Git 忽略但实际存在的孤儿
 产物；发现时一律 fail-closed，并在 `diagnostics/recovery-candidates.json` 写出
@@ -336,6 +341,11 @@ run-id 的回执链接与当前阶段。任一云端阶段失败只重试该阶�
 - `RELEASE_BASE_CONFLICT`：远端 main 在采集基线后修改了同一路径，候选整包
   已隔离且尚未写入工作树；先人工核对冲突，不得回抓来源。
 - `VALIDATION_REGRESSION`：人数、分片、勘误或解析行数出现异常。
+- `COLLECTOR_RUNTIME_MANIFEST_MISSING` / `COLLECTOR_RUNTIME_MANIFEST_STALE` /
+  `COLLECTOR_RUNTIME_DRIFT`：采集器 runtime/control-input 未受控安装、安装清单与
+  当前 spec 不同，或实际文件哈希/模式已漂移；该错误发生在 run 创建和来源访问前。
+  回到代码工作区先运行 `collector-runtime-plan`，核对后再运行
+  `collector-runtime-sync`，不得在采集工作区手工补文件。
 - `COMPLIANCE_POLICY_BLOCKED`：操作违反数据边界（原始 HTML 入库、人工数据
   路径、或环境显式设为已退役的 link-only 模式）。
 - `GIT_DNS_FAILURE` / `GIT_TLS_FAILURE` / `GIT_PROXY_FAILURE` /
@@ -370,6 +380,26 @@ bash Scripts/local/code_workspace.sh sync
 # 提交后推送 main
 bash Scripts/local/code_workspace.sh push
 ```
+
+采集工作区永不 pull，因此不能用分支名或 `git status` 推断它实际执行的是哪版
+采集器。代码合入 `main` 并在代码工作区保持 tracked clean 后，先只读查看精确差异，
+再显式安装经过审阅的 runtime/control-input 白名单：
+
+```bash
+# 只读：列出将从代码工作区 HEAD 安装到采集工作区的文件
+bash Scripts/local/code_workspace.sh collector-runtime-plan
+
+# 有写入：只原子替换白名单文件，最后写入安装清单；不删除任何其他文件
+bash Scripts/local/code_workspace.sh collector-runtime-sync
+```
+
+白名单由 `Scripts/local/collector-runtime-files.json` 定义。安装器只读取代码工作区
+`main` 的不可变 HEAD Git blob（包括 sparse 排除的受控输入），逐文件记录 mode、
+bytes、SHA-256 和来源 commit；安装清单写在采集仓库 Git 私有区的
+`.git/collector-runtime-manifest.json`，不会进入数据 release/outbox。`refresh.sh`
+在创建 run 或访问任何来源之前校验相应 profile，面板启动时校验完整 panel profile；
+清单缺失、spec 变化、文件缺失/被改写或可执行位漂移一律 fail-closed。人工确认并
+重新执行上述 plan/sync 才能解除，禁止手改清单或只复制单个解析器绕过门禁。
 
 **默认直接在 `main` 上工作和提交**，不为普通任务创建分支；仅当用户明确要求
 PR/隔离时才建短命分支。普通 Git 不通时使用 API 发布器（以远端 main 为基准，

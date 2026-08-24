@@ -1710,22 +1710,14 @@ def main() -> int:
                 failures.append({"tournamentID": tid, "errorCode": "PGN_COLLECTION_INCOMPLETE"})
             checkpoint()
     if publish and not args.dry_run and not args.no_rebuild and complete_ids:
-        # Publication gate order (plan §5.2): by-player packs first, then the
-        # CompletenessReport (which decides the publishable set from results,
-        # PGN availability and archive matching), and only then the public
-        # projections. ``complete_ids`` is a capture checkpoint, never the
-        # publication gate — build_event_details refuses to run without a
-        # fresh report.
-        build_steps = [
-            ("static-player-pgn", [sys.executable, "Scripts/build_static_player_pgn.py"]),
-            ("completeness-report", [sys.executable, "Scripts/build_completeness_report.py"]),
-            ("event-details", [sys.executable, "Scripts/build_event_details.py"]),
-            ("event-catalog", [sys.executable, "Scripts/build_event_catalog.py"]),
-            ("dashboard", [sys.executable, "Scripts/build_dashboard.py"]),
-        ]
-        for step, command in build_steps:
-            if run_post_step(step, command) is None:
-                break
+        # Collector, CI/cloud rebuild and manual ``reindex`` all call the same
+        # orchestration API.  A local five-step subset used to create a warm-
+        # build-only dependency graph and could leave facts/API on different
+        # snapshots.
+        run_post_step(
+            "release-snapshot",
+            [sys.executable, "Scripts/build_release_snapshot.py"],
+        )
 
     print(json.dumps({
         "events": stats,

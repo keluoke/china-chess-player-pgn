@@ -9,9 +9,10 @@ the bundle's delivery state:
 
     pushed → ingested-to-main → indexes-rebuilt → deployed → online-verified
 
-Nothing here touches a data source, and a failed check never rolls a state
-back — it just records the pending stage so the panel can offer a stage-level
-retry link.
+Nothing here touches a data source. Ordinary failed checks never roll a state
+back. The one recovery exception is a ``pushed`` bundle whose exact ingest run
+was canceled, or never appeared before a bounded timeout: that immutable
+bundle returns to ``pending`` for a safe resend without re-scraping.
 """
 
 from __future__ import annotations
@@ -45,6 +46,8 @@ STAGE_WORKFLOWS = {
     "indexes-rebuilt": "rebuild-indexes.yml",
     "deployed": "deploy.yml",
 }
+INGEST_RECEIPT_TIMEOUT_SECONDS = 15 * 60
+DEPLOY_TITLE_RE = re.compile(r"^Deploy exact ([0-9a-f]{40})$")
 
 
 def repository_name() -> str:
@@ -88,6 +91,53 @@ def successful_run_after(runs: list[dict[str, Any]], after: dt.datetime | None) 
             continue
         return run
     return None
+
+
+def ingest_retry_reason(
+    delivery: dict[str, Any],
+    runs: list[dict[str, Any]],
+    *,
+    checked_at: dt.datetime | None = None,
+    timeout_seconds: int = INGEST_RECEIPT_TIMEOUT_SECONDS,
+) -> str | None:
+    """Return a retry code only when the exact push has no active ingest."""
+    if delivery.get("status") != "pushed":
+        return None
+    if successful_run_after(runs, None):
+        return None
+    # A queued/in-progress run blocks duplicate delivery. Completed failures
+    # other than cancellation keep their ordinary diagnostic state.
+    if any(run.get("status") != "completed" for run in runs):
+        return None
+    conclusions = {str(run.get("conclusion") or "") for run in runs}
+    if conclusions and conclusions <= {"cancelled", "canceled"}:
+        return "INGEST_RUN_CANCELLED"
+    if runs:
+        return None
+    anchor = parse_time(
+        delivery.get("pushedAt")
+        or delivery.get("createdAt")
+        or delivery.get("updatedAt")
+    )
+    if anchor is None:
+        return None
+    if anchor.tzinfo is None:
+        anchor = anchor.replace(tzinfo=dt.timezone.utc)
+    current = checked_at or dt.datetime.now(dt.timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=dt.timezone.utc)
+    if (current - anchor).total_seconds() >= timeout_seconds:
+        return "INGEST_RECEIPT_TIMEOUT"
+    return None
+
+
+def deploy_target_sha(run: dict[str, Any]) -> str:
+    """Return the exact checked-out SHA encoded in the deploy receipt."""
+    title = str(run.get("display_title") or "")
+    match = DEPLOY_TITLE_RE.fullmatch(title)
+    if match:
+        return match.group(1)
+    return str(run.get("head_sha") or "")
 
 
 def fetch_online_bytes(url: str) -> bytes:
@@ -371,11 +421,13 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
                 parse_time(rebuild.get("created_at")),
             )
             if deploy:
+                deployed_sha = deploy_target_sha(deploy)
                 stage_results["deployed"] = {"ok": True}
                 receipts["deploy"] = {
                     "runId": deploy.get("id"), "url": deploy.get("html_url"),
                     "conclusion": deploy.get("conclusion"), "createdAt": deploy.get("created_at"),
                     "headSHA": deploy.get("head_sha"),
+                    "targetSHA": deployed_sha,
                 }
                 has_public_file = any(
                     item.get("operation") == "upsert"
@@ -384,11 +436,11 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
                     for item in manifest.get("files") or []
                 )
                 fallback = None
-                if not has_public_file and deploy.get("head_sha"):
+                if not has_public_file and deployed_sha:
                     snapshot_path = "docs/data/snapshot.json"
                     fallback = (
                         snapshot_path,
-                        remote_file_bytes(repository, str(deploy["head_sha"]), snapshot_path),
+                        remote_file_bytes(repository, deployed_sha, snapshot_path),
                     )
                 release_input_proof = None
                 if fallback:
@@ -412,6 +464,24 @@ def check_entry(repository: str, delivery: dict[str, Any]) -> dict[str, Any]:
             receipts["ingest"] = {
                 "runId": failed.get("id"), "url": failed.get("html_url"),
                 "conclusion": failed.get("conclusion"), "createdAt": failed.get("created_at"),
+            }
+        retry_code = ingest_retry_reason(delivery, ingest_runs)
+        if retry_code:
+            receipts["ingestRecovery"] = {
+                "reason": retry_code,
+                "checkedAt": run_manager.now(),
+                "previousRemoteSHA": remote_sha,
+            }
+            run_manager.outbox_update(run_id, "pending", None, None, retry_code)
+            entry_delivery = run_manager.read_json(entry / "delivery.json")
+            entry_delivery["receipts"] = receipts
+            run_manager.atomic_json(entry / "delivery.json", entry_delivery)
+            return {
+                "runId": run_id,
+                "status": "pending",
+                "requeued": True,
+                "reason": retry_code,
+                "receipts": receipts,
             }
 
     new_status = advance(delivery, stage_results)

@@ -25,7 +25,20 @@ jobs:
         run: python3 Scripts/update_contribution_funnel.py
       - name: Commit snapshot
         run: bash Scripts/ci_commit_push.sh "Update contribution funnel" docs/data/contribution-funnel.json
+      - name: Resolve exact deploy SHA
+        id: deploy-target
+        run: |
+          set -euo pipefail
+          deploy_sha="$(git rev-parse HEAD)"
+          if ! [[ "$deploy_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "DEPLOY_TARGET_INVALID: $deploy_sha" >&2
+            exit 1
+          fi
+          echo "deploy_sha=$deploy_sha" >> "$GITHUB_OUTPUT"
       - name: Deploy static site
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run deploy.yml --ref main -R "$GITHUB_REPOSITORY"
+          DEPLOY_TARGET_SHA: ${{ steps.deploy-target.outputs.deploy_sha }}
+        run: >-
+          gh workflow run deploy.yml --ref main -R "$GITHUB_REPOSITORY"
+          -f "target_sha=$DEPLOY_TARGET_SHA"

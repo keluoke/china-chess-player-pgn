@@ -150,7 +150,8 @@ class PublicNavigationTests(unittest.TestCase):
         builder = (ROOT / "Scripts" / "build_static_player_pgn.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('?sha={content_sha256[:16]}', builder)
+        self.assertIn('R2_CONTENT_ROOT = "data/pgn/objects/sha256"', builder)
+        self.assertIn('f"{R2_PUBLIC_BASE}/{object_path}"', builder)
 
     def test_snapshot_json_is_revalidated_after_deploy(self) -> None:
         app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")

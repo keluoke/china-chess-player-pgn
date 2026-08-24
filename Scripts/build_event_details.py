@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
-import hashlib
 import json
 import pathlib
 import re
@@ -13,18 +12,15 @@ from collections import defaultdict
 from typing import Any
 
 from apply_aliases_to_registry import sanitize_person_name
+from canonical_player_facts import PLAYER_GAME_FACTS, load_fact_dataset, manifest_reference
 from snapshot_context import stamp
 from stable_json import write_json
-from fetch_event_pgn import parse_headers, split_games
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 GENERATED = ROOT / "data" / "generated" / "chess-results-event-details"
 COMPLETENESS = ROOT / "data" / "generated" / "event-completeness-report.json"
 OUTPUT = ROOT / "docs" / "data" / "index" / "event-details"
-BY_PLAYER = ROOT / "docs" / "data" / "index" / "by-player"
-EVENT_PGN = ROOT / "data" / "generated" / "chess-results-event-pgn"
-EVENT_PGN_RECEIPT = ROOT / "data" / "generated" / "r2-object-receipts" / "events--chess-results.json"
 REGISTRY = ROOT / "docs" / "data" / "registry" / "players.json"
 MAPPINGS = ROOT / "data" / "community" / "tournament-name-mappings.csv"
 PUBLIC_REGIONS = (
@@ -159,88 +155,48 @@ def prepare_public_person(
     minimize_public_location(person)
 
 
-def event_game_lookup() -> dict[tuple[str, str, tuple[str, str]], dict[str, Any]]:
-    grouped: dict[str, dict[str, Any]] = {}
-    players = read_json(BY_PLAYER / "players.json", [])
-    for player in players:
-        fide_id = clean(player.get("fideID"))
-        detail_path = player.get("playerIndexPath")
-        if not fide_id or not detail_path:
+def game_fact_lookups() -> tuple[
+    dict[tuple[str, str, tuple[str, str]], dict[str, Any]],
+    dict[tuple[str, str, str], dict[str, Any]],
+    dict[str, Any],
+]:
+    """Current-snapshot canonical facts indexed by names and natural key."""
+    facts, manifest = load_fact_dataset(PLAYER_GAME_FACTS, "player-game-facts")
+    names_lookup: dict[tuple[str, str, tuple[str, str]], dict[str, Any]] = {}
+    board_lookup: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for fact in facts:
+        tid = clean(fact.get("tournamentID"))
+        round_id = round_number(fact.get("round"))
+        game_id = clean(fact.get("id") or fact.get("gameSha256"))
+        public_path = clean(fact.get("publicPgnPath"))
+        if not tid or not round_id or not game_id or not public_path:
             continue
-        detail = read_json(ROOT / "docs" / clean(detail_path), None)
-        if detail is None:
-            detail = read_json(BY_PLAYER / f"fide-{fide_id}.json", {})
-        for game in detail.get("games", []):
-            tid = clean(game.get("tournamentID"))
-            path = clean(game.get("sourcePgnPath"))
-            game_id = clean(game.get("id") or game.get("sha256"))
-            if not tid or not path or not game_id:
-                continue
-            record = grouped.setdefault(game_id, {
-                "id": game_id,
-                "tournamentID": tid,
-                "round": round_number(game.get("round")),
-                "white": clean(game.get("white")),
-                "black": clean(game.get("black")),
-                "result": clean(game.get("result")),
-                "pgnPath": path,
-                "playerFideIDs": set(),
-            })
-            record["playerFideIDs"].add(fide_id)
-    lookup: dict[tuple[str, str, tuple[str, str]], dict[str, Any]] = {}
-    for record in grouped.values():
-        record["playerFideIDs"] = sorted(record["playerFideIDs"])
+        record = {
+            "id": f"game-{game_id[:20]}",
+            "tournamentID": tid,
+            "round": round_id,
+            "board": clean(fact.get("board")),
+            "white": clean(fact.get("white")),
+            "black": clean(fact.get("black")),
+            "result": clean(fact.get("result")),
+            "pgnPath": "./" + public_path.lstrip("/"),
+            "gameIndex": fact.get("gameIndex"),
+            "sha256": clean(fact.get("gameSha256")),
+            "playerFideIDs": sorted({clean(value) for value in fact.get("playerFideIDs") or [] if clean(value)}),
+        }
         names = tuple(sorted([normalize_name(record["white"]), normalize_name(record["black"])]))
-        lookup[(record["tournamentID"], record["round"], names)] = record
-    return lookup
+        names_lookup[(tid, round_id, names)] = record
+        if record["board"]:
+            board_lookup[(tid, round_id, record["board"])] = record
+    return names_lookup, board_lookup, manifest_reference(PLAYER_GAME_FACTS, manifest)
+
+
+def event_game_lookup() -> dict[tuple[str, str, tuple[str, str]], dict[str, Any]]:
+    return game_fact_lookups()[0]
 
 
 def event_archive_game_lookup() -> dict[tuple[str, str, str], dict[str, Any]]:
-    """Verified public event archive games keyed by tournament, round, board.
-
-    The complete event archive is independent of FIDE identity, so games
-    involving two no-FIDE players remain directly replayable.  An R2 HEAD
-    receipt with a matching local SHA is required before a public URL leaves
-    this projection.
-    """
-    receipt = read_json(EVENT_PGN_RECEIPT, {})
-    receipts = {
-        clean(item.get("key")): item
-        for item in receipt.get("objects", []) or []
-        if clean(item.get("key")) and clean(item.get("sha256"))
-    }
-    lookup: dict[tuple[str, str, str], dict[str, Any]] = {}
-    for path in sorted(EVENT_PGN.glob("tnr*.pgn")):
-        tid = path.stem.removeprefix("tnr")
-        key = f"events/chess-results/{path.name}"
-        item = receipts.get(key)
-        if not item or hashlib.sha256(path.read_bytes()).hexdigest() != clean(item.get("sha256")):
-            continue
-        if not clean(item.get("publicURL")):
-            continue
-        public_url = f"./api/event-pgn?tnr={tid}&sha={clean(item.get('sha256'))[:16]}"
-        text = path.read_text(encoding="utf-8", errors="replace")
-        for index, game in enumerate(split_games(text)):
-            headers = parse_headers(game)
-            round_id = round_number(headers.get("Round"))
-            board = clean(headers.get("Board"))
-            if not round_id or not board:
-                continue
-            digest = hashlib.sha256(game.strip().encode("utf-8")).hexdigest()
-            lookup[(tid, round_id, board)] = {
-                "id": f"game-{digest[:20]}",
-                "tournamentID": tid,
-                "round": round_id,
-                "board": board,
-                "white": clean(headers.get("White")),
-                "black": clean(headers.get("Black")),
-                "result": clean(headers.get("Result")),
-                "pgnPath": public_url,
-                "gameIndex": index,
-                "sha256": digest,
-                "playerFideIDs": [],
-            }
-    return lookup
+    return game_fact_lookups()[1]
 
 
 def attach_fide_id(side: dict[str, Any], names: dict[str, str]) -> None:
@@ -317,8 +273,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
     mappings = mapping_index()
     names = name_index()
     registry = registry_index()
-    games = event_game_lookup()
-    archive_games = event_archive_game_lookup()
+    games, archive_games, game_fact_input = game_fact_lookups()
     completeness = completeness_index()
     manifest_events: list[dict[str, Any]] = []
     totals = {
@@ -413,6 +368,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
         totals["events"] += 1
         totals["standings"] += len(payload.get("standings", []))
         totals["rounds"] += len(payload.get("rounds", []))
+    totals["factInputs"] = {"playerGames": game_fact_input}
     return manifest_events, totals
 
 
@@ -422,46 +378,13 @@ def main() -> int:
             "event-completeness-report.json missing — run "
             "Scripts/build_completeness_report.py first (publication gate)."
         )
-    # Environments without the full private capture layer (e.g. CI) cannot
-    # regenerate event projections — but they CAN legitimately re-derive the
-    # manifest from the committed public event files, which are the input of
-    # record there. This "reproject" keeps every manifest inside one snapshot
-    # without ever mixing unknown-state artifacts (review §3.1).
     report_events = len((read_json(COMPLETENESS, {}) or {}).get("events") or [])
     visible = len(list(GENERATED.glob("tnr*.json")))
     if report_events and visible < report_events:
-        manifest_events = []
-        totals = {"events": 0, "standings": 0, "rounds": 0, "reprojected": True}
-        for path in sorted(OUTPUT.glob("tnr*.json")):
-            payload = read_json(path, {})
-            tid = clean(payload.get("tournamentID"))
-            if not tid:
-                continue
-            completeness_block = payload.get("completeness") or {}
-            manifest_events.append({
-                "tournamentID": tid,
-                "path": f"data/index/event-details/tnr{tid}.json",
-                "displayName": payload.get("displayName"),
-                "dateBegin": payload.get("dateBegin"),
-                "dateEnd": payload.get("dateEnd"),
-                "roundCount": payload.get("roundCount") or len(payload.get("rounds", [])),
-                "standingCount": len(payload.get("standings", [])),
-                **({"roundsPendingVerification": True} if payload.get("roundsPendingVerification") else {}),
-                **({"pgnAvailability": completeness_block.get("pgnAvailability")} if completeness_block.get("pgnAvailability") else {}),
-                **({"eventComplete": True} if completeness_block.get("eventComplete") else {}),
-            })
-            totals["events"] += 1
-            totals["standings"] += len(payload.get("standings", []))
-            totals["rounds"] += len(payload.get("rounds", []))
-        write_json(OUTPUT / "manifest.json", stamp({
-            "schemaVersion": 2,
-            "buildMode": "reprojected-from-committed",
-            "totals": totals,
-            "events": manifest_events,
-        }), ensure_ascii=False, indent=2)
-        print(json.dumps({"reprojected": totals["events"], "visibleDetails": visible,
-                          "reportEvents": report_events}, ensure_ascii=False))
-        return 0
+        raise SystemExit(
+            "EVENT_DETAIL_INPUT_INCOMPLETE: structured event inputs are fewer than "
+            f"the completeness report ({visible} < {report_events}); refusing warm-output reproject"
+        )
     events, totals = build()
     # Prune projections for events that fell out of the publishable set so a
     # stale file can never keep serving a withdrawn event.
@@ -469,10 +392,12 @@ def main() -> int:
     for path in OUTPUT.glob("tnr*.json"):
         if path.name not in published:
             path.unlink()
+    fact_inputs = totals.pop("factInputs", {})
     manifest = stamp({
         "schemaVersion": 2,
         "totals": totals,
         "events": events,
+        "factInputs": fact_inputs,
     })
     write_json(OUTPUT / "manifest.json", manifest, ensure_ascii=False, indent=2)
     print(json.dumps(totals, ensure_ascii=False))

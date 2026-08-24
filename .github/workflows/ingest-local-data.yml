@@ -16,6 +16,9 @@ permissions:
 concurrency:
   group: ingest-local-data
   cancel-in-progress: false
+  # Preserve every immutable release. GitHub's default single pending slot
+  # cancels an older pending ingest when a newer local-data push arrives.
+  queue: max
 
 jobs:
   ingest:
