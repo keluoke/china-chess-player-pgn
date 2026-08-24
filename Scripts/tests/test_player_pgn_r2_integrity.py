@@ -29,6 +29,40 @@ class PlayerPgnR2IntegrityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             uploader.content_addressed_key("data/pgn", "short", ".pgn")
 
+    def test_aggregate_buckets_are_written_after_stale_details_are_pruned(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            index_root = root / "index/by-player"
+            bucket_root = root / "index/by-player-buckets"
+            pgn_root = root / "pgn/by-player"
+            index_root.mkdir(parents=True)
+            stale = index_root / "fide-2.json"
+            stale.write_text(json.dumps({
+                "player": {"fideID": "2"},
+                "packages": [{"pgnPath": "data/pgn/by-player/fide-2/all.pgn"}],
+            }), encoding="utf-8")
+            current = builder.PlayerBucket(builder.PlayerProfile("1", display_name="One"))
+            current.add(builder.PlayerGame(
+                pgn='[Event "fixture"]\n[White "One"]\n[Black "Two"]\n[Result "*"]\n\n*\n',
+                event="fixture", date="2026-08-24", white="One", black="Two",
+                result="*", source="fixture", sha256="game-1",
+            ))
+            with mock.patch.object(builder, "OUTPUT_INDEX_ROOT", index_root), \
+                 mock.patch.object(builder, "OUTPUT_BUCKET_ROOT", bucket_root), \
+                 mock.patch.object(builder, "OUTPUT_PGN_ROOT", pgn_root), \
+                 mock.patch.object(builder, "DOCS_DATA", root), \
+                 mock.patch.object(builder, "snapshot_id", return_value="snapshot-fixture"):
+                builder.write_outputs(
+                    {"1": current}, dry_run=False, existing_packages={}, write_aggregates=True
+                )
+            self.assertFalse(stale.exists())
+            bucket_players = {}
+            for path in bucket_root.glob("*.json"):
+                bucket_players.update(json.loads(path.read_text())["players"])
+            self.assertEqual(set(bucket_players), {"1"})
+            package = bucket_players["1"]["packages"][0]
+            self.assertRegex(package["objectPath"], r"^data/pgn/objects/sha256/[0-9a-f]{2}/")
+
     def test_receipt_requires_exact_package_coverage_and_hash(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

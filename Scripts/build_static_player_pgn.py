@@ -203,8 +203,6 @@ def main() -> int:
         write_aggregates=shard_count <= 1,
         fact_contract=fact_contract,
     )
-    if not args.dry_run and shard_count <= 1:
-        prune_stale_outputs(buckets)
     summary = {**stats, **manifest["totals"]}
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
@@ -679,6 +677,10 @@ def write_outputs(
     })
 
     if not dry_run and write_aggregates:
+        # Buckets must never observe a detail left by the previous snapshot.
+        # Prune after all current per-player outputs exist, but before the
+        # aggregate bucket writer enumerates those files.
+        prune_stale_outputs(buckets)
         write_player_detail_buckets()
         write_json(OUTPUT_INDEX_ROOT / "manifest.json", manifest)
         write_json(OUTPUT_INDEX_ROOT / "players.json", player_summaries)
