@@ -116,6 +116,8 @@ jobs:
           CI_COMMIT_REBASE_ON_CONFLICT: "false"
         run: >-
           bash Scripts/ci_commit_push.sh "Rebuild derived indexes"
+          data/generated/event-completeness-report.json
+          data/generated/pgn-supplement-queue.json
           data/generated/player-event-facts data/generated/player-game-facts
           docs/data docs/api
 

@@ -2236,6 +2236,13 @@ class IngestWorkflowContractTests(unittest.TestCase):
         self.assertIn("REBUILD_BASE_MISMATCH", workflow)
         self.assertIn('CI_COMMIT_REBASE_ON_CONFLICT: "false"', workflow)
 
+    def test_rebuild_persists_completeness_report_and_supplement_queue(self) -> None:
+        workflow = (SCRIPTS.parent / ".github" / "workflows" / "rebuild-indexes.yml").read_text(encoding="utf-8")
+        commit_block = workflow.split('bash Scripts/ci_commit_push.sh "Rebuild derived indexes"', 1)[1]
+        commit_block = commit_block.split("- name: Resolve exact deploy SHA", 1)[0]
+        self.assertIn("data/generated/event-completeness-report.json", commit_block)
+        self.assertIn("data/generated/pgn-supplement-queue.json", commit_block)
+
     def test_deploy_checkout_and_receipt_are_exact(self) -> None:
         deploy = (SCRIPTS.parent / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")
         rebuild = (SCRIPTS.parent / ".github" / "workflows" / "rebuild-indexes.yml").read_text(encoding="utf-8")
