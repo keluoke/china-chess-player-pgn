@@ -170,6 +170,29 @@ class CanonicalPlayerFactTest(unittest.TestCase):
                 player_hint="1003",
             )
 
+    def test_filename_hint_does_not_attribute_fully_unresolved_game(self):
+        registry = {
+            "1001": {"fideID": "1001", "name": "Alpha, One"},
+        }
+        games = {}
+        mojibaked = PGN.replace('[White "Alpha, One"]', '[White "???,  "]') \
+            .replace('[Black "Beta, Two"]', '[Black "??,  "]') \
+            .replace('[WhiteFideId "1001"]\n', '') \
+            .replace('[BlackFideId "1002"]\n', '')
+        bpf.add_game(
+            games,
+            game=mojibaked,
+            asset_path=pathlib.Path("docs/data/pgn/fide-1001.pgn"),
+            game_index=0,
+            source_kind="canonical-static-pgn",
+            source_label="Static PGN",
+            registry=registry,
+            names={},
+            contexts={},
+            player_hint="1001",
+        )
+        self.assertEqual(games, {})
+
     def test_player_package_bytes_are_cold_warm_deterministic(self):
         with tempfile.TemporaryDirectory() as directory:
             docs_data = pathlib.Path(directory) / "docs/data"

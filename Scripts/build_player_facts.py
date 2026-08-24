@@ -312,6 +312,11 @@ def add_game(
             white_id = hinted
         elif role == "black" and not black_id:
             black_id = hinted
+        elif not white_id and not black_id:
+            # A legacy filename is not sufficient identity evidence.  Keep the
+            # checked-in source asset intact, but do not project an unresolved
+            # game into a player's canonical package.
+            return
         else:
             raise RuntimeError(
                 "CANONICAL_STATIC_PGN_PLAYER_HINT_MISMATCH: "
