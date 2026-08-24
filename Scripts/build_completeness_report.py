@@ -54,6 +54,7 @@ EVENT_PGN_RECEIPT = ROOT / "data" / "generated" / "r2-object-receipts" / "events
 # maintainer-local file outside the repository.
 PGN_LEADS_PRIVATE = local_state_root() / "pgn-leads.csv"
 PGN_LEADS_PUBLIC = ROOT / "data" / "manual" / "pgn-leads.csv"
+OFFLINE_REMATCH_EVIDENCE = ROOT / "data" / "manual" / "offline-pgn-rematch-evidence.csv"
 
 # Team-format sections report match points ("2", "2½"); letters (e.g. a
 # federation code shifted into the result column) still mark a row invalid.
@@ -69,6 +70,85 @@ def clean(value: Any) -> str:
 
 def normalize_name(value: Any) -> str:
     return re.sub(r"[^0-9a-z一-鿿]", "", clean(value).casefold())
+
+
+def normalize_result(value: Any) -> str:
+    result = clean(value).replace(" ", "")
+    if result in {"1/2-1/2", "½-½", "0.5-0.5"}:
+        return "draw"
+    if result in {"1-0", "0-1"}:
+        return result
+    return result
+
+
+def invert_result(value: Any) -> str:
+    result = normalize_result(value)
+    if result == "1-0":
+        return "0-1"
+    if result == "0-1":
+        return "1-0"
+    return result
+
+
+def archive_name_compatible(archive_value: Any, pairing_value: Any) -> bool:
+    """Accept exact names or a narrowly bounded omitted trailing initial.
+
+    Historical live-board PGNs sometimes omit the final middle-name initial
+    that is present in the independently captured starting list.  The match
+    remains useful evidence only when the shared normalized name is long and
+    the roster value adds at most two trailing characters.  An empty archive
+    name is handled by ``archive_pairing_orientation`` where at least the
+    other side must still identify the board.
+    """
+    archive_name = normalize_name(archive_value)
+    pairing_name = normalize_name(pairing_value)
+    if not archive_name:
+        return True
+    if not pairing_name:
+        return False
+    if archive_name == pairing_name:
+        return True
+    return (
+        len(archive_name) >= 6
+        and pairing_name.startswith(archive_name)
+        and 1 <= len(pairing_name) - len(archive_name) <= 2
+    )
+
+
+def archive_pairing_orientation(
+    game: dict[str, str], pairing: dict[str, Any]
+) -> str | None:
+    """Return the unique identity/result orientation, otherwise reject.
+
+    Round+board is never accepted on its own.  At least one PGN player name
+    must be present, all present names must be exact or narrowly abbreviated,
+    and the result must agree after accounting for a possible color reversal.
+    """
+    game_white = clean(game.get("white"))
+    game_black = clean(game.get("black"))
+    if not game_white and not game_black:
+        return None
+    pairing_white = clean((pairing.get("white") or {}).get("name"))
+    pairing_black = clean((pairing.get("black") or {}).get("name"))
+    pairing_result = normalize_result(pairing.get("result"))
+    game_result = normalize_result(game.get("result"))
+    if not pairing_result or not game_result:
+        return None
+
+    orientations: list[str] = []
+    if (
+        archive_name_compatible(game_white, pairing_white)
+        and archive_name_compatible(game_black, pairing_black)
+        and game_result == pairing_result
+    ):
+        orientations.append("direct")
+    if (
+        archive_name_compatible(game_white, pairing_black)
+        and archive_name_compatible(game_black, pairing_white)
+        and invert_result(game_result) == pairing_result
+    ):
+        orientations.append("swapped")
+    return orientations[0] if len(orientations) == 1 else None
 
 
 def round_number(value: Any) -> str:
@@ -90,6 +170,26 @@ def read_json_required(path: pathlib.Path) -> Any:
         raise RuntimeError(f"required JSON is unreadable: {path}") from error
     except json.JSONDecodeError as error:
         raise RuntimeError(f"required JSON is invalid: {path}: {error}") from error
+
+
+def verified_offline_rematch_ids() -> set[str]:
+    """Return reviewed events only while both immutable inputs still match."""
+    verified: set[str] = set()
+    if not OFFLINE_REMATCH_EVIDENCE.is_file():
+        return verified
+    with OFFLINE_REMATCH_EVIDENCE.open("r", encoding="utf-8-sig", newline="") as handle:
+        for row in csv.DictReader(handle):
+            tid = re.sub(r"^tnr", "", clean(row.get("tournament_id")), flags=re.IGNORECASE)
+            detail = DETAILS / f"tnr{tid}.json"
+            archive = EVENT_PGN / f"tnr{tid}.pgn"
+            if not tid or not detail.is_file() or not archive.is_file():
+                continue
+            if (
+                hashlib.sha256(detail.read_bytes()).hexdigest() == clean(row.get("detail_sha256"))
+                and hashlib.sha256(archive.read_bytes()).hexdigest() == clean(row.get("pgn_sha256"))
+            ):
+                verified.add(tid)
+    return verified
 
 
 def verified_event_archives() -> set[str]:
@@ -244,6 +344,8 @@ def match_archive_games(
     archive_games: list[dict[str, str]],
     played_keys: set[tuple[str, str]] | None = None,
     advertised_keys: set[tuple[str, str]] | None = None,
+    *,
+    reviewed_rematch: bool = False,
 ) -> dict[str, Any]:
     """Match archived games to pairings by natural key round+board.
 
@@ -265,6 +367,7 @@ def match_archive_games(
         advertised_keys = inferred_advertised if advertised_keys is None else advertised_keys
 
     by_key: dict[tuple[str, str], dict[str, Any]] = {}
+    by_round: dict[str, list[dict[str, Any]]] = defaultdict(list)
     by_names: dict[tuple[str, tuple[str, str]], dict[str, Any]] = {}
     for round_row in payload.get("rounds") or []:
         rid = round_number(round_row.get("round"))
@@ -274,6 +377,7 @@ def match_archive_games(
             board = clean(pairing.get("board"))
             if board:
                 by_key[(rid, board)] = pairing
+            by_round[rid].append(pairing)
             names = tuple(sorted([
                 normalize_name((pairing.get("white") or {}).get("name")),
                 normalize_name((pairing.get("black") or {}).get("name")),
@@ -282,6 +386,8 @@ def match_archive_games(
 
     matched_exact: set[tuple[str, str]] = set()
     matched_fallback: set[tuple[str, str]] = set()
+    remapped_advertised_from: set[tuple[str, str]] = set()
+    remapped_advertised_to: set[tuple[str, str]] = set()
     mismatched_names = 0
     unmatched_games = 0
 
@@ -296,38 +402,85 @@ def match_archive_games(
                     forfeits_keys.add((rid, board))
 
     for game in archive_games:
-        game_names = tuple(sorted([normalize_name(game["white"]), normalize_name(game["black"])]))
+        game_names = tuple(sorted([
+            normalize_name(game["white"]), normalize_name(game["black"])
+        ]))
         pairing = by_key.get((game["round"], game["board"])) if game["board"] else None
         if pairing is not None:
             pairing_names = tuple(sorted([
                 normalize_name((pairing.get("white") or {}).get("name")),
                 normalize_name((pairing.get("black") or {}).get("name")),
             ]))
-            if not any(game_names) or not any(pairing_names) or game_names == pairing_names:
+            accepted = (
+                archive_pairing_orientation(game, pairing) is not None
+                if reviewed_rematch
+                else (
+                    not any(game_names)
+                    or not any(pairing_names)
+                    or game_names == pairing_names
+                )
+            )
+            if accepted:
                 matched_exact.add((game["round"], game["board"]))
                 continue
-            # Natural key hit but names disagree: never silently count it.
+            # Natural key hit but identity/result evidence disagrees: never
+            # silently count it. A unique same-round pairing may still prove
+            # that the historical PGN Board header itself is wrong.
             mismatched_names += 1
-        pairing = by_names.get((game["round"], game_names))
-        if pairing is not None:
-            p_board = clean(pairing.get("board"))
-            if p_board:
-                matched_fallback.add((game["round"], p_board))
+        if reviewed_rematch:
+            candidates = [
+                candidate
+                for candidate in by_round.get(game["round"], [])
+                if archive_pairing_orientation(game, candidate) is not None
+            ]
+        else:
+            legacy_candidate = by_names.get((game["round"], game_names))
+            candidates = [legacy_candidate] if legacy_candidate is not None else []
+        candidate_keys = {
+            (game["round"], clean(candidate.get("board")))
+            for candidate in candidates
+            if clean(candidate.get("board"))
+        }
+        if len(candidate_keys) == 1:
+            matched_fallback.update(candidate_keys)
+            header_key = (game["round"], game["board"])
+            if (
+                reviewed_rematch
+                and
+                clean(game.get("source")) in {"", "Chess-Results"}
+                and game["board"]
+                and header_key in advertised_keys
+            ):
+                # Some historical PartieSuche links were attached to the
+                # wrong board row. The downloaded game itself proves the
+                # uniquely identified target board was published, so replace
+                # (rather than expand) that one advertised natural key.
+                remapped_advertised_from.add(header_key)
+                remapped_advertised_to.update(candidate_keys)
         else:
             unmatched_games += 1
 
     matched_fallback -= matched_exact
-    matched_played = matched_exact & played_keys
-    matched_advertised = matched_exact & advertised_keys
-    matched_forfeits = matched_exact & forfeits_keys
+    accepted_keys = matched_exact | matched_fallback
+    coverage_keys = accepted_keys if reviewed_rematch else matched_exact
+    effective_advertised_keys = (
+        (advertised_keys - remapped_advertised_from) | remapped_advertised_to
+        if reviewed_rematch else advertised_keys
+    )
+    matched_played = coverage_keys & played_keys
+    matched_advertised = coverage_keys & effective_advertised_keys
+    matched_forfeits = coverage_keys & forfeits_keys
 
     return {
         "matchedPlayedKeys": matched_played,
         "matchedAdvertisedKeys": matched_advertised,
         "matchedForfeitKeys": matched_forfeits,
         "fallbackMatchedKeys": matched_fallback,
-        "unmatchedPlayedKeys": played_keys - matched_exact,
-        "unmatchedAdvertisedKeys": advertised_keys - matched_exact,
+        "unmatchedPlayedKeys": played_keys - coverage_keys,
+        "unmatchedAdvertisedKeys": effective_advertised_keys - coverage_keys,
+        "effectiveAdvertisedKeys": effective_advertised_keys,
+        "remappedAdvertisedFromKeys": remapped_advertised_from,
+        "remappedAdvertisedToKeys": remapped_advertised_to,
         "keyNameMismatches": mismatched_names,
         "unmatchedArchiveGames": unmatched_games,
         "matchedExact": len(matched_exact),
@@ -459,8 +612,14 @@ def event_report(
     collection_status: dict[str, Any] | None = None,
     public_archive_verified: bool = False,
     lichess_status: dict[str, Any] | None = None,
+    offline_rematch_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     tid = clean(payload.get("tournamentID"))
+    reviewed_rematch = tid in (
+        offline_rematch_ids
+        if offline_rematch_ids is not None
+        else verified_offline_rematch_ids()
+    )
     players = payload.get("players") or []
     standings = payload.get("standings") or []
     rounds = payload.get("rounds") or []
@@ -543,7 +702,11 @@ def event_report(
         fide_match = match_archive_games(payload, fide_event_games, played_keys, set())
         advertised_keys.update(fide_match["matchedPlayedKeys"])
     if archive_games:
-        match = match_archive_games(payload, archive_games, played_keys, advertised_keys)
+        match = match_archive_games(
+            payload, archive_games, played_keys, advertised_keys,
+            reviewed_rematch=reviewed_rematch,
+        )
+        advertised_keys = match["effectiveAdvertisedKeys"]
     else:
         matched_keys: set[tuple[str, tuple[str, str]]] = set()
         for round_row in rounds:
@@ -564,6 +727,9 @@ def event_report(
             "fallbackMatchedKeys": matched_keys,
             "unmatchedPlayedKeys": played_keys,
             "unmatchedAdvertisedKeys": advertised_keys,
+            "effectiveAdvertisedKeys": advertised_keys,
+            "remappedAdvertisedFromKeys": set(),
+            "remappedAdvertisedToKeys": set(),
             "keyNameMismatches": 0,
             "unmatchedArchiveGames": 0,
             "matchedExact": 0,
@@ -758,6 +924,7 @@ def event_report(
         "pgnSourceErrorCode": collection_status.get("errorCode") or None,
         "pgnLastAttemptedAt": collection_status.get("attemptedAt") or None,
         "publicArchiveVerified": public_archive_verified,
+        "offlineRematchEvidenceVerified": reviewed_rematch,
         "playableComplete": playable_complete,
         "eventComplete": event_complete,
         "counts": {
@@ -864,6 +1031,7 @@ def build() -> dict[str, Any]:
     lichess_statuses = lichess_event_metadata()
     status_payload = read_json_optional(COLLECTION_STATUS, {})
     collection_statuses = status_payload.get("events") if isinstance(status_payload.get("events"), dict) else {}
+    offline_rematch_ids = verified_offline_rematch_ids()
     reports = []
     for path in sorted(DETAILS.glob("tnr*.json")):
         payload = read_json_required(path)
@@ -876,6 +1044,7 @@ def build() -> dict[str, Any]:
             collection_statuses.get(tid, {}),
             tid in public_archives,
             lichess_statuses.get(tid, {}),
+            offline_rematch_ids,
         ))
     summary = {
         "events": len(reports),

@@ -197,7 +197,7 @@ class NaturalKeyMatchingTest(unittest.TestCase):
             {"playerNo": "3", "name": "Wang, Wei"}, {"playerNo": "4", "name": "Li, Lei"},
         ])
         games = [archive_game(1, 1, "Wang, Wei", "Li, Lei")]
-        match = ccr.match_archive_games(payload, games)
+        match = ccr.match_archive_games(payload, games, reviewed_rematch=True)
         self.assertEqual(match["matched"], 1)  # only board 1, never both
 
     def test_natural_key_with_disagreeing_names_is_not_silent(self):
@@ -208,6 +208,35 @@ class NaturalKeyMatchingTest(unittest.TestCase):
         self.assertEqual(match["matched"], 0)
         self.assertEqual(match["keyNameMismatches"], 1)
 
+    def test_trailing_roster_initial_is_strictly_compatible(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Ilamparthi, A R", 2, "Hardaway, Brewington")
+        ]}]
+        payload = payload_with_rounds(rounds)
+        games = [archive_game(1, 1, "Ilamparthi, A", "Hardaway, Brewington")]
+        match = ccr.match_archive_games(payload, games, reviewed_rematch=True)
+        self.assertEqual(match["matchedExact"], 1)
+        self.assertEqual(match["keyNameMismatches"], 0)
+
+    def test_one_missing_archive_name_requires_other_identity_and_result(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Known, Player", 2, "Missing, Player", result="½ - ½")
+        ]}]
+        payload = payload_with_rounds(rounds)
+        games = [archive_game(1, 1, "Known, Player", "", result="1/2-1/2")]
+        match = ccr.match_archive_games(payload, games, reviewed_rematch=True)
+        self.assertEqual(match["matchedExact"], 1)
+
+    def test_abbreviated_name_with_wrong_result_is_rejected(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Ilamparthi, A R", 2, "Hardaway, Brewington", result="1 - 0")
+        ]}]
+        payload = payload_with_rounds(rounds)
+        games = [archive_game(1, 1, "Ilamparthi, A", "Hardaway, Brewington", result="0-1")]
+        match = ccr.match_archive_games(payload, games, reviewed_rematch=True)
+        self.assertEqual(match["matched"], 0)
+        self.assertEqual(match["keyNameMismatches"], 1)
+
     def test_name_fallback_is_reported_separately(self):
         rounds = [{"round": "1", "pairings": [pairing(1, 1, 1, "Wang, Wei", 2, "Li, Lei")]}]
         payload = payload_with_rounds(rounds)
@@ -215,6 +244,61 @@ class NaturalKeyMatchingTest(unittest.TestCase):
         match = ccr.match_archive_games(payload, games)
         self.assertEqual(match["matchedExact"], 0)
         self.assertEqual(match["matchedNameFallback"], 1)  # reversed colors still one game
+
+    def test_unique_same_round_fallback_counts_for_coverage(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Other, A", 2, "Other, B", result="½ - ½"),
+            pairing(1, 2, 3, "Target, A", 4, "Target, B", result="½ - ½"),
+        ]}]
+        payload = payload_with_rounds(rounds)
+        games = [archive_game(1, 1, "Target, A", "Target, B", result="1/2-1/2")]
+        match = ccr.match_archive_games(payload, games, reviewed_rematch=True)
+        self.assertEqual(match["matchedExact"], 0)
+        self.assertEqual(match["matchedNameFallback"], 1)
+        self.assertEqual(match["unmatchedAdvertisedKeys"], set())
+        self.assertIn(("1", "2"), match["matchedAdvertisedKeys"])
+        self.assertEqual(match["effectiveAdvertisedKeys"], {("1", "2")})
+
+    def test_ambiguous_same_round_fallback_is_rejected(self):
+        rounds = [{"round": "1", "pairings": [
+            pairing(1, 1, 1, "Same, A", 2, "Same, B"),
+            pairing(1, 2, 3, "Same, A", 4, "Same, B"),
+        ]}]
+        payload = payload_with_rounds(rounds)
+        games = [{"round": "1", "board": "", "white": "Same, A", "black": "Same, B", "result": "1-0"}]
+        match = ccr.match_archive_games(payload, games, reviewed_rematch=True)
+        self.assertEqual(match["matched"], 0)
+        self.assertEqual(match["unmatchedArchiveGames"], 1)
+
+
+class OfflineRematchEvidenceTest(unittest.TestCase):
+    def test_both_detail_and_archive_hashes_are_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            details = root / "details"
+            archives = root / "archives"
+            details.mkdir()
+            archives.mkdir()
+            detail = details / "tnr123.json"
+            archive = archives / "tnr123.pgn"
+            detail.write_text('{"tournamentID":"123"}\n', encoding="utf-8")
+            archive.write_text('[Event "Reviewed"]\n', encoding="utf-8")
+            evidence = root / "evidence.csv"
+            import hashlib
+            evidence.write_text(
+                "tournament_id,detail_sha256,pgn_sha256,approved_rule,notes\n"
+                f"123,{hashlib.sha256(detail.read_bytes()).hexdigest()},"
+                f"{hashlib.sha256(archive.read_bytes()).hexdigest()},strict,test\n",
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(ccr, "DETAILS", details),
+                mock.patch.object(ccr, "EVENT_PGN", archives),
+                mock.patch.object(ccr, "OFFLINE_REMATCH_EVIDENCE", evidence),
+            ):
+                self.assertEqual(ccr.verified_offline_rematch_ids(), {"123"})
+                archive.write_text('[Event "Changed"]\n', encoding="utf-8")
+                self.assertEqual(ccr.verified_offline_rematch_ids(), set())
 
 
 class PlayedGameDenominatorTest(unittest.TestCase):
