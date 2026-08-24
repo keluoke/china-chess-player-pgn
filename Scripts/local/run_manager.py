@@ -475,7 +475,7 @@ def preflight(repo: pathlib.Path, run_dir: pathlib.Path, allow: list[str], *, ad
 def source_for_command(command: str) -> str:
     if command in {"registry", "all"}:
         return "fide"
-    if command in {"bulk", "bulk-full"}:
+    if command in {"bulk", "bulk-full", "bulk-reindex"}:
         return "lichess"
     if command == "storage-migrate":
         return "object-storage"

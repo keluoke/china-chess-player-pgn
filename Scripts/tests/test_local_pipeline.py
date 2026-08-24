@@ -2202,6 +2202,11 @@ class ReceiptAdvanceTests(unittest.TestCase):
 
 
 class IngestWorkflowContractTests(unittest.TestCase):
+    def test_bulk_reindex_release_is_classified_as_lichess(self) -> None:
+        import run_manager
+
+        self.assertEqual(run_manager.source_for_command("bulk-reindex"), "lichess")
+
     def test_ingest_preserves_every_pending_release(self) -> None:
         workflow = (SCRIPTS.parent / ".github" / "workflows" / "ingest-local-data.yml").read_text(encoding="utf-8")
         self.assertIn("queue: max", workflow)

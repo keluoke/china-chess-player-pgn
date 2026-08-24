@@ -972,7 +972,20 @@ run_lichess() {
 
 run_lichess_reindex() {
   [ "${#EXTRA[@]}" -eq 0 ] || fail "UNSAFE_ARGUMENT_BLOCKED" "bulk-reindex 不接受额外参数。"
-  preflight_release "${LICHESS_REINDEX_PATHS[@]}" || return $?
+  local preflight_args=()
+  local recovery_args=()
+  local recovery_path
+  for recovery_path in "${LICHESS_REINDEX_PATHS[@]}"; do
+    preflight_args+=(--allow "$recovery_path")
+  done
+  while IFS= read -r recovery_path; do
+    [ -n "$recovery_path" ] && recovery_args+=(--adopt "$recovery_path")
+  done < <(
+    py "$RUN_MANAGER" recovery-list --repo "$REPO_ROOT" \
+      "${preflight_args[@]}" --plain
+  )
+  py "$RUN_MANAGER" preflight --repo "$REPO_ROOT" --run-dir "$RUN_DIR" \
+    "${preflight_args[@]}" "${recovery_args[@]}" || return $?
   ensure_pymod zstandard || command -v zstd >/dev/null 2>&1 || fail "DEPENDENCY_INSTALL_FAILED" "缺少 zstandard/zstd。"
   local staging="$RUN_DIR/staging/lichess-offline/docs-data"
   rm -rf "$staging" || return $?
