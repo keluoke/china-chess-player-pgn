@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-10T06:26:47+00:00",
+  "snapshotId": "20260824T042122Z-492feadc",
+  "generatedAt": "2026-08-24T04:37:37+00:00",
   "player": {
     "fideID": "8690723",
     "id": "fide-8690723",
@@ -18,12 +19,13 @@
     ]
   },
   "totals": {
-    "games": 9,
-    "events": 1,
-    "packages": 2,
-    "bytes": 92213,
+    "games": 10,
+    "events": 2,
+    "packages": 3,
+    "bytes": 96205,
     "stages": {
-      "U8": 9
+      "U8": 9,
+      "U10": 1
     }
   },
   "packages": [
@@ -31,37 +33,54 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8690723/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8690723/all.pgn?sha=feddf1065275aa50",
-      "gameCount": 9,
-      "pgnBytes": 46107,
-      "sha256": "feddf1065275aa50878e4f2d4f10b789fb83c1662642865a48c868ddd3b4ac0c",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/55/55fb0a2ec7b5e328d06e95c26bdea90bc9c6842e5d16f2793231f6bee074eb68.pgn",
+      "objectPath": "data/pgn/objects/sha256/55/55fb0a2ec7b5e328d06e95c26bdea90bc9c6842e5d16f2793231f6bee074eb68.pgn",
+      "gameCount": 10,
+      "pgnBytes": 48057,
+      "sha256": "55fb0a2ec7b5e328d06e95c26bdea90bc9c6842e5d16f2793231f6bee074eb68",
       "stages": {
-        "U8": 9
+        "U8": 9,
+        "U10": 1
       },
       "sources": [
-        "Static PGN"
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "U8",
       "label": "U8 PGN",
       "pgnPath": "data/pgn/by-player/fide-8690723/U8.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8690723/U8.pgn?sha=7781fd3134477c71",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/73/73410d07f59aa307402e19603ab7e349ddb994cb08d8e0c90ea720d8a88d6e0e.pgn",
+      "objectPath": "data/pgn/objects/sha256/73/73410d07f59aa307402e19603ab7e349ddb994cb08d8e0c90ea720d8a88d6e0e.pgn",
       "gameCount": 9,
-      "pgnBytes": 46106,
-      "sha256": "7781fd3134477c715590eb15fb9540a070efa39696fb9c96b5298398bc1bcd12",
+      "pgnBytes": 46069,
+      "sha256": "73410d07f59aa307402e19603ab7e349ddb994cb08d8e0c90ea720d8a88d6e0e",
       "stages": {
         "U8": 9
       },
+      "sources": []
+    },
+    {
+      "id": "U10",
+      "label": "U10 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8690723/U10.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/0d/0d4fe1af7691a30275da445087aed9d20bd7134406081c4bd4fb90617ebc8afa.pgn",
+      "objectPath": "data/pgn/objects/sha256/0d/0d4fe1af7691a30275da445087aed9d20bd7134406081c4bd4fb90617ebc8afa.pgn",
+      "gameCount": 1,
+      "pgnBytes": 2079,
+      "sha256": "0d4fe1af7691a30275da445087aed9d20bd7134406081c4bd4fb90617ebc8afa",
+      "stages": {
+        "U10": 1
+      },
       "sources": [
-        "Static PGN"
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
     {
-      "id": "static-pgn:1469438",
-      "source": "Static PGN",
+      "id": "chess-results:1469438",
+      "source": "",
       "name": "2026年全国国际象棋青少年快棋超快棋公开赛",
       "date": "2026-08-06",
       "tournamentID": "1469438",
@@ -75,6 +94,22 @@
         "1-0": 3
       },
       "nameTranslationPending": false
+    },
+    {
+      "id": "ev-dce42813f61378db",
+      "source": "Lichess Broadcasts",
+      "name": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-07",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U10",
+      "naturalStage": "",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "*": 1
+      },
+      "nameTranslationPending": false
     }
   ],
   "games": [
@@ -85,13 +120,13 @@
       "white": "Zhong, Junrui",
       "black": "Wu, Yanxi",
       "result": "0-1",
-      "source": "Static PGN",
-      "round": "7.4",
+      "round": "7",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "black",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "6f138d0d9ed0b21b0a99fc7d15f122ab30f2eab7ef7a1b81894276e8b05ca57a"
     },
     {
@@ -101,13 +136,13 @@
       "white": "Wu, Yanxi",
       "black": "Zhang, Yichi(BJHD)",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "6.7",
+      "round": "6",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "white",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "7acfd245e7c1b5ea139211ab94817c8fa19e0ab1e988b39fa6746bf9a66c66bc"
     },
     {
@@ -117,13 +152,13 @@
       "white": "Wu, Yanxi",
       "black": "Wang, Shenglin",
       "result": "0-1",
-      "source": "Static PGN",
-      "round": "8.2",
+      "round": "8",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "white",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "2f6627a33cd8b23077a5e81c70fd0c4383a81da03788f2b9287431bd3f6e1dda"
     },
     {
@@ -133,13 +168,13 @@
       "white": "Wu, Yanxi",
       "black": "Lu, Minzhi",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "2.3",
+      "round": "2",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "white",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "bb9c7f522df1628772f0c54004581db3f743fa331a6305dac7613bb6a47b267f"
     },
     {
@@ -149,13 +184,13 @@
       "white": "Wu, Yanxi",
       "black": "He, Siyuan",
       "result": "0-1",
-      "source": "Static PGN",
-      "round": "4.1",
+      "round": "4",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "white",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "290477265af2d33bdb95f158e0518ac7393ad9224bdb513c300ed9412eecfcb3"
     },
     {
@@ -165,13 +200,13 @@
       "white": "Wu, Yanxi",
       "black": "Chen, Yang(JS)",
       "result": "0-1",
-      "source": "Static PGN",
-      "round": "9.3",
+      "round": "9",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "white",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "8e425db431d0ec8e3c693b774eca0b90196bf0f10ca4b1932744a0f6f1212e5c"
     },
     {
@@ -181,13 +216,13 @@
       "white": "Sun, Muxuan",
       "black": "Wu, Yanxi",
       "result": "0-1",
-      "source": "Static PGN",
-      "round": "1.5",
+      "round": "1",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "black",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "c473101429686be2a43d798490593e423cb19cd9b9d360334813bc658010eef4"
     },
     {
@@ -197,13 +232,13 @@
       "white": "Shi, Junhao",
       "black": "Wu, Yanxi",
       "result": "0-1",
-      "source": "Static PGN",
-      "round": "3.2",
+      "round": "3",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "black",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "faad63fd319fbb3c83857f94857ded4b4b79b2a2168a075db87fe0d91359b60e"
     },
     {
@@ -213,14 +248,30 @@
       "white": "Liu, Yizhi",
       "black": "Wu, Yanxi",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "5.4",
+      "round": "5",
       "stage": "U8",
       "naturalStage": "U8",
       "role": "black",
+      "rank": "11",
       "tournamentID": "1469438",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469438/fide-8690723-1469438.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469438&sha=4b6731a3fd62c00c",
       "sha256": "98dfc630a92d3895428c73080e353b3b6a57880f4fb732b837d046bf2bc32d31"
+    },
+    {
+      "id": "de6c00e8eed2c5be9b7499b0e5f3b16014310d9d48a51f6d5bcc08fc808eed6b",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-07",
+      "white": "吴彦希",
+      "black": "冯博轩",
+      "result": "*",
+      "source": "Lichess Broadcasts",
+      "round": "5",
+      "stage": "U10",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
+      "sha256": "de6c00e8eed2c5be9b7499b0e5f3b16014310d9d48a51f6d5bcc08fc808eed6b"
     }
   ]
 }

@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-12T14:14:32+00:00",
+  "snapshotId": "20260824T042122Z-492feadc",
+  "generatedAt": "2026-08-24T04:37:37+00:00",
   "player": {
     "fideID": "8623929",
     "id": "fide-8623929",
@@ -17,12 +18,12 @@
     ]
   },
   "totals": {
-    "games": 9,
-    "events": 1,
+    "games": 10,
+    "events": 2,
     "packages": 2,
-    "bytes": 18192,
+    "bytes": 19362,
     "stages": {
-      "U14": 9
+      "U14": 10
     }
   },
   "packages": [
@@ -30,12 +31,13 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8623929/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8623929/all.pgn?sha=99aad398b5d98804",
-      "gameCount": 9,
-      "pgnBytes": 9096,
-      "sha256": "99aad398b5d98804868164ac8c4dbef662cdf51abe673dd593ff4b4c95210b71",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/d5/d54f28983ff0e2f3c2f217e7fcbc43e522b4335b3714fc858465a2f7e0b9c806.pgn",
+      "objectPath": "data/pgn/objects/sha256/d5/d54f28983ff0e2f3c2f217e7fcbc43e522b4335b3714fc858465a2f7e0b9c806.pgn",
+      "gameCount": 10,
+      "pgnBytes": 9681,
+      "sha256": "d54f28983ff0e2f3c2f217e7fcbc43e522b4335b3714fc858465a2f7e0b9c806",
       "stages": {
-        "U14": 9
+        "U14": 10
       },
       "sources": [
         "Static PGN"
@@ -45,12 +47,13 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8623929/U14.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8623929/U14.pgn?sha=69e1796f9679d525",
-      "gameCount": 9,
-      "pgnBytes": 9096,
-      "sha256": "69e1796f9679d525972d99d447d34a766409d11619f6bc94b2350082e02f47aa",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/d1/d1a1eed84327c41e49233714e95bcf8405c111f251c5b54cdb23d62b748cf092.pgn",
+      "objectPath": "data/pgn/objects/sha256/d1/d1a1eed84327c41e49233714e95bcf8405c111f251c5b54cdb23d62b748cf092.pgn",
+      "gameCount": 10,
+      "pgnBytes": 9681,
+      "sha256": "d1a1eed84327c41e49233714e95bcf8405c111f251c5b54cdb23d62b748cf092",
       "stages": {
-        "U14": 9
+        "U14": 10
       },
       "sources": [
         "Static PGN"
@@ -59,8 +62,24 @@
   ],
   "events": [
     {
-      "id": "static-pgn:355952",
+      "id": "ev-badfae9c3dcf5eeb",
       "source": "Static PGN",
+      "name": "The 1st Binhai Cup China International Chess Open Tournament",
+      "date": "2018-12-25",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U14",
+      "naturalStage": "U14",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": true
+    },
+    {
+      "id": "chess-results:355952",
+      "source": "",
       "name": "The 1st Longtou Cup the Belt and Road Chess Open",
       "date": "2018-05-26",
       "tournamentID": "355952",
@@ -79,19 +98,34 @@
   ],
   "games": [
     {
+      "id": "cec856427a9976f4c39e5062f61fce1b2c9cf26e4a45fb2ae4fc75f5eeab73e7",
+      "event": "The 1st Binhai Cup China International Chess Open Tournament",
+      "date": "2018-12-25",
+      "white": "Wu, Huanghui",
+      "black": "Zhao, Jun",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "1",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "white",
+      "sourcePgnPath": "data/pgn/chess-results/the-1st-binhai-cup-china-international-chess-open-to-2018-fae50418/fide-8602522-the-1st-binhai-cup-china-international-chess-open-to-2018-fae50418.pgn",
+      "sha256": "cec856427a9976f4c39e5062f61fce1b2c9cf26e4a45fb2ae4fc75f5eeab73e7"
+    },
+    {
       "id": "66f48c719bad4fe54c3f72d60a251d473a46f34e9fa72f78c3f7d3f4bfd481be",
       "event": "The 1st Longtou Cup the Belt and Road Chess Open",
       "date": "2018-05-26",
       "white": "Wu, Huanghui",
       "black": "Zhao, Yuanhe",
       "result": "1-0",
-      "source": "Static PGN",
       "round": "2",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "white",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "66f48c719bad4fe54c3f72d60a251d473a46f34e9fa72f78c3f7d3f4bfd481be"
     },
     {
@@ -101,13 +135,13 @@
       "white": "Wu, Huanghui",
       "black": "Peng, Xiongjian",
       "result": "1/2-1/2",
-      "source": "Static PGN",
       "round": "7",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "white",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "71be287261a4d183a0f5000f0e4b8c5e0d8f6f11285acdc4ff191f442b24157d"
     },
     {
@@ -117,13 +151,13 @@
       "white": "Wu, Huanghui",
       "black": "Ning, Kaiyu",
       "result": "1-0",
-      "source": "Static PGN",
       "round": "5",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "white",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "c54de5971ba1a534c80f01e591fe4b68596fd368d14e4d0d0f22384d2a1db2cc"
     },
     {
@@ -133,13 +167,13 @@
       "white": "Wu, Huanghui",
       "black": "Li, Di",
       "result": "1/2-1/2",
-      "source": "Static PGN",
       "round": "9",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "white",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "dffe2a8a9ad4900700a87ee50164a396d44521f1d86094b95283b99901cc5684"
     },
     {
@@ -149,13 +183,13 @@
       "white": "Wu, Huanghui",
       "black": "Chen, Qi B",
       "result": "1-0",
-      "source": "Static PGN",
       "round": "1",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "white",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "bac19b6bc57c885ece433e3356fff311d3d8d805409010372628376d1b41a0fb"
     },
     {
@@ -165,13 +199,13 @@
       "white": "Peng, Hongchi",
       "black": "Wu, Huanghui",
       "result": "0-1",
-      "source": "Static PGN",
       "round": "6",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "black",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "bcc22eaee74fe6b07ffe97a29e15d728f1b45f4de8df58fd3e62d6cfd7a3be75"
     },
     {
@@ -181,13 +215,13 @@
       "white": "Nie, Xinyang",
       "black": "Wu, Huanghui",
       "result": "0-1",
-      "source": "Static PGN",
       "round": "8",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "black",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "03916ff785b24c5a9d1084e584f1a451ddd8a0e698830362d983bda86a8bab94"
     },
     {
@@ -197,13 +231,13 @@
       "white": "Mohr, Georg",
       "black": "Wu, Huanghui",
       "result": "1-0",
-      "source": "Static PGN",
       "round": "3",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "black",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "04b1f744433f6b6d2ae1270417a96bfd30d5e78f7104357410a55dc3d594bc37"
     },
     {
@@ -213,13 +247,13 @@
       "white": "Huang, Renjie",
       "black": "Wu, Huanghui",
       "result": "1-0",
-      "source": "Static PGN",
       "round": "4",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "black",
+      "rank": "9",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8623929-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "765e07d03e7f68e2629cadfe04c45b7d3ed6d97d579f5691dfba3e0c4aa20f64"
     }
   ]

@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-31T16:59:57+00:00",
+  "snapshotId": "20260824T042122Z-492feadc",
+  "generatedAt": "2026-08-24T04:37:37+00:00",
   "player": {
     "fideID": "8656096",
     "id": "fide-8656096",
@@ -23,7 +24,7 @@
     "games": 2,
     "events": 2,
     "packages": 2,
-    "bytes": 9696,
+    "bytes": 9622,
     "stages": {
       "U14": 2
     }
@@ -33,39 +34,55 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8656096/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8656096/all.pgn?sha=aa83f49340170bc6",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/ac/acc47fbf36497729990c7c7cd810317479dc157939413d245834ef4c1d67eb83.pgn",
+      "objectPath": "data/pgn/objects/sha256/ac/acc47fbf36497729990c7c7cd810317479dc157939413d245834ef4c1d67eb83.pgn",
       "gameCount": 2,
-      "pgnBytes": 4848,
-      "sha256": "aa83f49340170bc67ee1d50a476db901e6bb3314e95ccb82691674563595faf5",
+      "pgnBytes": 4811,
+      "sha256": "acc47fbf36497729990c7c7cd810317479dc157939413d245834ef4c1d67eb83",
       "stages": {
         "U14": 2
       },
       "sources": [
-        "Lichess Broadcasts",
-        "Static PGN"
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8656096/U14.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8656096/U14.pgn?sha=adfd54feb92d5b70",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/8a/8ae01deba71601e3e9ddad717471f44ecfaeb2def3bce7e4999de18a71f81125.pgn",
+      "objectPath": "data/pgn/objects/sha256/8a/8ae01deba71601e3e9ddad717471f44ecfaeb2def3bce7e4999de18a71f81125.pgn",
       "gameCount": 2,
-      "pgnBytes": 4848,
-      "sha256": "adfd54feb92d5b703303c61bfc19f134935cb762ec566cdba87c66390addde70",
+      "pgnBytes": 4811,
+      "sha256": "8ae01deba71601e3e9ddad717471f44ecfaeb2def3bce7e4999de18a71f81125",
       "stages": {
         "U14": 2
       },
       "sources": [
-        "Lichess Broadcasts",
-        "Static PGN"
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
     {
-      "id": "static-pgn:1356506",
-      "source": "Static PGN",
+      "id": "ev-cf8e4b61bdeec44c",
+      "source": "Lichess Broadcasts",
+      "name": "Chinese Youth Championships 2026 | Boys U14",
+      "date": "2026-02-22",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U14",
+      "naturalStage": "U14",
+      "eventStage": "U14",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": true
+    },
+    {
+      "id": "chess-results:1356506",
+      "source": "",
       "name": "Chinese National Youth Chess Championship 2026(B14)",
       "date": "2026-02-22",
       "tournamentID": "1356506",
@@ -78,25 +95,27 @@
         "0-1": 1
       },
       "nameTranslationPending": true
-    },
-    {
-      "id": "ev-7df732c6e4d990dd",
-      "source": "Lichess Broadcasts",
-      "name": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
-      "date": "2026-02-22",
-      "tournamentID": "",
-      "canonicalEventID": null,
-      "stage": "U14",
-      "naturalStage": "U14",
-      "eventStage": "",
-      "gameCount": 1,
-      "results": {
-        "0-1": 1
-      },
-      "nameTranslationPending": false
     }
   ],
   "games": [
+    {
+      "id": "f4a202c85a1d36f415cf31e7d920856ac4306fff52f6cc01ea595ee62d9c47bc",
+      "event": "Chinese Youth Championships 2026 | Boys U14",
+      "date": "2026-02-22",
+      "white": "Zhu, Pingan",
+      "black": "Jiang, Liu",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "2",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "eventStage": "U14",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
+      "sha256": "f4a202c85a1d36f415cf31e7d920856ac4306fff52f6cc01ea595ee62d9c47bc"
+    },
     {
       "id": "1b01c031b11637f31b764e61d3fbe8e306f77f381750582c3344040dc3ff34e1",
       "event": "Chinese National Youth Chess Championship 2026(B14)",
@@ -104,31 +123,14 @@
       "white": "Zhu, Pingan",
       "black": "Jiang, Liu",
       "result": "0-1",
-      "source": "Static PGN",
       "round": "2",
       "stage": "U14",
       "naturalStage": "U14",
       "role": "white",
+      "rank": "76",
       "tournamentID": "1356506",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1356506/fide-8656096-1356506.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1356506&sha=073372f08af85a15",
       "sha256": "1b01c031b11637f31b764e61d3fbe8e306f77f381750582c3344040dc3ff34e1"
-    },
-    {
-      "id": "f4a202c85a1d36f415cf31e7d920856ac4306fff52f6cc01ea595ee62d9c47bc",
-      "event": "2026年全国国象青少年锦标赛（个人）暨第31届“李成智杯”大龄组",
-      "date": "2026-02-22",
-      "white": "Zhu, Pingan",
-      "black": "Jiang, Liu",
-      "result": "0-1",
-      "source": "Lichess Broadcasts",
-      "round": "2.2",
-      "stage": "U14",
-      "naturalStage": "U14",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-02.pgn.zst",
-      "sha256": "f4a202c85a1d36f415cf31e7d920856ac4306fff52f6cc01ea595ee62d9c47bc"
     }
   ]
 }

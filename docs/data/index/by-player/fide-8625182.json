@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-10T03:49:09+00:00",
+  "snapshotId": "20260824T042122Z-492feadc",
+  "generatedAt": "2026-08-24T04:37:37+00:00",
   "player": {
     "fideID": "8625182",
     "id": "fide-8625182",
@@ -20,12 +21,12 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
+    "games": 2,
+    "events": 2,
     "packages": 2,
-    "bytes": 2050,
+    "bytes": 3372,
     "stages": {
-      "U16": 1
+      "U16": 2
     }
   },
   "packages": [
@@ -33,12 +34,13 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8625182/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8625182/all.pgn?sha=d0b4b564165416c4",
-      "gameCount": 1,
-      "pgnBytes": 1025,
-      "sha256": "d0b4b564165416c4889af11b3fb7dc2a50dfe1ea78a3989d2c69a814c785bb56",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/eb/eb66bf2b078b194c27dea84483f5d74222b3f1e9ba0aa39b42de1658aa03d233.pgn",
+      "objectPath": "data/pgn/objects/sha256/eb/eb66bf2b078b194c27dea84483f5d74222b3f1e9ba0aa39b42de1658aa03d233.pgn",
+      "gameCount": 2,
+      "pgnBytes": 1686,
+      "sha256": "eb66bf2b078b194c27dea84483f5d74222b3f1e9ba0aa39b42de1658aa03d233",
       "stages": {
-        "U16": 1
+        "U16": 2
       },
       "sources": [
         "Static PGN"
@@ -48,12 +50,13 @@
       "id": "U16",
       "label": "U16 PGN",
       "pgnPath": "data/pgn/by-player/fide-8625182/U16.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8625182/U16.pgn?sha=d9f31f437156a203",
-      "gameCount": 1,
-      "pgnBytes": 1025,
-      "sha256": "d9f31f437156a20364c7691b58bc5e3b498e20e0fb2bf75d337682a272a88b9b",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/10/10ef033a066398b6d2618378d03b05d24a0eaafc8d94cd11e39753092c97fea7.pgn",
+      "objectPath": "data/pgn/objects/sha256/10/10ef033a066398b6d2618378d03b05d24a0eaafc8d94cd11e39753092c97fea7.pgn",
+      "gameCount": 2,
+      "pgnBytes": 1686,
+      "sha256": "10ef033a066398b6d2618378d03b05d24a0eaafc8d94cd11e39753092c97fea7",
       "stages": {
-        "U16": 1
+        "U16": 2
       },
       "sources": [
         "Static PGN"
@@ -62,8 +65,24 @@
   ],
   "events": [
     {
-      "id": "static-pgn:724008",
+      "id": "ev-18dc770347450bb7",
       "source": "Static PGN",
+      "name": "2nd TCA Road to Masters Standard",
+      "date": "2023-09-30",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1/2-1/2": 1
+      },
+      "nameTranslationPending": true
+    },
+    {
+      "id": "chess-results:724008",
+      "source": "",
       "name": "2022 Chinese Chess Championship (Personal Group B)",
       "date": "2023-01-30",
       "tournamentID": "724008",
@@ -80,19 +99,34 @@
   ],
   "games": [
     {
+      "id": "ab0a1911b6fcc3850d2ff04c92fc4b65c253df129b780e8e7bee9cfd30726d5c",
+      "event": "2nd TCA Road to Masters Standard",
+      "date": "2023-09-30",
+      "white": "Weiye, Cheng",
+      "black": "Wang, Zihan",
+      "result": "1/2-1/2",
+      "source": "Static PGN",
+      "round": "5",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/pgn/chess-results/2nd-tca-road-to-masters-standard-2023-d5114633/fide-150109620-2nd-tca-road-to-masters-standard-2023-d5114633.pgn",
+      "sha256": "ab0a1911b6fcc3850d2ff04c92fc4b65c253df129b780e8e7bee9cfd30726d5c"
+    },
+    {
       "id": "f169b45089ce9b727ba07a79292af94f607170a98c0ec60f6957a0ac7466e480",
       "event": "2022 Chinese Chess Championship (Personal Group B)",
       "date": "2023-01-30",
       "white": "Feng, Eunice",
       "black": "Wang, Zihan",
       "result": "1-0",
-      "source": "Static PGN",
       "round": "1",
       "stage": "U16",
       "naturalStage": "U16",
       "role": "black",
+      "rank": "85",
       "tournamentID": "724008",
-      "sourcePgnPath": "data/pgn/chess-results/tnr724008/fide-8625182-724008.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=724008&sha=1d4456b2ec8529c6",
       "sha256": "f169b45089ce9b727ba07a79292af94f607170a98c0ec60f6957a0ac7466e480"
     }
   ]

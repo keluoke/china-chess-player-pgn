@@ -1,10 +1,11 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260821T044627Z-0573ab51",
+  "snapshotId": "20260824T042122Z-492feadc",
   "players": {
     "8607443": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8607443",
         "id": "fide-8607443",
@@ -22,9 +23,9 @@
       },
       "totals": {
         "games": 9,
-        "events": 1,
+        "events": 2,
         "packages": 2,
-        "bytes": 76724,
+        "bytes": 52490,
         "stages": {}
       },
       "packages": [
@@ -32,30 +33,51 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8607443/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8607443/all.pgn?sha=9a00a0b8be6d98c7",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/de/de91d7db24adf5650f55e64a873526ca896ad7cd3563f0df0c2961d6db2c8ffa.pgn",
+          "objectPath": "data/pgn/objects/sha256/de/de91d7db24adf5650f55e64a873526ca896ad7cd3563f0df0c2961d6db2c8ffa.pgn",
           "gameCount": 9,
-          "pgnBytes": 38361,
-          "sha256": "9a00a0b8be6d98c7b975321ac3c5b3f68295c4e2f99eeb1e487bc7c5840f34bb",
+          "pgnBytes": 26244,
+          "sha256": "de91d7db24adf5650f55e64a873526ca896ad7cd3563f0df0c2961d6db2c8ffa",
           "stages": {},
           "sources": [
-            "Lichess Broadcasts"
+            "Lichess Broadcasts",
+            "Static PGN"
           ]
         },
         {
           "id": "adult",
           "label": "adult PGN",
           "pgnPath": "data/pgn/by-player/fide-8607443/adult.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8607443/adult.pgn?sha=fab7af8ad6852aa9",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/bb/bb25d9728ca871f13130d40328c5d823b4d54bf3aea3cc06dd8a6098e12cec3e.pgn",
+          "objectPath": "data/pgn/objects/sha256/bb/bb25d9728ca871f13130d40328c5d823b4d54bf3aea3cc06dd8a6098e12cec3e.pgn",
           "gameCount": 9,
-          "pgnBytes": 38363,
-          "sha256": "fab7af8ad6852aa93caa9ebe1461f66431febfeccdf6d16284e55f40ae44195a",
+          "pgnBytes": 26246,
+          "sha256": "bb25d9728ca871f13130d40328c5d823b4d54bf3aea3cc06dd8a6098e12cec3e",
           "stages": {},
           "sources": [
-            "Lichess Broadcasts"
+            "Lichess Broadcasts",
+            "Static PGN"
           ]
         }
       ],
       "events": [
+        {
+          "id": "static-pgn:1204659",
+          "source": "Static PGN",
+          "name": "赛事 1204659",
+          "date": "2025-08-20",
+          "tournamentID": "1204659",
+          "canonicalEventID": null,
+          "stage": "adult",
+          "naturalStage": "adult",
+          "eventStage": "",
+          "gameCount": 4,
+          "results": {
+            "0-1": 1,
+            "1-0": 3
+          },
+          "nameTranslationPending": false
+        },
         {
           "id": "ev-f510626b89cd69d1",
           "source": "Lichess Broadcasts",
@@ -64,32 +86,80 @@
           "tournamentID": "",
           "canonicalEventID": null,
           "stage": "adult",
-          "naturalStage": "adult",
+          "naturalStage": "",
           "eventStage": "",
-          "gameCount": 9,
+          "gameCount": 5,
           "results": {
-            "0-1": 3,
-            "1-0": 6
+            "0-1": 2,
+            "1-0": 3
           },
           "nameTranslationPending": true
         }
       ],
       "games": [
         {
-          "id": "b621f66bf40c9f635861cf7a9b6c82e6b6c2d985ff28add44ee201ba1a5845fa",
-          "event": "Belt and Road Open 2025 (Aksu) | Group A",
+          "id": "f024be50b4dce82dcc6fa22890671e3f665649b12102e3036bf1dc748d5860c9",
+          "event": "赛事 1204659",
+          "date": "2025-08-20",
           "white": "Shao, Shuai",
           "black": "Zhang, Zhi",
           "result": "0-1",
-          "source": "Lichess Broadcasts",
-          "round": "4.17",
+          "source": "Static PGN",
+          "round": "4",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
-          "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-          "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
-          "sha256": "b621f66bf40c9f635861cf7a9b6c82e6b6c2d985ff28add44ee201ba1a5845fa"
+          "tournamentID": "1204659",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1204659/fide-8618399-1204659.pgn",
+          "sha256": "f024be50b4dce82dcc6fa22890671e3f665649b12102e3036bf1dc748d5860c9"
+        },
+        {
+          "id": "69d632e354c7fe38ed4ddc2373f2af24f6effb2bcb22e4f6a5b515c24ad98045",
+          "event": "赛事 1204659",
+          "date": "2025-08-20",
+          "white": "Li, Xueyi",
+          "black": "Shao, Shuai",
+          "result": "1-0",
+          "source": "Static PGN",
+          "round": "7",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "black",
+          "tournamentID": "1204659",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1204659/fide-8605912-1204659.pgn",
+          "sha256": "69d632e354c7fe38ed4ddc2373f2af24f6effb2bcb22e4f6a5b515c24ad98045"
+        },
+        {
+          "id": "1dfd6669becf2745b666906a9c60927135152f19ce48a8192d3b7ac6eec0eebb",
+          "event": "赛事 1204659",
+          "date": "2025-08-20",
+          "white": "Huang, Zhi",
+          "black": "Shao, Shuai",
+          "result": "1-0",
+          "source": "Static PGN",
+          "round": "5",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "black",
+          "tournamentID": "1204659",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1204659/fide-8608920-1204659.pgn",
+          "sha256": "1dfd6669becf2745b666906a9c60927135152f19ce48a8192d3b7ac6eec0eebb"
+        },
+        {
+          "id": "1f9590c0cb7d4a9df2d186b0d95aa4d88a641a9891e3a4775af380565c84378a",
+          "event": "赛事 1204659",
+          "date": "2025-08-20",
+          "white": "Chen, Qi b",
+          "black": "Shao, Shuai",
+          "result": "1-0",
+          "source": "Static PGN",
+          "round": "1",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "black",
+          "tournamentID": "1204659",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1204659/fide-8614733-1204659.pgn",
+          "sha256": "1f9590c0cb7d4a9df2d186b0d95aa4d88a641a9891e3a4775af380565c84378a"
         },
         {
           "id": "f87033faaec42c57d9fde20046ff355cf7e8f89c6391cedd138e4da7c8b158fd",
@@ -98,9 +168,8 @@
           "black": "TotonchyFardMotlagh, Ali",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "6.20",
+          "round": "6",
           "stage": "adult",
-          "naturalStage": "adult",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
           "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
@@ -114,9 +183,8 @@
           "black": "Teo, Hong Ming",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "3.20",
+          "round": "3",
           "stage": "adult",
-          "naturalStage": "adult",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
           "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
@@ -130,9 +198,8 @@
           "black": "Llaneza Vega, Marcos",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "9.20",
+          "round": "9",
           "stage": "adult",
-          "naturalStage": "adult",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
           "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
@@ -146,62 +213,13 @@
           "black": "Shao, Shuai",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "8.19",
+          "round": "8",
           "stage": "adult",
-          "naturalStage": "adult",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
           "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
           "sha256": "02c74708bfcb724746c4c8209c12c38fedc563af612124836661d25be62430f9"
-        },
-        {
-          "id": "d45600026ab0b5f7255607a8ff0f2a68f3199a9e293b1daf826bd626c723ea13",
-          "event": "Belt and Road Open 2025 (Aksu) | Group A",
-          "white": "Li, Xueyi",
-          "black": "Shao, Shuai",
-          "result": "1-0",
-          "source": "Lichess Broadcasts",
-          "round": "7.19",
-          "stage": "adult",
-          "naturalStage": "adult",
-          "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-          "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
-          "sha256": "d45600026ab0b5f7255607a8ff0f2a68f3199a9e293b1daf826bd626c723ea13"
-        },
-        {
-          "id": "98316f4be12bf10afb03e606c18de1afaccd00590393a188c94ec86d2e08b917",
-          "event": "Belt and Road Open 2025 (Aksu) | Group A",
-          "white": "Huang, Zhi",
-          "black": "Shao, Shuai",
-          "result": "1-0",
-          "source": "Lichess Broadcasts",
-          "round": "5.19",
-          "stage": "adult",
-          "naturalStage": "adult",
-          "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-          "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
-          "sha256": "98316f4be12bf10afb03e606c18de1afaccd00590393a188c94ec86d2e08b917"
-        },
-        {
-          "id": "9a7504b5cc4e9ec3b6abaabbd35be478ef2380d41884e66318b52e8845e3d457",
-          "event": "Belt and Road Open 2025 (Aksu) | Group A",
-          "white": "Chen, Qi b",
-          "black": "Shao, Shuai",
-          "result": "1-0",
-          "source": "Lichess Broadcasts",
-          "round": "1.14",
-          "stage": "adult",
-          "naturalStage": "adult",
-          "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-          "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
-          "sha256": "9a7504b5cc4e9ec3b6abaabbd35be478ef2380d41884e66318b52e8845e3d457"
         },
         {
           "id": "69aac4fdd79ddf6af8aebf29b0df9970af91dcccf07fc41124c9a74bdc5d024d",
@@ -210,9 +228,8 @@
           "black": "Shao, Shuai",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "2.15",
+          "round": "2",
           "stage": "adult",
-          "naturalStage": "adult",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
           "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
@@ -223,7 +240,8 @@
     },
     "8617171": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8617171",
         "id": "fide-8617171",
@@ -243,10 +261,10 @@
         ]
       },
       "totals": {
-        "games": 17,
-        "events": 4,
+        "games": 25,
+        "events": 5,
         "packages": 2,
-        "bytes": 156672,
+        "bytes": 170932,
         "stages": {}
       },
       "packages": [
@@ -254,10 +272,11 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8617171/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8617171/all.pgn?sha=ded6fe6a33bdaafb",
-          "gameCount": 17,
-          "pgnBytes": 78335,
-          "sha256": "ded6fe6a33bdaafb747d87c182e0e03f4466a064bd6f30874f28eeb5001c932b",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/23/2390b5bf24d1c0c284c63d71f807ada7fc5cd88f8a9a4b455bbb9fef6c74001b.pgn",
+          "objectPath": "data/pgn/objects/sha256/23/2390b5bf24d1c0c284c63d71f807ada7fc5cd88f8a9a4b455bbb9fef6c74001b.pgn",
+          "gameCount": 25,
+          "pgnBytes": 85465,
+          "sha256": "2390b5bf24d1c0c284c63d71f807ada7fc5cd88f8a9a4b455bbb9fef6c74001b",
           "stages": {},
           "sources": [
             "Lichess Broadcasts"
@@ -267,10 +286,11 @@
           "id": "adult",
           "label": "adult PGN",
           "pgnPath": "data/pgn/by-player/fide-8617171/adult.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8617171/adult.pgn?sha=e46621684c77f903",
-          "gameCount": 17,
-          "pgnBytes": 78337,
-          "sha256": "e46621684c77f9032ff60065a087dc53b240e3bf4de094361c42a6749b8a4fa2",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/16/167e4661a1a12907715c92f4b8871b57ab0d45be377736621a124a7004f7a7ee.pgn",
+          "objectPath": "data/pgn/objects/sha256/16/167e4661a1a12907715c92f4b8871b57ab0d45be377736621a124a7004f7a7ee.pgn",
+          "gameCount": 25,
+          "pgnBytes": 85467,
+          "sha256": "167e4661a1a12907715c92f4b8871b57ab0d45be377736621a124a7004f7a7ee",
           "stages": {},
           "sources": [
             "Lichess Broadcasts"
@@ -279,9 +299,9 @@
       ],
       "events": [
         {
-          "id": "ev-bf3b5476a32c29fa",
+          "id": "ev-b3798d0e5689db1d",
           "source": "Lichess Broadcasts",
-          "name": "4th Sussex University Weekend Congress - Congress Under 2400",
+          "name": "4th Sussex University Weekend Congress - U2400",
           "date": "2026-04-18",
           "tournamentID": "",
           "canonicalEventID": null,
@@ -346,18 +366,36 @@
             "1-0": 5
           },
           "nameTranslationPending": true
+        },
+        {
+          "id": "chess-results:1214031",
+          "source": "",
+          "name": "2025年全国国际象棋棋协大师赛（绍兴站）",
+          "date": "2025-07-12",
+          "tournamentID": "1214031",
+          "canonicalEventID": "chess-association-master-2025-shaoxing",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "eventStage": "",
+          "gameCount": 8,
+          "results": {
+            "0-1": 2,
+            "1/2-1/2": 5,
+            "1-0": 1
+          },
+          "nameTranslationPending": false
         }
       ],
       "games": [
         {
           "id": "d5a9bb672a9058554e368d8b4f771c1cb4bd5319543d64910a2d3ed57ff996bc",
-          "event": "4th Sussex University Weekend Congress - Congress Under 2400",
+          "event": "4th Sussex University Weekend Congress - U2400",
           "date": "2026-04-18",
           "white": "Gomez, Hal",
           "black": "Liu,Yiyi",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "1.13",
+          "round": "1",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "black",
@@ -374,7 +412,7 @@
           "black": "Pasqualetto, Lorenzo",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "2.4",
+          "round": "2",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -391,7 +429,7 @@
           "black": "Liu,Yiyi",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "1.5",
+          "round": "1",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "black",
@@ -408,7 +446,7 @@
           "black": "Liu,Yiyi",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "4.2",
+          "round": "4",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "black",
@@ -425,7 +463,7 @@
           "black": "Liu,Yiyi",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "3.3",
+          "round": "3",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "black",
@@ -442,7 +480,7 @@
           "black": "Lee, Ain",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "1.5",
+          "round": "1",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -459,7 +497,7 @@
           "black": "Mazur, Stefan",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "9.11",
+          "round": "9",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -476,7 +514,7 @@
           "black": "Grutter, Tim",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "7.11",
+          "round": "7",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -493,7 +531,7 @@
           "black": "Liu,Yiyi",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "8.21",
+          "round": "8",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "black",
@@ -510,7 +548,7 @@
           "black": "Liu,Yiyi",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "6.19",
+          "round": "6",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "black",
@@ -527,7 +565,7 @@
           "black": "Liu,Yiyi",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "4.25",
+          "round": "4",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "black",
@@ -544,7 +582,7 @@
           "black": "Kendall, Arthur",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "5.28",
+          "round": "5",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -561,7 +599,7 @@
           "black": "Liu,Yiyi",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "2.26",
+          "round": "2",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "black",
@@ -578,7 +616,7 @@
           "black": "Balzer, Lars",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "3.32",
+          "round": "3",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -595,7 +633,7 @@
           "black": "Turner, Lewis A",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "1.43",
+          "round": "1",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -612,7 +650,7 @@
           "black": "Minter, Thomas",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "5.1",
+          "round": "5",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -629,7 +667,7 @@
           "black": "Brougham, Mark",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "2.1",
+          "round": "2",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
@@ -637,12 +675,141 @@
           "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-01.pgn.zst",
           "sha256": "316bcace98c1b4269e303a93d6db5104826ac53bc67924de8190e27875896561"
+        },
+        {
+          "id": "c6aef8d930c54f90dd77d201d6153035ed270708c73b8a4843f94e315c45232d",
+          "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+          "date": "2025-07-12",
+          "white": "Zhang, Shukai",
+          "black": "Liu, Yiyi",
+          "result": "0-1",
+          "round": "3",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "black",
+          "rank": "13",
+          "tournamentID": "1214031",
+          "sourcePgnPath": "api/event-pgn?tnr=1214031&sha=7b74e95847bd23ae",
+          "sha256": "c6aef8d930c54f90dd77d201d6153035ed270708c73b8a4843f94e315c45232d"
+        },
+        {
+          "id": "f7e09365c4599c14df671b53392901b821253e57ffd2715287e02f0ddd1578e6",
+          "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+          "date": "2025-07-12",
+          "white": "Zhang, Enming(Sh)",
+          "black": "Liu, Yiyi",
+          "result": "1/2-1/2",
+          "round": "9",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "black",
+          "rank": "13",
+          "tournamentID": "1214031",
+          "sourcePgnPath": "api/event-pgn?tnr=1214031&sha=7b74e95847bd23ae",
+          "sha256": "f7e09365c4599c14df671b53392901b821253e57ffd2715287e02f0ddd1578e6"
+        },
+        {
+          "id": "beb949b8fa6189d6027cf6b9a06513ecb5aa6ea24bd4fe811f7f553024deeb49",
+          "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+          "date": "2025-07-12",
+          "white": "Liu, Yiyi",
+          "black": "Xia, Miaoyan",
+          "result": "0-1",
+          "round": "7",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "white",
+          "rank": "13",
+          "tournamentID": "1214031",
+          "sourcePgnPath": "api/event-pgn?tnr=1214031&sha=7b74e95847bd23ae",
+          "sha256": "beb949b8fa6189d6027cf6b9a06513ecb5aa6ea24bd4fe811f7f553024deeb49"
+        },
+        {
+          "id": "cb639b24dbc4078b9291b74333127acefba7477a632378cb99aca744ddb2501c",
+          "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+          "date": "2025-07-12",
+          "white": "Liu, Yiyi",
+          "black": "Ma, Yuzhi",
+          "result": "1-0",
+          "round": "8",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "white",
+          "rank": "13",
+          "tournamentID": "1214031",
+          "sourcePgnPath": "api/event-pgn?tnr=1214031&sha=7b74e95847bd23ae",
+          "sha256": "cb639b24dbc4078b9291b74333127acefba7477a632378cb99aca744ddb2501c"
+        },
+        {
+          "id": "1728adc5a2acdff41dae88eeab62d2db6d6a11f2b50e7bf0b2f7e30267bbc336",
+          "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+          "date": "2025-07-12",
+          "white": "Liu, Yiyi",
+          "black": "Gong, Yiming",
+          "result": "1/2-1/2",
+          "round": "4",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "white",
+          "rank": "13",
+          "tournamentID": "1214031",
+          "sourcePgnPath": "api/event-pgn?tnr=1214031&sha=7b74e95847bd23ae",
+          "sha256": "1728adc5a2acdff41dae88eeab62d2db6d6a11f2b50e7bf0b2f7e30267bbc336"
+        },
+        {
+          "id": "488857130d6b1f378977384236dc5022cc636f838172c61775a35ee4c479e995",
+          "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+          "date": "2025-07-12",
+          "white": "Liu, Kaiyan",
+          "black": "Liu, Yiyi",
+          "result": "1/2-1/2",
+          "round": "5",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "black",
+          "rank": "13",
+          "tournamentID": "1214031",
+          "sourcePgnPath": "api/event-pgn?tnr=1214031&sha=7b74e95847bd23ae",
+          "sha256": "488857130d6b1f378977384236dc5022cc636f838172c61775a35ee4c479e995"
+        },
+        {
+          "id": "bc60ade310e0318e84225a40a338cc5bc8b487596433e498f66943831254bbd7",
+          "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+          "date": "2025-07-12",
+          "white": "Li, Yue",
+          "black": "Liu, Yiyi",
+          "result": "1/2-1/2",
+          "round": "1",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "black",
+          "rank": "13",
+          "tournamentID": "1214031",
+          "sourcePgnPath": "api/event-pgn?tnr=1214031&sha=7b74e95847bd23ae",
+          "sha256": "bc60ade310e0318e84225a40a338cc5bc8b487596433e498f66943831254bbd7"
+        },
+        {
+          "id": "766e4f12b027b2c18d853f01d97b7d2ac928e93f0f8ab602cb1cf1ac8aec8c37",
+          "event": "2025 National Amateur Chess Master Tournament Shaoxing Station",
+          "date": "2025-07-12",
+          "white": "Cheng, Gongpu",
+          "black": "Liu, Yiyi",
+          "result": "1/2-1/2",
+          "round": "6",
+          "stage": "adult",
+          "naturalStage": "adult",
+          "role": "black",
+          "rank": "13",
+          "tournamentID": "1214031",
+          "sourcePgnPath": "api/event-pgn?tnr=1214031&sha=7b74e95847bd23ae",
+          "sha256": "766e4f12b027b2c18d853f01d97b7d2ac928e93f0f8ab602cb1cf1ac8aec8c37"
         }
       ]
     },
     "8643539": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8643539",
         "id": "fide-8643539",
@@ -665,11 +832,12 @@
       "totals": {
         "games": 35,
         "events": 6,
-        "packages": 3,
-        "bytes": 162308,
+        "packages": 4,
+        "bytes": 162291,
         "stages": {
-          "U14": 8,
-          "U16": 27
+          "U10": 1,
+          "U14": 10,
+          "U16": 24
         }
       },
       "packages": [
@@ -677,13 +845,15 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8643539/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8643539/all.pgn?sha=3ec61657ca768e11",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/ae/ae23c84547d0dfd71bacbc9db825824fbb7e448c45ea475a91fe715fe4b33dd7.pgn",
+          "objectPath": "data/pgn/objects/sha256/ae/ae23c84547d0dfd71bacbc9db825824fbb7e448c45ea475a91fe715fe4b33dd7.pgn",
           "gameCount": 35,
-          "pgnBytes": 81089,
-          "sha256": "3ec61657ca768e11e41926fe2b9463ae7d1291a11e3abdfb408eba5832734eac",
+          "pgnBytes": 81052,
+          "sha256": "ae23c84547d0dfd71bacbc9db825824fbb7e448c45ea475a91fe715fe4b33dd7",
           "stages": {
-            "U14": 8,
-            "U16": 27
+            "U10": 1,
+            "U14": 10,
+            "U16": 24
           },
           "sources": [
             "Lichess Broadcasts",
@@ -691,30 +861,48 @@
           ]
         },
         {
+          "id": "U10",
+          "label": "U10 PGN",
+          "pgnPath": "data/pgn/by-player/fide-8643539/U10.pgn",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b7/b7d56b5aa56d4a869ef5125f5d9bd5b0cb5da4c19023f24275ee4539088a0db7.pgn",
+          "objectPath": "data/pgn/objects/sha256/b7/b7d56b5aa56d4a869ef5125f5d9bd5b0cb5da4c19023f24275ee4539088a0db7.pgn",
+          "gameCount": 1,
+          "pgnBytes": 6182,
+          "sha256": "b7d56b5aa56d4a869ef5125f5d9bd5b0cb5da4c19023f24275ee4539088a0db7",
+          "stages": {
+            "U10": 1
+          },
+          "sources": [
+            "Lichess Broadcasts"
+          ]
+        },
+        {
           "id": "U14",
           "label": "U14 PGN",
           "pgnPath": "data/pgn/by-player/fide-8643539/U14.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8643539/U14.pgn?sha=12d7c77342e58f90",
-          "gameCount": 8,
-          "pgnBytes": 6874,
-          "sha256": "12d7c77342e58f9095a1ee193ace87ae3a164df63634b0050311ef8f65db19d8",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/fa/fa8845d44b95f6d5c534e44585d149f0c2438a580a7134e0876bc3a1b54d49fe.pgn",
+          "objectPath": "data/pgn/objects/sha256/fa/fa8845d44b95f6d5c534e44585d149f0c2438a580a7134e0876bc3a1b54d49fe.pgn",
+          "gameCount": 10,
+          "pgnBytes": 16957,
+          "sha256": "fa8845d44b95f6d5c534e44585d149f0c2438a580a7134e0876bc3a1b54d49fe",
           "stages": {
-            "U14": 8
+            "U14": 10
           },
           "sources": [
-            "Static PGN"
+            "Lichess Broadcasts"
           ]
         },
         {
           "id": "U16",
           "label": "U16 PGN",
           "pgnPath": "data/pgn/by-player/fide-8643539/U16.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8643539/U16.pgn?sha=1691d57efdf162a7",
-          "gameCount": 27,
-          "pgnBytes": 74345,
-          "sha256": "1691d57efdf162a7f9ae33704704ab0219cd4db090a1574e5ac8ec1fa3680ae3",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/4c/4c023712346c5abcd9d18ee2fec83b547f5142998343059290a03400b1f02b9a.pgn",
+          "objectPath": "data/pgn/objects/sha256/4c/4c023712346c5abcd9d18ee2fec83b547f5142998343059290a03400b1f02b9a.pgn",
+          "gameCount": 24,
+          "pgnBytes": 58100,
+          "sha256": "4c023712346c5abcd9d18ee2fec83b547f5142998343059290a03400b1f02b9a",
           "stages": {
-            "U16": 27
+            "U16": 24
           },
           "sources": [
             "Lichess Broadcasts",
@@ -724,8 +912,8 @@
       ],
       "events": [
         {
-          "id": "static-pgn:1356503",
-          "source": "Static PGN",
+          "id": "chess-results:1356503",
+          "source": "",
           "name": "Chinese National Youth Chess Championship 2026(G18)",
           "date": "2026-02-22",
           "tournamentID": "1356503",
@@ -776,9 +964,9 @@
           "nameTranslationPending": true
         },
         {
-          "id": "static-pgn:968933",
-          "source": "Static PGN",
-          "name": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "id": "chess-results:968933",
+          "source": "",
+          "name": "赛事 968933",
           "date": "2024-07-13",
           "tournamentID": "968933",
           "canonicalEventID": null,
@@ -790,7 +978,7 @@
             "0-1": 4,
             "1-0": 4
           },
-          "nameTranslationPending": true
+          "nameTranslationPending": false
         },
         {
           "id": "ev-25c48e940e5d3245",
@@ -800,7 +988,7 @@
           "tournamentID": "",
           "canonicalEventID": null,
           "stage": "U16",
-          "naturalStage": "U16",
+          "naturalStage": "",
           "eventStage": "U16",
           "gameCount": 1,
           "results": {
@@ -809,14 +997,14 @@
           "nameTranslationPending": true
         },
         {
-          "id": "ev-8da21a5eb5537d96",
+          "id": "ev-b41845fabfa97878",
           "source": "Lichess Broadcasts",
-          "name": "2025年中国国际象棋乙级联赛",
+          "name": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "date": "",
           "tournamentID": "",
           "canonicalEventID": null,
           "stage": "U16",
-          "naturalStage": "U16",
+          "naturalStage": "",
           "eventStage": "",
           "gameCount": 9,
           "results": {
@@ -835,13 +1023,13 @@
           "white": "Mu, Wangxueyao",
           "black": "Cao, Jiahui",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "1",
           "stage": "U16",
           "naturalStage": "U16",
           "role": "black",
+          "rank": "17",
           "tournamentID": "1356503",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1356503/fide-8643539-1356503.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1356503&sha=6840b8ba975c36d7",
           "sha256": "97e4acec39aaeac91d4ebb42e6a5b5c9355154524a15e093dcc7f6b335d2c4ec"
         },
         {
@@ -953,7 +1141,7 @@
           "naturalStage": "U16",
           "role": "black",
           "tournamentID": "1111359",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8643539-1111359.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8631590-1111359.pgn",
           "sha256": "710e13ddd4a350b013e0a9fd819acd125d6c8c7ca794dd2930a3b23652cfdeb3"
         },
         {
@@ -985,7 +1173,7 @@
           "naturalStage": "U16",
           "role": "black",
           "tournamentID": "1111359",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8643539-1111359.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8627215-1111359.pgn",
           "sha256": "7671b2c5a83d023856e364a10d3fbcc37c56f3af5c05b3d92453def1ff6b832e"
         },
         {
@@ -1001,7 +1189,7 @@
           "naturalStage": "U16",
           "role": "black",
           "tournamentID": "1111359",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8643539-1111359.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8620946-1111359.pgn",
           "sha256": "647340dd2be3f2b5ea3507669d12fa7b0c259c2e55c68ce99697d8025637f894"
         },
         {
@@ -1017,7 +1205,7 @@
           "naturalStage": "U16",
           "role": "black",
           "tournamentID": "1111359",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8643539-1111359.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8635790-1111359.pgn",
           "sha256": "6872d409796dd2fb2f7bfa9518583726ae808e24cc8d8dfd5667eb6c9afbb2d4"
         },
         {
@@ -1049,7 +1237,7 @@
           "naturalStage": "U16",
           "role": "white",
           "tournamentID": "1111359",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8643539-1111359.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-39923258-1111359.pgn",
           "sha256": "22c92eff0e976d1eaea410d4496314364327b3de539072c750d84d51bba7184f"
         },
         {
@@ -1065,7 +1253,7 @@
           "naturalStage": "U16",
           "role": "white",
           "tournamentID": "1111359",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8643539-1111359.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8624585-1111359.pgn",
           "sha256": "6c498ca498bb4f64b6fc8b044effab85236b65fe87f3e297f995e1aae81b15fd"
         },
         {
@@ -1081,7 +1269,7 @@
           "naturalStage": "U16",
           "role": "white",
           "tournamentID": "1111359",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8643539-1111359.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8635820-1111359.pgn",
           "sha256": "c56fd085bc0d127be7877b228f30548e25c596d69d3a73491d77d292bfe960b9"
         },
         {
@@ -1097,135 +1285,135 @@
           "naturalStage": "U16",
           "role": "white",
           "tournamentID": "1111359",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8643539-1111359.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1111359/fide-8642494-1111359.pgn",
           "sha256": "f2673e292de7cbc839a46a9d36ee40e97a8b68b221e99847a196f729310f16f2"
         },
         {
           "id": "0ecaeccb3b677e250b3037d3c4e680af263aa46570ac938dd26c08679355f870",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "event": "赛事 968933",
           "date": "2024-07-13",
           "white": "Xu, Tianyue",
           "black": "Cao, Jiahui",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "black",
+          "rank": "57",
           "tournamentID": "968933",
-          "sourcePgnPath": "data/pgn/chess-results/tnr968933/fide-8643539-968933.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
           "sha256": "0ecaeccb3b677e250b3037d3c4e680af263aa46570ac938dd26c08679355f870"
         },
         {
           "id": "387a713326a8d02a778623bbeefc7f21ac0f4cfc56b5cb0d55a4f30066894c73",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "event": "赛事 968933",
           "date": "2024-07-13",
           "white": "Xu, Bolin",
           "black": "Cao, Jiahui",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "4",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "black",
+          "rank": "57",
           "tournamentID": "968933",
-          "sourcePgnPath": "data/pgn/chess-results/tnr968933/fide-8643539-968933.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
           "sha256": "387a713326a8d02a778623bbeefc7f21ac0f4cfc56b5cb0d55a4f30066894c73"
         },
         {
           "id": "6f2f7614d927e4ae29d92970b89b616faf2a1dbe85c52eeef0f0ba86979bba5c",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "event": "赛事 968933",
           "date": "2024-07-13",
           "white": "Xia, Jinnan",
           "black": "Cao, Jiahui",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "2",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "black",
+          "rank": "57",
           "tournamentID": "968933",
-          "sourcePgnPath": "data/pgn/chess-results/tnr968933/fide-8643539-968933.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
           "sha256": "6f2f7614d927e4ae29d92970b89b616faf2a1dbe85c52eeef0f0ba86979bba5c"
         },
         {
           "id": "7744e76fca6585a6ea95f0ada01f1b1e2c73de36224d357446b9ab7506758aae",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "event": "赛事 968933",
           "date": "2024-07-13",
           "white": "Shi, Jinhang",
           "black": "Cao, Jiahui",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "8",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "black",
+          "rank": "57",
           "tournamentID": "968933",
-          "sourcePgnPath": "data/pgn/chess-results/tnr968933/fide-8643539-968933.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
           "sha256": "7744e76fca6585a6ea95f0ada01f1b1e2c73de36224d357446b9ab7506758aae"
         },
         {
           "id": "00cdfe2ed2eb2eb54cf64ee75a843a7ee2523ebd97ad2b4aceecee2b368ed57d",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "event": "赛事 968933",
           "date": "2024-07-13",
           "white": "Cao, Jiahui",
           "black": "Wu, Shuang(Hlj)",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "7",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "white",
+          "rank": "57",
           "tournamentID": "968933",
-          "sourcePgnPath": "data/pgn/chess-results/tnr968933/fide-8643539-968933.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
           "sha256": "00cdfe2ed2eb2eb54cf64ee75a843a7ee2523ebd97ad2b4aceecee2b368ed57d"
         },
         {
           "id": "0b6a1965c975977bda44001600a54a1635a4d1e4f149d25329a8a09072fd9e03",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "event": "赛事 968933",
           "date": "2024-07-13",
           "white": "Cao, Jiahui",
           "black": "Su, Tianhao",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "9",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "white",
+          "rank": "57",
           "tournamentID": "968933",
-          "sourcePgnPath": "data/pgn/chess-results/tnr968933/fide-8643539-968933.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
           "sha256": "0b6a1965c975977bda44001600a54a1635a4d1e4f149d25329a8a09072fd9e03"
         },
         {
           "id": "eee909d6a959768dcf9e72e094f774fb08caba1b7cbc08a5cbac8c6b07a6fbc1",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "event": "赛事 968933",
           "date": "2024-07-13",
           "white": "Cao, Jiahui",
           "black": "Lin, Yucheng",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "3",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "white",
+          "rank": "57",
           "tournamentID": "968933",
-          "sourcePgnPath": "data/pgn/chess-results/tnr968933/fide-8643539-968933.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
           "sha256": "eee909d6a959768dcf9e72e094f774fb08caba1b7cbc08a5cbac8c6b07a6fbc1"
         },
         {
           "id": "6cd4291e41c50d33acd2b5bce6e73a70b2e26ea80fac58a37ea891a231131066",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2024(Group B)",
+          "event": "赛事 968933",
           "date": "2024-07-13",
           "white": "Cao, Jiahui",
           "black": "Lin, Runchu",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "5",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "white",
+          "rank": "57",
           "tournamentID": "968933",
-          "sourcePgnPath": "data/pgn/chess-results/tnr968933/fide-8643539-968933.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
           "sha256": "6cd4291e41c50d33acd2b5bce6e73a70b2e26ea80fac58a37ea891a231131066"
         },
         {
@@ -1235,9 +1423,8 @@
           "black": "Cao, Jiahui",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "4.16",
+          "round": "4",
           "stage": "U16",
-          "naturalStage": "U16",
           "eventStage": "U16",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
@@ -1247,14 +1434,13 @@
         },
         {
           "id": "2039f595d2422197090ecaeaa0bfb0c49754c575030f30bfd1dc56a452906531",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Zhao, Yuetong",
           "black": "Cao, Jiahui",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "2.25",
+          "round": "2",
           "stage": "U16",
-          "naturalStage": "U16",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
@@ -1263,14 +1449,13 @@
         },
         {
           "id": "a258723801d734439128f8ffe46caeaa58b87b667d5e7ae4f3b933fdfeb86ae6",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Zhang, Jingwen(CQ)",
           "black": "Cao, Jiahui",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "4.20",
+          "round": "4",
           "stage": "U16",
-          "naturalStage": "U16",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
@@ -1279,14 +1464,13 @@
         },
         {
           "id": "f488984dcafceaf6d2a86b730c01d391bc3012d7541705b2cd8f7a97a72c63e9",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Yu, Yaochen",
           "black": "Cao, Jiahui",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "6.20",
+          "round": "6",
           "stage": "U16",
-          "naturalStage": "U16",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
@@ -1295,30 +1479,28 @@
         },
         {
           "id": "abe604bf7a2b215b0ed932548bc2c079d1dd0b7772a27dd733835535dbe2762d",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Pi, Aiying",
           "black": "Cao, Jiahui",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "8.10",
-          "stage": "U16",
-          "naturalStage": "U16",
+          "round": "8",
+          "stage": "U14",
           "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+          "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
           "sha256": "abe604bf7a2b215b0ed932548bc2c079d1dd0b7772a27dd733835535dbe2762d"
         },
         {
           "id": "9de1607f1cf6c1ec6f4c3770ea65de0fe5eaedbd15fcde3c12b2cddeafdf2fed",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Cao, Jiahui",
           "black": "Zhu, Zile",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "7.5",
+          "round": "7",
           "stage": "U16",
-          "naturalStage": "U16",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
@@ -1327,46 +1509,43 @@
         },
         {
           "id": "8328ab6f06f63a22e355e4a59a04640a9c13b3abdb88ce9e3fcabfd5124fdf20",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Cao, Jiahui",
           "black": "Yuan, Ruiqiao",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "1.25",
-          "stage": "U16",
-          "naturalStage": "U16",
+          "round": "1",
+          "stage": "U10",
           "role": "white",
-          "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+          "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
           "sha256": "8328ab6f06f63a22e355e4a59a04640a9c13b3abdb88ce9e3fcabfd5124fdf20"
         },
         {
           "id": "e44ce6bd497b6c36b98a79730a23fd179801773f7b51582eec304737c17db7a9",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Cao, Jiahui",
           "black": "He, Ziyu",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "5.20",
-          "stage": "U16",
-          "naturalStage": "U16",
+          "round": "5",
+          "stage": "U14",
           "role": "white",
-          "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+          "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
           "sha256": "e44ce6bd497b6c36b98a79730a23fd179801773f7b51582eec304737c17db7a9"
         },
         {
           "id": "d7ebe530408617df142a86a86ac8cd73ee3302f648e173bae5bc68e6446f5a75",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Cao, Jiahui",
           "black": "Chen, Yumeng",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "9.25",
+          "round": "9",
           "stage": "U16",
-          "naturalStage": "U16",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
@@ -1375,14 +1554,13 @@
         },
         {
           "id": "0162bd81678e6e495e3ea7fd7e2f63d280d5b128d2b003ec2a6d147c024e3edd",
-          "event": "2025年中国国际象棋乙级联赛",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "white": "Cao, Jiahui",
           "black": "Chen, Yiru",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "3.15",
+          "round": "3",
           "stage": "U16",
-          "naturalStage": "U16",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
@@ -1393,7 +1571,8 @@
     },
     "8650195": {
       "schemaVersion": 1,
-      "generatedAt": "2026-08-12T14:14:32+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8650195",
         "id": "fide-8650195",
@@ -1416,11 +1595,12 @@
       "totals": {
         "games": 100,
         "events": 17,
-        "packages": 3,
-        "bytes": 466054,
+        "packages": 4,
+        "bytes": 466035,
         "stages": {
-          "U10": 12,
-          "U12": 88
+          "U8": 1,
+          "U10": 14,
+          "U12": 85
         }
       },
       "packages": [
@@ -1428,45 +1608,64 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8650195/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8650195/all.pgn?sha=b2f91da7d342d41b",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e9/e96eac8990382130e41aa4a2b32968094bb086bc074654da77fcbf0f8fd5b75c.pgn",
+          "objectPath": "data/pgn/objects/sha256/e9/e96eac8990382130e41aa4a2b32968094bb086bc074654da77fcbf0f8fd5b75c.pgn",
           "gameCount": 100,
-          "pgnBytes": 232962,
-          "sha256": "b2f91da7d342d41b97b5c87027555a3009d40a6d9561f795b2377b962fd05d02",
+          "pgnBytes": 232925,
+          "sha256": "e96eac8990382130e41aa4a2b32968094bb086bc074654da77fcbf0f8fd5b75c",
           "stages": {
-            "U10": 12,
-            "U12": 88
+            "U8": 1,
+            "U10": 14,
+            "U12": 85
           },
           "sources": [
             "Lichess Broadcasts",
             "Static PGN"
+          ]
+        },
+        {
+          "id": "U8",
+          "label": "U8 PGN",
+          "pgnPath": "data/pgn/by-player/fide-8650195/U8.pgn",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/5b/5bae1c8238ef019eeabb172deb790de18e94f88c6b8c73c435e55997dd8ebc61.pgn",
+          "objectPath": "data/pgn/objects/sha256/5b/5bae1c8238ef019eeabb172deb790de18e94f88c6b8c73c435e55997dd8ebc61.pgn",
+          "gameCount": 1,
+          "pgnBytes": 5065,
+          "sha256": "5bae1c8238ef019eeabb172deb790de18e94f88c6b8c73c435e55997dd8ebc61",
+          "stages": {
+            "U8": 1
+          },
+          "sources": [
+            "Lichess Broadcasts"
           ]
         },
         {
           "id": "U10",
           "label": "U10 PGN",
           "pgnPath": "data/pgn/by-player/fide-8650195/U10.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8650195/U10.pgn?sha=433faaad59e16d8f",
-          "gameCount": 12,
-          "pgnBytes": 34700,
-          "sha256": "433faaad59e16d8f0f2ccdfd288b65f84f195c62d459b80bab53f8d9545ead19",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/5b/5b085e47e24a37dfb3289da5071d7e5641a38128ef91b77851321ab22151aff8.pgn",
+          "objectPath": "data/pgn/objects/sha256/5b/5b085e47e24a37dfb3289da5071d7e5641a38128ef91b77851321ab22151aff8.pgn",
+          "gameCount": 14,
+          "pgnBytes": 47453,
+          "sha256": "5b085e47e24a37dfb3289da5071d7e5641a38128ef91b77851321ab22151aff8",
           "stages": {
-            "U10": 12
+            "U10": 14
           },
           "sources": [
-            "Lichess Broadcasts",
-            "Static PGN"
+            "Lichess Broadcasts"
           ]
         },
         {
           "id": "U12",
           "label": "U12 PGN",
           "pgnPath": "data/pgn/by-player/fide-8650195/U12.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8650195/U12.pgn?sha=f1d829056dfe9f86",
-          "gameCount": 88,
-          "pgnBytes": 198392,
-          "sha256": "f1d829056dfe9f8665700b7a012d35a0ad0dab6fc833b952203d94c2b74e7883",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/ca/ca7bdc6380b08ed4d86bee51dae1b7fab4a882e893c58b3a8b7217ba9f9e1d95.pgn",
+          "objectPath": "data/pgn/objects/sha256/ca/ca7bdc6380b08ed4d86bee51dae1b7fab4a882e893c58b3a8b7217ba9f9e1d95.pgn",
+          "gameCount": 85,
+          "pgnBytes": 180592,
+          "sha256": "ca7bdc6380b08ed4d86bee51dae1b7fab4a882e893c58b3a8b7217ba9f9e1d95",
           "stages": {
-            "U12": 88
+            "U12": 85
           },
           "sources": [
             "Lichess Broadcasts",
@@ -1476,8 +1675,8 @@
       ],
       "events": [
         {
-          "id": "static-pgn:1469440",
-          "source": "Static PGN",
+          "id": "chess-results:1469440",
+          "source": "",
           "name": "2026年全国国际象棋青少年快棋超快棋公开赛",
           "date": "2026-08-06",
           "tournamentID": "1469440",
@@ -1493,8 +1692,8 @@
           "nameTranslationPending": false
         },
         {
-          "id": "static-pgn:1449526",
-          "source": "Static PGN",
+          "id": "chess-results:1449526",
+          "source": "",
           "name": "28th Asian Youth Chess Championships 2026",
           "date": "2026-07-17",
           "tournamentID": "1449526",
@@ -1560,8 +1759,8 @@
           "nameTranslationPending": false
         },
         {
-          "id": "static-pgn:1424920",
-          "source": "Static PGN",
+          "id": "chess-results:1424920",
+          "source": "",
           "name": "2026年全国国际象棋棋协大师赛（深圳站）棋协大师组",
           "date": "2026-05-29",
           "tournamentID": "1424920",
@@ -1578,8 +1777,8 @@
           "nameTranslationPending": false
         },
         {
-          "id": "static-pgn:1356507",
-          "source": "Static PGN",
+          "id": "chess-results:1356507",
+          "source": "",
           "name": "Chinese National Youth Chess Championship 2026(B16)",
           "date": "2026-02-22",
           "tournamentID": "1356507",
@@ -1630,8 +1829,8 @@
           "nameTranslationPending": true
         },
         {
-          "id": "static-pgn:1293198",
-          "source": "Static PGN",
+          "id": "chess-results:1293198",
+          "source": "",
           "name": "2025年全国国际象棋棋协大师赛（汕尾站）",
           "date": "2025-11-14",
           "tournamentID": "1293198",
@@ -1682,8 +1881,8 @@
           "nameTranslationPending": true
         },
         {
-          "id": "static-pgn:1222231",
-          "source": "Static PGN",
+          "id": "chess-results:1222231",
+          "source": "",
           "name": "9th Eastern Asia Youth Chess Championship 2025",
           "date": "2025-07-22",
           "tournamentID": "1222231",
@@ -1717,8 +1916,8 @@
           "nameTranslationPending": true
         },
         {
-          "id": "static-pgn:988901",
-          "source": "Static PGN",
+          "id": "chess-results:988901",
+          "source": "",
           "name": "The 4th Binhai Cup China International Chess Open(Group B)",
           "date": "2024-08-18",
           "tournamentID": "988901",
@@ -1734,9 +1933,9 @@
           "nameTranslationPending": true
         },
         {
-          "id": "ev-c50db7c6bfa8d48d",
+          "id": "ev-bc3481c3306874ef",
           "source": "Lichess Broadcasts",
-          "name": "Hong Kong International Open Chess Championship 2023",
+          "name": "Hong Kong International Open 2023",
           "date": "2023-12-29",
           "tournamentID": "",
           "canonicalEventID": null,
@@ -1753,14 +1952,14 @@
           "nameTranslationPending": true
         },
         {
-          "id": "ev-b228b4dee24abe86",
+          "id": "ev-c53f506c4a4febb8",
           "source": "Lichess Broadcasts",
-          "name": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "name": "Belt and Road Open 2025 (Bengbu) | Group B",
           "date": "",
           "tournamentID": "",
           "canonicalEventID": null,
-          "stage": "U12",
-          "naturalStage": "U12",
+          "stage": "U10",
+          "naturalStage": "",
           "eventStage": "",
           "gameCount": 8,
           "results": {
@@ -1779,13 +1978,13 @@
           "white": "Yin, Suke",
           "black": "Song, Yihang",
           "result": "0-1",
-          "source": "Static PGN",
-          "round": "6.8",
+          "round": "6",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "eb86bddec03282a8a872fc0f9b6a976541572c3f482560257781babe906f8649"
         },
         {
@@ -1795,13 +1994,13 @@
           "white": "Sun, Luyao",
           "black": "Song, Yihang",
           "result": "1-0",
-          "source": "Static PGN",
-          "round": "4.1",
+          "round": "4",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "eb2544e7ce9d858eb72a0bd7ba3beac74bda832983323b145db5b02da9b11e90"
         },
         {
@@ -1811,13 +2010,13 @@
           "white": "Song, Yihang",
           "black": "Xia, Ziyi",
           "result": "1-0",
-          "source": "Static PGN",
-          "round": "7.6",
+          "round": "7",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "036c9e53008edab4064d8e7d0ed8a49a07eae1ca4546ac3bb9fccbe188542cda"
         },
         {
@@ -1827,13 +2026,13 @@
           "white": "Song, Yihang",
           "black": "Tian, Yuze",
           "result": "1-0",
-          "source": "Static PGN",
-          "round": "3.2",
+          "round": "3",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "72e3ba84fc5ca8f310cb3fff68337ad5317e66b1f337653130c68c33980df222"
         },
         {
@@ -1843,13 +2042,13 @@
           "white": "Song, Yihang",
           "black": "Tao, Junxi",
           "result": "1-0",
-          "source": "Static PGN",
-          "round": "9.6",
+          "round": "9",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "5b42df1852c6057786dd51460eb8bf16ce6324e4616335ecf8caf10b0e6f1bfd"
         },
         {
@@ -1859,13 +2058,13 @@
           "white": "Song, Yihang",
           "black": "Huang, Xinyang",
           "result": "0-1",
-          "source": "Static PGN",
-          "round": "5.4",
+          "round": "5",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "060db65404cac909c63a4442f942f3d09a043e4d2fe6470f4d562e6ff01b8f0c"
         },
         {
@@ -1875,13 +2074,13 @@
           "white": "Song, Yihang",
           "black": "Chen, Zhiyan",
           "result": "1-0",
-          "source": "Static PGN",
-          "round": "1.2",
+          "round": "1",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "cea3a7d20be4170c5e9b1396f592216b90fbae460ea1eaffdd839f7eb1f07a9c"
         },
         {
@@ -1891,13 +2090,13 @@
           "white": "Lv, Ruiqi",
           "black": "Song, Yihang",
           "result": "1-0",
-          "source": "Static PGN",
-          "round": "8.2",
+          "round": "8",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "7221808f977c1019544d712e211d23727b28a6bb4e0a687cd824d881635d06b8"
         },
         {
@@ -1907,13 +2106,13 @@
           "white": "Li, Changhong",
           "black": "Song, Yihang",
           "result": "0-1",
-          "source": "Static PGN",
-          "round": "2.2",
+          "round": "2",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "9",
           "tournamentID": "1469440",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8650195-1469440.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
           "sha256": "eb4e951319eb97d8a09e76d6db31ec4ef5a8aab7b36f48bed1061e8c1e8254bf"
         },
         {
@@ -1923,13 +2122,13 @@
           "white": "Tulegen, Ramazan",
           "black": "Song, Yihang",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "4",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "16",
           "tournamentID": "1449526",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1449526/fide-8650195-1449526.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1449526&sha=c4f0e85ef4f041c3",
           "sha256": "e1092ec924947e303da3513b5182c6440c21317bdf42d703b3d5eadbe45b200a"
         },
         {
@@ -1939,13 +2138,13 @@
           "white": "Song, Yihang",
           "black": "Zuo, Junyu",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "8",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "16",
           "tournamentID": "1449526",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1449526/fide-8650195-1449526.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1449526&sha=c4f0e85ef4f041c3",
           "sha256": "6d74ebc439f430d1d76f9acc5e418dd1b78e24e1bfc1f2f4609654f08f918b6c"
         },
         {
@@ -1955,13 +2154,13 @@
           "white": "Song, Yihang",
           "black": "Chakrabarty, Reyaansh",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "3",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "16",
           "tournamentID": "1449526",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1449526/fide-8650195-1449526.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1449526&sha=c4f0e85ef4f041c3",
           "sha256": "f49316e72aa0270e0de357c485f5417333fcbe819575d3a49025526a1638177d"
         },
         {
@@ -1972,7 +2171,7 @@
           "black": "Cheng, Justin Hong-Chen",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "1.7",
+          "round": "1",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
@@ -1989,7 +2188,7 @@
           "black": "Bai, Xuhui",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "8.1",
+          "round": "8",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
@@ -2006,7 +2205,7 @@
           "black": "Song, Yihang",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "9.1",
+          "round": "9",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
@@ -2023,7 +2222,7 @@
           "black": "Song, Yihang",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "7.1",
+          "round": "7",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
@@ -2040,7 +2239,7 @@
           "black": "Liagre, Nicolas Gonzague Henri",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "4.7",
+          "round": "4",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
@@ -2057,7 +2256,7 @@
           "black": "Chong, Jake",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "5.7",
+          "round": "5",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
@@ -2074,7 +2273,7 @@
           "black": "Song, Yihang",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "6.1",
+          "round": "6",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
@@ -2091,7 +2290,7 @@
           "black": "Song, Yihang",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "1.1",
+          "round": "1",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
@@ -2108,12 +2307,12 @@
           "black": "Song, Yihang",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "3.7",
-          "stage": "U12",
+          "round": "3",
+          "stage": "U10",
           "naturalStage": "U12",
           "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+          "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-06.pgn.zst",
           "sha256": "999071b83999ef5acc5a8e4a73cf68df798dc18260db10a04f24a779775237d8"
         },
@@ -2125,7 +2324,7 @@
           "black": "Lin, Chi",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "2.1",
+          "round": "2",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
@@ -2142,7 +2341,7 @@
           "black": "Xie, Jiaxiang",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "6.2",
+          "round": "6",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
@@ -2158,13 +2357,13 @@
           "white": "Yi, Jingming",
           "black": "Song, Yihang",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "5",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "7",
           "tournamentID": "1424920",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8650195-1424920.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1424920&sha=d487e236931afd19",
           "sha256": "a5e53ab541a51e1dc6a3d70720c22633e0199e04e8fe5b5c56dfeb1fc29c731d"
         },
         {
@@ -2174,13 +2373,13 @@
           "white": "Wen, Gehua",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "9",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "7",
           "tournamentID": "1424920",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8650195-1424920.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1424920&sha=d487e236931afd19",
           "sha256": "440308e45d2a9750b8da4961b759edd2bb4b05b52fc7bdfe2b58bd0222e8c68e"
         },
         {
@@ -2190,13 +2389,13 @@
           "white": "Song, Yihang",
           "black": "Xie, Jiaxiang",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "7",
           "tournamentID": "1424920",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8650195-1424920.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1424920&sha=d487e236931afd19",
           "sha256": "fe5f5fc51f768e7529556861ee38503436839a97466b3d2d8fccaa430416d190"
         },
         {
@@ -2206,13 +2405,13 @@
           "white": "Song, Yihang",
           "black": "Wu, Haoyan",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "8",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "7",
           "tournamentID": "1424920",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8650195-1424920.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1424920&sha=d487e236931afd19",
           "sha256": "c529251941e41239e2bdc088f7bf55001e38297e71e7c2e38691990526071e4b"
         },
         {
@@ -2222,13 +2421,13 @@
           "white": "Song, Yihang",
           "black": "Liu, Dijia",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "4",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "7",
           "tournamentID": "1424920",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8650195-1424920.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1424920&sha=d487e236931afd19",
           "sha256": "fc8617c35fe081b275c1cd49eff9d49ac16c20ef8b2a62f00bd048b34730c400"
         },
         {
@@ -2238,13 +2437,13 @@
           "white": "Li, Bo",
           "black": "Song, Yihang",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "3",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "7",
           "tournamentID": "1424920",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8650195-1424920.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1424920&sha=d487e236931afd19",
           "sha256": "c9456f7d49b80fb816ab65492d3292cc90de81927ce4d02cd771ebc5989bb1cd"
         },
         {
@@ -2254,13 +2453,13 @@
           "white": "Huang, Zixin",
           "black": "Song, Yihang",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "7",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "7",
           "tournamentID": "1424920",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1424920/fide-8650195-1424920.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1424920&sha=d487e236931afd19",
           "sha256": "473aab906878b857f47ad306a7c35a691f5b60ace2870e1fdd69eaf7a9a03b1d"
         },
         {
@@ -2270,13 +2469,13 @@
           "white": "Zhang, Zhisen",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "9",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "7",
           "tournamentID": "1356507",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1356507/fide-8650195-1356507.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1356507&sha=56bc3f5268401a40",
           "sha256": "2f01ab0b4fd8cce3df073b260054a5aa41022f5af5fa6595a63f5c8fd7bb066d"
         },
         {
@@ -2286,13 +2485,13 @@
           "white": "Song, Yihang",
           "black": "Wang, Peiqi",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "8",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "7",
           "tournamentID": "1356507",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1356507/fide-8650195-1356507.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1356507&sha=56bc3f5268401a40",
           "sha256": "18b4125213901f45ab0a8d50c44383106a2897f2cca70830789bdde71828660a"
         },
         {
@@ -2302,13 +2501,13 @@
           "white": "Song, Yihang",
           "black": "Shen, Fuyan",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "10",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "7",
           "tournamentID": "1356507",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1356507/fide-8650195-1356507.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1356507&sha=56bc3f5268401a40",
           "sha256": "b246bf7623e7a412e851446f648c7a072b99c7f6873980182a2df756e941cee2"
         },
         {
@@ -2318,13 +2517,13 @@
           "white": "Song, Yihang",
           "black": "Liu, Enlin",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "7",
           "tournamentID": "1356507",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1356507/fide-8650195-1356507.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1356507&sha=56bc3f5268401a40",
           "sha256": "bc688e90828bab23baf1a67fbff877454c65cb350662096cda645c06105fe958"
         },
         {
@@ -2334,13 +2533,13 @@
           "white": "Ji, Mingxuan",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "7",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "7",
           "tournamentID": "1356507",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1356507/fide-8650195-1356507.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1356507&sha=56bc3f5268401a40",
           "sha256": "e4cba6ed679472bd0d36ded9988ab5eccbafa302cee74a08b2f138446cfc0f17"
         },
         {
@@ -2350,13 +2549,13 @@
           "white": "Chen, Xianlin",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "11",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "7",
           "tournamentID": "1356507",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1356507/fide-8650195-1356507.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1356507&sha=56bc3f5268401a40",
           "sha256": "ea00c2009597b8d9d5d331c4a4ee6a541ed8e23dbd7f71e89cfed918d8fcb0e3"
         },
         {
@@ -2388,7 +2587,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1318914",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1318914/fide-8650195-1318914.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1318914/fide-3403963-1318914.pgn",
           "sha256": "9c38e4f98c91bc0c25d92c62d1e8afe9d96317a18528d38abaa315bca8eec1d7"
         },
         {
@@ -2436,7 +2635,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1318914",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1318914/fide-8650195-1318914.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1318914/fide-8641560-1318914.pgn",
           "sha256": "ecdd9251ae0213a3cebd77318d28f777e0a1ba8b317df734928bca26f8209a10"
         },
         {
@@ -2484,7 +2683,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1235671",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1235671/fide-8650195-1235671.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1235671/fide-39922723-1235671.pgn",
           "sha256": "75ce1447590e54a689c24c489f6e336aa8291f00b4410b5249ddc983b6cdea01"
         },
         {
@@ -2590,13 +2789,13 @@
           "white": "Zhu, Dawei",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "9",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "b32afe4543a3e8c8edf04259aedbaab3973720e99c4ef80de1ee509e7f4dd401"
         },
         {
@@ -2606,13 +2805,13 @@
           "white": "Xu, Yiming",
           "black": "Song, Yihang",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "7",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "1cde711b0e649170e8e876ebeaf5c06d0a0ab9e9fa8064944b708d4742f002f7"
         },
         {
@@ -2622,13 +2821,13 @@
           "white": "Wang, Peiqi",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "5",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "55718759716633fdbc24ce356ee81814d4829c0b43364f302a9df2fabcd6f4db"
         },
         {
@@ -2638,13 +2837,13 @@
           "white": "Song, Yihang",
           "black": "Zhao, Tsz Ham",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "4",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "a5d7058a62e0e7234e50d08a44e178e62f3bd24e8cb4070859d960f8dfb785a2"
         },
         {
@@ -2654,13 +2853,13 @@
           "white": "Song, Yihang",
           "black": "Wang, Zhiyu",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "2",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "73ac4da2b792e45e426253a832f160dd36c6e9874fd73623cab1b5d40e62277a"
         },
         {
@@ -2670,13 +2869,13 @@
           "white": "Song, Yihang",
           "black": "Sun, Yuxiao",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "8",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "0c3987e65fb7089af2ff8abcebfd3801f08f33ba4c33ae5c9db0d0a9cb852c22"
         },
         {
@@ -2686,13 +2885,13 @@
           "white": "Song, Yihang",
           "black": "Dai, Dongliang",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "a343f2c710c73135750bd0bc04b023466958c2719606f6bf598371a5ade199ad"
         },
         {
@@ -2702,13 +2901,13 @@
           "white": "Mao, Yuxiang",
           "black": "Song, Yihang",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "1",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "230a255081e7c70300f1c36054c55cbdefcbf75bd350e36c36479472a0ad91f9"
         },
         {
@@ -2718,13 +2917,13 @@
           "white": "Liu, Ruhao",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "3",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "black",
+          "rank": "1",
           "tournamentID": "1293198",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1293198/fide-8650195-1293198.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1293198&sha=ba50fff6932fa4c0",
           "sha256": "7e924584434b4fc86e1532ef556d3308d2e4973d59e1a066e36878daa6a86c1d"
         },
         {
@@ -2735,7 +2934,7 @@
           "black": "Mu, Wangxueyao",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "8.9",
+          "round": "8",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
@@ -2757,7 +2956,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1250419",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8650195-1250419.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8639582-1250419.pgn",
           "sha256": "cd28995a5d77e98e10a48c667f3c96135ce4b4f47c255832750e1feb11adec54"
         },
         {
@@ -2773,7 +2972,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1250419",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8650195-1250419.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8646139-1250419.pgn",
           "sha256": "817b8b00449e90d3f47656376ef908fca692ea71862f2b1636b15e6c87bc987e"
         },
         {
@@ -2789,7 +2988,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1250419",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8650195-1250419.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8618399-1250419.pgn",
           "sha256": "a7200746bdfd5563a0895f6e579fc3bc3a8c2a0eaaab64a12b6214fda64f46a1"
         },
         {
@@ -2805,7 +3004,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1250419",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8650195-1250419.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8635668-1250419.pgn",
           "sha256": "c53135d19575713d1926475e35212b7d522c0576879ec7cbc97a3d7c6406ab29"
         },
         {
@@ -2821,7 +3020,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1250419",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8650195-1250419.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8624321-1250419.pgn",
           "sha256": "4427b87422179c5f8d49b981b661d8ffd9a9bde631ddb8a2dae25e3b56b70d0a"
         },
         {
@@ -2837,7 +3036,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1250419",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8650195-1250419.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8636001-1250419.pgn",
           "sha256": "8d557144c6e998b4aba987f11b2be4ded94c82fc20cabdf1c972cc48452bad94"
         },
         {
@@ -2853,7 +3052,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1250419",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8650195-1250419.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8610126-1250419.pgn",
           "sha256": "098db634c6f001b39862d8b9f4200e56244c366cd745f0a15afbaf9c02ececb1"
         },
         {
@@ -2869,7 +3068,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1250419",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8650195-1250419.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1250419/fide-8618461-1250419.pgn",
           "sha256": "a6efc29e379101ae59e00655f8a2cc1905f2822995065d800013a4a83f6241e9"
         },
         {
@@ -2895,13 +3094,13 @@
           "white": "Song, Yihang",
           "black": "Ren, Yibai",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "10",
           "tournamentID": "1222231",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1222231/fide-8650195-1222231.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1222231&sha=d1756b958cced7c7",
           "sha256": "142ce9b7db8e0eb609aa7d3828ee608665e1c7893e37583564ea233738fd0ae4"
         },
         {
@@ -2911,13 +3110,13 @@
           "white": "Song, Yihang",
           "black": "Arca, Christian Gian Karlo",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "9",
           "stage": "U12",
           "naturalStage": "U12",
           "role": "white",
+          "rank": "10",
           "tournamentID": "1222231",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1222231/fide-8650195-1222231.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1222231&sha=d1756b958cced7c7",
           "sha256": "c287aa72ee9cc718236b30fa56ef1c7557e6002d8daca27c6f788389c79e2e21"
         },
         {
@@ -2933,7 +3132,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8631166-1140859.pgn",
           "sha256": "4764ea4f21c9006115c267c135623396aa7ce8b7695b28288f2d154f2e0af371"
         },
         {
@@ -2949,7 +3148,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-63100630-1140859.pgn",
           "sha256": "ea9f73e39d09f71fe1468f6cd54bdf86b3e28de770c1a4ae41ca9ec30eeed2af"
         },
         {
@@ -2965,7 +3164,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8631603-1140859.pgn",
           "sha256": "5854c968262892ebb3a9ea6c9a33de56b1ec278cd007431bf0e10273361d6c5d"
         },
         {
@@ -2981,7 +3180,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8611092-1140859.pgn",
           "sha256": "d5d8b4f55e4ad264161ff561bbaca808438aecadd4bc6aeb79bd812efafc09ab"
         },
         {
@@ -2997,7 +3196,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8634971-1140859.pgn",
           "sha256": "b05d9fe8fc82e3a2af32671f6e3c7f611a0ee59afc9804463e9b90b53bf6a5ea"
         },
         {
@@ -3013,7 +3212,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8641560-1140859.pgn",
           "sha256": "ab41ee4a0216f156f1803f44b3b1751d11936cdcf265e5b1d9656a7c8274a12b"
         },
         {
@@ -3029,7 +3228,7 @@
           "naturalStage": "U12",
           "role": "white",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8622680-1140859.pgn",
           "sha256": "ea65cbe837930b94d5ff4d07cc22d0d368ad4c49be050c43c9c7bc6db9f59f87"
         },
         {
@@ -3045,7 +3244,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8641021-1140859.pgn",
           "sha256": "469a44142c1a0d21342c8c905d2fc8b45301207474ef8de1c7effff683051baa"
         },
         {
@@ -3061,7 +3260,7 @@
           "naturalStage": "U12",
           "role": "black",
           "tournamentID": "1140859",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8650195-1140859.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1140859/fide-8640491-1140859.pgn",
           "sha256": "bbd93fff7c0d008dee0aa786a13dd724097beccbd05ab81b6361e4220f87ff87"
         },
         {
@@ -3071,13 +3270,13 @@
           "white": "Zhang, Bohan",
           "black": "Song, Yihang",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "7",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
+          "rank": "97",
           "tournamentID": "988901",
-          "sourcePgnPath": "data/pgn/chess-results/tnr988901/fide-8650195-988901.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=988901&sha=fc83dc4e3e02ee2e",
           "sha256": "d94b66cf1b7e52c2d365de6c02b8011e4a1fb20924e8270b9a887b3181029aee"
         },
         {
@@ -3087,13 +3286,13 @@
           "white": "Song, Yihang",
           "black": "Yu, Sicheng",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
+          "rank": "97",
           "tournamentID": "988901",
-          "sourcePgnPath": "data/pgn/chess-results/tnr988901/fide-8650195-988901.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=988901&sha=fc83dc4e3e02ee2e",
           "sha256": "c6323dececaee5c9f0a4825da17f6d74eb66357a5f8bb367ebd264dbf67ba841"
         },
         {
@@ -3103,13 +3302,13 @@
           "white": "Song, Yihang",
           "black": "Wang, Puxuan",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "8",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
+          "rank": "97",
           "tournamentID": "988901",
-          "sourcePgnPath": "data/pgn/chess-results/tnr988901/fide-8650195-988901.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=988901&sha=fc83dc4e3e02ee2e",
           "sha256": "e7689ca498b9bae32924058a70cb79431716cae3d8f5286dde01585cee47afae"
         },
         {
@@ -3119,24 +3318,24 @@
           "white": "Song, Yihang",
           "black": "Mu, Wangxueyao",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "2",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
+          "rank": "97",
           "tournamentID": "988901",
-          "sourcePgnPath": "data/pgn/chess-results/tnr988901/fide-8650195-988901.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=988901&sha=fc83dc4e3e02ee2e",
           "sha256": "135b5875aa38cf231db0025914b1b4f172751c37acc729053fbb6d40b92569b5"
         },
         {
           "id": "61f42d08c2a0c2570f017be3dc71737a71fb5d0717303ef93be0848e7d47ffab",
-          "event": "Hong Kong International Open Chess Championship 2023",
+          "event": "Hong Kong International Open 2023",
           "date": "2023-12-29",
           "white": "Song, Yihang",
           "black": "Chan, Pui Yin Brandon",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "9.32",
+          "round": "9",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
@@ -3147,13 +3346,13 @@
         },
         {
           "id": "31306f6e70a40415391a1af36f40c89aa1cbab022d788b06f41fadca2b820ee9",
-          "event": "Hong Kong International Open Chess Championship 2023",
+          "event": "Hong Kong International Open 2023",
           "date": "2023-12-28",
           "white": "Zuo, Junyu",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "8.32",
+          "round": "8",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
@@ -3164,13 +3363,13 @@
         },
         {
           "id": "c8c8c11e1634bbc27783c5a4b6158759288a3453f8f6721245ea44b474147c90",
-          "event": "Hong Kong International Open Chess Championship 2023",
+          "event": "Hong Kong International Open 2023",
           "date": "2023-12-27",
           "white": "Song, Yihang",
           "black": "Nisban, Cyrus",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "7.18",
+          "round": "7",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
@@ -3181,13 +3380,13 @@
         },
         {
           "id": "d5a3460ec1827b66ffce9d3b721f7bcf2027a0a03c28cd1b564bd96aa8f4f96a",
-          "event": "Hong Kong International Open Chess Championship 2023",
+          "event": "Hong Kong International Open 2023",
           "date": "2023-12-27",
           "white": "Liu, Ho Yin",
           "black": "Song, Yihang",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "6.35",
+          "round": "6",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
@@ -3198,13 +3397,13 @@
         },
         {
           "id": "8be3ee8d0867bd2c025abc358623f278c46ea68852e2dab6a175a8b67445c1cc",
-          "event": "Hong Kong International Open Chess Championship 2023",
+          "event": "Hong Kong International Open 2023",
           "date": "2023-12-26",
           "white": "Song, Yihang",
           "black": "Jin, Ziyang",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "5.48",
+          "round": "5",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
@@ -3215,30 +3414,30 @@
         },
         {
           "id": "d1426e031230257d3c2fe206d9f959d8e6baea9d526d6310ad4320024eff5505",
-          "event": "Hong Kong International Open Chess Championship 2023",
+          "event": "Hong Kong International Open 2023",
           "date": "2023-12-26",
           "white": "Chen, Yufei",
           "black": "Song, Yihang",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "4.28",
-          "stage": "U10",
+          "round": "4",
+          "stage": "U8",
           "naturalStage": "U10",
           "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+          "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2023-12.pgn.zst",
           "sha256": "d1426e031230257d3c2fe206d9f959d8e6baea9d526d6310ad4320024eff5505"
         },
         {
           "id": "6e8bf4cfd90e3f76c6bae13eed767f6353f288d7f78760ad76969794543fb15c",
-          "event": "Hong Kong International Open Chess Championship 2023",
+          "event": "Hong Kong International Open 2023",
           "date": "2023-12-25",
           "white": "Song, Yihang",
           "black": "Leung, Shun Him",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "3.30",
+          "round": "3",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
@@ -3249,13 +3448,13 @@
         },
         {
           "id": "5183ebde9e192926e7f827bb2b31a756c5a59acae3e5f2dc17321064a32b8dba",
-          "event": "Hong Kong International Open Chess Championship 2023",
+          "event": "Hong Kong International Open 2023",
           "date": "2023-12-24",
           "white": "Guo, Bo Kai Owen",
           "black": "Song, Yihang",
           "result": "*",
           "source": "Lichess Broadcasts",
-          "round": "1.58",
+          "round": "1",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
@@ -3266,30 +3465,28 @@
         },
         {
           "id": "8c8ed110fb0cb89d17c41e10cac5b381f1397b4dda90fe4ebd7918b8a5cee1ab",
-          "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "event": "Belt and Road Open 2025 (Bengbu) | Group B",
           "white": "Wu, Jingyu",
           "black": "Song, Yihang",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "4.4",
-          "stage": "U12",
-          "naturalStage": "U12",
+          "round": "4",
+          "stage": "U10",
           "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+          "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
           "sha256": "8c8ed110fb0cb89d17c41e10cac5b381f1397b4dda90fe4ebd7918b8a5cee1ab"
         },
         {
           "id": "24adcf855ca9aaf4167bfe65f87b6dd8e3b7aa97c46bb85fcf6c08c975f65b93",
-          "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "event": "Belt and Road Open 2025 (Bengbu) | Group B",
           "white": "Song, Yihang",
           "black": "Wei, Zhengchen",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "5.5",
+          "round": "5",
           "stage": "U12",
-          "naturalStage": "U12",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
@@ -3298,14 +3495,13 @@
         },
         {
           "id": "60af7993580c54dde9d3f02cc5096bf64f295348f132a2a724356f6364ec5505",
-          "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "event": "Belt and Road Open 2025 (Bengbu) | Group B",
           "white": "Song, Yihang",
           "black": "Wang, Bingnan",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "7.8",
+          "round": "7",
           "stage": "U12",
-          "naturalStage": "U12",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
@@ -3314,14 +3510,13 @@
         },
         {
           "id": "3fd7d5ccc7815448c0d97db89a509613c0ba151060d0caea6e5ea629d474076f",
-          "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "event": "Belt and Road Open 2025 (Bengbu) | Group B",
           "white": "Song, Yihang",
           "black": "Sun, Hanyu",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "3.5",
+          "round": "3",
           "stage": "U12",
-          "naturalStage": "U12",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
@@ -3330,14 +3525,13 @@
         },
         {
           "id": "c98b9bf8a7dbd559d553dab2469e3dee5fb2edbe5b0cad836e067371eaccbe38",
-          "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "event": "Belt and Road Open 2025 (Bengbu) | Group B",
           "white": "Song, Yihang",
           "black": "Chen, Shuhuanyan",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "1.7",
+          "round": "1",
           "stage": "U12",
-          "naturalStage": "U12",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
@@ -3346,30 +3540,28 @@
         },
         {
           "id": "96a39b648c7f1f5afc57a339deb328c30a22e53e71158290e04112f0512251be",
-          "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "event": "Belt and Road Open 2025 (Bengbu) | Group B",
           "white": "Huang, Zixin",
           "black": "Song, Yihang",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "2.7",
-          "stage": "U12",
-          "naturalStage": "U12",
+          "round": "2",
+          "stage": "U10",
           "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+          "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
           "sha256": "96a39b648c7f1f5afc57a339deb328c30a22e53e71158290e04112f0512251be"
         },
         {
           "id": "aca16c7896b03978f8c9b0ea38a2963c7d1dcab932435823b256494f533dc7e8",
-          "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "event": "Belt and Road Open 2025 (Bengbu) | Group B",
           "white": "Erkhembayar, Amartaivan",
           "black": "Song, Yihang",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "6.2",
+          "round": "6",
           "stage": "U12",
-          "naturalStage": "U12",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
@@ -3378,14 +3570,13 @@
         },
         {
           "id": "c592be5a6a347219106b4165d0a7bb858ba8cf23ab656c2f54c573f1dfd5fc65",
-          "event": "2025 \"the Belt and Road\" China International Chess Open (Bengbu, Anhui) Group B",
+          "event": "Belt and Road Open 2025 (Bengbu) | Group B",
           "white": "Cai, Yachen",
           "black": "Song, Yihang",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "8.9",
+          "round": "8",
           "stage": "U12",
-          "naturalStage": "U12",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
@@ -3396,7 +3587,8 @@
     },
     "8653267": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8653267",
         "id": "fide-8653267",
@@ -3419,7 +3611,7 @@
         "games": 3,
         "events": 1,
         "packages": 2,
-        "bytes": 5800,
+        "bytes": 5726,
         "stages": {
           "U14": 3
         }
@@ -3429,37 +3621,35 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8653267/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8653267/all.pgn?sha=19be5497f6c2f65b",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/26/26369fb601406b463f03034ac1d3e547829cd1f368a470961aa5cf12d660edae.pgn",
+          "objectPath": "data/pgn/objects/sha256/26/26369fb601406b463f03034ac1d3e547829cd1f368a470961aa5cf12d660edae.pgn",
           "gameCount": 3,
-          "pgnBytes": 2900,
-          "sha256": "19be5497f6c2f65b3b588fdc0fd3060eebdfc4f2ff904f205aabaee4b0e1c2ab",
+          "pgnBytes": 2863,
+          "sha256": "26369fb601406b463f03034ac1d3e547829cd1f368a470961aa5cf12d660edae",
           "stages": {
             "U14": 3
           },
-          "sources": [
-            "Static PGN"
-          ]
+          "sources": []
         },
         {
           "id": "U14",
           "label": "U14 PGN",
           "pgnPath": "data/pgn/by-player/fide-8653267/U14.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8653267/U14.pgn?sha=2ef3cc4faf99bbd7",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/a8/a8dff67f7331c47aa3e6ff178ed41daf46085c00e78dde05c23cbbc8b5015002.pgn",
+          "objectPath": "data/pgn/objects/sha256/a8/a8dff67f7331c47aa3e6ff178ed41daf46085c00e78dde05c23cbbc8b5015002.pgn",
           "gameCount": 3,
-          "pgnBytes": 2900,
-          "sha256": "2ef3cc4faf99bbd76f53e913faeed1b55ad660b70bffb2bdacbdc951aed1856a",
+          "pgnBytes": 2863,
+          "sha256": "a8dff67f7331c47aa3e6ff178ed41daf46085c00e78dde05c23cbbc8b5015002",
           "stages": {
             "U14": 3
           },
-          "sources": [
-            "Static PGN"
-          ]
+          "sources": []
         }
       ],
       "events": [
         {
-          "id": "static-pgn:1213354",
-          "source": "Static PGN",
+          "id": "chess-results:1213354",
+          "source": "",
           "name": "2025年全国国际象棋棋协大师赛（杭州站）",
           "date": "2025-07-26",
           "tournamentID": "1213354",
@@ -3483,13 +3673,13 @@
           "white": "Lin, Shuhan",
           "black": "Ji, Chengxi",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "2",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "black",
+          "rank": "32",
           "tournamentID": "1213354",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8653267-1213354.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1213354&sha=c8b8957b2640c417",
           "sha256": "8ae7a2c8f364e52c9a1ab51c44d43089263e7de9f9c8040e315696b2810babd3"
         },
         {
@@ -3499,13 +3689,13 @@
           "white": "Ji, Chengxi",
           "black": "Chen, Luyu",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "3",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "white",
+          "rank": "32",
           "tournamentID": "1213354",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8653267-1213354.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1213354&sha=c8b8957b2640c417",
           "sha256": "2e815fe24d8859a59e579ba27c86e2f8c2c468b22f9cb88153aa50678bfd765e"
         },
         {
@@ -3515,20 +3705,21 @@
           "white": "Chen, Siyu(Zj)",
           "black": "Ji, Chengxi",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U14",
           "naturalStage": "U14",
           "role": "black",
+          "rank": "32",
           "tournamentID": "1213354",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1213354/fide-8653267-1213354.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1213354&sha=c8b8957b2640c417",
           "sha256": "211a59254362a8fad0c3cf68435e48b24b46f221cdaf490e41f272c731ab969c"
         }
       ]
     },
     "8656851": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8656851",
         "id": "fide-8656851",
@@ -3550,7 +3741,7 @@
         "games": 19,
         "events": 3,
         "packages": 3,
-        "bytes": 212843,
+        "bytes": 212732,
         "stages": {
           "U8": 13,
           "U10": 6
@@ -3561,10 +3752,11 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8656851/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8656851/all.pgn?sha=b489299fcbfd688e",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/0f/0fdd670f97142101d79148ee0f7729ca00bf920fd34a2f1efa7ebd190c941fa6.pgn",
+          "objectPath": "data/pgn/objects/sha256/0f/0fdd670f97142101d79148ee0f7729ca00bf920fd34a2f1efa7ebd190c941fa6.pgn",
           "gameCount": 19,
-          "pgnBytes": 106357,
-          "sha256": "b489299fcbfd688eb737dfd1771b0a6635cfae093943010db7b6e9d93cd5f3e2",
+          "pgnBytes": 106320,
+          "sha256": "0fdd670f97142101d79148ee0f7729ca00bf920fd34a2f1efa7ebd190c941fa6",
           "stages": {
             "U8": 13,
             "U10": 6
@@ -3577,10 +3769,11 @@
           "id": "U8",
           "label": "U8 PGN",
           "pgnPath": "data/pgn/by-player/fide-8656851/U8.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8656851/U8.pgn?sha=26b0e150ee2ff0f5",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/ec/eca17548d6638f7684b708cfcd07b44209a3e3c74e77f806cf6026fce71e5fcf.pgn",
+          "objectPath": "data/pgn/objects/sha256/ec/eca17548d6638f7684b708cfcd07b44209a3e3c74e77f806cf6026fce71e5fcf.pgn",
           "gameCount": 13,
-          "pgnBytes": 69612,
-          "sha256": "26b0e150ee2ff0f56d4b6ce9a2b076c335bce44d36a63c9b956c17fc85d9b2c3",
+          "pgnBytes": 69575,
+          "sha256": "eca17548d6638f7684b708cfcd07b44209a3e3c74e77f806cf6026fce71e5fcf",
           "stages": {
             "U8": 13
           },
@@ -3592,10 +3785,11 @@
           "id": "U10",
           "label": "U10 PGN",
           "pgnPath": "data/pgn/by-player/fide-8656851/U10.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8656851/U10.pgn?sha=f1f1b8df65cc3586",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/bd/bdf54dc3a6e45f7691ef4676565f970598c2fad65a1f9da7a97ef9147e531d68.pgn",
+          "objectPath": "data/pgn/objects/sha256/bd/bdf54dc3a6e45f7691ef4676565f970598c2fad65a1f9da7a97ef9147e531d68.pgn",
           "gameCount": 6,
-          "pgnBytes": 36874,
-          "sha256": "f1f1b8df65cc3586704a457f5369970f70bf5549b7598d4341bdfb03b1d03bc4",
+          "pgnBytes": 36837,
+          "sha256": "bdf54dc3a6e45f7691ef4676565f970598c2fad65a1f9da7a97ef9147e531d68",
           "stages": {
             "U10": 6
           },
@@ -3641,14 +3835,14 @@
           "nameTranslationPending": true
         },
         {
-          "id": "ev-9f84db50acbe7bc1",
+          "id": "ev-049baedfbfdc6993",
           "source": "Lichess Broadcasts",
-          "name": "Asian Age Group 2025",
+          "name": "23rd ASEAN+ Age Group Chess Championships 2025 | Under 8 Girls",
           "date": "",
           "tournamentID": "",
           "canonicalEventID": null,
           "stage": "U8",
-          "naturalStage": "U8",
+          "naturalStage": "",
           "eventStage": "",
           "gameCount": 2,
           "results": {
@@ -3667,7 +3861,7 @@
           "black": "Lin, Shuyao",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "10.47",
+          "round": "10",
           "stage": "U10",
           "naturalStage": "U10",
           "eventStage": "U10",
@@ -3685,7 +3879,7 @@
           "black": "Liu, Shiyi(SH)",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "7.49",
+          "round": "7",
           "stage": "U10",
           "naturalStage": "U10",
           "eventStage": "U10",
@@ -3703,7 +3897,7 @@
           "black": "Yuxin Zheng",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "5.42",
+          "round": "5",
           "stage": "U10",
           "naturalStage": "U10",
           "eventStage": "U10",
@@ -3721,7 +3915,7 @@
           "black": "Lin, Shuyao",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "6.48",
+          "round": "6",
           "stage": "U10",
           "naturalStage": "U10",
           "eventStage": "U10",
@@ -3739,7 +3933,7 @@
           "black": "Lin, Shuyao",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "4.46",
+          "round": "4",
           "stage": "U10",
           "naturalStage": "U10",
           "eventStage": "U10",
@@ -3757,7 +3951,7 @@
           "black": "Shuqing Meng",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "1.46",
+          "round": "1",
           "stage": "U10",
           "naturalStage": "U10",
           "eventStage": "U10",
@@ -3775,7 +3969,7 @@
           "black": "Ulemjsergeg, Enkhtuvshin",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "11.5",
+          "round": "11",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3793,7 +3987,7 @@
           "black": "Lin, Shuyao",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "10.7",
+          "round": "10",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3811,7 +4005,7 @@
           "black": "Lin, Shuyao",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "9.14",
+          "round": "9",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3829,7 +4023,7 @@
           "black": "Tselmeg Bold-Erdene",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "8.5",
+          "round": "8",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3847,7 +4041,7 @@
           "black": "Lin, Shuyao",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "7.13",
+          "round": "7",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3865,7 +4059,7 @@
           "black": "Zoxirova Aminabonu",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "6.15",
+          "round": "6",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3883,7 +4077,7 @@
           "black": "Lin, Shuyao",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "5.9",
+          "round": "5",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3901,7 +4095,7 @@
           "black": "Mashrabboeva, Munisa",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "4.17",
+          "round": "4",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3919,7 +4113,7 @@
           "black": "Otargali, Symbat",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "3.20",
+          "round": "3",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3937,7 +4131,7 @@
           "black": "Lin, Shuyao",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "2.19",
+          "round": "2",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3955,7 +4149,7 @@
           "black": "Lin, Shuyao",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "1.26",
+          "round": "1",
           "stage": "U8",
           "naturalStage": "U8",
           "eventStage": "U8",
@@ -3967,14 +4161,13 @@
         },
         {
           "id": "e06c3f309abd1c02e8128d004f36a5795711e68e83cd35a5baf3ad6590f3d2c1",
-          "event": "Asian Age Group 2025",
+          "event": "23rd ASEAN+ Age Group Chess Championships 2025 | Under 8 Girls",
           "white": "Lin, Shuyao",
           "black": "Ngu Phuong Linh",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "9.2",
+          "round": "9",
           "stage": "U8",
-          "naturalStage": "U8",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
@@ -3983,14 +4176,13 @@
         },
         {
           "id": "c9b1eccbb9b42623b37dd435d7119d2ffbc9790c01183fbb93cba38de57ae6fe",
-          "event": "Asian Age Group 2025",
+          "event": "23rd ASEAN+ Age Group Chess Championships 2025 | Under 8 Girls",
           "white": "Le Hong An",
           "black": "Lin, Shuyao",
           "result": "1/2-1/2",
           "source": "Lichess Broadcasts",
-          "round": "7.3",
+          "round": "7",
           "stage": "U8",
-          "naturalStage": "U8",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
@@ -4001,7 +4193,8 @@
     },
     "8661715": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8661715",
         "id": "fide-8661715",
@@ -4020,7 +4213,7 @@
         "games": 5,
         "events": 1,
         "packages": 2,
-        "bytes": 9704,
+        "bytes": 9630,
         "stages": {}
       },
       "packages": [
@@ -4028,10 +4221,11 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8661715/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8661715/all.pgn?sha=a8000876a7f67495",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/f8/f86e20e5ebf929fe6b84727e58eb61bf04e7c8f691b1c88310a05096ef693f81.pgn",
+          "objectPath": "data/pgn/objects/sha256/f8/f86e20e5ebf929fe6b84727e58eb61bf04e7c8f691b1c88310a05096ef693f81.pgn",
           "gameCount": 5,
-          "pgnBytes": 4851,
-          "sha256": "a8000876a7f67495765f1c36afb24faf8b1bc80a0f2a5acae2b588f8ff6e7e7e",
+          "pgnBytes": 4814,
+          "sha256": "f86e20e5ebf929fe6b84727e58eb61bf04e7c8f691b1c88310a05096ef693f81",
           "stages": {},
           "sources": [
             "Static PGN"
@@ -4041,10 +4235,11 @@
           "id": "adult",
           "label": "adult PGN",
           "pgnPath": "data/pgn/by-player/fide-8661715/adult.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8661715/adult.pgn?sha=11edaa6f85e1fbf2",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/ba/ba3a2ba9ee130adbbd0298aadb48ed3f09ec93ad863dcad9d47d70a054f9c6d1.pgn",
+          "objectPath": "data/pgn/objects/sha256/ba/ba3a2ba9ee130adbbd0298aadb48ed3f09ec93ad863dcad9d47d70a054f9c6d1.pgn",
           "gameCount": 5,
-          "pgnBytes": 4853,
-          "sha256": "11edaa6f85e1fbf2dc0ec143f28e0ece27a030b9ccabdaa2aa69fd6438fa8642",
+          "pgnBytes": 4816,
+          "sha256": "ba3a2ba9ee130adbbd0298aadb48ed3f09ec93ad863dcad9d47d70a054f9c6d1",
           "stages": {},
           "sources": [
             "Static PGN"
@@ -4055,7 +4250,7 @@
         {
           "id": "static-pgn:1030481",
           "source": "Static PGN",
-          "name": "2024 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
+          "name": "赛事 1030481",
           "date": "2024-10-16",
           "tournamentID": "1030481",
           "canonicalEventID": null,
@@ -4067,13 +4262,13 @@
             "1-0": 3,
             "0-1": 2
           },
-          "nameTranslationPending": true
+          "nameTranslationPending": false
         }
       ],
       "games": [
         {
           "id": "9cb54950f75878d4d1a642a4757bbb88548ecff2d6424ddd327014eba6a64311",
-          "event": "2024 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
+          "event": "赛事 1030481",
           "date": "2024-10-16",
           "white": "Zhang, Qianyi",
           "black": "Kaisaier, Aikebaier",
@@ -4084,12 +4279,12 @@
           "naturalStage": "adult",
           "role": "black",
           "tournamentID": "1030481",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661715-1030481.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8614288-1030481.pgn",
           "sha256": "9cb54950f75878d4d1a642a4757bbb88548ecff2d6424ddd327014eba6a64311"
         },
         {
           "id": "7a9bc0a560cba4aa232b6ef4e5d9ccc32df59237524393d5fc293ff7b0f1ff48",
-          "event": "2024 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
+          "event": "赛事 1030481",
           "date": "2024-10-16",
           "white": "Yu, Zhenghuan",
           "black": "Kaisaier, Aikebaier",
@@ -4100,12 +4295,12 @@
           "naturalStage": "adult",
           "role": "black",
           "tournamentID": "1030481",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661715-1030481.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8641064-1030481.pgn",
           "sha256": "7a9bc0a560cba4aa232b6ef4e5d9ccc32df59237524393d5fc293ff7b0f1ff48"
         },
         {
           "id": "d916d209618c3034adb95ca8be2338e6b2c4170fd222e6d945cab330e791cbc8",
-          "event": "2024 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
+          "event": "赛事 1030481",
           "date": "2024-10-16",
           "white": "Shao, Qiyu",
           "black": "Kaisaier, Aikebaier",
@@ -4116,12 +4311,12 @@
           "naturalStage": "adult",
           "role": "black",
           "tournamentID": "1030481",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661715-1030481.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8622450-1030481.pgn",
           "sha256": "d916d209618c3034adb95ca8be2338e6b2c4170fd222e6d945cab330e791cbc8"
         },
         {
           "id": "2db6624f8eae7498d72cbc7f4263b5d2ddfb2af0361529f652c0cd7105f47abb",
-          "event": "2024 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
+          "event": "赛事 1030481",
           "date": "2024-10-16",
           "white": "Kaisaier, Aikebaier",
           "black": "Yi, Ruiyu",
@@ -4132,12 +4327,12 @@
           "naturalStage": "adult",
           "role": "white",
           "tournamentID": "1030481",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661715-1030481.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8649120-1030481.pgn",
           "sha256": "2db6624f8eae7498d72cbc7f4263b5d2ddfb2af0361529f652c0cd7105f47abb"
         },
         {
           "id": "e4b718778575ef8e25b1c683a494a4787696ba88d85dc828dd8a78747a88a931",
-          "event": "2024 \"the Belt and Road\" China International Chess Open (Aksu, Xinjiang) Group B",
+          "event": "赛事 1030481",
           "date": "2024-10-16",
           "white": "Kaisaier, Aikebaier",
           "black": "Liang, Hanzhe",
@@ -4148,14 +4343,15 @@
           "naturalStage": "adult",
           "role": "white",
           "tournamentID": "1030481",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8661715-1030481.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1030481/fide-8640955-1030481.pgn",
           "sha256": "e4b718778575ef8e25b1c683a494a4787696ba88d85dc828dd8a78747a88a931"
         }
       ]
     },
     "8669139": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8669139",
         "id": "fide-8669139",
@@ -4176,7 +4372,7 @@
         "games": 2,
         "events": 1,
         "packages": 2,
-        "bytes": 4052,
+        "bytes": 3978,
         "stages": {
           "U10": 2
         }
@@ -4186,37 +4382,35 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8669139/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8669139/all.pgn?sha=d4c5c1865e6dd1ba",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e4/e4bda19b67124f4c6e568c5ec05be60562a4d81ff24e2e692e9a4ba651013c75.pgn",
+          "objectPath": "data/pgn/objects/sha256/e4/e4bda19b67124f4c6e568c5ec05be60562a4d81ff24e2e692e9a4ba651013c75.pgn",
           "gameCount": 2,
-          "pgnBytes": 2026,
-          "sha256": "d4c5c1865e6dd1bab455d90d00f00c89d9eeaba649db6e8dfe782a60a0cb93a6",
+          "pgnBytes": 1989,
+          "sha256": "e4bda19b67124f4c6e568c5ec05be60562a4d81ff24e2e692e9a4ba651013c75",
           "stages": {
             "U10": 2
           },
-          "sources": [
-            "Static PGN"
-          ]
+          "sources": []
         },
         {
           "id": "U10",
           "label": "U10 PGN",
           "pgnPath": "data/pgn/by-player/fide-8669139/U10.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8669139/U10.pgn?sha=da7799bbfd2f3d2a",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/3c/3c8522119444ec5c817360dae4d8887362abd5a465eef55256eaf5b2c84b3ac9.pgn",
+          "objectPath": "data/pgn/objects/sha256/3c/3c8522119444ec5c817360dae4d8887362abd5a465eef55256eaf5b2c84b3ac9.pgn",
           "gameCount": 2,
-          "pgnBytes": 2026,
-          "sha256": "da7799bbfd2f3d2a8db881264b008694fe937d7e69013d11c6002e9e4286ef3a",
+          "pgnBytes": 1989,
+          "sha256": "3c8522119444ec5c817360dae4d8887362abd5a465eef55256eaf5b2c84b3ac9",
           "stages": {
             "U10": 2
           },
-          "sources": [
-            "Static PGN"
-          ]
+          "sources": []
         }
       ],
       "events": [
         {
-          "id": "static-pgn:1110353",
-          "source": "Static PGN",
+          "id": "chess-results:1110353",
+          "source": "",
           "name": "Chinese National Youth Chess Championship 2025(B10)",
           "date": "2025-02-04",
           "tournamentID": "1110353",
@@ -4239,13 +4433,12 @@
           "white": "Shang, Guanjingxiao",
           "black": "Yuan, Shunzhe",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "2",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
           "tournamentID": "1110353",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8669139-1110353.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1110353&sha=6007834a2b561b14",
           "sha256": "6c0a90cb719c4c0113190e7a5806303f785d41f29ebce75039c4f2a2ae692442"
         },
         {
@@ -4255,20 +4448,20 @@
           "white": "Shang, Guanjingxiao",
           "black": "Liang, Zhencheng",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
           "tournamentID": "1110353",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8669139-1110353.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1110353&sha=6007834a2b561b14",
           "sha256": "4758d7d43a76b53aa1579c8ec05788858609c969d18cbc807702fd1154608d06"
         }
       ]
     },
     "8669651": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8669651",
         "id": "fide-8669651",
@@ -4290,7 +4483,7 @@
         "games": 3,
         "events": 1,
         "packages": 2,
-        "bytes": 5446,
+        "bytes": 5372,
         "stages": {
           "U10": 3
         }
@@ -4300,37 +4493,35 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8669651/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8669651/all.pgn?sha=87e84cf0353c7d37",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e5/e558276aa03bad43bb202b6056410ead6effdc26713d4896d7c337f391c52d3d.pgn",
+          "objectPath": "data/pgn/objects/sha256/e5/e558276aa03bad43bb202b6056410ead6effdc26713d4896d7c337f391c52d3d.pgn",
           "gameCount": 3,
-          "pgnBytes": 2723,
-          "sha256": "87e84cf0353c7d37f12d413a8a47bde49bcc109239a8085b0c2a2a5c804bed80",
+          "pgnBytes": 2686,
+          "sha256": "e558276aa03bad43bb202b6056410ead6effdc26713d4896d7c337f391c52d3d",
           "stages": {
             "U10": 3
           },
-          "sources": [
-            "Static PGN"
-          ]
+          "sources": []
         },
         {
           "id": "U10",
           "label": "U10 PGN",
           "pgnPath": "data/pgn/by-player/fide-8669651/U10.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8669651/U10.pgn?sha=7985a4fef13bd970",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/36/3654e030b55a8f40579f832eb35f4a9fde31bdcbe1956476ef757631f936613d.pgn",
+          "objectPath": "data/pgn/objects/sha256/36/3654e030b55a8f40579f832eb35f4a9fde31bdcbe1956476ef757631f936613d.pgn",
           "gameCount": 3,
-          "pgnBytes": 2723,
-          "sha256": "7985a4fef13bd970e5a32934046c97a9f931a653edbb528af12427d147300674",
+          "pgnBytes": 2686,
+          "sha256": "3654e030b55a8f40579f832eb35f4a9fde31bdcbe1956476ef757631f936613d",
           "stages": {
             "U10": 3
           },
-          "sources": [
-            "Static PGN"
-          ]
+          "sources": []
         }
       ],
       "events": [
         {
-          "id": "static-pgn:1110353",
-          "source": "Static PGN",
+          "id": "chess-results:1110353",
+          "source": "",
           "name": "Chinese National Youth Chess Championship 2025(B10)",
           "date": "2025-02-04",
           "tournamentID": "1110353",
@@ -4354,13 +4545,12 @@
           "white": "Wan, Hao",
           "black": "Ma, Jiayu",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "2",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
           "tournamentID": "1110353",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8669651-1110353.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1110353&sha=6007834a2b561b14",
           "sha256": "962fab22b89a3c19044263b2023271ad6d98d48a9082f25bcc26d427f634ae99"
         },
         {
@@ -4370,13 +4560,12 @@
           "white": "Ma, Jiayu",
           "black": "Zhang, Junle",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "1",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
           "tournamentID": "1110353",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8669651-1110353.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1110353&sha=6007834a2b561b14",
           "sha256": "46f608d5e5614b0ef39650812fd6c8c03c9994e4490890a3525918b3f74c42e2"
         },
         {
@@ -4386,20 +4575,20 @@
           "white": "Deng, Yixuan",
           "black": "Ma, Jiayu",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
           "tournamentID": "1110353",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110353/fide-8669651-1110353.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1110353&sha=6007834a2b561b14",
           "sha256": "a175a6b157c53201c4630563f7a6c805f262185b7a315c9395a5cb67b017b3ea"
         }
       ]
     },
     "8671443": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8671443",
         "id": "fide-8671443",
@@ -4421,7 +4610,7 @@
         "games": 4,
         "events": 1,
         "packages": 2,
-        "bytes": 7134,
+        "bytes": 7060,
         "stages": {
           "U10": 4
         }
@@ -4431,10 +4620,11 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8671443/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8671443/all.pgn?sha=d399ee2af0686f06",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/16/1605319c0f45a34103c5e75c065810dd7588b77dad4b460e425f14e020432267.pgn",
+          "objectPath": "data/pgn/objects/sha256/16/1605319c0f45a34103c5e75c065810dd7588b77dad4b460e425f14e020432267.pgn",
           "gameCount": 4,
-          "pgnBytes": 3567,
-          "sha256": "d399ee2af0686f06d6e4f1b9817199c4d97409c6a895985f2ef1d95fa8b5be46",
+          "pgnBytes": 3530,
+          "sha256": "1605319c0f45a34103c5e75c065810dd7588b77dad4b460e425f14e020432267",
           "stages": {
             "U10": 4
           },
@@ -4446,10 +4636,11 @@
           "id": "U10",
           "label": "U10 PGN",
           "pgnPath": "data/pgn/by-player/fide-8671443/U10.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8671443/U10.pgn?sha=b3593fad5b310bbf",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e8/e82427a461f5306933a06f022048d9c874979a70fe1df34cf670ed8fc7e90f33.pgn",
+          "objectPath": "data/pgn/objects/sha256/e8/e82427a461f5306933a06f022048d9c874979a70fe1df34cf670ed8fc7e90f33.pgn",
           "gameCount": 4,
-          "pgnBytes": 3567,
-          "sha256": "b3593fad5b310bbf7e36cb40408c73b56924ac67f434e9d692a5d1b52687826e",
+          "pgnBytes": 3530,
+          "sha256": "e82427a461f5306933a06f022048d9c874979a70fe1df34cf670ed8fc7e90f33",
           "stages": {
             "U10": 4
           },
@@ -4492,7 +4683,7 @@
           "naturalStage": "U10",
           "role": "white",
           "tournamentID": "1110355",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8671443-1110355.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8657866-1110355.pgn",
           "sha256": "d28883d653a354f58dbcc2291acc12c396fdd7dc9137a177c69fe2ceeee8dfed"
         },
         {
@@ -4508,7 +4699,7 @@
           "naturalStage": "U10",
           "role": "white",
           "tournamentID": "1110355",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8671443-1110355.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8659605-1110355.pgn",
           "sha256": "8a013adacb5311fdded819cbd3e7f8c886319c513c9ee26075c7580a5350f109"
         },
         {
@@ -4524,7 +4715,7 @@
           "naturalStage": "U10",
           "role": "black",
           "tournamentID": "1110355",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8671443-1110355.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8654573-1110355.pgn",
           "sha256": "79a7de771958478e46d50e036311e8c4f9efa2bfacfc68805e76759f6bcf88c6"
         },
         {
@@ -4540,14 +4731,15 @@
           "naturalStage": "U10",
           "role": "black",
           "tournamentID": "1110355",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8671443-1110355.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8650098-1110355.pgn",
           "sha256": "08fc7c95138587be545961a93c88275940fd35d1ec5bb30bc5275f99d10d005d"
         }
       ]
     },
     "8671699": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8671699",
         "id": "fide-8671699",
@@ -4569,7 +4761,7 @@
         "games": 12,
         "events": 3,
         "packages": 3,
-        "bytes": 97306,
+        "bytes": 97195,
         "stages": {
           "U10": 11,
           "U12": 1
@@ -4580,10 +4772,11 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8671699/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8671699/all.pgn?sha=a6e61dfa4c035c78",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/6a/6a665df9b54937ee153ae0a3f7dd0b3ec9e8d66eb7f9c30852ec1d1923362f32.pgn",
+          "objectPath": "data/pgn/objects/sha256/6a/6a665df9b54937ee153ae0a3f7dd0b3ec9e8d66eb7f9c30852ec1d1923362f32.pgn",
           "gameCount": 12,
-          "pgnBytes": 48588,
-          "sha256": "a6e61dfa4c035c78db4bb4bd144e9048d6537ad855b3f3e646e2686b8270ef0d",
+          "pgnBytes": 48551,
+          "sha256": "6a665df9b54937ee153ae0a3f7dd0b3ec9e8d66eb7f9c30852ec1d1923362f32",
           "stages": {
             "U10": 11,
             "U12": 1
@@ -4597,10 +4790,11 @@
           "id": "U10",
           "label": "U10 PGN",
           "pgnPath": "data/pgn/by-player/fide-8671699/U10.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8671699/U10.pgn?sha=f69fb212bca16a33",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/48/48b844f154a64a278ca2746738f67ec252e9c65c9c0564c58f1caed506d70cd6.pgn",
+          "objectPath": "data/pgn/objects/sha256/48/48b844f154a64a278ca2746738f67ec252e9c65c9c0564c58f1caed506d70cd6.pgn",
           "gameCount": 11,
-          "pgnBytes": 46187,
-          "sha256": "f69fb212bca16a33b21aef8c91f44060233c1d23dbce1d9698bfadd42a330771",
+          "pgnBytes": 46150,
+          "sha256": "48b844f154a64a278ca2746738f67ec252e9c65c9c0564c58f1caed506d70cd6",
           "stages": {
             "U10": 11
           },
@@ -4613,10 +4807,11 @@
           "id": "U12",
           "label": "U12 PGN",
           "pgnPath": "data/pgn/by-player/fide-8671699/U12.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8671699/U12.pgn?sha=4a4b363d07ec78a6",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/3d/3d0a68722e932d541928efb373ace84589b92ac8193c80310a779f895c475001.pgn",
+          "objectPath": "data/pgn/objects/sha256/3d/3d0a68722e932d541928efb373ace84589b92ac8193c80310a779f895c475001.pgn",
           "gameCount": 1,
-          "pgnBytes": 2531,
-          "sha256": "4a4b363d07ec78a682e208c6de2dcd5c597f2daadb3aa5d5fb87b0274ca4ae5c",
+          "pgnBytes": 2494,
+          "sha256": "3d0a68722e932d541928efb373ace84589b92ac8193c80310a779f895c475001",
           "stages": {
             "U12": 1
           },
@@ -4660,19 +4855,19 @@
           "nameTranslationPending": true
         },
         {
-          "id": "ev-8da21a5eb5537d96",
+          "id": "ev-b41845fabfa97878",
           "source": "Lichess Broadcasts",
-          "name": "2025年中国国际象棋乙级联赛",
+          "name": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
           "date": "",
           "tournamentID": "",
           "canonicalEventID": null,
           "stage": "U10",
-          "naturalStage": "U10",
+          "naturalStage": "",
           "eventStage": "",
           "gameCount": 9,
           "results": {
-            "0-1": 5,
-            "1-0": 4
+            "1-0": 4,
+            "0-1": 5
           },
           "nameTranslationPending": false
         }
@@ -4686,7 +4881,7 @@
           "black": "Gao, Ruoya",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "1.11",
+          "round": "1",
           "stage": "U12",
           "naturalStage": "U12",
           "eventStage": "U12",
@@ -4709,7 +4904,7 @@
           "naturalStage": "U10",
           "role": "white",
           "tournamentID": "1110355",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8671699-1110355.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8657866-1110355.pgn",
           "sha256": "a38eed5370858fcfe11cfee90452e9aa3ce28468e320dadba387821841ca83f4"
         },
         {
@@ -4725,24 +4920,8 @@
           "naturalStage": "U10",
           "role": "white",
           "tournamentID": "1110355",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8671699-1110355.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1110355/fide-8650098-1110355.pgn",
           "sha256": "1ad694146f81a832a1cf7c9d6dccb01757bae64edc3d7ced428217e6a44eb969"
-        },
-        {
-          "id": "3a27ab00143b30afa7831a6734ff9438d6707bf2163535f090b33cab59dd2bf2",
-          "event": "2025年中国国际象棋乙级联赛",
-          "white": "Wen, Xinyue",
-          "black": "Hu, Yu A.",
-          "result": "0-1",
-          "source": "Lichess Broadcasts",
-          "round": "1.24",
-          "stage": "U10",
-          "naturalStage": "U10",
-          "role": "white",
-          "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
-          "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
-          "sha256": "3a27ab00143b30afa7831a6734ff9438d6707bf2163535f090b33cab59dd2bf2"
         },
         {
           "id": "716bee94ac3db7e1914aae91e9a057bfa6a973d99ccdd7a5c7b0de64aea71597",
@@ -4751,9 +4930,8 @@
           "black": "Wen, Xinyue",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "8.4",
+          "round": "8",
           "stage": "U10",
-          "naturalStage": "U10",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
@@ -4767,9 +4945,8 @@
           "black": "Wen, Xinyue",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "9.14",
+          "round": "9",
           "stage": "U10",
-          "naturalStage": "U10",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
@@ -4783,9 +4960,8 @@
           "black": "Wen, Xinyue",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "2.29",
+          "round": "2",
           "stage": "U10",
-          "naturalStage": "U10",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
@@ -4799,9 +4975,8 @@
           "black": "Zhao, Tianzhen",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "7.24",
+          "round": "7",
           "stage": "U10",
-          "naturalStage": "U10",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
@@ -4815,9 +4990,8 @@
           "black": "Xia, Chenyi",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "3.29",
+          "round": "3",
           "stage": "U10",
-          "naturalStage": "U10",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
@@ -4831,14 +5005,28 @@
           "black": "Liu, Yixin",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "5.24",
+          "round": "5",
           "stage": "U10",
-          "naturalStage": "U10",
           "role": "white",
           "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
           "sha256": "ed45d68822994932626bebcf5f5f6e9df042636867c07fd32eee0dc95aab34be"
+        },
+        {
+          "id": "3a27ab00143b30afa7831a6734ff9438d6707bf2163535f090b33cab59dd2bf2",
+          "event": "2025 Chinese Chess League Division B 中国国际象棋乙级联赛",
+          "white": "Wen, Xinyue",
+          "black": "Hu, Yu A.",
+          "result": "0-1",
+          "source": "Lichess Broadcasts",
+          "round": "1",
+          "stage": "U10",
+          "role": "white",
+          "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+          "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-08.pgn.zst",
+          "sha256": "3a27ab00143b30afa7831a6734ff9438d6707bf2163535f090b33cab59dd2bf2"
         },
         {
           "id": "2159088b7f154aef0676a41148d399db93782517044e0989bfd553395a8f9ebb",
@@ -4847,9 +5035,8 @@
           "black": "Wen, Xinyue",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "4.14",
+          "round": "4",
           "stage": "U10",
-          "naturalStage": "U10",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
@@ -4863,9 +5050,8 @@
           "black": "Wen, Xinyue",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "6.4",
+          "round": "6",
           "stage": "U10",
-          "naturalStage": "U10",
           "role": "black",
           "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
           "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
@@ -4876,7 +5062,8 @@
     },
     "8681171": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8681171",
         "id": "fide-8681171",
@@ -4898,44 +5085,65 @@
       "totals": {
         "games": 10,
         "events": 3,
-        "packages": 2,
-        "bytes": 37806,
-        "stages": {}
+        "packages": 3,
+        "bytes": 37824,
+        "stages": {
+          "U10": 1
+        }
       },
       "packages": [
         {
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8681171/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8681171/all.pgn?sha=9a347b60d5a6a67c",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/bf/bfc2b1e91fe63d1261534f01d80368913e22d5a591222ca5190753a682ba2388.pgn",
+          "objectPath": "data/pgn/objects/sha256/bf/bfc2b1e91fe63d1261534f01d80368913e22d5a591222ca5190753a682ba2388.pgn",
           "gameCount": 10,
-          "pgnBytes": 18902,
-          "sha256": "9a347b60d5a6a67ceeaf8ad4ded2fa87ecb276267f67c6c988f0c9fab3d593ae",
-          "stages": {},
+          "pgnBytes": 18865,
+          "sha256": "bfc2b1e91fe63d1261534f01d80368913e22d5a591222ca5190753a682ba2388",
+          "stages": {
+            "U10": 1
+          },
           "sources": [
             "Lichess Broadcasts",
             "Static PGN"
           ]
         },
         {
+          "id": "U10",
+          "label": "U10 PGN",
+          "pgnPath": "data/pgn/by-player/fide-8681171/U10.pgn",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/0d/0d5568d290ec9c4ea931d858bec85d02ff6444045e8bbb733045787051b30d0f.pgn",
+          "objectPath": "data/pgn/objects/sha256/0d/0d5568d290ec9c4ea931d858bec85d02ff6444045e8bbb733045787051b30d0f.pgn",
+          "gameCount": 1,
+          "pgnBytes": 10128,
+          "sha256": "0d5568d290ec9c4ea931d858bec85d02ff6444045e8bbb733045787051b30d0f",
+          "stages": {
+            "U10": 1
+          },
+          "sources": [
+            "Lichess Broadcasts"
+          ]
+        },
+        {
           "id": "adult",
           "label": "adult PGN",
           "pgnPath": "data/pgn/by-player/fide-8681171/adult.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8681171/adult.pgn?sha=b454a06dc8a173b3",
-          "gameCount": 10,
-          "pgnBytes": 18904,
-          "sha256": "b454a06dc8a173b301a231d9e4e54388cc56300a9cde0b46d14ef4fd33e913d9",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/51/5157d7e504e358cd279a017d7572ec49f5dcf8457a1b8805e804df79ab410b71.pgn",
+          "objectPath": "data/pgn/objects/sha256/51/5157d7e504e358cd279a017d7572ec49f5dcf8457a1b8805e804df79ab410b71.pgn",
+          "gameCount": 9,
+          "pgnBytes": 8831,
+          "sha256": "5157d7e504e358cd279a017d7572ec49f5dcf8457a1b8805e804df79ab410b71",
           "stages": {},
           "sources": [
-            "Lichess Broadcasts",
             "Static PGN"
           ]
         }
       ],
       "events": [
         {
-          "id": "static-pgn:1429695",
-          "source": "Static PGN",
+          "id": "chess-results:1429695",
+          "source": "",
           "name": "2026年全国国际象棋棋协大师赛（安阳站）公开组",
           "date": "2026-06-05",
           "tournamentID": "1429695",
@@ -4953,7 +5161,7 @@
         {
           "id": "static-pgn:1214374",
           "source": "Static PGN",
-          "name": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "name": "赛事 1214374",
           "date": "2025-07-31",
           "tournamentID": "1214374",
           "canonicalEventID": null,
@@ -4966,23 +5174,23 @@
             "1/2-1/2": 1,
             "1-0": 3
           },
-          "nameTranslationPending": true
+          "nameTranslationPending": false
         },
         {
-          "id": "ev-6b0f98577599c497",
+          "id": "ev-89a1bf937a8e8775",
           "source": "Lichess Broadcasts",
-          "name": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "name": "Boyi Cup (博弈杯) International Youth Open 2025 | Group B",
           "date": "",
           "tournamentID": "",
           "canonicalEventID": null,
-          "stage": "adult",
-          "naturalStage": "adult",
+          "stage": "U10",
+          "naturalStage": "",
           "eventStage": "",
           "gameCount": 1,
           "results": {
             "1-0": 1
           },
-          "nameTranslationPending": true
+          "nameTranslationPending": false
         }
       ],
       "games": [
@@ -4993,13 +5201,13 @@
           "white": "Yu, Yixiao",
           "black": "Zhang, Xinyue(Sd)",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "3",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
+          "rank": "35",
           "tournamentID": "1429695",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8681171-1429695.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1429695&sha=19d523b7f3363b09",
           "sha256": "0ed51fb5a9550124d7e72e5e8ae539f0567d33f3b45f75ccde4a4015a23f7123"
         },
         {
@@ -5009,18 +5217,18 @@
           "white": "Yu, Yixiao",
           "black": "Feng, Jianxun",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "1",
           "stage": "adult",
           "naturalStage": "adult",
           "role": "white",
+          "rank": "35",
           "tournamentID": "1429695",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1429695/fide-8681171-1429695.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1429695&sha=19d523b7f3363b09",
           "sha256": "ccf20a5da5a237fb73a41dd437af14549d2721ab54bd9671f35e041a9e64d657"
         },
         {
           "id": "a1241ba2f76af4a934baa65fd294b594c876d8e9576804812b46b9f8241409d5",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "event": "赛事 1214374",
           "date": "2025-07-31",
           "white": "Yu, Yixiao",
           "black": "Zhang, Han",
@@ -5031,12 +5239,12 @@
           "naturalStage": "adult",
           "role": "white",
           "tournamentID": "1214374",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8681171-1214374.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8605157-1214374.pgn",
           "sha256": "a1241ba2f76af4a934baa65fd294b594c876d8e9576804812b46b9f8241409d5"
         },
         {
           "id": "aa2c97dcf2e5947e522bcbadbb367e8ee14734887c7ee3f4703b185c03ac085b",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "event": "赛事 1214374",
           "date": "2025-07-31",
           "white": "Yu, Yixiao",
           "black": "Wang, Yifan(BJ)",
@@ -5047,12 +5255,12 @@
           "naturalStage": "adult",
           "role": "white",
           "tournamentID": "1214374",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8681171-1214374.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8649715-1214374.pgn",
           "sha256": "aa2c97dcf2e5947e522bcbadbb367e8ee14734887c7ee3f4703b185c03ac085b"
         },
         {
           "id": "69f5fc68176caf2dca6a7bcafc1cc2e550d4ef1d43b87c39e69d9f245d3943be",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "event": "赛事 1214374",
           "date": "2025-07-31",
           "white": "Yu, Yixiao",
           "black": "Sun, Xiheng",
@@ -5063,12 +5271,12 @@
           "naturalStage": "adult",
           "role": "white",
           "tournamentID": "1214374",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8681171-1214374.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8658552-1214374.pgn",
           "sha256": "69f5fc68176caf2dca6a7bcafc1cc2e550d4ef1d43b87c39e69d9f245d3943be"
         },
         {
           "id": "25196aa0a712ed007188fc9fc8b04d828e6675eb59d3b89bd10b05110bab30df",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "event": "赛事 1214374",
           "date": "2025-07-31",
           "white": "Yu, Yixiao",
           "black": "Li, Zhi",
@@ -5084,7 +5292,7 @@
         },
         {
           "id": "84915bd18a933fa0caae7494e1d7e13595a7d32c967bba438bb911fb0d9a82d2",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "event": "赛事 1214374",
           "date": "2025-07-31",
           "white": "Yao, Zheyu",
           "black": "Yu, Yixiao",
@@ -5095,12 +5303,12 @@
           "naturalStage": "adult",
           "role": "black",
           "tournamentID": "1214374",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8681171-1214374.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8646074-1214374.pgn",
           "sha256": "84915bd18a933fa0caae7494e1d7e13595a7d32c967bba438bb911fb0d9a82d2"
         },
         {
           "id": "6d0606c422e25f18933c31febe00544c9296098387b740b6385bc5051f0b2392",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "event": "赛事 1214374",
           "date": "2025-07-31",
           "white": "Shinkariuk, Olesia",
           "black": "Yu, Yixiao",
@@ -5116,7 +5324,7 @@
         },
         {
           "id": "d9386ae3d9a0ab7c46bb1dd13071d9fdab570ce03d04c5dc7e7021b88ed4ba95",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "event": "赛事 1214374",
           "date": "2025-07-31",
           "white": "Huang, Zixin",
           "black": "Yu, Yixiao",
@@ -5127,22 +5335,21 @@
           "naturalStage": "adult",
           "role": "black",
           "tournamentID": "1214374",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8681171-1214374.pgn",
+          "sourcePgnPath": "data/pgn/chess-results/tnr1214374/fide-8655324-1214374.pgn",
           "sha256": "d9386ae3d9a0ab7c46bb1dd13071d9fdab570ce03d04c5dc7e7021b88ed4ba95"
         },
         {
           "id": "5cb58947cb068f6ea11e9d699805bb4cbf52e52212149bb418a03c36acbef655",
-          "event": "\"Boyi Cup\"China Youth Chess International Open Tournament 2025(Group B)",
+          "event": "Boyi Cup (博弈杯) International Youth Open 2025 | Group B",
           "white": "Huang, Zixin",
           "black": "Yu, Yixiao",
           "result": "1-0",
           "source": "Lichess Broadcasts",
-          "round": "2.33",
-          "stage": "adult",
-          "naturalStage": "adult",
+          "round": "2",
+          "stage": "U10",
           "role": "black",
-          "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
-          "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+          "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+          "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
           "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-07.pgn.zst",
           "sha256": "5cb58947cb068f6ea11e9d699805bb4cbf52e52212149bb418a03c36acbef655"
         }
@@ -5150,7 +5357,8 @@
     },
     "8684499": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8684499",
         "id": "fide-8684499",
@@ -5172,7 +5380,7 @@
         "games": 7,
         "events": 2,
         "packages": 2,
-        "bytes": 38754,
+        "bytes": 38680,
         "stages": {
           "U10": 7
         }
@@ -5182,40 +5390,40 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8684499/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8684499/all.pgn?sha=18ba67c0b097641a",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/3b/3bcd11bed23b1d9bb9bf2fd64be5407b259f3b65b7df8891cccbbe5e90edda6c.pgn",
+          "objectPath": "data/pgn/objects/sha256/3b/3bcd11bed23b1d9bb9bf2fd64be5407b259f3b65b7df8891cccbbe5e90edda6c.pgn",
           "gameCount": 7,
-          "pgnBytes": 19377,
-          "sha256": "18ba67c0b097641a68a090fe61868121f9f3f99ffff0fe52f6a386190d629cda",
+          "pgnBytes": 19340,
+          "sha256": "3bcd11bed23b1d9bb9bf2fd64be5407b259f3b65b7df8891cccbbe5e90edda6c",
           "stages": {
             "U10": 7
           },
           "sources": [
-            "Lichess Broadcasts",
-            "Static PGN"
+            "Lichess Broadcasts"
           ]
         },
         {
           "id": "U10",
           "label": "U10 PGN",
           "pgnPath": "data/pgn/by-player/fide-8684499/U10.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8684499/U10.pgn?sha=5a11814a77de73ce",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/9d/9de96d56efaee7922147463e887cb901a6a8d9cac54dd4af1d192e62edec4ca3.pgn",
+          "objectPath": "data/pgn/objects/sha256/9d/9de96d56efaee7922147463e887cb901a6a8d9cac54dd4af1d192e62edec4ca3.pgn",
           "gameCount": 7,
-          "pgnBytes": 19377,
-          "sha256": "5a11814a77de73ce47b07ff1369af8dfa9860dec4fcf79408d3fc4210acaa1ab",
+          "pgnBytes": 19340,
+          "sha256": "9de96d56efaee7922147463e887cb901a6a8d9cac54dd4af1d192e62edec4ca3",
           "stages": {
             "U10": 7
           },
           "sources": [
-            "Lichess Broadcasts",
-            "Static PGN"
+            "Lichess Broadcasts"
           ]
         }
       ],
       "events": [
         {
-          "id": "ev-296615ff6b348bf8",
+          "id": "ev-13e7474328b5cf09",
           "source": "Lichess Broadcasts",
-          "name": "2025年全国国际象棋棋协大师赛（秦皇岛站）",
+          "name": "2025年全国国际象棋棋协大师赛(秦皇岛站)",
           "date": "2025-12-08",
           "tournamentID": "",
           "canonicalEventID": null,
@@ -5229,8 +5437,8 @@
           "nameTranslationPending": false
         },
         {
-          "id": "static-pgn:1305909",
-          "source": "Static PGN",
+          "id": "chess-results:1305909",
+          "source": "",
           "name": "2025年全国国际象棋棋协大师赛（秦皇岛站）棋协大师组",
           "date": "2025-12-07",
           "tournamentID": "1305909",
@@ -5250,13 +5458,13 @@
       "games": [
         {
           "id": "2a9db4ce6552a9f399b6c36312d92723511f8c0434422c23b28d36da7cffe645",
-          "event": "2025年全国国际象棋棋协大师赛（秦皇岛站）",
+          "event": "2025年全国国际象棋棋协大师赛(秦皇岛站)",
           "date": "2025-12-08",
           "white": "Liu, Shuyan",
           "black": "Ma, Changdi",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "6.20",
+          "round": "6",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
@@ -5267,13 +5475,13 @@
         },
         {
           "id": "298700298c429a0848700c5f14965eaf77f0b66a125f67926913af9768a3a68c",
-          "event": "2025年全国国际象棋棋协大师赛（秦皇岛站）",
+          "event": "2025年全国国际象棋棋协大师赛(秦皇岛站)",
           "date": "2025-12-07",
           "white": "Liu, Shuyan",
           "black": "Yu, Xilei",
           "result": "0-1",
           "source": "Lichess Broadcasts",
-          "round": "1.14",
+          "round": "1",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
@@ -5289,13 +5497,13 @@
           "white": "Zheng, Yifeng",
           "black": "Liu, Shuyan",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "2",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
+          "rank": "44",
           "tournamentID": "1305909",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1305909/fide-8684499-1305909.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1305909&sha=68773569ff56d746",
           "sha256": "d8452fb34e245275c70b6690399643aab177ff6ee379a5152fe4826ca8692eaf"
         },
         {
@@ -5305,13 +5513,13 @@
           "white": "Liu, Shuyan",
           "black": "Yu, Xilei",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "1",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
+          "rank": "44",
           "tournamentID": "1305909",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1305909/fide-8684499-1305909.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1305909&sha=68773569ff56d746",
           "sha256": "7ca48cda6b57be22d8b7d9b446f7979adfc32e40ec4982156a0d9eb6496337c9"
         },
         {
@@ -5321,13 +5529,13 @@
           "white": "Liu, Shuyan",
           "black": "Ma, Changdi",
           "result": "0-1",
-          "source": "Static PGN",
           "round": "6",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "white",
+          "rank": "44",
           "tournamentID": "1305909",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1305909/fide-8684499-1305909.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1305909&sha=68773569ff56d746",
           "sha256": "d43826d45de88baabce4d4a41c9c58e002bf2d592d40305de43ccc2e184c820a"
         },
         {
@@ -5337,13 +5545,13 @@
           "white": "Lian, Xin",
           "black": "Liu, Shuyan",
           "result": "1/2-1/2",
-          "source": "Static PGN",
           "round": "3",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
+          "rank": "44",
           "tournamentID": "1305909",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1305909/fide-8684499-1305909.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1305909&sha=68773569ff56d746",
           "sha256": "b5236f6b741ccec62b60c3b96a8314202020600ecdeaa6398a1141c8871e532e"
         },
         {
@@ -5353,20 +5561,21 @@
           "white": "Fan, Jinxuan",
           "black": "Liu, Shuyan",
           "result": "1-0",
-          "source": "Static PGN",
           "round": "5",
           "stage": "U10",
           "naturalStage": "U10",
           "role": "black",
+          "rank": "44",
           "tournamentID": "1305909",
-          "sourcePgnPath": "data/pgn/chess-results/tnr1305909/fide-8684499-1305909.pgn",
+          "sourcePgnPath": "api/event-pgn?tnr=1305909&sha=68773569ff56d746",
           "sha256": "19e737594331c7d9e292b57fa4255df4ef4cd6b9c75ab6842fc8bdfa5375d2db"
         }
       ]
     },
     "8697299": {
       "schemaVersion": 1,
-      "generatedAt": "2026-07-31T16:59:57+00:00",
+      "snapshotId": "20260824T042122Z-492feadc",
+      "generatedAt": "2026-08-24T04:37:37+00:00",
       "player": {
         "fideID": "8697299",
         "id": "fide-8697299",
@@ -5387,7 +5596,7 @@
         "games": 2,
         "events": 2,
         "packages": 2,
-        "bytes": 7056,
+        "bytes": 6982,
         "stages": {
           "U16": 2
         }
@@ -5397,10 +5606,11 @@
           "id": "all",
           "label": "全部 PGN",
           "pgnPath": "data/pgn/by-player/fide-8697299/all.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8697299/all.pgn?sha=27787c22ad2b855f",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/df/df5fc761b271f434cb59fa62c11b2d37a37823ceae0becfe18194bb654e2be56.pgn",
+          "objectPath": "data/pgn/objects/sha256/df/df5fc761b271f434cb59fa62c11b2d37a37823ceae0becfe18194bb654e2be56.pgn",
           "gameCount": 2,
-          "pgnBytes": 3528,
-          "sha256": "27787c22ad2b855f19b58483e598c0d22a625e388795a371462dbb49538f7e63",
+          "pgnBytes": 3491,
+          "sha256": "df5fc761b271f434cb59fa62c11b2d37a37823ceae0becfe18194bb654e2be56",
           "stages": {
             "U16": 2
           },
@@ -5413,10 +5623,11 @@
           "id": "U16",
           "label": "U16 PGN",
           "pgnPath": "data/pgn/by-player/fide-8697299/U16.pgn",
-          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8697299/U16.pgn?sha=09ea9582a33713be",
+          "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b6/b6ceb10c6635b618be2a667a37c98aa687d5de3848692cfcb8796d90168ed54e.pgn",
+          "objectPath": "data/pgn/objects/sha256/b6/b6ceb10c6635b618be2a667a37c98aa687d5de3848692cfcb8796d90168ed54e.pgn",
           "gameCount": 2,
-          "pgnBytes": 3528,
-          "sha256": "09ea9582a33713be4f2e6ad4f1e1af2b72f8d376caa97e63a11b9eb1ccc249db",
+          "pgnBytes": 3491,
+          "sha256": "b6ceb10c6635b618be2a667a37c98aa687d5de3848692cfcb8796d90168ed54e",
           "stages": {
             "U16": 2
           },
@@ -5485,7 +5696,7 @@
           "black": "Jin Aima",
           "result": "*",
           "source": "Lichess Broadcasts",
-          "round": "1.1",
+          "round": "1",
           "stage": "U16",
           "naturalStage": "U16",
           "role": "black",

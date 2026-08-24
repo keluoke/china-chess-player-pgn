@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-10T12:24:27+00:00",
+  "snapshotId": "20260824T042122Z-492feadc",
+  "generatedAt": "2026-08-24T04:37:37+00:00",
   "player": {
     "fideID": "8663904",
     "id": "fide-8663904",
@@ -21,10 +22,11 @@
   "totals": {
     "games": 19,
     "events": 3,
-    "packages": 2,
-    "bytes": 126486,
+    "packages": 3,
+    "bytes": 126504,
     "stages": {
-      "U12": 19
+      "U8": 2,
+      "U12": 17
     }
   },
   "packages": [
@@ -32,39 +34,56 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8663904/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8663904/all.pgn?sha=0ff54f1a890c6c02",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/7c/7cdf4f3bad150be9881decd27f605ca5e98f9ca253cf36a42434ec80aaf25845.pgn",
+      "objectPath": "data/pgn/objects/sha256/7c/7cdf4f3bad150be9881decd27f605ca5e98f9ca253cf36a42434ec80aaf25845.pgn",
       "gameCount": 19,
-      "pgnBytes": 63243,
-      "sha256": "0ff54f1a890c6c02a9b79449d54b7ef109bc091f4116f06afef3b9c0e1d4f7a6",
+      "pgnBytes": 63206,
+      "sha256": "7cdf4f3bad150be9881decd27f605ca5e98f9ca253cf36a42434ec80aaf25845",
       "stages": {
-        "U12": 19
+        "U8": 2,
+        "U12": 17
       },
       "sources": [
-        "Lichess Broadcasts",
-        "Static PGN"
+        "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U8",
+      "label": "U8 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8663904/U8.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b0/b03ae9fe61be6d92ed5f136354f85591cefe01d7c7f3d610bae03419ebd65dbe.pgn",
+      "objectPath": "data/pgn/objects/sha256/b0/b03ae9fe61be6d92ed5f136354f85591cefe01d7c7f3d610bae03419ebd65dbe.pgn",
+      "gameCount": 2,
+      "pgnBytes": 5276,
+      "sha256": "b03ae9fe61be6d92ed5f136354f85591cefe01d7c7f3d610bae03419ebd65dbe",
+      "stages": {
+        "U8": 2
+      },
+      "sources": [
+        "Lichess Broadcasts"
       ]
     },
     {
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8663904/U12.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8663904/U12.pgn?sha=918e125829804c03",
-      "gameCount": 19,
-      "pgnBytes": 63243,
-      "sha256": "918e125829804c033f4df61dfdabfc2486223d23523fc03ec9c43c0abea24ec2",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/f7/f74265788471dc3767540964e504bb6dd1267d45e4b0cd2e7070f3c76b877b85.pgn",
+      "objectPath": "data/pgn/objects/sha256/f7/f74265788471dc3767540964e504bb6dd1267d45e4b0cd2e7070f3c76b877b85.pgn",
+      "gameCount": 17,
+      "pgnBytes": 58022,
+      "sha256": "f74265788471dc3767540964e504bb6dd1267d45e4b0cd2e7070f3c76b877b85",
       "stages": {
-        "U12": 19
+        "U12": 17
       },
       "sources": [
-        "Lichess Broadcasts",
-        "Static PGN"
+        "Lichess Broadcasts"
       ]
     }
   ],
   "events": [
     {
-      "id": "static-pgn:1469440",
-      "source": "Static PGN",
+      "id": "chess-results:1469440",
+      "source": "",
       "name": "2026年全国国际象棋青少年快棋超快棋公开赛",
       "date": "2026-08-06",
       "tournamentID": "1469440",
@@ -97,9 +116,9 @@
       "nameTranslationPending": true
     },
     {
-      "id": "ev-f804411d99b824ef",
+      "id": "ev-dce42813f61378db",
       "source": "Lichess Broadcasts",
-      "name": "2025QXDSYC10 - 7",
+      "name": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
       "date": "2025-10-07",
       "tournamentID": "",
       "canonicalEventID": null,
@@ -112,7 +131,7 @@
         "1-0": 1,
         "0-1": 1
       },
-      "nameTranslationPending": true
+      "nameTranslationPending": false
     }
   ],
   "games": [
@@ -123,13 +142,13 @@
       "white": "Yu, Zechen",
       "black": "Tao, Junxi",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "2.1",
+      "round": "2",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "8700732440103f5edebe69fbdf77c668d286e7d01efa42641743491d81c68bb1"
     },
     {
@@ -139,13 +158,13 @@
       "white": "Tao, Junxi",
       "black": "Ni, Yifeng",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "1.16",
+      "round": "1",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "d7014a0ed8b5b479c209c6afa51c108730216b2e4633803c50e8d0297e4091ad"
     },
     {
@@ -155,13 +174,13 @@
       "white": "Tao, Junxi",
       "black": "Mao, Hanyu",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "8.11",
+      "round": "8",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "202f1c4101245bce73c12cf33ee7bfb172970c0943fe1677d82417a0a5b3570c"
     },
     {
@@ -171,13 +190,13 @@
       "white": "Tao, Junxi",
       "black": "Li, Shujun",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "5.11",
+      "round": "5",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "f4d67fc9d3fdeff217773c8e2e14e977866aa0d445b1ab4516fb07f93541812e"
     },
     {
@@ -187,13 +206,13 @@
       "white": "Tao, Junxi",
       "black": "Hu, Zhicheng",
       "result": "1/2-1/2",
-      "source": "Static PGN",
-      "round": "3.11",
+      "round": "3",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "edda1e6d1b60bbb8f420c18fa1c489c1fc160369e1f04d287a316546c7e520f4"
     },
     {
@@ -203,13 +222,13 @@
       "white": "Song, Yihang",
       "black": "Tao, Junxi",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "9.6",
+      "round": "9",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "5b42df1852c6057786dd51460eb8bf16ce6324e4616335ecf8caf10b0e6f1bfd"
     },
     {
@@ -219,13 +238,13 @@
       "white": "Qian, Tianchi",
       "black": "Tao, Junxi",
       "result": "1/2-1/2",
-      "source": "Static PGN",
-      "round": "7.10",
+      "round": "7",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "3f341fb35622657257d263baaf3dee01c4f84aaf1fc2d573d716dc4fdcdbf913"
     },
     {
@@ -235,13 +254,13 @@
       "white": "Jiang, Tianchi",
       "black": "Tao, Junxi",
       "result": "0-1",
-      "source": "Static PGN",
-      "round": "4.14",
+      "round": "4",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "b90493db9e2d6c3469f5d006e01b516e9752d986b57391513791fbfa61eb5b01"
     },
     {
@@ -251,13 +270,13 @@
       "white": "Du, Rushu",
       "black": "Tao, Junxi",
       "result": "1-0",
-      "source": "Static PGN",
-      "round": "6.6",
+      "round": "6",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
+      "rank": "20",
       "tournamentID": "1469440",
-      "sourcePgnPath": "data/pgn/chess-results/tnr1469440/fide-8663904-1469440.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=1469440&sha=e061e8d417361b94",
       "sha256": "e4e3ea3e11bd41e45ea4b4dd2014e3e8e96ca70a2e3ede7aebdb526b5fa62390"
     },
     {
@@ -268,7 +287,7 @@
       "black": "Tao, Junxi",
       "result": "1-0",
       "source": "Lichess Broadcasts",
-      "round": "7.10",
+      "round": "7",
       "stage": "U12",
       "naturalStage": "U12",
       "eventStage": "U12",
@@ -279,48 +298,14 @@
       "sha256": "f4d8495fa541d75764e798491dd4364e83c230387e84b6ee3e74d7d82779f4a3"
     },
     {
-      "id": "ad8feb78a1b79e6bac86f7c3f2791d6073b765a0fd9dcd39ab537e20c8b20608",
-      "event": "2025QXDSYC10 - 7",
-      "date": "2025-10-07",
-      "white": "王甫笙",
-      "black": "陶峻熙",
-      "result": "*",
-      "source": "Lichess Broadcasts",
-      "round": "5.7",
-      "stage": "U12",
-      "naturalStage": "U12",
-      "role": "black",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "ad8feb78a1b79e6bac86f7c3f2791d6073b765a0fd9dcd39ab537e20c8b20608"
-    },
-    {
-      "id": "77c2f5bf829766709661c0f7e248ca99bbd43b58e0ca97cfc8df5ad11fa632d7",
-      "event": "2025QXDSYC10 - 4",
-      "date": "2025-10-07",
-      "white": "陶峻熙",
-      "black": "沈建睿",
-      "result": "*",
-      "source": "Lichess Broadcasts",
-      "round": "6.4",
-      "stage": "U12",
-      "naturalStage": "U12",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "77c2f5bf829766709661c0f7e248ca99bbd43b58e0ca97cfc8df5ad11fa632d7"
-    },
-    {
       "id": "430f4834ae9ce33e357109cc19ce7ce4ba318fa769e8b599c923dacfe4476d0e",
-      "event": "2025QXDSYC10 - 3",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
       "date": "2025-10-07",
       "white": "高彦洋",
       "black": "陶峻熙",
       "result": "*",
       "source": "Lichess Broadcasts",
-      "round": "7.3",
+      "round": "7",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
@@ -330,14 +315,48 @@
       "sha256": "430f4834ae9ce33e357109cc19ce7ce4ba318fa769e8b599c923dacfe4476d0e"
     },
     {
+      "id": "77c2f5bf829766709661c0f7e248ca99bbd43b58e0ca97cfc8df5ad11fa632d7",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-07",
+      "white": "陶峻熙",
+      "black": "沈建睿",
+      "result": "*",
+      "source": "Lichess Broadcasts",
+      "round": "6",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
+      "sha256": "77c2f5bf829766709661c0f7e248ca99bbd43b58e0ca97cfc8df5ad11fa632d7"
+    },
+    {
+      "id": "d9362af0d3c3b1c0ea8d08af1171f1c4ffdc37b3a7ab3ee3588a74e1ba7c3623",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-07",
+      "white": "陶峻熙",
+      "black": "周柯翰",
+      "result": "*",
+      "source": "Lichess Broadcasts",
+      "round": "4",
+      "stage": "U8",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
+      "sha256": "d9362af0d3c3b1c0ea8d08af1171f1c4ffdc37b3a7ab3ee3588a74e1ba7c3623"
+    },
+    {
       "id": "df8924643112806314ac848249bc7a9e6c7a56c11f9f19db9f588c8b4c9f274d",
-      "event": "2025QXDSYC10 - 3",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
       "date": "2025-10-07",
       "white": "陶峻熙",
       "black": "刘书同",
       "result": "*",
       "source": "Lichess Broadcasts",
-      "round": "8.3",
+      "round": "8",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
@@ -347,65 +366,31 @@
       "sha256": "df8924643112806314ac848249bc7a9e6c7a56c11f9f19db9f588c8b4c9f274d"
     },
     {
-      "id": "d9362af0d3c3b1c0ea8d08af1171f1c4ffdc37b3a7ab3ee3588a74e1ba7c3623",
-      "event": "2025QXDSYC10 - 14",
+      "id": "ad8feb78a1b79e6bac86f7c3f2791d6073b765a0fd9dcd39ab537e20c8b20608",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
       "date": "2025-10-07",
-      "white": "陶峻熙",
-      "black": "周柯翰",
-      "result": "*",
-      "source": "Lichess Broadcasts",
-      "round": "4.14",
-      "stage": "U12",
-      "naturalStage": "U12",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "d9362af0d3c3b1c0ea8d08af1171f1c4ffdc37b3a7ab3ee3588a74e1ba7c3623"
-    },
-    {
-      "id": "c5dd2f30fc17722a46d780b06323630c6072e16d5903d3f67e9b6e1eaa36270b",
-      "event": "2025QXDSYC10 - 4",
-      "date": "2025-10-06",
-      "white": "刘天乐",
+      "white": "王甫笙",
       "black": "陶峻熙",
       "result": "*",
       "source": "Lichess Broadcasts",
-      "round": "2.4",
+      "round": "5",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "c5dd2f30fc17722a46d780b06323630c6072e16d5903d3f67e9b6e1eaa36270b"
-    },
-    {
-      "id": "2a2e63c1be2383a636a5d1c6c085d9d7cfa04e863bd85862080ea82af9a6bb3a",
-      "event": "2025QXDSYC10 - 14",
-      "date": "2025-10-06",
-      "white": "陶峻熙",
-      "black": "周柯翰",
-      "result": "1-0",
-      "source": "Lichess Broadcasts",
-      "round": "4.14",
-      "stage": "U12",
-      "naturalStage": "U12",
-      "role": "white",
-      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
-      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
-      "sha256": "2a2e63c1be2383a636a5d1c6c085d9d7cfa04e863bd85862080ea82af9a6bb3a"
+      "sha256": "ad8feb78a1b79e6bac86f7c3f2791d6073b765a0fd9dcd39ab537e20c8b20608"
     },
     {
       "id": "e80771dda2eb33798781d38526b4a03b6dfa12e936f5ef1e87645ac496b10561",
-      "event": "2025QXDSYC10 - 12",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
       "date": "2025-10-06",
       "white": "陶峻熙",
       "black": "武砚辉",
       "result": "*",
       "source": "Lichess Broadcasts",
-      "round": "3.12",
+      "round": "3",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "white",
@@ -415,14 +400,31 @@
       "sha256": "e80771dda2eb33798781d38526b4a03b6dfa12e936f5ef1e87645ac496b10561"
     },
     {
+      "id": "2a2e63c1be2383a636a5d1c6c085d9d7cfa04e863bd85862080ea82af9a6bb3a",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-06",
+      "white": "陶峻熙",
+      "black": "周柯翰",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "4",
+      "stage": "U8",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
+      "sha256": "2a2e63c1be2383a636a5d1c6c085d9d7cfa04e863bd85862080ea82af9a6bb3a"
+    },
+    {
       "id": "175462c0edae7b3999f1fd9ad2059ef4a710eef15d49e59931cddf1952876368",
-      "event": "2025QXDSYC10 - 10",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
       "date": "2025-10-06",
       "white": "宋偲诚",
       "black": "陶峻熙",
       "result": "0-1",
       "source": "Lichess Broadcasts",
-      "round": "1.10",
+      "round": "1",
       "stage": "U12",
       "naturalStage": "U12",
       "role": "black",
@@ -430,6 +432,23 @@
       "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
       "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
       "sha256": "175462c0edae7b3999f1fd9ad2059ef4a710eef15d49e59931cddf1952876368"
+    },
+    {
+      "id": "c5dd2f30fc17722a46d780b06323630c6072e16d5903d3f67e9b6e1eaa36270b",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-06",
+      "white": "刘天乐",
+      "black": "陶峻熙",
+      "result": "*",
+      "source": "Lichess Broadcasts",
+      "round": "2",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
+      "sha256": "c5dd2f30fc17722a46d780b06323630c6072e16d5903d3f67e9b6e1eaa36270b"
     }
   ]
 }

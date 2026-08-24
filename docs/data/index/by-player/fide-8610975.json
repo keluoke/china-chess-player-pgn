@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-12T14:14:32+00:00",
+  "snapshotId": "20260824T042122Z-492feadc",
+  "generatedAt": "2026-08-24T04:37:37+00:00",
   "player": {
     "fideID": "8610975",
     "id": "fide-8610975",
@@ -18,10 +19,10 @@
     ]
   },
   "totals": {
-    "games": 8,
-    "events": 1,
+    "games": 10,
+    "events": 3,
     "packages": 1,
-    "bytes": 6801,
+    "bytes": 14862,
     "stages": {}
   },
   "packages": [
@@ -29,10 +30,11 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8610975/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/by-player/fide-8610975/all.pgn?sha=114e6584b2e35831",
-      "gameCount": 8,
-      "pgnBytes": 6801,
-      "sha256": "114e6584b2e35831401dfdc48f82927f07b450e5338ed803a7d12532ecd663e4",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/5e/5ec8caedcf9bfa097e29476856c844d351f417377f1c9013927032a61aaca7ce.pgn",
+      "objectPath": "data/pgn/objects/sha256/5e/5ec8caedcf9bfa097e29476856c844d351f417377f1c9013927032a61aaca7ce.pgn",
+      "gameCount": 10,
+      "pgnBytes": 14862,
+      "sha256": "5ec8caedcf9bfa097e29476856c844d351f417377f1c9013927032a61aaca7ce",
       "stages": {},
       "sources": [
         "Static PGN"
@@ -41,8 +43,24 @@
   ],
   "events": [
     {
-      "id": "static-pgn:355952",
+      "id": "ev-8af525640c48fdc8",
       "source": "Static PGN",
+      "name": "2019 China Blitz Chess Championships",
+      "date": "2019-12-18",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "",
+      "naturalStage": "",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      },
+      "nameTranslationPending": true
+    },
+    {
+      "id": "chess-results:355952",
+      "source": "",
       "name": "The 1st Longtou Cup the Belt and Road Chess Open",
       "date": "2018-05-26",
       "tournamentID": "355952",
@@ -56,9 +74,38 @@
         "1-0": 2
       },
       "nameTranslationPending": true
+    },
+    {
+      "id": "ev-9e1430221e432d63",
+      "source": "Static PGN",
+      "name": "2017Women's world champion chess championship Zonal 3.5",
+      "date": "2017-08-07",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "",
+      "naturalStage": "",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": true
     }
   ],
   "games": [
+    {
+      "id": "11ab2be668e83c4cddcc3481b2e94baeae44e658e70c020360c31afd767d9b9f",
+      "event": "2019 China Blitz Chess Championships",
+      "date": "2019-12-18",
+      "white": "Zhou, Zirun",
+      "black": "Ding, Yixin",
+      "result": "1-0",
+      "source": "Static PGN",
+      "round": "9",
+      "role": "white",
+      "sourcePgnPath": "data/pgn/chess-results/2019-china-blitz-chess-championships-2019-c211a4bb/fide-8602972-2019-china-blitz-chess-championships-2019-c211a4bb.pgn",
+      "sha256": "11ab2be668e83c4cddcc3481b2e94baeae44e658e70c020360c31afd767d9b9f"
+    },
     {
       "id": "89933db0cf1a76224dee7b3da4d8e0fec8c90b898b92a768fd3d422bdc61fd8a",
       "event": "The 1st Longtou Cup the Belt and Road Chess Open",
@@ -66,11 +113,11 @@
       "white": "Zhou, Zirun",
       "black": "Zhao, Zhouqiao Chn",
       "result": "1/2-1/2",
-      "source": "Static PGN",
       "round": "3",
       "role": "white",
+      "rank": "59",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8610975-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "89933db0cf1a76224dee7b3da4d8e0fec8c90b898b92a768fd3d422bdc61fd8a"
     },
     {
@@ -80,11 +127,11 @@
       "white": "Zhou, Zirun",
       "black": "Ren, Xiaoyi",
       "result": "1/2-1/2",
-      "source": "Static PGN",
       "round": "8",
       "role": "white",
+      "rank": "59",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8610975-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "4512394177cd31609e255b9a22c7e29c398cbfed20dba621e0e458639d1f9408"
     },
     {
@@ -94,11 +141,11 @@
       "white": "Zhou, Zirun",
       "black": "Lu, Miaoyi",
       "result": "1-0",
-      "source": "Static PGN",
       "round": "6",
       "role": "white",
+      "rank": "59",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8610975-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "fef65d8307a5a2f7a16eda4442827adacbac3d135c18fe67a60f8d162c36bf3d"
     },
     {
@@ -108,11 +155,11 @@
       "white": "Zhou, Zirun",
       "black": "Liu, Guanchu",
       "result": "1/2-1/2",
-      "source": "Static PGN",
       "round": "1",
       "role": "white",
+      "rank": "59",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8610975-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "cc445e96697c8816c9c0eebe18e5a5d1d468e68081bd60358d8cf7365f18dab1"
     },
     {
@@ -122,11 +169,11 @@
       "white": "Shen, Shiyan",
       "black": "Zhou, Zirun",
       "result": "1/2-1/2",
-      "source": "Static PGN",
       "round": "7",
       "role": "black",
+      "rank": "59",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8610975-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "21b62d490589f798a41f27e7cc3534c46eed94ac084ac566f209fa92aa9720d7"
     },
     {
@@ -136,11 +183,11 @@
       "white": "Ma, Lin",
       "black": "Zhou, Zirun",
       "result": "1-0",
-      "source": "Static PGN",
       "round": "4",
       "role": "black",
+      "rank": "59",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8610975-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "fcf6a3beead698936f63a17ca5d8cacbc406359a1a5cf4ba643db0f9cdcee10c"
     },
     {
@@ -150,11 +197,11 @@
       "white": "Li, Haoyu B.",
       "black": "Zhou, Zirun",
       "result": "1/2-1/2",
-      "source": "Static PGN",
       "round": "5",
       "role": "black",
+      "rank": "59",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8610975-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "49ee236702335478dc87e9bcb68ded4a096d7da66e64e21eec768e9f8979b4dd"
     },
     {
@@ -164,12 +211,25 @@
       "white": "Lei, Tingjie",
       "black": "Zhou, Zirun",
       "result": "1/2-1/2",
-      "source": "Static PGN",
       "round": "2",
       "role": "black",
+      "rank": "59",
       "tournamentID": "355952",
-      "sourcePgnPath": "data/pgn/chess-results/tnr355952/fide-8610975-355952.pgn",
+      "sourcePgnPath": "api/event-pgn?tnr=355952&sha=cd2e2e5aa97bf979",
       "sha256": "a02438748ba21f7b144402ff05a12f9798e8e016760b2c33a341151ba1e0b6d6"
+    },
+    {
+      "id": "cc55edb1408fd13f584548f55a840939c4b7693133c5a5490419871aa0af3997",
+      "event": "2017Women's world champion chess championship Zonal 3.5",
+      "date": "2017-08-07",
+      "white": "Zhou, Zirun",
+      "black": "Zhai, Mo",
+      "result": "0-1",
+      "source": "Static PGN",
+      "round": "4",
+      "role": "white",
+      "sourcePgnPath": "data/pgn/chess-results/2017women-s-world-champion-chess-championship-zonal-2017-887502f3/fide-8600201-2017women-s-world-champion-chess-championship-zonal-2017-887502f3.pgn",
+      "sha256": "cc55edb1408fd13f584548f55a840939c4b7693133c5a5490419871aa0af3997"
     }
   ]
 }
