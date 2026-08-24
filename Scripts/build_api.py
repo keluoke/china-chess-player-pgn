@@ -231,8 +231,13 @@ def main() -> int:
             "packages": packages,
             "events": events,
         }
-        emit(player_api_root / f"fide-{fide_id}.json", payload)
-        player_buckets.setdefault(player_bucket(fide_id), {})[fide_id] = payload
+        player_path = player_api_root / f"fide-{fide_id}.json"
+        emit(player_path, payload)
+        # Read the stable projection back after emit. Its generatedAt may have
+        # been retained from an earlier byte-identical build; embedding the
+        # pre-write payload would make bucket bytes depend on whether a build
+        # crossed a wall-clock second.
+        player_buckets.setdefault(player_bucket(fide_id), {})[fide_id] = read_json(player_path)
         detailed += 1
 
     for bucket, bucket_players in sorted(player_buckets.items()):

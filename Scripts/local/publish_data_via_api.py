@@ -51,10 +51,15 @@ def api(repository: str, method: str, path: str, payload=None):
     if payload is not None:
         command += ["--input", "-"]
         encoded = json.dumps(payload).encode("utf-8")
-    # GitHub/proxy reads can fail transiently before any publication object is
-    # created. Retry GETs only; writes keep single-attempt semantics so an
-    # ambiguous ref mutation is never repeated automatically.
-    attempts = 4 if method == "GET" else 1
+    # GitHub/proxy calls can fail transiently. Content-addressed object writes
+    # are safe to repeat: identical blobs, trees and commits resolve to the
+    # same immutable OID. Ref creation/update is the publication boundary and
+    # deliberately remains single-attempt so an ambiguous branch mutation is
+    # never repeated automatically.
+    content_addressed_write = method == "POST" and path in {
+        "/git/blobs", "/git/trees", "/git/commits",
+    }
+    attempts = 4 if method == "GET" or content_addressed_write else 1
     for attempt in range(attempts):
         try:
             result = subprocess.run(

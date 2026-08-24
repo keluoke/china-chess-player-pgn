@@ -424,6 +424,16 @@ except Exception:
 PY
 }
 
+bundle_command() {
+  python3 - "$STATE_ROOT/outbox/$1/manifest.json" <<'PY'
+import json, pathlib, sys
+try:
+    print(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")).get("command") or "")
+except Exception:
+    print("")
+PY
+}
+
 push_commit_with_routes() {
   # Push an exact, immutable commit SHA to the single-writer branch, rotating
   # to the next route on failure instead of retrying the same dead route.
@@ -501,7 +511,9 @@ deliver_outbox() {
     echo "投递 outbox release ${run_id}（commit ${sha}）"
     if api_deliver "$run_id"; then
       delivered=$((delivered + 1))
-    elif [ "$API_DELIVERY_CLASS" = "transport" ] && push_commit_with_routes "$sha" "$run_id"; then
+    elif [ "$API_DELIVERY_CLASS" = "transport" ] \
+      && [ "$(bundle_command "$run_id")" != "conflict-successor" ] \
+      && push_commit_with_routes "$sha" "$run_id"; then
       py "$RUN_MANAGER" outbox-update --run-id "$run_id" --status pushed \
         --remote-sha "$sha" --route git >/dev/null
       delivered=$((delivered + 1))

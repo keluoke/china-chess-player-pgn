@@ -1131,7 +1131,7 @@ class OutboxTests(unittest.TestCase):
 
 
 class ApiFallbackPolicyTests(unittest.TestCase):
-    def test_api_retries_gets_but_never_writes(self) -> None:
+    def test_api_retries_reads_and_content_addressed_writes_only(self) -> None:
         import publish_data_via_api
 
         failure = subprocess.CalledProcessError(1, ["gh", "api"])
@@ -1147,10 +1147,24 @@ class ApiFallbackPolicyTests(unittest.TestCase):
         self.assertEqual(run.call_count, 2)
         sleep.assert_called_once_with(1)
 
-        with mock.patch.object(publish_data_via_api.subprocess, "run", side_effect=failure) as run:
-            with self.assertRaises(subprocess.CalledProcessError):
-                publish_data_via_api.api("owner/repo", "POST", "/git/blobs", {"content": "x"})
-        run.assert_called_once()
+        for path in ("/git/blobs", "/git/trees", "/git/commits"):
+            with (
+                mock.patch.object(
+                    publish_data_via_api.subprocess, "run", side_effect=[failure, success],
+                ) as run,
+                mock.patch.object(publish_data_via_api.time, "sleep"),
+            ):
+                self.assertEqual(
+                    publish_data_via_api.api("owner/repo", "POST", path, {"content": "x"}),
+                    {"ok": True},
+                )
+            self.assertEqual(run.call_count, 2)
+
+        for method, path in (("PATCH", "/git/refs/heads/local-data"), ("POST", "/git/refs")):
+            with mock.patch.object(publish_data_via_api.subprocess, "run", side_effect=failure) as run:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    publish_data_via_api.api("owner/repo", method, path, {"sha": "x"})
+            run.assert_called_once()
 
     def test_fails_closed_without_a_validated_bundle(self) -> None:
         import publish_data_via_api
@@ -1575,6 +1589,8 @@ class GitTransportTests(unittest.TestCase):
             block.group(1).index('push_commit_with_routes "$sha" "$run_id"'),
         )
         self.assertIn('API_DELIVERY_CLASS" = "transport"', block.group(1))
+        self.assertIn('bundle_command "$run_id"', block.group(1))
+        self.assertIn('!= "conflict-successor"', block.group(1))
         self.assertIn("GIT_FALLBACK_BASE_MISMATCH", source)
         self.assertNotIn("check_receipts.py", block.group(1))
         commit_block = re.search(r"commit_prepared_release\(\) \{(.*?)\n\}", source, re.DOTALL)
@@ -2679,11 +2695,23 @@ class StableJSONTests(unittest.TestCase):
                 mock.patch.object(build_api, "canonical_public_metrics", return_value=metrics),
             ):
                 build_api.main()
+                def normalize_generated_at(value):
+                    if isinstance(value, dict):
+                        return {
+                            key: (
+                                "2000-01-01T00:00:00+00:00"
+                                if key == "generatedAt"
+                                else normalize_generated_at(item)
+                            )
+                            for key, item in value.items()
+                        }
+                    if isinstance(value, list):
+                        return [normalize_generated_at(item) for item in value]
+                    return value
+
                 for path in api_root.rglob("*.json"):
-                    payload = json.loads(path.read_text())
-                    if "generatedAt" in payload:
-                        payload["generatedAt"] = "2000-01-01T00:00:00+00:00"
-                        path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
+                    payload = normalize_generated_at(json.loads(path.read_text()))
+                    path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n")
                 stale = api_root / "players" / "fide-999.json"
                 stale.write_text("{}\n")
                 expected = {path: path.read_bytes() for path in api_root.rglob("*.json") if path != stale}
