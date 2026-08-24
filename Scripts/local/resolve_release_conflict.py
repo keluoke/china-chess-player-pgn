@@ -69,6 +69,7 @@ def load_sources(
     run_ids: list[str],
 ) -> list[tuple[str, pathlib.Path, dict[str, Any]]]:
     sources: list[tuple[str, pathlib.Path, dict[str, Any]]] = []
+    source_name: str | None = None
     for run_id in run_ids:
         entry = state_root / "outbox" / run_id
         manifest_path = entry / "manifest.json"
@@ -78,8 +79,12 @@ def load_sources(
         run_manager.validate_manifest(manifest)
         if manifest.get("runId") != run_id:
             raise SuccessorError(f"SOURCE_RUN_ID_MISMATCH: {run_id}")
-        if (manifest.get("source") or {}).get("source") != "Chess-Results":
+        current_source = str((manifest.get("source") or {}).get("source") or "")
+        if current_source not in {"Chess-Results", "Lichess Broadcasts"}:
             raise SuccessorError(f"SOURCE_RELEASE_UNSUPPORTED: {run_id}")
+        if source_name is not None and current_source != source_name:
+            raise SuccessorError("MIXED_SOURCE_SUCCESSOR_FORBIDDEN")
+        source_name = current_source
         sources.append((run_id, entry, manifest))
     return sources
 

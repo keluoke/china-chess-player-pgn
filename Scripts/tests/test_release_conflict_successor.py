@@ -9,6 +9,37 @@ from Scripts.local import resolve_release_conflict as successor
 
 
 class ReleaseConflictSuccessorTests(unittest.TestCase):
+    def test_load_sources_accepts_lichess_machine_release(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            state = pathlib.Path(temporary)
+            run_id = "20260824-173414-f44d5fdb"
+            entry = state / "outbox" / run_id
+            content = b"test\n"
+            path = "docs/data/bulk/lichess-events/pgn/tnr1.pgn"
+            target = entry / "files" / path
+            target.parent.mkdir(parents=True)
+            target.write_bytes(content)
+            manifest = {
+                "schemaVersion": 1,
+                "runId": run_id,
+                "baseCommit": "a" * 40,
+                "source": {
+                    "source": "Lichess Broadcasts",
+                    "releasePolicy": "cc-by-sa-4.0",
+                    "license": "Creative Commons Attribution-ShareAlike 4.0",
+                    "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+                    "attributionURL": "https://database.lichess.org/",
+                },
+                "files": [{
+                    "path": path, "operation": "upsert",
+                    "sha256": hashlib.sha256(content).hexdigest(), "bytes": len(content),
+                    "baseBlobOid": None, "baseSha256": None,
+                }],
+            }
+            (entry / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            sources = successor.load_sources(state, [run_id])
+        self.assertEqual(sources[0][2]["source"]["source"], "Lichess Broadcasts")
+
     def source(self, root: pathlib.Path, run_id: str, rows: list[tuple[str, dict]]) -> tuple:
         entry = root / run_id
         for path, payload in rows:
