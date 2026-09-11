@@ -15,6 +15,15 @@ import collector_runtime  # noqa: E402
 
 
 class CollectorRuntimeTests(unittest.TestCase):
+    def test_contract_documents_are_installed_from_the_same_main(self):
+        spec = collector_runtime.parse_spec_bytes((ROOT / "Scripts/local/collector-runtime-files.json").read_bytes())
+        rows = {row["path"]: row for row in spec["files"]}
+        for path in collector_runtime.CONTRACT_PATHS:
+            self.assertEqual(rows[path]["kind"], "contract")
+            self.assertIn("core", rows[path]["profiles"])
+        with self.assertRaises(collector_runtime.CollectorRuntimeError):
+            collector_runtime.safe_relative_path("docs/anything-else.md")
+
     def fixture(self, root: pathlib.Path):
         spec_path = root / "Scripts/local/collector-runtime-files.json"
         runtime_path = root / "Scripts/example.py"

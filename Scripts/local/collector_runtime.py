@@ -25,6 +25,7 @@ from typing import Any
 
 SPEC_RELATIVE_PATH = pathlib.PurePosixPath("Scripts/local/collector-runtime-files.json")
 INSTALLED_MANIFEST_NAME = "collector-runtime-manifest.json"
+CONTRACT_PATHS = {"AGENTS.md", "Scripts/local/README.md", "docs/LICHESS_MONTHLY_MAINTENANCE.md"}
 ALLOWED_INSTALL_PREFIXES = (
     "Scripts/",
     "data/community/",
@@ -64,7 +65,7 @@ def safe_relative_path(value: Any) -> pathlib.PurePosixPath:
         raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"unsafe path: {text!r}")
     if path.as_posix() != text:
         raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"non-canonical path: {text!r}")
-    if not text.startswith(ALLOWED_INSTALL_PREFIXES):
+    if text not in CONTRACT_PATHS and not text.startswith(ALLOWED_INSTALL_PREFIXES):
         raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"path outside runtime roots: {text!r}")
     return path
 
@@ -84,10 +85,12 @@ def parse_spec_bytes(body: bytes) -> dict[str, Any]:
         path = safe_relative_path(item.get("path")).as_posix()
         kind = str(item.get("kind") or "").strip()
         profiles = sorted({str(value).strip() for value in item.get("profiles") or []})
-        if path in seen or kind not in {"runtime", "runtime-spec", "control-input"}:
+        if path in seen or kind not in {"runtime", "runtime-spec", "control-input", "contract"}:
             raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"duplicate/invalid row: {path}")
         if not profiles or any(profile not in {"core", "event", "panel"} for profile in profiles):
             raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"invalid profiles: {path}")
+        if (path in CONTRACT_PATHS) != (kind == "contract"):
+            raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"contract path/kind mismatch: {path}")
         if kind in {"runtime", "runtime-spec"} and not path.startswith("Scripts/"):
             raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"runtime outside Scripts/: {path}")
         if kind == "control-input" and path.startswith("Scripts/"):
