@@ -88,3 +88,10 @@ class MonthlyTests(unittest.TestCase):
         workflow = yaml.safe_load((monthly.ROOT / '.github/workflows/ingest-local-data.yml').read_text())
         commit = next(s for s in workflow['jobs']['ingest']['steps'] if s.get('id') == 'commit')
         self.assertEqual(commit['env']['CI_COMMIT_REBASE_ON_CONFLICT'], 'false')
+
+    def test_operational_contract_does_not_restore_the_blanket_cloud_ban(self):
+        for name in ("AGENTS.md", "README.md", "Scripts/local/README.md", "docs/DEPLOY_UPDATE_GUIDE.md", "PRODUCT_PLAN.md"):
+            text = (monthly.ROOT / name).read_text()
+            self.assertNotIn("所有网络采集只", text)
+            self.assertNotIn("GitHub Actions 不提供任何抓取 workflow", text)
+            self.assertNotIn("所有 Chess-Results/FIDE/Lichess 来源访问", text)

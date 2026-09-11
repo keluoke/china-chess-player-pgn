@@ -2,7 +2,8 @@
 
 ## 网络采集
 
-GitHub Actions 不提供任何抓取 workflow。维护者在本机运行：
+GitHub Actions 仅提供 Lichess Broadcast 开放月库自动维护；FIDE / Chess-Results
+仍由维护者在本机运行：
 
 ```bash
 bash Scripts/local/refresh.sh health

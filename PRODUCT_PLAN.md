@@ -53,7 +53,8 @@
 - `data/community/name-corrections.csv` 在构建最后强制应用，并能清除已知错误别名；8602980/8608288 的历史事故已经变成可执行防线。
 - `sanitize_person_name`、`validate_registry_authority.py` 和发布前断言形成了正确的“候选可脏、主档必须净”边界。
 - 无 FIDE 棋手不因同名、同俱乐部或同年龄组自动合并；`player-identity-links.csv` 是唯一人工合并入口。
-- FIDE、Lichess、Chess-Results 机器产物走本地 staging、manifest、单写者分支、云端 ingest/rebuild/deploy 和回执链；原始 HTML 留在仓库外。
+- FIDE、Chess-Results 机器产物走本地 staging、manifest、单写者分支、云端 ingest/rebuild/deploy 和回执链；原始 HTML 留在仓库外。
+- Lichess Broadcast 开放月库由 GitHub `update-lichess-broadcasts.yml` 每月 5 日自动补齐，验证完整帧/局数/R2 正文后经精确 artifact 快进 main，再统一 rebuild/deploy。
 - Lichess 授权和署名已写入 bulk manifest；大规模棋谱可被离线重建为按棋手、按自然年龄段的 PGN 包。
 - 当前前端已有中文/拼音/FIDE ID 搜索、输入法组字保护、历史栈、深链接、在线棋盘、分享、匿名化入口和移动端折叠，交互基础不需要推倒重来。
 
