@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8651663",
     "id": "fide-8651663",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 4,
-    "events": 1,
-    "packages": 2,
-    "bytes": 6538,
+    "games": 11,
+    "events": 2,
+    "packages": 3,
+    "bytes": 74040,
     "stages": {
-      "U14": 4
+      "U14": 4,
+      "U16": 7
     }
   },
   "packages": [
@@ -33,15 +34,18 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8651663/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/31/312dec2a99e98ae5645dbb4f047d967924933e15b96938f79981698003f5aa43.pgn",
-      "objectPath": "data/pgn/objects/sha256/31/312dec2a99e98ae5645dbb4f047d967924933e15b96938f79981698003f5aa43.pgn",
-      "gameCount": 4,
-      "pgnBytes": 3269,
-      "sha256": "312dec2a99e98ae5645dbb4f047d967924933e15b96938f79981698003f5aa43",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/cf/cfe9914b4328b6741e10d0df1ca6ef5e225fe9f82452fb96d6687ce53be63355.pgn",
+      "objectPath": "data/pgn/objects/sha256/cf/cfe9914b4328b6741e10d0df1ca6ef5e225fe9f82452fb96d6687ce53be63355.pgn",
+      "gameCount": 11,
+      "pgnBytes": 36974,
+      "sha256": "cfe9914b4328b6741e10d0df1ca6ef5e225fe9f82452fb96d6687ce53be63355",
       "stages": {
-        "U14": 4
+        "U14": 4,
+        "U16": 7
       },
-      "sources": []
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     },
     {
       "id": "U14",
@@ -56,9 +60,43 @@
         "U14": 4
       },
       "sources": []
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8651663/U16.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/62/6290177d0c3a4e9cefc9941ae5227fd05400cc292ac970b28df00e5c6c58dbf2.pgn",
+      "objectPath": "data/pgn/objects/sha256/62/6290177d0c3a4e9cefc9941ae5227fd05400cc292ac970b28df00e5c6c58dbf2.pgn",
+      "gameCount": 7,
+      "pgnBytes": 33797,
+      "sha256": "6290177d0c3a4e9cefc9941ae5227fd05400cc292ac970b28df00e5c6c58dbf2",
+      "stages": {
+        "U16": 7
+      },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-a03eb07fd76e31ab",
+      "source": "Lichess Broadcasts",
+      "name": "2026年江苏省青少年国际象棋锦标赛 | 甲组男子",
+      "date": "2026-08-18",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "",
+      "gameCount": 7,
+      "results": {
+        "0-1": 3,
+        "1-0": 1,
+        "1/2-1/2": 3
+      },
+      "nameTranslationPending": false
+    },
     {
       "id": "chess-results:892907",
       "source": "",
@@ -79,6 +117,125 @@
     }
   ],
   "games": [
+    {
+      "id": "b0d1dfb490d2056039fec310fa27ac58c7e634977155b05e435fb011d0ed8d7f",
+      "event": "2026年江苏省青少年国际象棋锦标赛 | 甲组男子",
+      "date": "2026-08-18",
+      "white": "季晓澜",
+      "black": "陶屹忞",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "7",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "b0d1dfb490d2056039fec310fa27ac58c7e634977155b05e435fb011d0ed8d7f"
+    },
+    {
+      "id": "50719b28e5e26784fe4637b03aa68de890b54591c7813381514d9885896309c0",
+      "event": "2026年江苏省青少年国际象棋锦标赛 | 甲组男子",
+      "date": "2026-08-17",
+      "white": "陶屹忞",
+      "black": "陈卓君",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "4",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "50719b28e5e26784fe4637b03aa68de890b54591c7813381514d9885896309c0"
+    },
+    {
+      "id": "da41a38186537e22d4f5f2eed1d76ca638819d308eb385e81bb0e0e8ec0f4303",
+      "event": "2026年江苏省青少年国际象棋锦标赛 | 甲组男子",
+      "date": "2026-08-17",
+      "white": "陶屹忞",
+      "black": "王嘉宁",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "6",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "da41a38186537e22d4f5f2eed1d76ca638819d308eb385e81bb0e0e8ec0f4303"
+    },
+    {
+      "id": "dc17c25b9c02a23466352f1a88375c3cf744478fbc1c23fa4cfcb2316cfe2a12",
+      "event": "2026年江苏省青少年国际象棋锦标赛 | 甲组男子",
+      "date": "2026-08-17",
+      "white": "张立",
+      "black": "陶屹忞",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "5",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "dc17c25b9c02a23466352f1a88375c3cf744478fbc1c23fa4cfcb2316cfe2a12"
+    },
+    {
+      "id": "1ccbec686f1e359861afe01a8f1296292ee8095e9b04c744f564f360ff7f8674",
+      "event": "2026年江苏省青少年国际象棋锦标赛 | 甲组男子",
+      "date": "2026-08-16",
+      "white": "陶屹忞",
+      "black": "张卞鹏",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "2",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "1ccbec686f1e359861afe01a8f1296292ee8095e9b04c744f564f360ff7f8674"
+    },
+    {
+      "id": "f81ec23ff7a67c2e8fbde94a47251c816aa739cd73a737c15e384ab1887a483d",
+      "event": "2026年江苏省青少年国际象棋锦标赛 | 甲组男子",
+      "date": "2026-08-16",
+      "white": "秦子涵",
+      "black": "陶屹忞",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "3",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "f81ec23ff7a67c2e8fbde94a47251c816aa739cd73a737c15e384ab1887a483d"
+    },
+    {
+      "id": "b932866bb2998bebfce96642346c4e587fb3cd0fb7b3144304979a0802707f0a",
+      "event": "2026年江苏省青少年国际象棋锦标赛 | 甲组男子",
+      "date": "2026-08-16",
+      "white": "姚楚源",
+      "black": "陶屹忞",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "1",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "b932866bb2998bebfce96642346c4e587fb3cd0fb7b3144304979a0802707f0a"
+    },
     {
       "id": "2bdbd1174c6607b2a45efa67e59670ffae7c7a38da7675683f4d1f1ce9d89735",
       "event": "Chinese National Youth Chess Championship 2024(B14)",

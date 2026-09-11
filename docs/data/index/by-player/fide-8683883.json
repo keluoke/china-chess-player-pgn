@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8683883",
     "id": "fide-8683883",
@@ -18,12 +18,13 @@
     ]
   },
   "totals": {
-    "games": 5,
-    "events": 1,
-    "packages": 2,
-    "bytes": 10302,
+    "games": 6,
+    "events": 2,
+    "packages": 3,
+    "bytes": 21091,
     "stages": {
-      "U12": 5
+      "U12": 5,
+      "U14": 1
     }
   },
   "packages": [
@@ -31,15 +32,17 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8683883/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/05/0558dac63403170f6cafbe7b6053ee3c7a9e351374f3e22c6a04a254eeae4d96.pgn",
-      "objectPath": "data/pgn/objects/sha256/05/0558dac63403170f6cafbe7b6053ee3c7a9e351374f3e22c6a04a254eeae4d96.pgn",
-      "gameCount": 5,
-      "pgnBytes": 5151,
-      "sha256": "0558dac63403170f6cafbe7b6053ee3c7a9e351374f3e22c6a04a254eeae4d96",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/26/268e2737348434082c22c221896f55aab9275c953bbab9c96ca5c4a8d5dfecfe.pgn",
+      "objectPath": "data/pgn/objects/sha256/26/268e2737348434082c22c221896f55aab9275c953bbab9c96ca5c4a8d5dfecfe.pgn",
+      "gameCount": 6,
+      "pgnBytes": 10499,
+      "sha256": "268e2737348434082c22c221896f55aab9275c953bbab9c96ca5c4a8d5dfecfe",
       "stages": {
-        "U12": 5
+        "U12": 5,
+        "U14": 1
       },
       "sources": [
+        "Lichess Broadcasts",
         "Static PGN"
       ]
     },
@@ -58,9 +61,41 @@
       "sources": [
         "Static PGN"
       ]
+    },
+    {
+      "id": "U14",
+      "label": "U14 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8683883/U14.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e4/e43d4a870cbdf1c6458c812f5a9dcd8fc5d82efa59b8d88d7e6c514136d5f42e.pgn",
+      "objectPath": "data/pgn/objects/sha256/e4/e43d4a870cbdf1c6458c812f5a9dcd8fc5d82efa59b8d88d7e6c514136d5f42e.pgn",
+      "gameCount": 1,
+      "pgnBytes": 5441,
+      "sha256": "e43d4a870cbdf1c6458c812f5a9dcd8fc5d82efa59b8d88d7e6c514136d5f42e",
+      "stages": {
+        "U14": 1
+      },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-9fcee2057b3825aa",
+      "source": "Lichess Broadcasts",
+      "name": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-10",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U14",
+      "naturalStage": "U14",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "static-pgn:1240996",
       "source": "Static PGN",
@@ -81,6 +116,23 @@
     }
   ],
   "games": [
+    {
+      "id": "f2af9716c7fb1ac9aac5a7691c245fbcb18ecb01dcb3f7d173248fe12f6c0a77",
+      "event": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-10",
+      "white": "Li, Jiaxin",
+      "black": "Zhao, Shuxing",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "1",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "f2af9716c7fb1ac9aac5a7691c245fbcb18ecb01dcb3f7d173248fe12f6c0a77"
+    },
     {
       "id": "c786be7c780d7df409c4cabc53f0e7c1eb3ab1302683eccc2834c463b8d9e576",
       "event": "Chinese National Youth Chess Team Championship 2025(G12)",

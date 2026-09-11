@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8671060",
     "id": "fide-8671060",
@@ -19,12 +19,13 @@
     ]
   },
   "totals": {
-    "games": 3,
-    "events": 1,
-    "packages": 2,
-    "bytes": 6804,
+    "games": 5,
+    "events": 2,
+    "packages": 3,
+    "bytes": 35097,
     "stages": {
-      "U12": 3
+      "U12": 3,
+      "U14": 2
     }
   },
   "packages": [
@@ -32,15 +33,17 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8671060/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/02/028445b0335db231d14c8a0fea15483362d2cc351cf3c2fece102e4b4c99db86.pgn",
-      "objectPath": "data/pgn/objects/sha256/02/028445b0335db231d14c8a0fea15483362d2cc351cf3c2fece102e4b4c99db86.pgn",
-      "gameCount": 3,
-      "pgnBytes": 3402,
-      "sha256": "028445b0335db231d14c8a0fea15483362d2cc351cf3c2fece102e4b4c99db86",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/44/44e47ff610755466836efd77e1a5a65b8a3c1e5c681991ecbc88e72b5d8a1214.pgn",
+      "objectPath": "data/pgn/objects/sha256/44/44e47ff610755466836efd77e1a5a65b8a3c1e5c681991ecbc88e72b5d8a1214.pgn",
+      "gameCount": 5,
+      "pgnBytes": 17502,
+      "sha256": "44e47ff610755466836efd77e1a5a65b8a3c1e5c681991ecbc88e72b5d8a1214",
       "stages": {
-        "U12": 3
+        "U12": 3,
+        "U14": 2
       },
       "sources": [
+        "Lichess Broadcasts",
         "Static PGN"
       ]
     },
@@ -59,9 +62,42 @@
       "sources": [
         "Static PGN"
       ]
+    },
+    {
+      "id": "U14",
+      "label": "U14 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8671060/U14.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/2b/2bf8b1d8d4fd47996f658cf25d8f4e0d73915952acd15c9fb75173c1e754d11d.pgn",
+      "objectPath": "data/pgn/objects/sha256/2b/2bf8b1d8d4fd47996f658cf25d8f4e0d73915952acd15c9fb75173c1e754d11d.pgn",
+      "gameCount": 2,
+      "pgnBytes": 14193,
+      "sha256": "2bf8b1d8d4fd47996f658cf25d8f4e0d73915952acd15c9fb75173c1e754d11d",
+      "stages": {
+        "U14": 2
+      },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-bce671240e25ce12",
+      "source": "Lichess Broadcasts",
+      "name": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-14",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U14",
+      "naturalStage": "U14",
+      "eventStage": "",
+      "gameCount": 2,
+      "results": {
+        "1-0": 1,
+        "0-1": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "static-pgn:1110351",
       "source": "Static PGN",
@@ -81,6 +117,40 @@
     }
   ],
   "games": [
+    {
+      "id": "b5cfbb3251f0684bb54902b2384684cb9baa0906c8008f55427e58cad6c09893",
+      "event": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-14",
+      "white": "Xu, Mohan(HB)",
+      "black": "Liu, Shutong",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "9",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "b5cfbb3251f0684bb54902b2384684cb9baa0906c8008f55427e58cad6c09893"
+    },
+    {
+      "id": "c0b6aa662bf6b21787d6280ca511ed298aa3a945da7d39c0fb121fa5a190163a",
+      "event": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-13",
+      "white": "Xu, Mohan(HB)",
+      "black": "Wu, Yiting",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "6",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "c0b6aa662bf6b21787d6280ca511ed298aa3a945da7d39c0fb121fa5a190163a"
+    },
     {
       "id": "774895367a72d12c1b615856f4c3752a5682b2dce6e5d543a09c14558faa38a8",
       "event": "Chinese National Youth Chess Championship 2025(G12)",

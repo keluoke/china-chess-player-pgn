@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8638926",
     "id": "fide-8638926",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 3,
-    "events": 1,
-    "packages": 2,
-    "bytes": 38880,
+    "games": 12,
+    "events": 2,
+    "packages": 3,
+    "bytes": 115450,
     "stages": {
-      "U14": 3
+      "U14": 3,
+      "U16": 9
     }
   },
   "packages": [
@@ -33,13 +34,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8638926/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/bc/bc52cb5fb04318ab4bd65bb341bf59ca38706ccbc3f7c618f876ee1814665d4a.pgn",
-      "objectPath": "data/pgn/objects/sha256/bc/bc52cb5fb04318ab4bd65bb341bf59ca38706ccbc3f7c618f876ee1814665d4a.pgn",
-      "gameCount": 3,
-      "pgnBytes": 19440,
-      "sha256": "bc52cb5fb04318ab4bd65bb341bf59ca38706ccbc3f7c618f876ee1814665d4a",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/cd/cdb90998110f8c2d93f3b210f8e0acb876863f885dc0ef2fd21fae10bc8a1872.pgn",
+      "objectPath": "data/pgn/objects/sha256/cd/cdb90998110f8c2d93f3b210f8e0acb876863f885dc0ef2fd21fae10bc8a1872.pgn",
+      "gameCount": 12,
+      "pgnBytes": 57679,
+      "sha256": "cdb90998110f8c2d93f3b210f8e0acb876863f885dc0ef2fd21fae10bc8a1872",
       "stages": {
-        "U14": 3
+        "U14": 3,
+        "U16": 9
       },
       "sources": [
         "Lichess Broadcasts"
@@ -60,9 +62,43 @@
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8638926/U16.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/28/28892a70af9364baa8372d011d552005ff45957533c11f0a749e51e2e4f98a7a.pgn",
+      "objectPath": "data/pgn/objects/sha256/28/28892a70af9364baa8372d011d552005ff45957533c11f0a749e51e2e4f98a7a.pgn",
+      "gameCount": 9,
+      "pgnBytes": 38331,
+      "sha256": "28892a70af9364baa8372d011d552005ff45957533c11f0a749e51e2e4f98a7a",
+      "stages": {
+        "U16": 9
+      },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-59b3b84862c6c6b4",
+      "source": "Lichess Broadcasts",
+      "name": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-14",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "",
+      "gameCount": 9,
+      "results": {
+        "1-0": 3,
+        "1/2-1/2": 3,
+        "0-1": 3
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "ev-d4a2d543f074b189",
       "source": "Lichess Broadcasts",
@@ -82,6 +118,159 @@
     }
   ],
   "games": [
+    {
+      "id": "a2bc153a8adfebd0ea71afd897e615ef739f267b54df5a375cd1fe449abe7f09",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-14",
+      "white": "Li, Sichen",
+      "black": "Huang, Yingxiang",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "8",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "a2bc153a8adfebd0ea71afd897e615ef739f267b54df5a375cd1fe449abe7f09"
+    },
+    {
+      "id": "975650ea82970379c6199a418638f4b64370bd7be4eeae5acbf78ee9e6b867a5",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-14",
+      "white": "Li, Sichen",
+      "black": "Hua, XinYu",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "9",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "975650ea82970379c6199a418638f4b64370bd7be4eeae5acbf78ee9e6b867a5"
+    },
+    {
+      "id": "3879ab9f66b5c9021e06b4432db417425dd4b492409d6a621f786d8d6ba58e2f",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-13",
+      "white": "Liu, Zhan",
+      "black": "Li, Sichen",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "7",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "3879ab9f66b5c9021e06b4432db417425dd4b492409d6a621f786d8d6ba58e2f"
+    },
+    {
+      "id": "8b459169cfd129f70e1577cf533df97ae8b509d6df4c98151e10626134439e40",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-13",
+      "white": "Li, Sichen",
+      "black": "Lin, Haoxuan",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "6",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "8b459169cfd129f70e1577cf533df97ae8b509d6df4c98151e10626134439e40"
+    },
+    {
+      "id": "790997a05d1c456ec8ae9ace0106ec8bcadabf9ead584c5f7e9569de9d7ecf5d",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-12",
+      "white": "Li, Sichen",
+      "black": "Chen, Baize",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "4",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "790997a05d1c456ec8ae9ace0106ec8bcadabf9ead584c5f7e9569de9d7ecf5d"
+    },
+    {
+      "id": "82ba49305e0fdb530dc960299bc2b63ff28b8321c9d7748747ae96e9dbc1827d",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-12",
+      "white": "Cai, Yachen",
+      "black": "Li, Sichen",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "5",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "82ba49305e0fdb530dc960299bc2b63ff28b8321c9d7748747ae96e9dbc1827d"
+    },
+    {
+      "id": "c5800c0842c0fccf17433d6fc5db894b36cc6ec228e0f9bd7db8e447857aa7d5",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-11",
+      "white": "Liu, Yihong",
+      "black": "Li, Sichen",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "3",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "c5800c0842c0fccf17433d6fc5db894b36cc6ec228e0f9bd7db8e447857aa7d5"
+    },
+    {
+      "id": "84f029cd5a6cb05518ac32e239c465a1b458bf0ff1d25af64f852d573fd6cf01",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-11",
+      "white": "Li, Sichen",
+      "black": "Ma, Chenyi",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "2",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "84f029cd5a6cb05518ac32e239c465a1b458bf0ff1d25af64f852d573fd6cf01"
+    },
+    {
+      "id": "c1bb56739048bf5773c8eebe035c06a2df6ab99b98fef309d4902feedc10260d",
+      "event": "Chinese Youth Team Chess Championship 2026 | B16",
+      "date": "2026-08-10",
+      "white": "Wu, Dongheng",
+      "black": "Li, Sichen",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "1",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "c1bb56739048bf5773c8eebe035c06a2df6ab99b98fef309d4902feedc10260d"
+    },
     {
       "id": "ac746386c3bf9be3e0a5239b8c1998b1d46500ad728cdab34295f4991602e8ab",
       "event": "2025 Chinese Youth Team Championship 中国全国国际象棋青少年锦标赛(团体) | B14",

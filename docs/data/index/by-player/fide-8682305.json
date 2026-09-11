@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8682305",
     "id": "fide-8682305",
@@ -18,12 +18,13 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "events": 1,
-    "packages": 2,
-    "bytes": 2526,
+    "games": 5,
+    "events": 2,
+    "packages": 3,
+    "bytes": 52377,
     "stages": {
-      "U12": 1
+      "U12": 1,
+      "U14": 4
     }
   },
   "packages": [
@@ -31,15 +32,17 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8682305/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/73/7397d874176f7e6346fb1cb759c78e9c9eeb75a21656c89a209b520f61de51b6.pgn",
-      "objectPath": "data/pgn/objects/sha256/73/7397d874176f7e6346fb1cb759c78e9c9eeb75a21656c89a209b520f61de51b6.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1263,
-      "sha256": "7397d874176f7e6346fb1cb759c78e9c9eeb75a21656c89a209b520f61de51b6",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/69/698b77fb91bcefa0f4e8ec7ae7f532dd9521f3035d1ad89bcafdc69144789697.pgn",
+      "objectPath": "data/pgn/objects/sha256/69/698b77fb91bcefa0f4e8ec7ae7f532dd9521f3035d1ad89bcafdc69144789697.pgn",
+      "gameCount": 5,
+      "pgnBytes": 26142,
+      "sha256": "698b77fb91bcefa0f4e8ec7ae7f532dd9521f3035d1ad89bcafdc69144789697",
       "stages": {
-        "U12": 1
+        "U12": 1,
+        "U14": 4
       },
       "sources": [
+        "Lichess Broadcasts",
         "Static PGN"
       ]
     },
@@ -58,9 +61,42 @@
       "sources": [
         "Static PGN"
       ]
+    },
+    {
+      "id": "U14",
+      "label": "U14 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8682305/U14.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/5a/5ab5b5df4fb7a5a6c9596f1ca8ef49511c59ce1914ecec8b12ee36071d556a5e.pgn",
+      "objectPath": "data/pgn/objects/sha256/5a/5ab5b5df4fb7a5a6c9596f1ca8ef49511c59ce1914ecec8b12ee36071d556a5e.pgn",
+      "gameCount": 4,
+      "pgnBytes": 24972,
+      "sha256": "5ab5b5df4fb7a5a6c9596f1ca8ef49511c59ce1914ecec8b12ee36071d556a5e",
+      "stages": {
+        "U14": 4
+      },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-8f4769ebfec959a8",
+      "source": "Lichess Broadcasts",
+      "name": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-13",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U14",
+      "naturalStage": "U14",
+      "eventStage": "",
+      "gameCount": 4,
+      "results": {
+        "0-1": 1,
+        "1-0": 3
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "static-pgn:1240996",
       "source": "Static PGN",
@@ -79,6 +115,74 @@
     }
   ],
   "games": [
+    {
+      "id": "a705f9beac1f21bc28dcddfa81ae15f8ad18a40c1a370310824a153442e2a07f",
+      "event": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-13",
+      "white": "Zhang, Jingrui",
+      "black": "Liu, Yutong(SZ)",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "6",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "a705f9beac1f21bc28dcddfa81ae15f8ad18a40c1a370310824a153442e2a07f"
+    },
+    {
+      "id": "8c769f5552b74f191804b93db45d90a20253abf5eb1659856233976bef592618",
+      "event": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-13",
+      "white": "Liu, Shutong",
+      "black": "Zhang, Jingrui",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "7",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "8c769f5552b74f191804b93db45d90a20253abf5eb1659856233976bef592618"
+    },
+    {
+      "id": "94a7dc6a78ac547cfdaae95cae104d0a248f153fe6a102f48a5870e9f36c1b58",
+      "event": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-12",
+      "white": "Zhang, Jingrui",
+      "black": "Lu, Qianyu",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "4",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "94a7dc6a78ac547cfdaae95cae104d0a248f153fe6a102f48a5870e9f36c1b58"
+    },
+    {
+      "id": "87a641e885f403e4a9e820eb97f6ecb3e47b3eded612058a51c161434e2f639c",
+      "event": "Chinese Youth Team Chess Championship 2026 | G14",
+      "date": "2026-08-10",
+      "white": "Wu, Yiting",
+      "black": "Zhang, Jingrui",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "1",
+      "stage": "U14",
+      "naturalStage": "U14",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "87a641e885f403e4a9e820eb97f6ecb3e47b3eded612058a51c161434e2f639c"
+    },
     {
       "id": "127db33d758f9eb60de20f8e45a7c0a61c0adc0f9d56e4c6152971832cad9187",
       "event": "Chinese National Youth Chess Team Championship 2025(G12)",

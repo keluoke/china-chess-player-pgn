@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8669490",
     "id": "fide-8669490",
@@ -21,12 +21,13 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "events": 1,
-    "packages": 2,
-    "bytes": 3754,
+    "games": 3,
+    "events": 2,
+    "packages": 3,
+    "bytes": 11635,
     "stages": {
-      "U10": 2
+      "U10": 2,
+      "U12": 1
     }
   },
   "packages": [
@@ -34,15 +35,18 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8669490/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/23/234abbd6e0b889bafaa13cc6ee7c3268c1f874e31aa864af081fe83805ab1ea9.pgn",
-      "objectPath": "data/pgn/objects/sha256/23/234abbd6e0b889bafaa13cc6ee7c3268c1f874e31aa864af081fe83805ab1ea9.pgn",
-      "gameCount": 2,
-      "pgnBytes": 1877,
-      "sha256": "234abbd6e0b889bafaa13cc6ee7c3268c1f874e31aa864af081fe83805ab1ea9",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/6d/6d41ee7e0b1015d79b6b930b1b69f58d26ab148e8e9c143d8c9ba1b292c21e11.pgn",
+      "objectPath": "data/pgn/objects/sha256/6d/6d41ee7e0b1015d79b6b930b1b69f58d26ab148e8e9c143d8c9ba1b292c21e11.pgn",
+      "gameCount": 3,
+      "pgnBytes": 5771,
+      "sha256": "6d41ee7e0b1015d79b6b930b1b69f58d26ab148e8e9c143d8c9ba1b292c21e11",
       "stages": {
-        "U10": 2
+        "U10": 2,
+        "U12": 1
       },
-      "sources": []
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     },
     {
       "id": "U10",
@@ -57,9 +61,41 @@
         "U10": 2
       },
       "sources": []
+    },
+    {
+      "id": "U12",
+      "label": "U12 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8669490/U12.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/ef/efbee07298137469d5cc98d70c8157987e0926d467745fe18285b7662005fce3.pgn",
+      "objectPath": "data/pgn/objects/sha256/ef/efbee07298137469d5cc98d70c8157987e0926d467745fe18285b7662005fce3.pgn",
+      "gameCount": 1,
+      "pgnBytes": 3987,
+      "sha256": "efbee07298137469d5cc98d70c8157987e0926d467745fe18285b7662005fce3",
+      "stages": {
+        "U12": 1
+      },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-344babd93ca8d084",
+      "source": "Lichess Broadcasts",
+      "name": "Chinese Youth Team Chess Championship 2026 | B12",
+      "date": "2026-08-10",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "chess-results:1110353",
       "source": "",
@@ -79,6 +115,23 @@
     }
   ],
   "games": [
+    {
+      "id": "4774869ce1916b12716123755af3458dd95202bc0fe30aca39a6459c0bd7959d",
+      "event": "Chinese Youth Team Chess Championship 2026 | B12",
+      "date": "2026-08-10",
+      "white": "Leng, Pengfei",
+      "black": "Li, Haoting",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "1",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "4774869ce1916b12716123755af3458dd95202bc0fe30aca39a6459c0bd7959d"
+    },
     {
       "id": "b60cd34dd8646c8d8e69e15f3413b5cc7b751ce4016c6b28866134b7aba843af",
       "event": "Chinese National Youth Chess Championship 2025(B10)",

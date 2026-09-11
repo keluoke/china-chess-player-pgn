@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8665125",
     "id": "fide-8665125",
@@ -21,13 +21,14 @@
     ]
   },
   "totals": {
-    "games": 9,
-    "events": 1,
-    "packages": 3,
-    "bytes": 52568,
+    "games": 11,
+    "events": 2,
+    "packages": 4,
+    "bytes": 66420,
     "stages": {
       "U8": 1,
-      "U10": 8
+      "U10": 8,
+      "U12": 2
     }
   },
   "packages": [
@@ -35,14 +36,15 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8665125/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/44/442acad87d590d07829a330ea64aef5b4d60582a077d95e67eae3c4b408d1b9b.pgn",
-      "objectPath": "data/pgn/objects/sha256/44/442acad87d590d07829a330ea64aef5b4d60582a077d95e67eae3c4b408d1b9b.pgn",
-      "gameCount": 9,
-      "pgnBytes": 26238,
-      "sha256": "442acad87d590d07829a330ea64aef5b4d60582a077d95e67eae3c4b408d1b9b",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/1c/1c11c5c5b6cd003ea29c03a8bb208c571dda51cde02d2267524f74b58c22371f.pgn",
+      "objectPath": "data/pgn/objects/sha256/1c/1c11c5c5b6cd003ea29c03a8bb208c571dda51cde02d2267524f74b58c22371f.pgn",
+      "gameCount": 11,
+      "pgnBytes": 33118,
+      "sha256": "1c11c5c5b6cd003ea29c03a8bb208c571dda51cde02d2267524f74b58c22371f",
       "stages": {
         "U8": 1,
-        "U10": 8
+        "U10": 8,
+        "U12": 2
       },
       "sources": [
         "Lichess Broadcasts"
@@ -79,9 +81,42 @@
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U12",
+      "label": "U12 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8665125/U12.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b8/b88f19e7f4e8d2f8c657398610e970ba3c6f6b953b053b2744087cb4f5da35de.pgn",
+      "objectPath": "data/pgn/objects/sha256/b8/b88f19e7f4e8d2f8c657398610e970ba3c6f6b953b053b2744087cb4f5da35de.pgn",
+      "gameCount": 2,
+      "pgnBytes": 6972,
+      "sha256": "b88f19e7f4e8d2f8c657398610e970ba3c6f6b953b053b2744087cb4f5da35de",
+      "stages": {
+        "U12": 2
+      },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-ab66255e1f79154e",
+      "source": "Lichess Broadcasts",
+      "name": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-22",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 2,
+      "results": {
+        "0-1": 1,
+        "1/2-1/2": 1
+      },
+      "nameTranslationPending": false
+    },
     {
       "id": "ev-f914ef11949c5974",
       "source": "Lichess Broadcasts",
@@ -101,6 +136,40 @@
     }
   ],
   "games": [
+    {
+      "id": "5fc30b6a487e0ce85364edff7f53ebbf2176bf141f537b3a17a3dc25dbdda707",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-22",
+      "white": "Yan, Zixin",
+      "black": "Cai, Yulun",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "2",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "5fc30b6a487e0ce85364edff7f53ebbf2176bf141f537b3a17a3dc25dbdda707"
+    },
+    {
+      "id": "d6e14a4726ffe546da1539fddb55ded40aa2f9301df7823af0eb42222a339a01",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-21",
+      "white": "Men, Xuanyong",
+      "black": "Yan, Zixin",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "1",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U12/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U12/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "d6e14a4726ffe546da1539fddb55ded40aa2f9301df7823af0eb42222a339a01"
+    },
     {
       "id": "08fabd42c8a77215b993330ff8fd0a9b8217d7a026c2e5516705861a44dedb19",
       "event": "2025年全国国际象棋棋协大师赛 | 盐城站 女子候补大师组",

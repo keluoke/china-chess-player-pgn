@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8679428",
     "id": "fide-8679428",
@@ -20,12 +20,13 @@
     ]
   },
   "totals": {
-    "games": 11,
-    "events": 1,
-    "packages": 2,
-    "bytes": 17179,
+    "games": 19,
+    "events": 2,
+    "packages": 3,
+    "bytes": 93200,
     "stages": {
-      "U8": 11
+      "U8": 11,
+      "U10": 8
     }
   },
   "packages": [
@@ -33,15 +34,17 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8679428/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/dd/ddfa437a38076264fc4781002fa9101cab1c106837daa9428861248a14721f34.pgn",
-      "objectPath": "data/pgn/objects/sha256/dd/ddfa437a38076264fc4781002fa9101cab1c106837daa9428861248a14721f34.pgn",
-      "gameCount": 11,
-      "pgnBytes": 8590,
-      "sha256": "ddfa437a38076264fc4781002fa9101cab1c106837daa9428861248a14721f34",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/8e/8e2027093484bfbff671cf3210f5dd37e5fa18edd6e682e38f2f455bfb845b8f.pgn",
+      "objectPath": "data/pgn/objects/sha256/8e/8e2027093484bfbff671cf3210f5dd37e5fa18edd6e682e38f2f455bfb845b8f.pgn",
+      "gameCount": 19,
+      "pgnBytes": 46554,
+      "sha256": "8e2027093484bfbff671cf3210f5dd37e5fa18edd6e682e38f2f455bfb845b8f",
       "stages": {
-        "U8": 11
+        "U8": 11,
+        "U10": 8
       },
       "sources": [
+        "Lichess Broadcasts",
         "Static PGN"
       ]
     },
@@ -60,9 +63,42 @@
       "sources": [
         "Static PGN"
       ]
+    },
+    {
+      "id": "U10",
+      "label": "U10 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8679428/U10.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/0e/0e11fec662bb191e4cd38ad364c676871e13eefc9df6a1fdb16d0abe74cdac30.pgn",
+      "objectPath": "data/pgn/objects/sha256/0e/0e11fec662bb191e4cd38ad364c676871e13eefc9df6a1fdb16d0abe74cdac30.pgn",
+      "gameCount": 8,
+      "pgnBytes": 38057,
+      "sha256": "0e11fec662bb191e4cd38ad364c676871e13eefc9df6a1fdb16d0abe74cdac30",
+      "stages": {
+        "U10": 8
+      },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-9da3a256ce6e0bf7",
+      "source": "Lichess Broadcasts",
+      "name": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-23",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "U10",
+      "naturalStage": "U10",
+      "eventStage": "",
+      "gameCount": 8,
+      "results": {
+        "0-1": 5,
+        "1-0": 3
+      },
+      "nameTranslationPending": false
+    },
     {
       "id": "static-pgn:1210268",
       "source": "Static PGN",
@@ -83,6 +119,142 @@
     }
   ],
   "games": [
+    {
+      "id": "cff5fb883e8566914c9280b1391b0d9f303d16a3900c68135452f9cfb7fdc826",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-23",
+      "white": "Xie, Yi",
+      "black": "Pan, Zhuozihao",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "9",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "cff5fb883e8566914c9280b1391b0d9f303d16a3900c68135452f9cfb7fdc826"
+    },
+    {
+      "id": "e422624d6a79cf96c188bb61f4b13ac5b69d0bfbec40d2111d4c0654646371a0",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-23",
+      "white": "Qiang, Yichen",
+      "black": "Pan, Zhuozihao",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "7",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "e422624d6a79cf96c188bb61f4b13ac5b69d0bfbec40d2111d4c0654646371a0"
+    },
+    {
+      "id": "712cf072e9545b4fdde28f892c42f368659467bb810b811b4b46356ad074a193",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-23",
+      "white": "Pan, Zhuozihao",
+      "black": "Zhang, Enming(SH)",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "6",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "712cf072e9545b4fdde28f892c42f368659467bb810b811b4b46356ad074a193"
+    },
+    {
+      "id": "06f4fb4f10eea6926e4e146417c8b4aecc05190443f2b4124dfc7328dea6d095",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-23",
+      "white": "Pan, Zhuozihao",
+      "black": "Li, Yuxin",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "8",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "06f4fb4f10eea6926e4e146417c8b4aecc05190443f2b4124dfc7328dea6d095"
+    },
+    {
+      "id": "0447dd438bba484913c61a239492e30b11d491b31cb51d0950354fa8ee8367c8",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-22",
+      "white": "Zhang, Yixin(JS)",
+      "black": "Pan, Zhuozihao",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "5",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "0447dd438bba484913c61a239492e30b11d491b31cb51d0950354fa8ee8367c8"
+    },
+    {
+      "id": "fa68fa4bb9f086197fd93ffb3c5814b57f830b9a333aa500570b40d712a836b3",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-22",
+      "white": "Pan, Zhuozihao",
+      "black": "Cui, Jie",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "4",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "fa68fa4bb9f086197fd93ffb3c5814b57f830b9a333aa500570b40d712a836b3"
+    },
+    {
+      "id": "e19dd0a1ee67816eaeea412216b74f905ba26c72f8452b47a24014ad6ddc2d43",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-22",
+      "white": "Men, Xuanyong",
+      "black": "Pan, Zhuozihao",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "3",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "e19dd0a1ee67816eaeea412216b74f905ba26c72f8452b47a24014ad6ddc2d43"
+    },
+    {
+      "id": "edbf653b0de0390cbd2996d0e16988475fc9914272f6a766f4fc7e1381c66dda",
+      "event": "2026年全国国际象棋棋协大师赛 (上海站)",
+      "date": "2026-08-20",
+      "white": "Wang, Yinuo(LN)",
+      "black": "Pan, Zhuozihao",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "1",
+      "stage": "U10",
+      "naturalStage": "U10",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "edbf653b0de0390cbd2996d0e16988475fc9914272f6a766f4fc7e1381c66dda"
+    },
     {
       "id": "fec65c155a0176d2bb8f95d97353a781d8bdd5c267e39a4fc1f270bdf03b4b98",
       "event": "2025 China Youth Rapid Championship(U8)",

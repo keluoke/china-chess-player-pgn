@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260824T103324Z-70ac3141",
-  "generatedAt": "2026-08-24T10:49:53+00:00",
+  "snapshotId": "20260911T230947Z-bf455b6e",
+  "generatedAt": "2026-09-11T23:26:53+00:00",
   "player": {
     "fideID": "8618011",
     "id": "fide-8618011",
@@ -20,10 +20,10 @@
     ]
   },
   "totals": {
-    "games": 3,
-    "events": 1,
-    "packages": 2,
-    "bytes": 5326,
+    "games": 5,
+    "events": 2,
+    "packages": 3,
+    "bytes": 26377,
     "stages": {
       "U12": 3
     }
@@ -33,15 +33,17 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8618011/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b7/b7e412040e156ce198baba21bdf2fbb65d03cb64a4c93560fbeac0912a28e76f.pgn",
-      "objectPath": "data/pgn/objects/sha256/b7/b7e412040e156ce198baba21bdf2fbb65d03cb64a4c93560fbeac0912a28e76f.pgn",
-      "gameCount": 3,
-      "pgnBytes": 2663,
-      "sha256": "b7e412040e156ce198baba21bdf2fbb65d03cb64a4c93560fbeac0912a28e76f",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e5/e563bc196ed75d644a8be416eb5bfedb1463a3d0dd6b5cac05cddeb6cc02e0ff.pgn",
+      "objectPath": "data/pgn/objects/sha256/e5/e563bc196ed75d644a8be416eb5bfedb1463a3d0dd6b5cac05cddeb6cc02e0ff.pgn",
+      "gameCount": 5,
+      "pgnBytes": 13141,
+      "sha256": "e563bc196ed75d644a8be416eb5bfedb1463a3d0dd6b5cac05cddeb6cc02e0ff",
       "stages": {
         "U12": 3
       },
-      "sources": []
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     },
     {
       "id": "U12",
@@ -56,9 +58,40 @@
         "U12": 3
       },
       "sources": []
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8618011/adult.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/33/33111bee85462e1a1f41a8cf6b6fa230033bdd4e84b2f12bbd1118ce8432d264.pgn",
+      "objectPath": "data/pgn/objects/sha256/33/33111bee85462e1a1f41a8cf6b6fa230033bdd4e84b2f12bbd1118ce8432d264.pgn",
+      "gameCount": 2,
+      "pgnBytes": 10573,
+      "sha256": "33111bee85462e1a1f41a8cf6b6fa230033bdd4e84b2f12bbd1118ce8432d264",
+      "stages": {},
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-5d822f6ae7c658b7",
+      "source": "Lichess Broadcasts",
+      "name": "2026 ANU Open",
+      "date": "2026-08-01",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 2,
+      "results": {
+        "1-0": 1,
+        "1/2-1/2": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "chess-results:364560",
       "source": "",
@@ -78,6 +111,40 @@
     }
   ],
   "games": [
+    {
+      "id": "3f8d3ab6e2e79ca0997ca4150202af5b6f8a6fcaff19353e501d6efbee798bb4",
+      "event": "2026 ANU Open",
+      "date": "2026-08-01",
+      "white": "Kethro, Michael",
+      "black": "Rui, Yueyue",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "3",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "3f8d3ab6e2e79ca0997ca4150202af5b6f8a6fcaff19353e501d6efbee798bb4"
+    },
+    {
+      "id": "39ea8894a9ed7771448278bd49093cd116c700fb49b61e4e32b1c9a443ca2643",
+      "event": "2026 ANU Open",
+      "date": "2026-07-31",
+      "white": "Rui, Yueyue",
+      "black": "Prasad, Lalit",
+      "result": "1/2-1/2",
+      "source": "Lichess Broadcasts",
+      "round": "2",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
+      "sha256": "39ea8894a9ed7771448278bd49093cd116c700fb49b61e4e32b1c9a443ca2643"
+    },
     {
       "id": "d5be67414218796f26057e998b9863a10c3c0213ecbab63d3e6eff0622817ae4",
       "event": "14th Asian Schools Chess Championship 2018",
