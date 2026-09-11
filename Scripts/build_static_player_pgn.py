@@ -932,8 +932,9 @@ def loose_match(headers: dict[str, str], entry: dict[str, Any]) -> bool:
 
 
 def split_pgn_games(text: str) -> list[str]:
-    normalized = text.replace("\r\n", "\n")
-    starts = [match.start() for match in re.finditer(r'^\[Event\s+"', normalized, flags=re.MULTILINE | re.IGNORECASE)]
+    normalized = text.replace("\r\n", "\n").lstrip()
+    # Repeated Event tags in one header section do not start another game.
+    starts = [match.start() for match in re.finditer(r'(?:\A|(?<=\n\n))\[Event\s+"', normalized, flags=re.IGNORECASE)]
     result = []
     for index, start in enumerate(starts):
         end = starts[index + 1] if index + 1 < len(starts) else len(normalized)

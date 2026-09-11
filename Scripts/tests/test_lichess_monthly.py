@@ -95,3 +95,20 @@ class MonthlyTests(unittest.TestCase):
             self.assertNotIn("所有网络采集只", text)
             self.assertNotIn("GitHub Actions 不提供任何抓取 workflow", text)
             self.assertNotIn("所有 Chess-Results/FIDE/Lichess 来源访问", text)
+
+    def test_repeated_event_tags_do_not_create_phantom_games(self):
+        first = '[Event "Example"]\n[Event "Example"]\n[White "A"]\n[Black "B"]\n[Result "*"]\n\n*'
+        second = '[Event "Next"]\n[White "C"]\n[Black "D"]\n[Result "1-0"]\n\n1. e4 1-0'
+        for newline in ('\n', '\r\n'):
+            body = (first + '\n\n\n' + second).replace('\n', newline).encode()
+            class ShortReads(io.BytesIO):
+                def read(self, size=-1):
+                    return super().read(min(size, 7))
+            stream = ShortReads(body)
+            with mock.patch.object(bulk, '_open_zst_stream', return_value=(stream, stream, None)):
+                games = list(bulk.iter_zst_pgn_games(Path('synthetic.zst')))
+            import build_static_player_pgn as static_pgn
+            self.assertEqual(static_pgn.split_pgn_games(body.decode()), [game.replace("\r\n", "\n") for game in games])
+            self.assertEqual(len(games), 2)
+            self.assertEqual(bulk.pgn_headers(games[0])['White'], 'A')
+            self.assertEqual(bulk.pgn_headers(games[1])['Result'], '1-0')

@@ -1032,7 +1032,10 @@ def iter_zst_pgn_games(path: pathlib.Path) -> Iterator[str]:
             if not chunk:
                 break
             buffer += chunk
-            parts = re.split(r"(?=^\[Event\s+\")", buffer, flags=re.MULTILINE)
+            # A new game starts after a blank line. Repeated Event tags
+            # inside one tag section (seen in the 2026-02 archive) are not
+            # additional games. Keep the unfinished tail across read chunks.
+            parts = re.split(r'\r?\n[ \t]*\r?\n(?=\[Event\s+")', buffer)
             if len(parts) <= 1:
                 continue
             buffer = parts.pop()
