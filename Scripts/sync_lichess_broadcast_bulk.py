@@ -46,7 +46,7 @@ PUBLIC_EVENTS_JSON = PUBLIC_DOCS_DATA / "index" / "public-events.json"
 OFFLINE_REMATCH_EVIDENCE = REPO_ROOT / "data" / "manual" / "offline-pgn-rematch-evidence.csv"
 DATABASE_URL = "https://database.lichess.org/"
 USER_AGENT = "ChinaChessPlayerPGNBulkSync/1.0"
-COMPETITION_YEAR = 2026
+COMPETITION_YEAR = dt.datetime.now(dt.timezone.utc).year
 
 
 @dataclass
@@ -1078,12 +1078,12 @@ def stage_rules() -> dict[str, Any]:
         "competitionYear": COMPETITION_YEAR,
         "description": "以赛事年度减出生年份，两年一组。",
         "stages": [
-            {"id": "U8", "lowerAge": 7, "upperAge": 8, "birthYears": "2018-2019"},
-            {"id": "U10", "lowerAge": 9, "upperAge": 10, "birthYears": "2016-2017"},
-            {"id": "U12", "lowerAge": 11, "upperAge": 12, "birthYears": "2014-2015"},
-            {"id": "U14", "lowerAge": 13, "upperAge": 14, "birthYears": "2012-2013"},
-            {"id": "U16", "lowerAge": 15, "upperAge": 16, "birthYears": "2010-2011"},
-            {"id": "U18", "lowerAge": 17, "upperAge": 18, "birthYears": "2008-2009"},
+            {"id": "U8", "lowerAge": 7, "upperAge": 8, "birthYears": f"{COMPETITION_YEAR - 8}-{COMPETITION_YEAR - 7}"},
+            {"id": "U10", "lowerAge": 9, "upperAge": 10, "birthYears": f"{COMPETITION_YEAR - 10}-{COMPETITION_YEAR - 9}"},
+            {"id": "U12", "lowerAge": 11, "upperAge": 12, "birthYears": f"{COMPETITION_YEAR - 12}-{COMPETITION_YEAR - 11}"},
+            {"id": "U14", "lowerAge": 13, "upperAge": 14, "birthYears": f"{COMPETITION_YEAR - 14}-{COMPETITION_YEAR - 13}"},
+            {"id": "U16", "lowerAge": 15, "upperAge": 16, "birthYears": f"{COMPETITION_YEAR - 16}-{COMPETITION_YEAR - 15}"},
+            {"id": "U18", "lowerAge": 17, "upperAge": 18, "birthYears": f"{COMPETITION_YEAR - 18}-{COMPETITION_YEAR - 17}"},
         ],
     }
 
@@ -1092,7 +1092,7 @@ def indexed_stage_list() -> list[dict[str, Any]]:
     """Stages actually indexed from broadcasts: youth U8-U18 plus adult (19+),
     so EVERY CHN player with a known birth year gets their broadcast games."""
     return stage_rules()["stages"] + [
-        {"id": "adult", "lowerAge": 19, "upperAge": 199, "birthYears": "2007 及更早"},
+        {"id": "adult", "lowerAge": 19, "upperAge": 199, "birthYears": f"{COMPETITION_YEAR - 19} 及更早"},
     ]
 
 

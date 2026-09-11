@@ -11,7 +11,9 @@
 数据由维护者本机全量抓取（名单、对阵、结果、排名、对局 PGN），本地清洗后
 与已发布副本比对合并发布；原始 HTML 不入库（旧 link-only 政策已退役）。
 
-**架构：私有采集、审批发布、离线构建。** 所有网络采集只在维护者本机运行，
+**架构：按来源采集、校验发布、离线构建。** Chess-Results/FIDE 在维护者本机运行，
+Lichess Broadcast 由 GitHub Actions 每月 5 日北京时间 11:17 自动维护（见
+[月度维护契约](docs/LICHESS_MONTHLY_MAINTENANCE.md)），
 见 [`Scripts/local/refresh.sh`](Scripts/local/README.md)。原始响应留在仓库外；本地只
 投递带精确路径和 SHA-256 的发布 manifest，Actions 验证后离线重建并部署。
 
@@ -96,7 +98,7 @@ python3 Scripts/build_static_player_pgn.py
 
 ## 百万级 bulk PGN
 
-Lichess broadcast 数据压缩分片存放于 `docs/data/bulk/`，包含 77 个 `.pgn.zst` 分片、1,109,301 盘棋，并按年龄段生成全部 CHN 棋手对局 PGN 包(U8-U18 + 成年 19+)。
+Lichess broadcast 月度压缩分片存放于 R2；`docs/data/bulk/` 保存清单与中国棋手投影。切片数和局数以最新 manifest 为准，每月自动补齐，并生成 U8-U18 与成年组 PGN 包。
 
 ```bash
 bash Scripts/local/refresh.sh bulk

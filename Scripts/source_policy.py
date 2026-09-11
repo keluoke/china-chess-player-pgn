@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Shared source and local-storage policy for every network collector.
 
-Network collection is a maintainer-only local operation.  Chess-Results is
+Chess-Results/FIDE collection is maintainer-local; the dedicated GitHub
+workflow may maintain the open Lichess broadcast archive. Chess-Results is
 full-data by default: cleaned, structured event data (players, pairings,
 results, standings, PGN) is published through the manifest pipeline for data
 completeness.  Raw HTML responses always stay in the private run area outside
@@ -45,6 +46,13 @@ def local_state_root() -> pathlib.Path:
 
 def require_local_collector(provider: str) -> None:
     """Require an explicit acknowledgement before any source is contacted."""
+    # Only the dedicated broadcast workflow receives this narrow capability.
+    # Never set the generic local acknowledgement on a hosted runner.
+    if (provider == "lichess" and os.environ.get("GITHUB_ACTIONS") == "true"
+            and os.environ.get("CHINA_CHESS_LICHESS_CLOUD") == "1"):
+        return
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        raise SourcePolicyError("CLOUD_SOURCE_FORBIDDEN", f"云端不允许访问 {provider} 来源")
     if os.environ.get(LOCAL_ACK_ENV) == "1":
         return
     raise SourcePolicyError(

@@ -9,7 +9,7 @@ bash Scripts/local/refresh.sh health
 bash Scripts/local/refresh.sh all
 ```
 
-FIDE/Lichess/Chess-Results 通过校验后生成精确 release manifest 并 force-push
+本地 FIDE/Chess-Results 与 Lichess 补救包通过校验后生成精确 release manifest 并 force-push
 `local-data`。Chess-Results 原始页面只写本地私有运行区；通过完整性门禁的
 清洗后结构化赛事数据随 manifest 发布，由云端 ingest 比对合并（设计基线见
 `docs/EVENT_DATA_COMPLETENESS_BASELINE.md`）。
@@ -29,3 +29,6 @@ FIDE/Lichess/Chess-Results 通过校验后生成精确 release manifest 并 forc
 - 投递失败：运行 `bash Scripts/local/refresh.sh publish`，不重新抓取；
 - 校验失败：检查对应 `runs/<run-id>/run.log` 和 staging，禁止手工绕过 manifest；
 - 页面部署失败：只重跑离线 rebuild/deploy workflow，不运行任何抓取命令。
+
+Lichess 日常维护由 GitHub 每月 5 日自动运行；云端包通过精确 artifact 快进 main，
+不占用 local-data，详见 [月度维护](LICHESS_MONTHLY_MAINTENANCE.md)。

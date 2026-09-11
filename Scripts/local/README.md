@@ -1,8 +1,10 @@
 # 维护者本地数据采集
 
-所有网络采集只能由维护者在本机住宅网络执行。GitHub Actions、社区贡献工具和
-公开 runner 不访问 Chess-Results、FIDE 或 Lichess；CI 只接收经过校验的发布
-manifest，并离线重建派生索引。
+Chess-Results/FIDE 采集只能由维护者在本机住宅网络执行；GitHub Actions 和
+社区贡献工具不得访问这两个来源。Lichess Broadcast 开放月度库由
+`update-lichess-broadcasts.yml` 每月 5 日北京时间 11:17 自动维护，自动补齐
+截至上月的全部缺失切片，日常无需本机操作。实现和失败恢复见
+`docs/LICHESS_MONTHLY_MAINTENANCE.md`。派生索引仍由统一入口离线重建。
 
 ## 数据边界
 
@@ -121,7 +123,7 @@ bash Scripts/local/refresh.sh event-queue -- 1110333 --overwrite --force-source 
 bash Scripts/local/refresh.sh event-queue -- 1110333 --replay --overwrite
 bash Scripts/local/refresh.sh candidates -- --tournament-id 1110333
 
-# Lichess：暂存、验证、BY-SA manifest、精确发布
+# Lichess 本地补救命令（日常由 GitHub 每月 5 日自动维护）：
 # bulk 同时重建亚少赛/世少赛的严格 TNR 交叉归档；只发布 manifest、youth
 # 投影和 lichess-events 投影，不发布本地月度 .pgn.zst 原档。
 bash Scripts/local/refresh.sh bulk
@@ -262,7 +264,8 @@ runs/<run-id>/
   release-manifest.json   # 仅存在于可发布运行
 ```
 
-FIDE/Lichess/Chess-Results 发布前必须满足：
+下列事务约束适用于本地 FIDE/Lichess/Chess-Results 发布；Lichess 月度云端包
+执行独立 staging/artifact → 精确 main 提交事务（见月度维护文档）：
 
 1. 发布归属路径和 Git 暂存区在运行前是干净的；
 2. 下载写入唯一临时文件，长度、文件签名和内容校验通过；

@@ -33,9 +33,17 @@
 - 未达到契约规定的连续 7 天且至少 20 包双写对账、冲突/幂等/配额/回滚演练前，
   禁止把 Cloudflare ingest 切为生产主入口。
 
-1. 所有 Chess-Results/FIDE/Lichess 来源访问只允许维护者本机住宅网络执行；
-   GitHub Actions、云主机、社区贡献工具不得回抓。唯一入口是
+1. Chess-Results/FIDE 来源访问只允许维护者本机住宅网络执行；GitHub Actions、
+   云主机、社区贡献工具不得回抓。其唯一入口是
    `bash Scripts/local/refresh.sh <safe-command>`。
+   **Lichess Broadcast 开放月度库例外**：由 GitHub Actions
+   `.github/workflows/update-lichess-broadcasts.yml` 每月 5 日 03:17 UTC
+   （北京时间 11:17）自动检查截至上月的全部月份、补齐缺失切片并重建投影。
+   云端仅设置 `CHINA_CHESS_LICHESS_CLOUD=1`，禁止伪装本地维护者或放开 FIDE /
+   Chess-Results。广播仍遵守 CC BY-SA 4.0 署名、完整性和身份权威门禁。
+   原档仅保存在 runner 临时区/生产 R2，不进入 Git 或发布 artifact；逐片验证
+   完整 Zstandard 帧、局数、SHA-256 与 R2 正文回读。现存月片哈希冲突必须隔离，
+   禁止覆盖。发布 artifact 只含精确 manifest 与清洗投影，失败发布重试不回抓。
 2. Chess-Results 采集以**赛事/对局数据完备性**为最高目标：维护者本机抓取赛事
    全量数据，本地完成清洗与校验后随发布管线上传，与云端比对合并后推送。
    旧的 link-only 政策已退役，文档提及时只能作"已退役"说明；本条与其他文档
@@ -92,14 +100,18 @@
      主档；registry 始终压住这些字段（见铁律一）。
    - 设计基线详见 `docs/EVENT_DATA_COMPLETENESS_BASELINE.md`；现行代码与
      该基线的缺口按 P0 处理。
-3. FIDE/Lichess/Chess-Results 机器发布必须经过 staging、验证和 release manifest；只能把 manifest
-   精确列出的文件投递到单写者 `local-data`，由云端 ingest 到 main 后离线 rebuild。
+3. 机器发布必须经过 staging、验证和精确 release manifest。FIDE/Chess-Results
+   与本地补救包仍投递单写者 `local-data`，由云端 ingest 到 main 后离线 rebuild。
+   Lichess 月度云端包从不可变 main 基线构建，验证 artifact 中逐文件 SHA-256 /
+   基线哈希后直接快进 main；禁止 rebase 或覆盖并发输入。随后显式传递实际提交
+   SHA 给现有 rebuild → R2 棋手包认证 → deploy，不另建派生重建入口。
 4. 采集工作区永不 pull/rebase。GitHub 网络失败时只重投已生成的 release/outbox，
    禁止为了 push 失败重新抓取。macOS 系统代理只影响浏览器，终端 Git/GitHub API
    不得假设会继承；每条终端 GitHub 命令必须显式设置
    `HTTP_PROXY=http://127.0.0.1:15236` 与 `HTTPS_PROXY=http://127.0.0.1:15236`
    （同时设置小写变量），或调用会注入同等变量的受控脚本。GitHub 代理绝不传给
-   Chess-Results/FIDE/Lichess 来源请求，来源请求必须直连住宅 IP。
+   Chess-Results/FIDE 来源请求，其来源请求必须直连住宅 IP；
+   Lichess 月度云端请求使用 runner 自身网络，不配置本机 GitHub 代理。
 5. 代码和人工数据不得通过 local-data 发布。代码修改必须在独立的轻量代码工作区
    （默认同级 `<repo>-code`）完成；采集工作区只负责采集、outbox 和 `local-data`。
    用 `Scripts/local/code_workspace.sh init|sync|push` 初始化、同步和推送代码工作区，

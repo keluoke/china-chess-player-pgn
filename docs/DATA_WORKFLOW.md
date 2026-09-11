@@ -15,12 +15,13 @@
 | 人工别名/勘误/转会 | 社区审核证据 | 随 PR | `data/manual/`、`data/community/` |
 | 目标队列 | 社区 URL/tnr/FIDE ID | 随 PR | 人工队列；不含抓取内容 |
 | Chess-Results 赛事全量数据 | 维护者本机 | 按队列 | 本地清洗后比对合并，发布至 `data/generated/chess-results-event-*`、`docs/data/pgn/chess-results/`；raw 留仓库外 |
-| Lichess Broadcast | Lichess 开放数据库 | 每月 | `docs/data/bulk/`，CC BY-SA 4.0 |
+| Lichess Broadcast | GitHub Actions 访问开放数据库 | 每月 5 日北京时间 11:17 | `docs/data/bulk/`，CC BY-SA 4.0 |
 | 派生索引/API | 已审核仓库输入 | 每次 ingest | Actions 离线重建 |
 
 ## 网络采集
 
-唯一入口是 `Scripts/local/refresh.sh` 或本地面板：
+Chess-Results/FIDE 的唯一入口是 `Scripts/local/refresh.sh` 或本地面板；
+Lichess 日常维护使用 `update-lichess-broadcasts.yml`，以下 bulk 仅用于本地补救：
 
 ```bash
 bash Scripts/local/refresh.sh health
@@ -30,8 +31,9 @@ bash Scripts/local/refresh.sh event-queue -- --from-queue 3
 bash Scripts/local/refresh.sh bulk
 ```
 
-仓库不提供抓取类 GitHub workflow。社区、GitHub-hosted runner 和自托管 runner
-都不执行来源抓取。
+GitHub runner 仅允许月度维护任务访问 Lichess 开放广播库；禁止访问 FIDE /
+Chess-Results。云端包经过 staging、完整分片/R2 校验、精确 artifact 后快进 main，
+再按实际 SHA 离线 rebuild/deploy；详见 `LICHESS_MONTHLY_MAINTENANCE.md`。
 
 每次任务持久化：
 
@@ -44,8 +46,8 @@ runs/<run-id>/staging/
 runs/<run-id>/release-manifest.json
 ```
 
-Chess-Results 运行只产生前三类私有文件，不产生 release manifest。FIDE 和 Lichess
-必须先通过下载完整性、语义、数据量、隐私/勘误和来源策略校验。
+Chess-Results 通过多维完整性门禁的清洗产物也生成 release manifest；partial
+仍隔离。各来源必须先通过下载完整性、语义、数据量、隐私/勘误和来源策略校验。
 
 ## 发布与 CI
 

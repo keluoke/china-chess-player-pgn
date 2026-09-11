@@ -103,7 +103,8 @@ Actions 只读取既有文件并重建 manifest/索引。
 ```
 社区目标线索 → 人工目标队列 → 维护者本地 Chess-Results 私有运行区（默认不发布）
 FIDE XML → staging → registry/勘误校验 → release manifest → local-data
-Lichess Broadcast → staging/文件签名校验 → BY-SA manifest → local-data
+Lichess Broadcast → GitHub 每月 5 日 → staging/完整帧/局数/哈希/R2 正文校验
+  → 精确 artifact → 快进 main → 统一离线 rebuild → deploy
 local-data manifest → CI 精确 ingest → 离线派生索引 → 部署
 ```
 

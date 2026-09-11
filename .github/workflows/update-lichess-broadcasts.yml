@@ -1,0 +1,74 @@
+name: Update Lichess broadcasts
+
+on:
+  schedule:
+    # Every month on day 5, 03:17 UTC = 11:17 Asia/Shanghai.
+    - cron: "17 3 5 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-lichess-broadcasts
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-python-deps
+        with:
+          python-version: "3.12"
+          packages: certifi zstandard boto3==1.43.51
+      - name: Install complete-frame verifier
+        run: sudo apt-get update -qq && sudo apt-get install -y zstd
+      - name: Download missing months, verify R2, rebuild projections in staging
+        env:
+          CHINA_CHESS_LICHESS_CLOUD: "1"
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: python3 Scripts/update_lichess_monthly.py collect --release "$RUNNER_TEMP/lichess-release"
+      - name: Preserve exact release for source-free publication retries
+        uses: actions/upload-artifact@v4
+        with:
+          name: lichess-release
+          path: ${{ runner.temp }}/lichess-release/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: lichess-release
+          path: ${{ runner.temp }}/lichess-release
+      - name: Validate exact manifest, commit and fast-forward main
+        id: publish
+        run: python3 Scripts/update_lichess_monthly.py publish --release "$RUNNER_TEMP/lichess-release"
+      - name: Rebuild the exact published input
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}
+          workflow_inputs: '{"target_sha":"${{ steps.publish.outputs.target_sha }}"}'
+      - name: Record publication receipt
+        env:
+          TARGET_SHA: ${{ steps.publish.outputs.target_sha }}
+        run: |
+          echo "Lichess release committed to main: $TARGET_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rebuild and deploy dispatched; online verification remains a downstream stage." >> "$GITHUB_STEP_SUMMARY"
