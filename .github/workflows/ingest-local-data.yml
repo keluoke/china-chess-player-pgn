@@ -95,6 +95,8 @@ jobs:
           # main — without this the script would push HEAD:local-data.
           PUSH_BRANCH: main
           CI_COMMIT_FORCE_ADD: "true"
+          # A moved main invalidates the just-checked three-way baseline.
+          CI_COMMIT_REBASE_ON_CONFLICT: "false"
         run: |
           set -euo pipefail
           paths=()

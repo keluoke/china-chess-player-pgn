@@ -82,3 +82,9 @@ class MonthlyTests(unittest.TestCase):
         self.assertNotIn('CHINA_CHESS_LICHESS_CLOUD', str(workflow['jobs']['publish']))
         dispatch = next(s for s in workflow['jobs']['publish']['steps'] if 'dispatch-workflow' in s.get('uses', ''))
         self.assertIn('target_sha', dispatch['with']['workflow_inputs'])
+
+    def test_ingest_must_not_rebase_after_three_way_validation(self):
+        import yaml
+        workflow = yaml.safe_load((monthly.ROOT / '.github/workflows/ingest-local-data.yml').read_text())
+        commit = next(s for s in workflow['jobs']['ingest']['steps'] if s.get('id') == 'commit')
+        self.assertEqual(commit['env']['CI_COMMIT_REBASE_ON_CONFLICT'], 'false')
