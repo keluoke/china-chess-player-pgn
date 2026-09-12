@@ -71,16 +71,14 @@ class FrontendInitializationOrderTest(unittest.TestCase):
         self.assertNotIn("loadBulkStageIndex", app)
         self.assertNotIn("bulkPlayerHitBlock", app)
 
-    def test_event_roster_uses_detail_fide_ids_and_distinct_empty_states(self) -> None:
+    def test_event_overview_uses_group_results_without_registry_counts(self) -> None:
         app = (ROOT / "docs" / "app.js").read_text(encoding="utf-8")
         renderer = app[app.index("function renderEvent()"):app.index("function eventViewerPlayer")]
-        self.assertIn("eventDetail.players", renderer)
-        self.assertIn("名单已同步", renderer)
-        self.assertIn("已列入补录计划", renderer)
-        self.assertIn("未单独发布完整名单", renderer)
-        self.assertNotIn("该赛事已有赛事记录，但棋手名单尚未同步", renderer)
+        for removed in ("中国棋手", "可跳转棋手", "赛事名单中的已收录棋手", "rosterFideIDs"):
+            self.assertNotIn(removed, renderer)
+        self.assertIn('Array.isArray(eventDetail.standings)', renderer)
+        self.assertIn('Array.isArray(eventDetail.players)', renderer)
         self.assertIn('["日期", eventDateLabel(event)]', renderer)
-        self.assertIn("中国棋手（名单标 CHN）", renderer)
         self.assertIn("eventPGNArchive(eventDetail)", renderer)
         self.assertIn("打开整场 PGN（", renderer)
         self.assertIn("eventArchive.gameCount", renderer)

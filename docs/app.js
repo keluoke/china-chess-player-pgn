@@ -954,21 +954,10 @@ function renderEvent() {
   }
   const eventDetail = eventDetailCache.get(String(event.tournamentID ?? ""));
   if (event.detailPath && !eventDetail) requestEventDetail(event);
-  const detailRoster = eventDetail && !eventDetail.error
-    ? ((eventDetail.players?.length ? eventDetail.players : eventDetail.standings) ?? [])
-    : null;
-  const rosterFideIDs = detailRoster
-    ? detailRoster.map(player => player?.fideID)
-    : (event.players ?? []);
-  const eventPlayers = [...new Set(rosterFideIDs.filter(Boolean).map(String))]
-    .map(fideID => players.find(player => player.fideID === String(fideID)))
-    .filter(Boolean);
-  const visiblePlayers = eventPlayers.slice(0, 24);
-  const extraPlayers = Math.max(0, eventPlayers.length - visiblePlayers.length);
-  const standingCount = eventDetail && !eventDetail.error ? Number(eventDetail.standings?.length || detailRoster?.length || 0) : null;
-  const chineseRosterCount = detailRoster
-    ? detailRoster.filter(player => String(player?.federation || "").toUpperCase() === "CHN").length
-    : null;
+  const standingCount = eventDetail && !eventDetail.error && Array.isArray(eventDetail.standings)
+    ? eventDetail.standings.length : null;
+  const participantCount = eventDetail && !eventDetail.error && Array.isArray(eventDetail.players)
+    ? eventDetail.players.length : event.participants;
   const eventArchive = eventPGNArchive(eventDetail);
   const archivedGameCount = eventArchive?.gameCount || Number(event.gameCount || 0);
   const coverageLabel = completenessLabel(event, eventDetail);
@@ -976,22 +965,15 @@ function renderEvent() {
     ["日期", eventDateLabel(event)],
     ["系列", event.seriesLabel],
     ["组别", event.groupLabel],
-    ["轮次", event.rounds],
-    ["报名人数", event.participants],
-    ["最终排名人数", standingCount !== null ? `${standingCount} 名` : null],
-    ["中国棋手（名单标 CHN）", chineseRosterCount !== null ? `${chineseRosterCount} 名` : null],
-    ["已收录棋手", standingCount === null && event.playerCount ? `${event.playerCount} 名` : null],
-    ["可跳转棋手", detailRoster ? `${eventPlayers.length} 名` : null],
+    ["轮次", eventDetail?.roundCount ?? event.rounds],
+    ["本组参赛人数", participantCount],
+    ["本组成绩表人数", standingCount !== null ? `${standingCount} 人` : null],
     ["覆盖口径", coverageLabel],
     ["已归档 PGN", archivedGameCount ? `${compactNumber(archivedGameCount)} 盘` : null],
     ["有棋谱棋手", event.pgnPlayerCount ? `${event.pgnPlayerCount} 名` : null]
     ,["署名", event.attribution]
     ,["许可", event.license]
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
-  // Long roster / per-round sections fold by default on narrow (mobile)
-  // screens; the overview stays always visible.
-  const foldOpen = (typeof window !== "undefined" && window.innerWidth > 720) ? " open" : "";
-
   els.eventPane.innerHTML = `
     <div class="detail-title event-title">
       <div>
@@ -1006,20 +988,6 @@ function renderEvent() {
     <div class="event-facts">
       ${facts.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(String(value))}</strong></div>`).join("")}
     </div>
-    <details class="event-roster event-fold"${foldOpen}>
-      <summary class="section-heading"><h3>赛事名单中的已收录棋手</h3><span>${eventDetail && !eventDetail.error ? `${eventPlayers.length} 名可跳转` : event.detailPath ? "名单载入中" : "名单暂未入库"}</span></summary>
-      ${eventDetail?.error ? `<div class="empty-state compact">名单载入失败：${escapeHTML(eventDetail.error)}</div>`
-        : visiblePlayers.length ? `<div class="event-player-grid">${visiblePlayers.map(player => `
-        <button class="event-player" type="button" data-action="select-event-player" data-fide="${escapeAttribute(player.fideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}">
-          <strong>${escapeHTML(displayName(player))}</strong>${presentationNameBadgeHTML(player)}<span>FIDE ${escapeHTML(player.fideID)}</span>
-        </button>`).join("")}</div>${extraPlayers ? `<p class="event-more">另有 ${extraPlayers} 名已收录棋手。</p>` : ""}`
-        : detailRoster?.length ? `<div class="empty-state compact">名单已同步，共 ${detailRoster.length} 人；其中暂无可跳转到本库档案的棋手。</div>`
-        : event.detailPath && !eventDetail ? `<div class="event-loading">正在载入赛事名单…</div>`
-        : eventDetail ? `<div class="empty-state compact">赛事详情已同步但名单为空，已列入补录计划。</div>`
-        : event.series === "archive"
-        ? `<div class="empty-state compact">该赛事当前提供棋谱归档，未单独发布完整名单。</div>`
-        : `<div class="empty-state compact">赛事名单尚未收录，已列入补录计划。</div>`}
-    </details>
     ${eventDetail ? domesticEventData(event, eventDetail) : event.detailPath ? `<div class="event-loading">正在载入逐轮成绩与最终排名…</div>` : ""}
     <p class="event-provenance">档案编号：${escapeHTML(event.tournamentID ?? event.id)}${event.nameTranslationPending ? " · 名称待译" : ""}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
   `;
@@ -1138,7 +1106,7 @@ function domesticEventData(event, detail) {
     ${pgnViewerBlock(eventViewerPlayer(event), { packages: [] })}
     ${roundsSection}
     <details class="event-results-section event-fold"${foldOpen}>
-      <summary class="section-heading"><h3>最终成绩排行</h3><span>${standings.length} 名</span></summary>
+      <summary class="section-heading"><h3>最终成绩排行</h3><span>本组共 ${standings.length} 人</span></summary>
       <div class="standings-table-wrap"><table class="standings-table"><thead><tr><th>名次</th><th>棋手</th><th>FIDE ID</th><th>等级分</th><th>得分</th><th>单位</th></tr></thead><tbody>
         ${standings.map(row => `<tr><td>${escapeHTML(row.rank ?? "-")}</td><td>${eventSideControl(event, row, "")}</td><td>${escapeHTML(row.fideID || "无FIDE")}</td><td>${escapeHTML(row.rating || "-")}</td><td><strong>${escapeHTML(row.score || "-")}</strong></td><td>${escapeHTML(row.fideID ? (row.club || "-") : (publicLocationFromSighting(row) || "未公开"))}</td></tr>`).join("")}
       </tbody></table></div>

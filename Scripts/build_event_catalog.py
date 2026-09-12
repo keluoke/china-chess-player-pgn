@@ -727,7 +727,8 @@ def parse_master_title_hints(event: dict[str, Any]) -> tuple[str | None, str | N
                 if station_key.endswith(key)
             ), None)
 
-    group_label = next((label for label in MASTER_GROUP_LABELS.values() if label in title), None)
+    # Prefer the specific group over its shared suffix (candidate contains master).
+    group_label = next((label for label in sorted(MASTER_GROUP_LABELS.values(), key=len, reverse=True) if label in title), None)
     if not group_label:
         explicit_group = re.search(
             r"(?:男子|女子)候补(?:棋协)?大师组|(?:男子|女子)一级棋士(?:[ABC])?组|公开组",
