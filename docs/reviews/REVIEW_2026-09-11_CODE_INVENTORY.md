@@ -2,7 +2,7 @@
 
 以已提交 main 代码为范围；排除生成数据和第三方压缩 vendor 文件。所有条目进行结构、入口/引用与风险模式扫描；关键数据与发布链逐段人工审阅，测试提供行为证据。清单不表示每一行已经形式化证明正确。既有未跟踪实验文件单独列为工作区卫生问题。
 
-共 159 个自有代码/配置文件，50,923 行。
+共 159 个自有代码/配置文件，50,963 行。
 
 | 文件 | 行数 | 函数数（Python） | 分区 | 职责/模块说明 |
 |---|---:|---:|---|---|
@@ -42,7 +42,7 @@
 | `Scripts/build_public_metrics.py` | 57 | 3 | 采集/事实/派生/校验 | Write the canonical metric contract and align the legacy index manifest. |
 | `Scripts/build_release_snapshot.py` | 259 | 7 | 采集/事实/派生/校验 | Single-entry derived-data rebuild under one atomic snapshot id. |
 | `Scripts/build_search_bootstrap.py` | 324 | 9 | 采集/事实/派生/校验 | Build the search bootstrap payloads for the homepage. |
-| `Scripts/build_static_player_pgn.py` | 1224 | 56 | 采集/事实/派生/校验 | Build player-centric static PGN packs from committed PGN assets. |
+| `Scripts/build_static_player_pgn.py` | 1225 | 56 | 采集/事实/派生/校验 | Build player-centric static PGN packs from committed PGN assets. |
 | `Scripts/canonical_player_facts.py` | 105 | 4 | 采集/事实/派生/校验 | Read and validate the canonical player fact datasets. |
 | `Scripts/ci_commit_push.sh` | 88 | — | 采集/事实/派生/校验 | 配置/页面结构与调用关系扫描 |
 | `Scripts/crawl_player_events.py` | 746 | 28 | 采集/事实/派生/校验 | Legacy full Chess-Results player crawler (disabled by default). |
@@ -55,7 +55,7 @@
 | `Scripts/local/cloudflare_baseline.py` | 655 | 20 | 本地控制与发布 | Prepare, deliver and reconcile an exact Git snapshot into shadow ingest. |
 | `Scripts/local/cloudflare_ingest.py` | 601 | 15 | 本地控制与发布 | Deliver one immutable local outbox bundle to the Cloudflare shadow ingest. |
 | `Scripts/local/code_workspace.sh` | 151 | — | 本地控制与发布 | 配置/页面结构与调用关系扫描 |
-| `Scripts/local/collector_runtime.py` | 348 | 16 | 本地控制与发布 | Install and verify an exact collector runtime/control-input overlay. |
+| `Scripts/local/collector_runtime.py` | 351 | 16 | 本地控制与发布 | Install and verify an exact collector runtime/control-input overlay. |
 | `Scripts/local/discover_player_events.py` | 188 | 5 | 本地控制与发布 | Discover recent tournament IDs by searching a bounded set of FIDE IDs. |
 | `Scripts/local/health_check.py` | 241 | 9 | 本地控制与发布 | Read-only preflight for the maintainer-local collection workstation. |
 | `Scripts/local/identity_review.py` | 57 | 2 | 本地控制与发布 | Read the repo-external identity workbench without changing review data. |
@@ -81,7 +81,7 @@
 | `Scripts/sync_chess_results_starting_rank_aliases.py` | 843 | 47 | 采集/事实/派生/校验 | Collect private Chinese-name candidates from Chess-Results starting ranks. |
 | `Scripts/sync_chinese_players.py` | 843 | 44 | 采集/事实/派生/校验 | Build the static Chinese player registry from FIDE rating-list exports. |
 | `Scripts/sync_domestic_players.py` | 2029 | 56 | 采集/事实/派生/校验 | Build domestic provisional player registry from event sightings. |
-| `Scripts/sync_lichess_broadcast_bulk.py` | 1223 | 56 | 采集/事实/派生/校验 | Mirror and index the Lichess broadcast PGN bulk dataset. |
+| `Scripts/sync_lichess_broadcast_bulk.py` | 1226 | 56 | 采集/事实/派生/校验 | Mirror and index the Lichess broadcast PGN bulk dataset. |
 | `Scripts/sync_static_pgn.py` | 740 | 33 | 采集/事实/派生/校验 | Sync cached/fetched PGN files into the GitHub Pages static data tree. |
 | `Scripts/tests/__init__.py` | 1 | — | 测试 | Local pipeline regression tests. |
 | `Scripts/tests/fixtures/chess_results/empty_event.html` | 7 | — | 测试 | 配置/页面结构与调用关系扫描 |
@@ -103,7 +103,7 @@
 | `Scripts/tests/test_chess_results_parser.py` | 823 | 65 | 测试 | Contract tests for the Chess-Results event collector. |
 | `Scripts/tests/test_cloudflare_baseline.py` | 118 | 3 | 测试 | Python 模块；按调用关系归类 |
 | `Scripts/tests/test_cloudflare_ingest_client.py` | 555 | 18 | 测试 | Python 模块；按调用关系归类 |
-| `Scripts/tests/test_collector_runtime.py` | 116 | 4 | 测试 | Python 模块；按调用关系归类 |
+| `Scripts/tests/test_collector_runtime.py` | 125 | 4 | 测试 | Python 模块；按调用关系归类 |
 | `Scripts/tests/test_completeness_and_identity.py` | 1057 | 70 | 测试 | Second-review (2026-07-18) mechanism tests. |
 | `Scripts/tests/test_docs_consistency.py` | 170 | 12 | 测试 | Documentation-as-contract checks. |
 | `Scripts/tests/test_domestic_event_queue.py` | 67 | 1 | 测试 | Python 模块；按调用关系归类 |
@@ -112,7 +112,7 @@
 | `Scripts/tests/test_identity_clustering_quality.py` | 128 | 6 | 测试 | Python 模块；按调用关系归类 |
 | `Scripts/tests/test_identity_dispute_import.py` | 59 | 3 | 测试 | Python 模块；按调用关系归类 |
 | `Scripts/tests/test_identity_evidence_chains.py` | 252 | 11 | 测试 | Python 模块；按调用关系归类 |
-| `Scripts/tests/test_lichess_monthly.py` | 90 | 7 | 测试 | Failure boundaries for the hosted Lichess maintenance transaction. |
+| `Scripts/tests/test_lichess_monthly.py` | 114 | 7 | 测试 | Failure boundaries for the hosted Lichess maintenance transaction. |
 | `Scripts/tests/test_lichess_target_events.py` | 231 | 8 | 测试 | Python 模块；按调用关系归类 |
 | `Scripts/tests/test_local_pipeline.py` | 2916 | 159 | 测试 | Python 模块；按调用关系归类 |
 | `Scripts/tests/test_master_series_summary.py` | 106 | 6 | 测试 | Python 模块；按调用关系归类 |

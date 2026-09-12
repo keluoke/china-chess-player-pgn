@@ -1,6 +1,6 @@
 # 全项目代码、工作区与数据维护管线审查
 
-审查日期：2026-09-11。基线：远端 `47cee8f02d4813871cb427987ec3bf0e61dea516`；
+审查日期：2026-09-11；实施与上线验证延续至 2026-09-12。基线：远端 `47cee8f02d4813871cb427987ec3bf0e61dea516`；
 Lichess 实施提交 `5c772bba50764919a9199bddc40b3cf7af7ac1c0`。
 
 ## 1. 结论
@@ -21,7 +21,7 @@ Lichess 实施提交 `5c772bba50764919a9199bddc40b3cf7af7ac1c0`。
 
 范围包括全部已跟踪自有代码/配置的结构扫描、入口/依赖/重复检测，关键采集→事实→
 投影→发布→线上链路的人工审阅，以及 Python/前端/Worker 回归。共 159 个自有文件、
-50,923 行，逐文件职责见 [覆盖清单](REVIEW_2026-09-11_CODE_INVENTORY.md)。
+50,963 行，逐文件职责见 [覆盖清单](REVIEW_2026-09-11_CODE_INVENTORY.md)。
 第三方压缩 viewer 作为依赖边界检查，未声称对压缩包逐行安全审计；未访问 FIDE 或
 Chess-Results 来源。采集工作区大量改动属于历史运行时覆盖，未 reset、pull 或清理。
 
@@ -83,8 +83,11 @@ main 输入 → registry + 不可变赛事/PGN事实 → player-event/game-facts
 `Scripts/sync_lichess_broadcast_bulk.py:921` 的 youth_matches 要求当前 federation
 等于 CHN 且存在 birth_year。即使 PGN 有精确 FIDE ID，缺出生年的 registry 成员
 或已由覆盖表收录的转出棋手仍被排除。构造同一 FIDE ID 的控制样本：CHN/1994
-返回 adult；CHN/空出生年和 SGP/1994 都返回空列表。此证据证明过滤机制，不代表
-已经统计完受影响的线上人数。
+返回 adult；CHN/空出生年和 SGP/1994 都返回空列表。当前 main 注册表共有 11,646 人，其中 375 人缺出生年。进一步离线扫描截至
+2026-06 的 78 个本地月片，发现其中 10 人、128 条带精确 FIDE ID 的广播记录，
+会被这个过滤条件排除。这里统计的是广播记录，不是已跨来源去重的全站缺失局数；
+是否被其他来源补入仍需联合事实表核对。当前 registry 没有非 CHN 成员，转出场景
+是已复现的条件风险，不声称当前发生了转出棋手遗漏。
 
 整改：先按 registry 收录集合建立全量 by-player 事实；年龄组只是投影，新增
 unknown-age 分类而不是丢棋局。转出棋手遵从 federation-overrides 的收录政策，
@@ -101,6 +104,17 @@ unknown-age 分类而不是丢棋局。转出棋手遵从 federation-overrides �
 migration-only，增加调用阻断测试。先证明 imports/手动恢复没有依赖，再删除。
 不能把“无 workflow 引用”当成死代码的充分条件。
 
+### P1-05：重复 Event 标签被拆成虚假的独立棋局（本次实跑发现并修复）
+
+首轮 GitHub 月度任务 `34618407440` 在 2026-02 严格局数检查失败：旧解析器数出
+19,753 局，官方目录为 19,752 局。离线检查原档发现同一局有连续两条相同 Event
+标签，旧解析器按每条 Event 切分，多生成一个只有标题的假棋局。并非来源少局，
+不能通过改目录计数或忽略差额解决。
+
+整改提交 `3cefa140a20d3ba06c3f65e839dbb3e3b6b8f815` 修正广播流式解析与下游
+静态 PGN 拆分边界；回归覆盖重复标签、跨读取块与 CRLF。78 个已有月片离线
+重新计数全部与原 manifest 一致，原档字节与哈希保持不变。
+
 ### P2-01：大文件和真实复制函数抬高维护成本（待实施）
 
 主要热点：sync_domestic_players 2,029 行；sync_chess_results_event 1,747 行；
@@ -114,6 +128,8 @@ promote_public_pgn、reconcile_pgn_sources 三处完全重复。重复是可验�
 代码是否由 AI 生成无法仅从文件内容判定。
 
 整改：优先抽离下载/解析纯函数、R2 对象验证和事务状态转换；不要引入新通用框架。
+`build_player_facts.py:517` 的 bulk 映射失败回退还在每条索引记录内线性扫描全部
+PGN，最坏为 O(索引条数 × 棋局数)，建议预建精确与宽松键索引并保留歧义集合。
 一次只迁一个能力，旧入口保留适配器，利用现有 parser fixture 与发布故障用例
 证明行为等价。不能为了缩短函数删掉有实际事故依据的校验。
 
@@ -124,7 +140,7 @@ kimi-code 留有未跟踪的 estimated-rating 实验脚本/测试、历史交付
 失败来自这个既有未跟踪 HTML：公共文案测试扫描 docs/*.html，遇到“抓取”文本。
 它未进入 Git，不能把这个本地失败归咎于本次提交，也不能擅自删掉用户材料。
 
-在保持 Git 元数据和可执行权限的已跟踪文件隔离副本中，412 项测试通过（2 跳过）。
+在保持 Git 元数据和可执行权限的已跟踪文件隔离副本中，414 项测试通过（2 跳过）。
 整改：实验移到显式 experiments/ 或仓库外；报告放 docs/reviews/ 的 Markdown，
 生成站点时对 HTML 也有公共清单约束；测试的公共面扫描应与发布清单同源。
 
@@ -156,8 +172,8 @@ kimi-code 留有未跟踪的 estimated-rating 实验脚本/测试、历史交付
 
 ## 5. 验证与交付记录
 
-本地必需校验：220 项管线/parser/文档/月度流程测试通过；compileall、refresh.sh
-语法和 git diff --check 通过。隔离已跟踪树 412 项通过（2 跳过）；前端姓名 5 项、
+本地必需校验：226 项管线/parser/文档/月度流程测试通过；compileall、refresh.sh
+语法和 git diff --check 通过。隔离已跟踪树 414 项通过（2 跳过）；前端姓名 5 项、
 搜索核心、PGN 代理用例以及 Worker 9 项通过。失败分支日志中的 synthetic error
 是故障注入用例的预期输出，不能据此把测试判成失败。
 
@@ -167,6 +183,30 @@ kimi-code 留有未跟踪的 estimated-rating 实验脚本/测试、历史交付
 契约文档已纳入 collector runtime 的精确安装清单，AGENTS、本地 README 与月度
 维护手册从同一已提交 main 安装，避免两工作区继续执行不同铁律。
 
-云端实际运行、最终 SHA、切片与线上校验结果在本次交付收尾追加。
+已验证的月度任务：`34656272076`（success）；发布提交：
+`1c8cef861ed21c2963084177f6b6aa8a78f72f41`。共 89 个精确 manifest 路径；
+完整库为 80 片、1,235,275 局，比原 78 片新增 88,978 局。
+
+| 月片 | 局数 | 压缩字节数 | SHA-256 |
+|---|---:|---:|---|
+| 2026-07 | 40,038 | 24,535,400 | `714d0eb99f99fca8d791142038b6c59b5ca6a51b3339bd3891a92f4bdffcbf0c` |
+| 2026-08 | 48,940 | 31,010,232 | `e227c35c3207ebade754849c1825982e2717ae82c013013d896778e27be77724` |
+
+交付闭环（2026-09-12 核验）：
+
+- [代码 CI 34656261715](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34656261715)：success。
+- [月度维护 34656272076](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34656272076)：success。
+- [完整重建 34656918997](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34656918997)：success，输入为上述发布提交。
+- [部署 34658999440](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34658999440)：success，部署提交 `4640e96ef43bc55ef34f0a2ec4fe5083f773ad0d`。
+- 普通生产 URL 的 snapshot、两个 bulk manifest、月度 receipt、public-events、
+  player-pgn-r2-receipt 六份 JSON 均核对 MIME 和完整正文，与部署提交逐字节一致。
+  线上 snapshot 为 `20260911T230947Z-bf455b6e`，inputCommit 为
+  `1c8cef861ed21c2963084177f6b6aa8a78f72f41`。
+- 80 个公开 R2 月片全部 HEAD 成功且长度匹配；7、8 月原档经公开 URL 下载后
+  SHA-256 与上表一致。云端任务另对全部 80 片执行完整帧、局数和正文哈希校验。
+  这是月库归档完整性的证明，不把未匹配的赛事广播残差宣称为全台棋谱完整。
+
+每月 5 日北京时间 11:17 的 GitHub schedule 已启用；未来首次定时触发尚未发生，
+本次以同一 workflow 的手动触发验证完整执行链。
 
 官方来源：[Lichess Broadcast 月度目录与 CC BY-SA 4.0 声明](https://database.lichess.org/#broadcasts)。
