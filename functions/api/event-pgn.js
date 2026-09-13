@@ -24,13 +24,12 @@ async function proxy({ request }, headOnly = false) {
         return fail("PGN object metadata mismatch", 503);
       }
       if (requestedHash && !sha.startsWith(requestedHash)) return fail("PGN snapshot changed; reload event", 409);
-    } else if (manifest.status !== 404) {
+    } else {
       return fail("PGN index unavailable", 503);
     }
-    // Compatibility only for deployments predating the first certified manifest.
-    const url = object?.publicURL || `${DATA_ORIGIN}/events/chess-results/tnr${tournamentID}.pgn`;
+    const url = object.publicURL;
     const upstream = await fetch(url, { method: headOnly ? "HEAD" : "GET",
-      cf: { cacheEverything: true, cacheTtl: object ? 31536000 : 60 } });
+      cf: { cacheEverything: true, cacheTtl: 31536000 } });
     if (!upstream.ok) return fail("PGN unavailable", upstream.status === 404 ? 404 : 502);
     if (object && Number(upstream.headers.get("content-length")) !== object.bytes) {
       return fail("PGN object length mismatch", 502);

@@ -2,6 +2,13 @@
 from collections import defaultdict
 
 
+def explicit_fide_ids(headers, side):
+    """Positive numeric IDs are evidence; broadcast placeholders are missing."""
+    values = {str(headers.get(side + suffix) or '').strip()
+              for suffix in ('FideId', 'FideID', 'FIDEID')}
+    return {value for value in values if value.isascii() and value.isdecimal() and int(value) > 0}
+
+
 class GameLookup:
     def __init__(self, games, parser):
         self.parser = parser

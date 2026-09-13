@@ -9,6 +9,8 @@ packs and JSON indexes.
 
 from __future__ import annotations
 
+from pgn_matching import explicit_fide_ids
+
 import argparse
 import codecs
 import csv
@@ -921,8 +923,7 @@ def youth_matches(
     # Registry membership defines coverage; age is only a secondary projection.
     result = []
     for role, prefix in [("white", "White"), ("black", "Black")]:
-        explicit = {clean(headers.get(prefix + suffix)) for suffix in ("FideId", "FideID", "FIDEID")}
-        explicit.discard("")
+        explicit = explicit_fide_ids(headers, prefix)
         if len(explicit) > 1:
             continue  # Conflicting explicit identities must never become a name match.
         fide_id = next(iter(explicit), "") or names.get(normalize_name(headers.get(prefix, "")), "")

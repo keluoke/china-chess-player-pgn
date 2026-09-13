@@ -31,6 +31,9 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(bulk.youth_matches({'White':'Ambiguous'},profiles,{},2026),[])
         self.assertEqual(bulk.youth_matches({'WhiteFideId':'2'},profiles,{},None)[0]['stage'],'unknown-age')
         self.assertEqual(bulk.stage_for_age(5),'U6')
+        for placeholder in ['', '-', '?', '0', '000']:
+            self.assertEqual(bulk.youth_matches({'WhiteFideId':placeholder,'White':'Known'},profiles,{'known':'1'},2026)[0]['fideID'],'1')
+
 
     def test_lookup_preserves_unique_fallback_but_rejects_ambiguity(self):
         game = '[Event "Test"]\n[Date "2026.01.01"]\n[White "Alice Smith"]\n[Black "Bob Jones"]\n[Result "1-0"]\n\n1. e4 1-0'
@@ -59,6 +62,13 @@ class CoverageTests(unittest.TestCase):
                 facts.ingest_bulk_youth(games, {'1': {'name':'Alice'}}, {'alice':'1'}, {})
                 self.assertEqual(len(games), 2)
                 self.assertTrue(all(row['playerFideIDs'] == ['1'] for row in games.values()))
+                rejected = {}
+                facts.add_game(rejected, game='[WhiteFideId "999"]\n'+game,
+                               asset_path=asset, game_index=0, source_kind='canonical-bulk-pgn',
+                               source_label='Lichess Broadcasts', registry={'1': {'name':'Alice'}},
+                               names={'alice':'1'}, contexts={}, player_hint='1')
+                self.assertEqual(rejected, {})
+
 
     def test_linked_observation_is_retained_without_duplicate_domestic_identity(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -18,6 +18,6 @@ response=await onRequestHead(context);assert.equal(await response.text(),'');ass
 item.publicURL='https://attacker.example/pg.pgn';assert.equal((await onRequestGet(context)).status,503);item.publicURL=`https://data.chessdb.aigclabs.cc/${key}`;
 length=13;assert.equal((await onRequestGet(context)).status,502);length=12;
 manifestStatus=503;assert.equal((await onRequestGet(context)).status,503);
-manifestStatus=404;assert.equal((await onRequestGet(context)).status,200);assert.equal(calls.at(-1)[1].cf.cacheTtl,60);
+manifestStatus=404;calls.length=0;assert.equal((await onRequestGet(context)).status,503);assert.equal(calls.length,1);
 assert.equal((await onRequestGet({request:new Request('https://4chess.cc/api/event-pgn?tnr=../1')})).status,400);
 console.log('event PGN proxy tests passed');

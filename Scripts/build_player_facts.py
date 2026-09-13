@@ -21,7 +21,7 @@ from typing import Any, Iterable
 import build_static_player_pgn as pgn
 from snapshot_context import snapshot_id
 from stable_json import write_json
-from pgn_matching import GameLookup
+from pgn_matching import GameLookup, explicit_fide_ids
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -306,7 +306,22 @@ def add_game(
     pairing_white, pairing_black = pairing_fide_ids(pairing, registry, names)
     white_id = white_id or pairing_white or names.get(pgn.normalize_key(headers.get("White")), "")
     black_id = black_id or pairing_black or names.get(pgn.normalize_key(headers.get("Black")), "")
+    if source_kind == "canonical-bulk-pgn":
+        # A different explicit ID is evidence against a same-name registry match.
+        def bulk_identity(side):
+            ids = explicit_fide_ids(headers, side)
+            if ids:
+                value = next(iter(ids)) if len(ids) == 1 else ""
+                return value if value in registry else ""
+            return names.get(pgn.normalize_key(headers.get(side)), "")
+        white_id, black_id = bulk_identity("White"), bulk_identity("Black")
     hinted = clean(player_hint)
+    if source_kind == "canonical-bulk-pgn" and hinted:
+        role = hinted_role(hinted, headers, registry)
+        ids = explicit_fide_ids(headers, role.title()) if role in {"white", "black"} else set()
+        if ids and ids != {hinted}:
+            hinted = ""
+
     if hinted in registry and hinted not in {white_id, black_id}:
         role = hinted_role(hinted, headers, registry)
         if role == "white" and not white_id:
