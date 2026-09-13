@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260912T042708Z-27a9e4f8",
-  "generatedAt": "2026-09-12T04:42:35+00:00",
+  "snapshotId": "20260913T114856Z-38e985ca",
+  "generatedAt": "2026-09-13T11:50:57+00:00",
   "player": {
     "fideID": "8690723",
     "id": "fide-8690723",
@@ -19,13 +19,12 @@
     ]
   },
   "totals": {
-    "games": 31,
+    "games": 38,
     "events": 5,
     "packages": 3,
-    "bytes": 297592,
+    "bytes": 332933,
     "stages": {
-      "U8": 30,
-      "U10": 1
+      "U8": 30
     }
   },
   "packages": [
@@ -33,15 +32,28 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8690723/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/0b/0bafaa5255ff237e1e4b547271adb482a9f534639dfa4abf8f3e86a5f154f8d0.pgn",
-      "objectPath": "data/pgn/objects/sha256/0b/0bafaa5255ff237e1e4b547271adb482a9f534639dfa4abf8f3e86a5f154f8d0.pgn",
-      "gameCount": 31,
-      "pgnBytes": 148750,
-      "sha256": "0bafaa5255ff237e1e4b547271adb482a9f534639dfa4abf8f3e86a5f154f8d0",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/74/74ef5b6cecd35c11188a9474fb6c8ed422abcdff6ac33e60a85c63689f7a8edb.pgn",
+      "objectPath": "data/pgn/objects/sha256/74/74ef5b6cecd35c11188a9474fb6c8ed422abcdff6ac33e60a85c63689f7a8edb.pgn",
+      "gameCount": 38,
+      "pgnBytes": 166421,
+      "sha256": "74ef5b6cecd35c11188a9474fb6c8ed422abcdff6ac33e60a85c63689f7a8edb",
       "stages": {
-        "U8": 30,
-        "U10": 1
+        "U8": 30
       },
+      "sources": [
+        "Lichess Broadcasts"
+      ]
+    },
+    {
+      "id": "U6",
+      "label": "U6 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8690723/U6.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/9b/9b79ba17fafa30d487d4238f91f86f86375bce1840e0b5825fd2cd2ccecbf5e4.pgn",
+      "objectPath": "data/pgn/objects/sha256/9b/9b79ba17fafa30d487d4238f91f86f86375bce1840e0b5825fd2cd2ccecbf5e4.pgn",
+      "gameCount": 8,
+      "pgnBytes": 19749,
+      "sha256": "9b79ba17fafa30d487d4238f91f86f86375bce1840e0b5825fd2cd2ccecbf5e4",
+      "stages": {},
       "sources": [
         "Lichess Broadcasts"
       ]
@@ -57,22 +69,6 @@
       "sha256": "9577950623be826b97942562784b7f2a40a9284405b22aae6c157e81d4a1dba6",
       "stages": {
         "U8": 30
-      },
-      "sources": [
-        "Lichess Broadcasts"
-      ]
-    },
-    {
-      "id": "U10",
-      "label": "U10 PGN",
-      "pgnPath": "data/pgn/by-player/fide-8690723/U10.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/0d/0d4fe1af7691a30275da445087aed9d20bd7134406081c4bd4fb90617ebc8afa.pgn",
-      "objectPath": "data/pgn/objects/sha256/0d/0d4fe1af7691a30275da445087aed9d20bd7134406081c4bd4fb90617ebc8afa.pgn",
-      "gameCount": 1,
-      "pgnBytes": 2079,
-      "sha256": "0d4fe1af7691a30275da445087aed9d20bd7134406081c4bd4fb90617ebc8afa",
-      "stages": {
-        "U10": 1
       },
       "sources": [
         "Lichess Broadcasts"
@@ -157,12 +153,14 @@
       "date": "2025-10-07",
       "tournamentID": "",
       "canonicalEventID": null,
-      "stage": "U10",
-      "naturalStage": "",
+      "stage": "U6",
+      "naturalStage": "U6",
       "eventStage": "",
-      "gameCount": 1,
+      "gameCount": 8,
       "results": {
-        "*": 1
+        "1-0": 1,
+        "0-1": 4,
+        "*": 3
       },
       "nameTranslationPending": false
     }
@@ -182,7 +180,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "2f54b8afb951a8e3c98dfd398b10a61471fc759ad465605cc73453647633040e"
     },
     {
@@ -199,7 +196,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "c5a3a53e487e5d3cffce98b4bed2a31244dd0393c894a4b45f6d7a7c35c18b78"
     },
     {
@@ -216,7 +212,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "f50064cee641845151cb35684a0eb2e59b49cf6acc0ff61912de0e5abdf710e4"
     },
     {
@@ -233,7 +228,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "c52e83e56c2cf2e97ebde877c55e70b3589ce4fd58ddbe398b60fbc416379d82"
     },
     {
@@ -250,7 +244,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "721fee1544c0c60c9e8cfbd1b14671eda8519149beae2d955f6b8f912f25499c"
     },
     {
@@ -267,7 +260,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "fc9b9bcb93c5b50c8aebf70ec3d0b1d00fe4626d46dd69a488bd484a0a337e86"
     },
     {
@@ -284,7 +276,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "4f27e821fdc68f405ff09e3004012d67948f0e67f2ec22ecdd06ccf4c375b1e4"
     },
     {
@@ -302,7 +293,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "9cb4f896bdbace4e3b0aeb94f4114dab42ed75adfe5bbb3be7d6d8928a008b3f"
     },
     {
@@ -320,7 +310,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "d9d1c28e4fab3c1ca2d6aa999a7f7064612b0a5cd1c38824e192b1307f93b99d"
     },
     {
@@ -338,7 +327,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "1b02dc18b98d96ff6cbe71f50c77a9505a688fedcf9e1e826b56823edfd75f38"
     },
     {
@@ -356,7 +344,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "f1a1a5957e0331931480496360d725282398eb491dc0e378ca77cdab2d5adc82"
     },
     {
@@ -374,7 +361,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "8f925917365e4363b472159a8356ee2baef20946af3083a568673eb548715e00"
     },
     {
@@ -392,7 +378,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "c1a7df2f51067472b013aab1d8e62213f333b7526b1e6c67e9d6d7df41a3a07a"
     },
     {
@@ -410,7 +395,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "12e100f0d95f4efa9547fb79f8788990d6db0f5a03c9417c957ffbd497b6ec7a"
     },
     {
@@ -428,7 +412,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "5f6151bdf976a75bb0a0f95e06698205b35f85739ff5566e03a00941c8ccf822"
     },
     {
@@ -446,7 +429,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "22302023477ac4535cde2ee41a709637188b05b572f3d88e5ad868316de3ee3b"
     },
     {
@@ -464,7 +446,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "209f874ee1d99c61cd1d5fd504ff7afa14786fdc8604aca5ffcf418f6db4f907"
     },
     {
@@ -482,7 +463,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "88c3ed41b0bbd3f287ce5f512ad31f474f237f79cf63f561a3c90bf019f629b1"
     },
     {
@@ -500,7 +480,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "5ca403dfb9b335927bcc307eb3558516c662c942ff398311d358d9c46f4cf649"
     },
     {
@@ -518,7 +497,6 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "7d24ece8cae6d5d65ae62bf70eeba9bb80dea7dafcd87d39685509a122456492"
     },
     {
@@ -536,7 +514,6 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2026-08.pgn.zst",
       "sha256": "42afcb6c43fbef13f454c145043e5677bf5206f7ad4a265a779507e81497ae27"
     },
     {
@@ -684,6 +661,54 @@
       "sha256": "98dfc630a92d3895428c73080e353b3b6a57880f4fb732b837d046bf2bc32d31"
     },
     {
+      "id": "d6941d2fcdf41ad2bb481b5528b4908d3e20e15446c388cd2a0361057a505ab3",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-07",
+      "white": "郝致远",
+      "black": "吴彦希",
+      "result": "1-0",
+      "source": "Lichess Broadcasts",
+      "round": "8",
+      "stage": "U6",
+      "naturalStage": "U6",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U6/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U6/games.json",
+      "sha256": "d6941d2fcdf41ad2bb481b5528b4908d3e20e15446c388cd2a0361057a505ab3"
+    },
+    {
+      "id": "437e5c9f53a31a4396ea5184cc9189d8f05c05fab4a31f8ff73301f5d1408a36",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-07",
+      "white": "张轩宁",
+      "black": "吴彦希",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "6",
+      "stage": "U6",
+      "naturalStage": "U6",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U6/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U6/games.json",
+      "sha256": "437e5c9f53a31a4396ea5184cc9189d8f05c05fab4a31f8ff73301f5d1408a36"
+    },
+    {
+      "id": "327f92cd2eb380a27270b5537ad268554b633500dd261298156b494ebc118e8b",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-07",
+      "white": "吴彦希",
+      "black": "周钰博",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "7",
+      "stage": "U6",
+      "naturalStage": "U6",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U6/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U6/games.json",
+      "sha256": "327f92cd2eb380a27270b5537ad268554b633500dd261298156b494ebc118e8b"
+    },
+    {
       "id": "de6c00e8eed2c5be9b7499b0e5f3b16014310d9d48a51f6d5bcc08fc808eed6b",
       "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
       "date": "2025-10-07",
@@ -692,12 +717,76 @@
       "result": "*",
       "source": "Lichess Broadcasts",
       "round": "5",
-      "stage": "U10",
+      "stage": "U6",
+      "naturalStage": "U6",
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U10/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U10/games.json",
-      "sourceShard": "data/bulk/lichess-broadcast/shards/lichess_db_broadcast_2025-10.pgn.zst",
       "sha256": "de6c00e8eed2c5be9b7499b0e5f3b16014310d9d48a51f6d5bcc08fc808eed6b"
+    },
+    {
+      "id": "a9b84926d01989806aeea9525cb93f1e36f57b9704439fdb35dce94caf05b528",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-06",
+      "white": "吴彦希",
+      "black": "顾维哲",
+      "result": "*",
+      "source": "Lichess Broadcasts",
+      "round": "3",
+      "stage": "U6",
+      "naturalStage": "U6",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U6/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U6/games.json",
+      "sha256": "a9b84926d01989806aeea9525cb93f1e36f57b9704439fdb35dce94caf05b528"
+    },
+    {
+      "id": "5de63c9b2f444699557419330aa7bb33d274a2b84b1fe7732ed7d1dab78067be",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-06",
+      "white": "吴彦希",
+      "black": "刘安泽",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "1",
+      "stage": "U6",
+      "naturalStage": "U6",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/U6/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U6/games.json",
+      "sha256": "5de63c9b2f444699557419330aa7bb33d274a2b84b1fe7732ed7d1dab78067be"
+    },
+    {
+      "id": "d6900d1bb9399cf0ee8fc80b55a8cebb94d479159360b4a62a01cfec92c264da",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-06",
+      "white": "史晋泽",
+      "black": "吴彦希",
+      "result": "*",
+      "source": "Lichess Broadcasts",
+      "round": "4",
+      "stage": "U6",
+      "naturalStage": "U6",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U6/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U6/games.json",
+      "sha256": "d6900d1bb9399cf0ee8fc80b55a8cebb94d479159360b4a62a01cfec92c264da"
+    },
+    {
+      "id": "47fc013933a6dd1178a9b3018f3a7421356ce6ca6e83345ab41825518266cb78",
+      "event": "2025年全国国际象棋棋协大师赛 | 盐城站 男子一级棋士A组",
+      "date": "2025-10-06",
+      "white": "刘义骁",
+      "black": "吴彦希",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "2",
+      "stage": "U6",
+      "naturalStage": "U6",
+      "role": "black",
+      "sourcePgnPath": "data/bulk/youth/pgn/U6/lichess-broadcast-youth.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/U6/games.json",
+      "sha256": "47fc013933a6dd1178a9b3018f3a7421356ce6ca6e83345ab41825518266cb78"
     }
   ]
 }
