@@ -373,7 +373,7 @@ def ingest_player_game_facts(
                 source=clean(fact.get("source")) or "Static PGN",
                 broadcast_name=clean(headers.get("BroadcastName")),
                 round=clean(fact.get("round") or headers.get("Round")),
-                stage=fact_stage or natural_stage or entered_stage,
+                stage=natural_stage or ("unknown-age" if not profile.birth_year else fact_stage or entered_stage),
                 natural_stage=natural_stage,
                 event_stage=entered_stage,
                 source_pgn_path=clean(fact.get("publicPgnPath")),
@@ -595,7 +595,7 @@ def write_outputs(
         )
         packages.append(all_package)
 
-        for stage_id in ["U8", "U10", "U12", "U14", "U16", "U18", "adult"]:
+        for stage_id in ["U6", "U8", "U10", "U12", "U14", "U16", "U18", "adult", "unknown-age"]:
             stage_games = [game for game in bucket.games if game.stage == stage_id]
             if not stage_games:
                 continue
@@ -603,7 +603,7 @@ def write_outputs(
                 build_package(
                     fide_id=fide_id,
                     package_id=stage_id,
-                    label=f"{stage_id} PGN",
+                    label="年龄未知 PGN" if stage_id == "unknown-age" else f"{stage_id} PGN",
                     games=stage_games,
                     target=player_dir / f"{stage_id}.pgn",
                     dry_run=dry_run,
@@ -1078,7 +1078,7 @@ def prune_stale_outputs(buckets: dict[str, PlayerBucket]) -> None:
         expected_index.add(OUTPUT_INDEX_ROOT / f"fide-{fide_id}.json")
         player_dir = OUTPUT_PGN_ROOT / f"fide-{fide_id}"
         expected_pgn.add(player_dir / "all.pgn")
-        for stage_id in ["U8", "U10", "U12", "U14", "U16", "U18", "adult"]:
+        for stage_id in ["U6", "U8", "U10", "U12", "U14", "U16", "U18", "adult", "unknown-age"]:
             if any(game.stage == stage_id for game in bucket.games):
                 expected_pgn.add(player_dir / f"{stage_id}.pgn")
     for root, expected in ((OUTPUT_INDEX_ROOT, expected_index), (OUTPUT_PGN_ROOT, expected_pgn)):

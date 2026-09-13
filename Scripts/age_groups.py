@@ -56,6 +56,8 @@ def stage_for_age(age: int | None) -> str:
     """Exclusive PGN-segmentation stage for a game played at this age."""
     if age is None:
         return ""
+    if 0 <= age <= 6:
+        return "U6"
     for stage, lower, upper in YOUTH_STAGES:
         if lower <= age <= upper:
             return stage

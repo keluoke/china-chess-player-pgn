@@ -50,8 +50,12 @@ def validate_observation_manifest(path: pathlib.Path) -> None:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"invalid observation manifest: {meta_path}") from exc
-    if meta.get("schemaVersion") != 2:
+    if meta.get("schemaVersion") not in {2, 3}:
         raise ValueError(f"unsupported observation schemaVersion: {meta.get('schemaVersion')}")
+    if meta.get("schemaVersion") == 3:
+        with path.open("r", encoding="utf-8-sig", newline="") as handle:
+            if "fide_id" not in (csv.DictReader(handle).fieldnames or []):
+                raise ValueError("observation schema v3 requires fide_id")
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     if digest != clean(meta.get("sha256")):
         raise ValueError("person-observations.csv does not match its manifest sha256")
@@ -323,6 +327,10 @@ def read_sightings(path: pathlib.Path, required_columns: set[str] | None = None)
         if missing:
             raise ValueError(f"{path} uses an incompatible schema; missing columns: {', '.join(missing)}")
         for row in reader:
+            # Linked observations are retained in the evidence timeline only.
+            # They must not create a duplicate provisional domestic identity.
+            if clean(row.get("fide_id")):
+                continue
             if not any((value or "").strip() for value in row.values()):
                 continue
             sighting = Sighting(

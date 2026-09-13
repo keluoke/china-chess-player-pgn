@@ -140,6 +140,8 @@ class FormParser(html.parser.HTMLParser):
 
 
 def main() -> int:
+    from legacy_pgn_support import require_migration_library
+    require_migration_library()
     parser = argparse.ArgumentParser(description="Sync static PGN archive for GitHub Pages.")
     parser.add_argument("--fetch-missing", action="store_true", help="fetch missing PGNs from supported sources")
     parser.add_argument("--player", action="append", default=[], help="limit to one FIDE ID; repeatable")

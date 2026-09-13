@@ -1,3 +1,5 @@
+> 历史方案：旧采集/晋升命令已退役，现行入口见 Scripts/local/README.md。
+
 # 数据源比对与补库方案
 
 目标不是让网页用户临时点击按钮去抓数据，而是建立一条可审查、可重复、可回滚的数据生产线：先侦察数据源，生成仓库缺口报告；确认来源和质量后，再把合格 PGN 晋升到 `docs/data/pgn/`，最后重建棋手和年龄段查询索引。
@@ -50,9 +52,9 @@ docs/data/audit/
 定期或手动运行本地侦察兵，不直接改 `docs/data/pgn/`：
 
 ```bash
-python3 Scripts/pgn_scout.py seed-chess-results-targets
-python3 Scripts/pgn_scout.py fetch-chess-results --max-requests 200
-python3 Scripts/pgn_scout.py report --write reports/pgn-scout-report.md
+# 已退役；使用现行维护手册中的 refresh.sh event-queue / GitHub Lichess 月度流程。
+# 已退役；使用现行维护手册中的 refresh.sh event-queue / GitHub Lichess 月度流程。
+# 已退役；使用现行维护手册中的 refresh.sh event-queue / GitHub Lichess 月度流程。
 ```
 
 国内来源先进入来源目录：
@@ -97,8 +99,8 @@ python3 Scripts/reconcile_pgn_sources.py --write-audit
 只有审核通过后才执行：
 
 ```bash
-python3 Scripts/promote_public_pgn.py --promote-scout --source <approved-source>
-python3 Scripts/sync_static_pgn.py --from-local-cache
+# 已退役；使用现行维护手册中的 refresh.sh event-queue / GitHub Lichess 月度流程。
+# 已退役；使用现行维护手册中的 refresh.sh event-queue / GitHub Lichess 月度流程。
 python3 Scripts/build_static_player_pgn.py
 python3 Scripts/reconcile_pgn_sources.py --write-audit
 ```

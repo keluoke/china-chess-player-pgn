@@ -148,6 +148,11 @@
    snapshot/inputCommit、全包集合、对象 key/hash/bytes、配额和抽验记录任一不一致
    即 fail-closed。deploy 必须再次验证同一 receipt 并记录其 SHA-256；禁止在该
    原子链内预先改写 mutable alias。
+8b-1. 公开赛事 PGN 接口从 `event-pgn-objects.json` 解析完整 SHA-256 对象；
+   rebuild 在同一快照下认证 `event-pgn-r2-receipt.json`，deploy 复核并记录回执哈希。
+   逻辑接口缓存最多 60 秒，带版本哈希的旧请求不得误返回新版本正文。
+   广播事实覆盖所有 registry 成员；未知年龄进入 unknown-age，已转出但仍在
+   registry 的棋手不得丢弃。新广播索引必须记录棋局 SHA-256，姓名歧义不得任选。
 8c. collector 工作区执行的 runtime 与控制输入只能由代码工作区已提交的 `main`
    通过 `collector-runtime-plan` / `collector-runtime-sync` 精确安装。面板必须在
    导入其他受管模块前验证完整 panel profile；refresh 必须在创建 run 或访问来源前

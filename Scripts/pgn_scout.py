@@ -69,23 +69,7 @@ class ChessResultsTarget:
     source_url: str = ""
 
 
-class FormParser(html.parser.HTMLParser):
-    def __init__(self, base_url: str) -> None:
-        super().__init__()
-        self.base_url = base_url
-        self.action_url = base_url
-        self.fields: dict[str, str] = {}
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        values = {key.lower(): value or "" for key, value in attrs}
-        if tag.lower() == "form":
-            action = values.get("action")
-            if action:
-                self.action_url = urllib.parse.urljoin(self.base_url, action)
-        if tag.lower() == "input":
-            name = values.get("name")
-            if name:
-                self.fields[name] = values.get("value", "")
+from legacy_pgn_support import FormParser, require_migration_library
 
 
 class LinkParser(html.parser.HTMLParser):
@@ -102,6 +86,7 @@ class LinkParser(html.parser.HTMLParser):
 
 
 def main() -> int:
+    require_migration_library()
     parser = argparse.ArgumentParser(description="Local raw PGN scout for Chinese chess assets.")
     parser.add_argument("--root", type=pathlib.Path, default=DEFAULT_ROOT, help="local scout asset root")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -383,25 +368,10 @@ def fetch_chess_results(root: pathlib.Path, args: argparse.Namespace) -> ScoutSt
 
 
 def download_chess_results_pgn(fide_id: str, tournament_id: str) -> str:
-    form = load_form(CHESS_RESULTS_FORM_URL)
-    fields = dict(form["fields"])
-    fields["ctl00$P1$Txt_FideID"] = fide_id
-    fields["ctl00$P1$txt_dbkey"] = tournament_id
-    fields["ctl00$P1$combo_anzahl_zeilen"] = "5"
-    fields["ctl00$P1$cb_DownLoadPGN"] = "Download as PGN-File"
-    body = urllib.parse.urlencode(fields).encode("utf-8")
-    request = urllib.request.Request(
-        form["action_url"],
-        data=body,
-        headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": USER_AGENT,
-            "Referer": form["base_url"],
-        },
-        method="POST",
-    )
-    with open_url(request) as response:
-        return decode_response(response.read())
+    from legacy_pgn_support import download_chess_results_pgn as download
+    return download(fide_id, tournament_id, load_form=load_form,
+                    form_url=CHESS_RESULTS_FORM_URL, user_agent=USER_AGENT,
+                    open_url=open_url, decode_response=decode_response)
 
 
 def load_form(url: str) -> dict[str, Any]:

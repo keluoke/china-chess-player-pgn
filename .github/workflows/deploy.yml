@@ -79,6 +79,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 Scripts/validate_player_pgn_r2_receipt.py
+          python3 Scripts/event_pgn_objects.py --validate
+          echo "event_sha256=$(sha256sum docs/data/index/event-pgn-r2-receipt.json | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
           receipt_sha="$(sha256sum docs/data/index/player-pgn-r2-receipt.json | awk '{print $1}')"
           if ! [[ "$receipt_sha" =~ ^[0-9a-f]{64}$ ]]; then
             echo "DEPLOY_RECEIPT_INVALID: R2 receipt hash invalid" >&2
@@ -116,6 +118,7 @@ jobs:
           SNAPSHOT_ID: ${{ steps.target.outputs.snapshot_id }}
           INPUT_COMMIT: ${{ steps.target.outputs.input_commit }}
           R2_RECEIPT_SHA256: ${{ steps.r2-receipt.outputs.sha256 }}
+          EVENT_R2_RECEIPT_SHA256: ${{ steps.r2-receipt.outputs.event_sha256 }}
         run: |
           {
             echo "## Exact deployment receipt"
@@ -124,6 +127,7 @@ jobs:
             echo "- snapshot ID: \`$SNAPSHOT_ID\`"
             echo "- snapshot input: \`$INPUT_COMMIT\`"
             echo "- player PGN R2 receipt: \`$R2_RECEIPT_SHA256\`"
+            echo "- event PGN R2 receipt: \`$EVENT_R2_RECEIPT_SHA256\`"
             echo "- target gate: \`${{ steps.target.outcome }}\`"
             echo "- R2 gate: \`${{ steps.r2-receipt.outcome }}\`"
             echo "- deploy action: \`${{ steps.deploy.outcome }}\`"

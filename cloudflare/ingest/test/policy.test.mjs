@@ -253,3 +253,18 @@ test("chunk fingerprint is stable across Python client and Worker", async () => 
     .map((value) => value.toString(16).padStart(2, "0")).join("");
   assert.equal(hex, "97df5f9596b1f6cb87225d0e02ebb9a188e2dcf8caa2acf4513dfc8236fb7463");
 });
+
+test("shared protocol-v1 fixture binds Python and Worker canonical bytes", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { createHash } = await import("node:crypto");
+  const fixture = JSON.parse(await readFile(new URL("./protocol-v1.json", import.meta.url), "utf8"));
+  assert.equal(fixture.schemaVersion, 1);
+  const r = fixture.canonicalRequest;
+  assert.equal(canonicalRequest(r.method, r.path, r.timestamp, r.nonce, r.digest), fixture.expectedRequest);
+  const text = chunkFingerprintText(fixture.files);
+  assert.equal(text, fixture.expectedChunk);
+  assert.equal(createHash("sha256").update(text).digest("hex"), fixture.chunkSha256);
+  assert.equal(Number(env.MAX_RELEASE_FILES), fixture.limits.maxFiles);
+  assert.equal(Number(env.MAX_RELEASE_BYTES), fixture.limits.maxBytes);
+  assert.equal(Number(env.MULTIPART_PART_BYTES), fixture.limits.partBytes);
+});

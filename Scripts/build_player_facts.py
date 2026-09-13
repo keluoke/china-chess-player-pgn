@@ -21,6 +21,7 @@ from typing import Any, Iterable
 import build_static_player_pgn as pgn
 from snapshot_context import snapshot_id
 from stable_json import write_json
+from pgn_matching import GameLookup
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -504,22 +505,28 @@ def ingest_bulk_youth(
             continue
         entries = read_json(index_path, required=True)
         pgn_games = split_asset(pgn_path)
-        by_key: dict[str, str] = {}
-        for game in pgn_games:
-            by_key.setdefault(pgn.game_key_from_headers(pgn.pgn_headers(game)), game)
-        positions = {pgn.stable_game_hash(game): index for index, game in enumerate(pgn_games)}
+        lookup = GameLookup(pgn_games, pgn)
+        # Resolve canonical PGNs independently using registry IDs or unique names.
+        # Legacy indexes may lack digests and several distinct games can share
+        # Event/Date/names/result; an ambiguous index must not erase these games.
+        for game_index, game in enumerate(pgn_games):
+            add_game(games, game=game, asset_path=pgn_path, game_index=game_index,
+                     source_kind="canonical-bulk-pgn", source_label="Lichess Broadcasts",
+                     registry=registry, names=names, contexts=contexts, stage=stage_id,
+                     public_pgn_path=public_data_path(pgn_path),
+                     source_index_path=public_data_path(index_path),
+                     verified_by=repo_path(BULK_YOUTH_MANIFEST))
         for entry in entries if isinstance(entries, list) else []:
             fide_id = clean(entry.get("fideID"))
             if fide_id not in registry:
                 continue
-            game = by_key.get(pgn.game_key_from_entry(entry), "")
-            if not game:
-                game = next((candidate for candidate in pgn_games if pgn.loose_match(pgn.pgn_headers(candidate), entry)), "")
-            if not game:
+            match = lookup.resolve(entry)
+            if match is None:
                 continue
+            game_index, game = match
             add_game(
                 games, game=game, asset_path=pgn_path,
-                game_index=positions.get(pgn.stable_game_hash(game), 0),
+                game_index=game_index,
                 source_kind="canonical-bulk-pgn", source_label="Lichess Broadcasts",
                 registry=registry, names=names, contexts=contexts,
                 player_hint=fide_id, stage=stage_id,

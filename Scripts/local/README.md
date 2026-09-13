@@ -447,3 +447,17 @@ git fetch origin main
 不受网络影响，推送也能使用 15236；终端命令仍由脚本显式注入代理，不能只依赖
 系统设置或 `scutil`。采集投递脚本可以探测候选路线并自行注入，但代理只能传给
 Git/GitHub API，绝不能传给 Chess-Results、FIDE 或 Lichess 来源请求。
+
+
+## 维护边界补充（2026-09）
+
+- 广播以 registry 成员集合收录，年龄仅为后续投影；未知年龄不丢棋局。
+- pgn_scout、promote_public_pgn、sync_static_pgn CLI 已退役，直接执行返回
+  MIGRATION_ONLY；reconcile_pgn_sources 只保留离线审计。恢复工作使用现行
+  staging/manifest，不从旧棋手索引反推事实。
+- 构建前验证全部必要脚本存在；snapshot v6 分别记录构建前输入与构建后产物。
+  对缺少原始详情的历史观察记录，仅保留其已有证据，v3 新列不得伪造身份。
+- 赛事 PGN 在统一 rebuild 后认证内容寻址 R2 对象，部署前复核同快照回执。
+  采集机仍可保留原有兼容对象；公共接口按认证清单解析，不再长时间缓存可变对象。
+- 公共 HTML 由 Scripts/public_html_allowlist.txt 控制，实验资料留在
+  experiments/estimated-ratings，不进入生产测试发现或静态站点。

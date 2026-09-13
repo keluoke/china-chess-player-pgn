@@ -14,6 +14,8 @@ import json
 import pathlib
 import sys
 
+from public_site_surface import public_html_paths
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_ROOT = REPO_ROOT / "docs"
 MARKDOWN_ALLOWLIST = REPO_ROOT / "Scripts" / "public_markdown_allowlist.txt"
@@ -112,6 +114,11 @@ def main() -> int:
             if hits:
                 rel = path.relative_to(public_root)
                 failures.append(f"{rel}: {len(hits)} private field(s), e.g. {hits[0]}")
+
+    html_allowlist = {path.relative_to(DOCS_ROOT).as_posix() for path in public_html_paths(DOCS_ROOT)}
+    if args.site_root:
+        unexpected_html = {path.relative_to(public_root).as_posix() for path in public_root.rglob("*.html")} - html_allowlist
+        failures.extend(f"{path}: HTML is not in the public allowlist" for path in sorted(unexpected_html))
 
     allowlist = public_markdown_allowlist()
     if args.site_root:

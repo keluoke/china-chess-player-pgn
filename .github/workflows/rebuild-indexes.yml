@@ -107,6 +107,7 @@ jobs:
             --max-class-b 10000 \
             --workers 4
           python3 Scripts/validate_player_pgn_r2_receipt.py
+          python3 Scripts/event_pgn_objects.py --certify
 
       - name: Commit rebuilt indexes
         id: commit
@@ -117,6 +118,7 @@ jobs:
         run: >-
           bash Scripts/ci_commit_push.sh "Rebuild derived indexes"
           data/generated/event-completeness-report.json
+          data/generated/person-observations.csv data/generated/person-observations.meta.json
           data/generated/pgn-supplement-queue.json
           data/generated/player-event-facts data/generated/player-game-facts
           docs/data docs/api

@@ -37,6 +37,7 @@ runs:
         rm -rf "$out"
         rsync -a --delete \
           --exclude '*.md' \
+          --exclude '*.html' \
           --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
           --exclude 'data/bulk/youth/' \
           --exclude 'data/pgn/' \
@@ -47,6 +48,8 @@ runs:
           --exclude 'data/index/players.json' \
           --exclude 'data/index/players/' \
           docs/ "$out"/
+
+        python3 Scripts/public_site_surface.py --copy-html "$out"
 
         # Markdown is deny-by-default. Only documents explicitly listed in the
         # shared allowlist are copied into the public artifact; reviews,

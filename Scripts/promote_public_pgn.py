@@ -68,26 +68,11 @@ class PromotionStats:
     errors: list[str] = field(default_factory=list)
 
 
-class FormParser(html.parser.HTMLParser):
-    def __init__(self, base_url: str) -> None:
-        super().__init__()
-        self.base_url = base_url
-        self.action_url = base_url
-        self.fields: dict[str, str] = {}
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        values = {key.lower(): value or "" for key, value in attrs}
-        if tag.lower() == "form":
-            action = values.get("action")
-            if action:
-                self.action_url = urllib.parse.urljoin(self.base_url, action)
-        if tag.lower() == "input":
-            name = values.get("name")
-            if name:
-                self.fields[name] = values.get("value", "")
+from legacy_pgn_support import FormParser, require_migration_library
 
 
 def main() -> int:
+    require_migration_library()
     parser = argparse.ArgumentParser(description="Promote public PGN into docs/data/pgn.")
     parser.add_argument("--player", action="append", default=[], help="FIDE ID to scan/promote; repeatable")
     parser.add_argument("--source", action="append", default=[], help="RawPGNScout source to promote; repeatable")

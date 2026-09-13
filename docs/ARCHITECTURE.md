@@ -84,10 +84,10 @@ docs/data/pgn/by-player/fide-8657238/U12.pgn
 
 ## 同步脚本
 
-### `sync_static_pgn.py`
+### `sync_static_pgn.py`（历史迁移库，CLI 已退役）
 
-离线静态索引维护入口。Chess-Results 网络下载功能受授权策略硬门控；GitHub
-Actions 只读取既有文件并重建 manifest/索引。
+CLI 已阻断，仅保留离线迁移与 parser fixture 所需库函数。生产派生重建统一使用
+`build_release_snapshot.py`，不再回读旧静态索引重建身份。
 
 ### `build_static_player_pgn.py`
 

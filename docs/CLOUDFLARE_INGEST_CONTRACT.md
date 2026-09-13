@@ -151,3 +151,11 @@ Queue 暂时性错误在前三次失败时回到 `queued` 并保留错误详情�
 - R2：<https://developers.cloudflare.com/r2/pricing/>
 
 官方额度发生降低时立即采用更低值并停发复核，不得依赖本文旧数字继续运行。
+
+
+## 跨语言协议回归
+
+`cloudflare/ingest/test/protocol-v1.json` 是 Python client 与 Worker 共用的版本化
+规范样例，固定 canonical request、chunk JSON 的 UTF-8 字节/哈希和免费层限额。
+修改协议必须同时通过 Python `test_review_optimizations` 与 Worker policy 测试，
+不能只更新一侧样例。该改动不改变 shadow-only 状态或任何资源额度。

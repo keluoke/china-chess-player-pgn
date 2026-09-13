@@ -73,8 +73,11 @@ def validate(
     pgn_root: pathlib.Path = PGN_ROOT,
     package_manifest_path: pathlib.Path = PACKAGE_MANIFEST,
     check_local_files: bool = True,
+    expected_override: dict | None = None,
+    prefix: str = "data/pgn",
+    receipt_field: str = "playerObjects",
 ) -> dict[str, int]:
-    expected = expected_packages(bucket_root)
+    expected = expected_packages(bucket_root) if expected_override is None else expected_override
     receipt = load(receipt_path)
     snapshot = load(snapshot_path)
     package_manifest = load(package_manifest_path)
@@ -84,7 +87,7 @@ def validate(
         or receipt.get("bodyVerified") is not True
         or receipt.get("bodyCertified") is not True
         or receipt.get("bucket") != "chess-data"
-        or receipt.get("objectPattern") != "data/pgn/objects/sha256/<first-two>/<sha256>.pgn"
+        or receipt.get("objectPattern") != f"{prefix}/objects/sha256/<first-two>/<sha256>.pgn"
     ):
         raise ValueError("player PGN receipt is not a body-certified schema-v3 receipt")
     endpoint = urllib.parse.urlsplit(str(receipt.get("endpoint") or ""))
@@ -99,7 +102,7 @@ def validate(
         or endpoint.path not in {"", "/"}
     ):
         raise ValueError("player PGN receipt endpoint is invalid")
-    rows = receipt.get("playerObjects") or []
+    rows = receipt.get(receipt_field) or []
     actual = {str(row.get("path") or ""): row for row in rows}
     if len(actual) != len(rows):
         raise ValueError("duplicate paths in player PGN R2 receipt")
@@ -116,7 +119,7 @@ def validate(
     unique_keys = {wanted["key"] for wanted in expected.values()}
     inventory = receipt.get("inventory") or {}
     if (
-        inventory.get("prefix") != "data/pgn/objects/sha256/"
+        inventory.get("prefix") != f"{prefix}/objects/sha256/"
         or int(inventory.get("expectedKeys", -1)) != len(unique_keys)
         or int(inventory.get("presentKeys", -1)) != len(unique_keys)
         or int(inventory.get("pages") or 0) <= 0
@@ -169,12 +172,12 @@ def validate(
         ):
             raise ValueError(f"player PGN receipt row mismatch: {path}")
         if check_local_files:
-            local = pgn_root / pathlib.Path(path).relative_to("data/pgn")
+            local = pgn_root / pathlib.Path(path).relative_to(prefix)
             if not local.is_file() or local.stat().st_size != wanted["bytes"] or file_sha256(local) != wanted["sha256"]:
                 raise ValueError(f"local player PGN package mismatch: {path}")
         total_bytes += wanted["bytes"]
     totals = package_manifest.get("totals") or {}
-    if int(totals.get("packages") or -1) != len(expected) or int(totals.get("bytes") or -1) != total_bytes:
+    if int(totals.get("packages", -1)) != len(expected) or int(totals.get("bytes", -1)) != total_bytes:
         raise ValueError("player PGN manifest totals mismatch")
     return {"packages": len(expected), "bytes": total_bytes}
 

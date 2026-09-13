@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const source=await readFile(new URL('../../functions/api/event-pgn.js',import.meta.url),'utf8');
+const {onRequestGet,onRequestHead}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const hash='a'.repeat(64), key=`events/chess-results/objects/sha256/aa/${hash}.pgn`;
+const item={path:'events/chess-results/tnr12345.pgn',key,sha256:hash,bytes:12,publicURL:`https://data.chessdb.aigclabs.cc/${key}`};
+const calls=[];let manifestStatus=200, length=12;
+globalThis.fetch=async(url,options)=>{
+  calls.push([String(url),options]);
+  if(String(url).endsWith('event-pgn-objects.json'))return manifestStatus===200?Response.json({events:{'12345':item}}):new Response('',{status:manifestStatus});
+  return new Response('abcdefghijkl',{headers:{'content-length':String(length)}});
+};
+const context={request:new Request('https://4chess.cc/api/event-pgn?tnr=12345')};
+assert.equal((await onRequestGet({request:new Request('https://4chess.cc/api/event-pgn?tnr=12345&sha='+ 'b'.repeat(16))})).status,409);
+calls.length=0;
+let response=await onRequestGet(context);assert.equal(response.status,200);assert.equal(calls[1][0],item.publicURL);assert.equal(response.headers.get('etag'),`"sha256-${hash}"`);assert.equal(response.headers.get('cache-control'),'public, max-age=60, must-revalidate');
+response=await onRequestHead(context);assert.equal(await response.text(),'');assert.equal(calls.at(-1)[1].method,'HEAD');
+item.publicURL='https://attacker.example/pg.pgn';assert.equal((await onRequestGet(context)).status,503);item.publicURL=`https://data.chessdb.aigclabs.cc/${key}`;
+length=13;assert.equal((await onRequestGet(context)).status,502);length=12;
+manifestStatus=503;assert.equal((await onRequestGet(context)).status,503);
+manifestStatus=404;assert.equal((await onRequestGet(context)).status,200);assert.equal(calls.at(-1)[1].cf.cacheTtl,60);
+assert.equal((await onRequestGet({request:new Request('https://4chess.cc/api/event-pgn?tnr=../1')})).status,400);
+console.log('event PGN proxy tests passed');

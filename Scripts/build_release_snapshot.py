@@ -31,6 +31,43 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SNAPSHOT_JSON = ROOT / "docs" / "data" / "snapshot.json"
+REQUIRED_BUILDERS = (
+    'Scripts/event_pgn_objects.py',
+    'Scripts/apply_aliases_to_registry.py',
+    'Scripts/build_player_facts.py',
+    'Scripts/build_static_player_pgn.py',
+    'Scripts/build_pgn_collection_status.py',
+    'Scripts/build_completeness_report.py',
+    'Scripts/build_event_details.py',
+    'Scripts/build_person_observations.py',
+    'Scripts/sync_domestic_players.py',
+    'Scripts/build_domestic_progressions.py',
+    'Scripts/build_event_catalog.py',
+    'Scripts/build_master_series_summary.py',
+    'Scripts/build_player_participation.py',
+    'Scripts/archive_rating_observations.py',
+    'Scripts/build_domestic_event_queue.py',
+    'Scripts/build_data_quality_audit.py',
+    'Scripts/reconcile_pgn_sources.py',
+    'Scripts/build_search_bootstrap.py',
+    'Scripts/build_public_metrics.py',
+    'Scripts/build_leaderboards.py',
+    'Scripts/build_api.py',
+    'Scripts/build_changelog.py',
+    'Scripts/build_dashboard.py',
+    'Scripts/validate_registry_authority.py',
+    'Scripts/validate_public_metrics.py',
+    'Scripts/validate_public_privacy.py',
+    'Scripts/validate_snapshot_consistency.py',
+    'Scripts/validate_registry_release.py',
+    'Scripts/validate_identity_clustering.py',
+)
+
+def preflight_builders():
+    missing = [name for name in REQUIRED_BUILDERS if not (ROOT / name).is_file()]
+    if missing:
+        raise RuntimeError("SNAPSHOT_BUILDER_MISSING: " + ", ".join(missing))
+
 
 
 def file_fact(path: pathlib.Path) -> dict:
@@ -59,7 +96,7 @@ def file_fact(path: pathlib.Path) -> dict:
     return fact
 
 
-def input_facts() -> list[dict]:
+def output_facts() -> list[dict]:
     paths = [
         ROOT / "data/generated/local-release-manifest.json",
         ROOT / "docs/data/registry/players.json",
@@ -71,6 +108,7 @@ def input_facts() -> list[dict]:
         ROOT / "data/generated/chess-results-player-name-map.csv",
         ROOT / "data/generated/pgn-collection-status.json",
         ROOT / "data/generated/r2-object-receipts/events--chess-results.json",
+        ROOT / "docs/data/index/event-pgn-objects.json",
         ROOT / "data/generated/player-event-facts/manifest.json",
         ROOT / "data/generated/player-game-facts/manifest.json",
         ROOT / "data/manual/domestic-player-sightings.csv",
@@ -80,20 +118,32 @@ def input_facts() -> list[dict]:
     return [file_fact(path) for path in paths]
 
 
+def input_facts() -> list[dict]:
+    # Capture before the first builder mutates the candidate tree.
+    derived = {"event-completeness-report.json", "pgn-collection-status.json", "event-pgn-objects.json"}
+    return [{**fact, "role": "retained-observation-baseline" if "person-observations" in fact["path"] else "canonical-input"}
+            for fact in output_facts()
+            if pathlib.Path(fact["path"]).name not in derived
+            and "player-event-facts/" not in fact["path"]
+            and "player-game-facts/" not in fact["path"]]
+
+
 def snapshot_document(
     snapshot_id: str,
     generated_at: str,
     input_commit: str,
     facts: list[dict],
     steps: list[dict],
+    outputs: list[dict] | None = None,
 ) -> dict:
     return {
-        "schemaVersion": 5,
+        "schemaVersion": 6,
         "snapshotId": snapshot_id,
         "generatedAt": generated_at,
         "inputCommit": input_commit,
-        "producerVersion": "build-release-snapshot-v5",
+        "producerVersion": "build-release-snapshot-v6",
         "inputs": facts,
+        "outputs": outputs or [],
         "steps": steps,
     }
 
@@ -115,10 +165,10 @@ def write_snapshot(payload: dict) -> None:
     )
 
 
-def step(cmd: list[str], *, optional_script: str | None = None) -> dict:
+def step(cmd: list[str]) -> dict:
     """Run one build step; abort the snapshot on failure."""
-    if optional_script and not (ROOT / optional_script).is_file():
-        return {"command": " ".join(cmd), "status": "skipped-missing"}
+    if len(cmd) > 1 and cmd[1].endswith(".py") and not (ROOT / cmd[1]).is_file():
+        raise RuntimeError(f"SNAPSHOT_BUILDER_MISSING: {cmd[1]}")
     started = dt.datetime.now(dt.timezone.utc)
     result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     sys.stdout.write(result.stdout)
@@ -144,6 +194,7 @@ def step(cmd: list[str], *, optional_script: str | None = None) -> dict:
         break
     return {
         "command": " ".join(cmd),
+        "required": True,
         "status": status,
         **({"detail": detail} if detail else {}),
         "seconds": round((dt.datetime.now(dt.timezone.utc) - started).total_seconds(), 1),
@@ -169,6 +220,8 @@ def main() -> int:
     ).stdout.strip()
     print(f"inputCommit={input_commit}")
 
+    preflight_builders()
+    facts = input_facts()
     py = sys.executable
     steps: list[dict] = []
 
@@ -187,44 +240,46 @@ def main() -> int:
     # indexes during a derived rebuild.
     steps.append(step([py, "Scripts/build_player_facts.py"]))
     steps.append(step([py, "Scripts/build_static_player_pgn.py"]))
-    steps.append(step([py, "Scripts/build_pgn_collection_status.py"], optional_script="Scripts/build_pgn_collection_status.py"))
+    steps.append(step([py, "Scripts/build_pgn_collection_status.py"]))
     # CompletenessReport decides the publishable event set BEFORE any public
     # event projection or identity layer consumes event facts.
-    steps.append(step([py, "Scripts/build_completeness_report.py"], optional_script="Scripts/build_completeness_report.py"))
+    steps.append(step([py, "Scripts/build_completeness_report.py"]))
     # The event roster projection resolves same-event FIDE IDs used by the
     # display-only identity candidate layer below.
-    steps.append(step([py, "Scripts/build_event_details.py"], optional_script="Scripts/build_event_details.py"))
+    steps.append(step([py, "Scripts/build_event_details.py"]))
+
+    steps.append(step([py, "Scripts/event_pgn_objects.py"]))
 
     # --- identity layers (observations BEFORE domestic sync, review §3.2) --
-    steps.append(step([py, "Scripts/build_person_observations.py"], optional_script="Scripts/build_person_observations.py"))
+    steps.append(step([py, "Scripts/build_person_observations.py"]))
     if not args.skip_domestic:
-        steps.append(step([py, "Scripts/sync_domestic_players.py"], optional_script="Scripts/sync_domestic_players.py"))
+        steps.append(step([py, "Scripts/sync_domestic_players.py"]))
         # Embedded FIDE-labelled roster rows act as an offline truth set.
         # A precision or hard-conflict regression aborts the whole snapshot
         # before any downstream search/API projection is rebuilt.
         steps.append(step([
             py, "Scripts/validate_identity_clustering.py",
-        ], optional_script="Scripts/validate_identity_clustering.py"))
-        steps.append(step([py, "Scripts/build_domestic_progressions.py"], optional_script="Scripts/build_domestic_progressions.py"))
+        ]))
+        steps.append(step([py, "Scripts/build_domestic_progressions.py"]))
 
     # --- public event projections --------------------------------------
-    steps.append(step([py, "Scripts/build_event_catalog.py"], optional_script="Scripts/build_event_catalog.py"))
-    steps.append(step([py, "Scripts/build_master_series_summary.py"], optional_script="Scripts/build_master_series_summary.py"))
-    steps.append(step([py, "Scripts/build_player_participation.py"], optional_script="Scripts/build_player_participation.py"))
+    steps.append(step([py, "Scripts/build_event_catalog.py"]))
+    steps.append(step([py, "Scripts/build_master_series_summary.py"]))
+    steps.append(step([py, "Scripts/build_player_participation.py"]))
 
     # --- maintainer queues / audits ------------------------------------
-    steps.append(step([py, "Scripts/archive_rating_observations.py"], optional_script="Scripts/archive_rating_observations.py"))
-    steps.append(step([py, "Scripts/build_domestic_event_queue.py"], optional_script="Scripts/build_domestic_event_queue.py"))
-    steps.append(step([py, "Scripts/build_data_quality_audit.py"], optional_script="Scripts/build_data_quality_audit.py"))
-    steps.append(step([py, "Scripts/reconcile_pgn_sources.py", "--write-audit"], optional_script="Scripts/reconcile_pgn_sources.py"))
+    steps.append(step([py, "Scripts/archive_rating_observations.py"]))
+    steps.append(step([py, "Scripts/build_domestic_event_queue.py"]))
+    steps.append(step([py, "Scripts/build_data_quality_audit.py"]))
+    steps.append(step([py, "Scripts/reconcile_pgn_sources.py", "--write-audit"]))
 
     # --- user-facing aggregates ----------------------------------------
     steps.append(step([py, "Scripts/build_search_bootstrap.py"]))
     steps.append(step([py, "Scripts/build_public_metrics.py"]))
     steps.append(step([py, "Scripts/build_leaderboards.py"]))
-    steps.append(step([py, "Scripts/build_api.py"], optional_script="Scripts/build_api.py"))
-    steps.append(step([py, "Scripts/build_changelog.py"], optional_script="Scripts/build_changelog.py"))
-    steps.append(step([py, "Scripts/build_dashboard.py"], optional_script="Scripts/build_dashboard.py"))
+    steps.append(step([py, "Scripts/build_api.py"]))
+    steps.append(step([py, "Scripts/build_changelog.py"]))
+    steps.append(step([py, "Scripts/build_dashboard.py"]))
 
     # --- gates ----------------------------------------------------------
     steps.append(step([py, "Scripts/validate_registry_authority.py"]))
@@ -235,13 +290,15 @@ def main() -> int:
     # there temporarily. If the gate or final write fails, restore the exact
     # previous snapshot bytes; a failed rebuild must never leave a new,
     # unverified snapshot id in the worktree.
-    facts = input_facts()
+    outputs = [fact for fact in output_facts()
+               if not fact["path"].startswith("data/manual/")
+               and pathlib.Path(fact["path"]).name not in {"local-release-manifest.json", "chess-results-player-events.csv", "chess-results-player-name-map.csv", "events--chess-results.json"}]
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     previous_snapshot = SNAPSHOT_JSON.read_bytes() if SNAPSHOT_JSON.is_file() else None
     try:
-        write_snapshot(snapshot_document(sid, generated_at, input_commit, facts, steps))
+        write_snapshot(snapshot_document(sid, generated_at, input_commit, facts, steps, outputs))
         steps.append(step([py, "Scripts/validate_snapshot_consistency.py"]))
-        write_snapshot(snapshot_document(sid, generated_at, input_commit, facts, steps))
+        write_snapshot(snapshot_document(sid, generated_at, input_commit, facts, steps, outputs))
     except BaseException:
         atomic_snapshot_bytes(previous_snapshot)
         raise

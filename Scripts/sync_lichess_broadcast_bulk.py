@@ -463,6 +463,8 @@ def build_youth_index(shards: list[BroadcastShard], dry_run: bool) -> dict[str, 
                         "source": "Lichess Broadcasts",
                         "sourceShard": shard.local_path or public_data_path(shard.shard_path),
                         "gameIndex": game_index,
+                        "gameSha256": game_hash,
+                        "round": headers.get("Round", ""),
                     }
                 )
 
@@ -916,34 +918,24 @@ def youth_matches(
     names: dict[str, str],
     year: int | None,
 ) -> list[dict[str, str]]:
-    if not year:
-        return []
+    # Registry membership defines coverage; age is only a secondary projection.
     result = []
-    for role, fide_key, name_key in [
-        ("white", "WhiteFideId", "White"),
-        ("white", "WhiteFideID", "White"),
-        ("black", "BlackFideId", "Black"),
-        ("black", "BlackFideID", "Black"),
-    ]:
-        fide_id = clean(headers.get(fide_key))
-        if not fide_id:
-            fide_id = names.get(normalize_name(headers.get(name_key, "")), "")
+    for role, prefix in [("white", "White"), ("black", "Black")]:
+        explicit = {clean(headers.get(prefix + suffix)) for suffix in ("FideId", "FideID", "FIDEID")}
+        explicit.discard("")
+        if len(explicit) > 1:
+            continue  # Conflicting explicit identities must never become a name match.
+        fide_id = next(iter(explicit), "") or names.get(normalize_name(headers.get(prefix, "")), "")
         profile = profiles.get(fide_id)
-        if not profile or profile.federation != "CHN" or not profile.birth_year:
+        if not profile:
             continue
-        stage = stage_for_age(year - profile.birth_year)
-        if stage:
-            result.append(
-                {
-                    "fideID": fide_id,
-                    "name": profile.name,
-                    "displayName": profile.display_name,
-                    "sourcePlayerName": headers.get(name_key, ""),
-                    "role": role,
-                    "stage": stage,
-                }
-            )
-    return ordered_unique_dicts(result, ["fideID", "stage", "role"])
+        stage = stage_for_age(year - profile.birth_year) if year and profile.birth_year else "unknown-age"
+        result.append({
+            "fideID": fide_id, "name": profile.name, "displayName": profile.display_name,
+            "sourcePlayerName": headers.get(prefix, ""), "role": role,
+            "stage": stage or "unknown-age",
+        })
+    return result
 
 
 def load_profiles() -> tuple[dict[str, PlayerProfile], dict[str, str]]:
@@ -1092,16 +1084,17 @@ def stage_rules() -> dict[str, Any]:
 
 
 def indexed_stage_list() -> list[dict[str, Any]]:
-    """Stages actually indexed from broadcasts: youth U8-U18 plus adult (19+),
-    so EVERY CHN player with a known birth year gets their broadcast games."""
+    """Compatibility stage packs cover every registry member, including unknown age."""
     return stage_rules()["stages"] + [
+        {"id": "U6", "lowerAge": 0, "upperAge": 6, "birthYears": "6 岁及以下"},
+        {"id": "unknown-age", "lowerAge": None, "upperAge": None, "birthYears": "出生年或赛事年未知"},
         {"id": "adult", "lowerAge": 19, "upperAge": 199, "birthYears": f"{COMPETITION_YEAR - 19} 及更早"},
     ]
 
 
 def stage_for_age(age: int) -> str:
     for stage in indexed_stage_list():
-        if stage["lowerAge"] <= age <= stage["upperAge"]:
+        if stage["lowerAge"] is not None and stage["lowerAge"] <= age <= stage["upperAge"]:
             return stage["id"]
     return ""
 

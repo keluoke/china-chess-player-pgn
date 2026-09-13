@@ -113,7 +113,8 @@ class PublicNavigationTests(unittest.TestCase):
             self.assertEqual(public_privacy.markdown_offenses(text), [])
 
     def test_public_copy_and_event_urls_are_source_neutral(self) -> None:
-        html_files = sorted((ROOT / "docs").glob("*.html"))
+        from public_site_surface import public_html_paths
+        html_files = public_html_paths(ROOT / "docs")
         js_files = sorted((ROOT / "docs").glob("*.js"))
         for path in [*html_files, *js_files]:
             text = path.read_text(encoding="utf-8")

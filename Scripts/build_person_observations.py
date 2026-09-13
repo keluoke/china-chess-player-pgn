@@ -8,8 +8,8 @@ people and never write the manual layer; ``sync_domestic_players.py`` reads
 them to enrich existing sightings (stable IDs preserved) and to add event
 participation for entities the manual layer has never seen.
 
-Scope: entries WITHOUT a FIDE ID. Entries carrying a FIDE ID are already
-served by the registry + event details layers.
+Scope: every roster entry. Explicit FIDE IDs remain evidence, never registry writes
+or automatic identity merges. Domestic discovery consumes only unlinked entries.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ COMPLETENESS = ROOT / "data" / "generated" / "event-completeness-report.json"
 OUTPUT = ROOT / "data" / "generated" / "person-observations.csv"
 OUTPUT_META = ROOT / "data" / "generated" / "person-observations.meta.json"
 COLUMNS = [
-    "sighting_id", "source", "event_id", "event_name", "event_date", "group",
+    "sighting_id", "fide_id", "source", "event_id", "event_name", "event_date", "group",
     "age_stage", "player_name", "chinese_name", "pinyin_name", "federation", "event_scope", "sex",
     "birth_year", "province", "club", "rank", "score", "rounds",
     "source_player_no", "source_url", "notes",
@@ -173,14 +173,13 @@ def build() -> list[dict[str, str]]:
             for federation in federations
         ) else "domestic-or-unknown"
         for entry in payload.get("players") or []:
-            if clean(entry.get("fideID")):
-                continue
             player_no = clean(entry.get("playerNo"))
             if not player_no:
                 continue
             standing = standings.get(player_no) or {}
             rows.append({
                 "sighting_id": f"obs-cr-tnr{tid}-p{player_no}",
+                "fide_id": clean(entry.get("fideID")),
                 "source": "chess-results-event",
                 "event_id": f"chess-results-tnr{tid}",
                 "event_name": display,
@@ -207,27 +206,21 @@ def build() -> list[dict[str, str]]:
 
 
 def main() -> int:
-    # Shrink guard: without the full private capture layer (e.g. CI), the
-    # committed observations CSV is already the best projection — never
-    # regenerate a smaller one from a partial input set.
     report_events = len((read_json(COMPLETENESS, {}) or {}).get("events") or [])
     visible = len(list(DETAILS.glob("tnr*.json")))
+    rows = build()
     if report_events and visible < report_events and OUTPUT.exists():
         with OUTPUT.open("r", encoding="utf-8-sig", newline="") as handle:
-            columns = set(next(csv.reader(handle), []))
-        missing = sorted(set(COLUMNS) - columns)
-        if missing:
-            raise SystemExit(
-                "private capture layer incomplete and committed observations use an incompatible schema; "
-                f"missing columns: {', '.join(missing)}"
-            )
-        print(json.dumps({
-            "skipped": "private capture layer incomplete; keeping committed observations",
-            "visibleDetails": visible,
-            "reportEvents": report_events,
-        }, ensure_ascii=False))
-        return 0
-    rows = build()
+            reader = csv.DictReader(handle)
+            # v2 had no FIDE-labelled observations, so its additive column is blank.
+            missing = set(COLUMNS) - {"fide_id"} - set(reader.fieldnames or [])
+            if missing:
+                raise SystemExit("OBSERVATION_SCHEMA_INVALID: " + ", ".join(sorted(missing)))
+            present = {"chess-results-" + path.stem for path in DETAILS.glob("tnr*.json")}
+            retained = [{key: row.get(key, "") for key in COLUMNS} for row in reader
+                        if row.get("event_id") not in present]
+        rows = retained + rows
+    rows.sort(key=lambda row: row["sighting_id"])
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with OUTPUT.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=COLUMNS, lineterminator="\n")
@@ -235,7 +228,7 @@ def main() -> int:
         writer.writerows(rows)
     digest = hashlib.sha256(OUTPUT.read_bytes()).hexdigest()
     OUTPUT_META.write_text(json.dumps({
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "generatedAt": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
         "rowCount": len(rows),
         "sha256": digest,
