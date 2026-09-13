@@ -23,4 +23,15 @@
 
 ## 验证
 
-目录与前端契约 42 项测试通过；管线、parser、文档 209 项通过；compileall、refresh.sh 语法、JavaScript 语法、git diff --check 通过。上线结果在交付时核验。
+目录与前端契约 42 项测试通过；管线、parser、文档 209 项通过；compileall、refresh.sh 语法、JavaScript 语法、git diff --check 通过。上线验收于 2026-09-13 完成。
+
+
+## 上线回执
+
+- 修复提交：`51424529c2a42a18abcefe91a8d68c3f2a7a3a7d`。
+- [CI 34673000593](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34673000593)、[重建 34673000607](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34673000607)、[部署 34673827061](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34673827061) 全部 success。
+- 派生提交 `a049f2ee0918833ac383bac60dc89054f6781718`；随后 contribution-funnel 更新提交 `6042e7e3a5419597377c87a7c81ec2fc13296667` 也已部署成功，未改变本次修复文件。
+- 普通生产域名 chessdb.aigclabs.cc 上 app.js、public-events.json、tnr1227492.json、国内棋手 16.json 分片及 snapshot.json 正文均与当前已部署 main 一致；JSON MIME 正确。
+- 线上 snapshot：`20260912T042708Z-27a9e4f8`；inputCommit 为上述修复提交。52 个受影响组别全部修正，1227492 明确为“男子候补棋协大师组”。
+- 本案例的 9 轮记录为 3 胜 6 和，合计 6 分；最终第 21 名、成绩表共 131 人。未擅改名次。
+- collector 的受管目录与解析代码已通过 collector-runtime-sync 精确安装。
