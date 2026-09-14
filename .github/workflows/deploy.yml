@@ -74,6 +74,11 @@ jobs:
           echo "snapshot_id=$snapshot_id" >> "$GITHUB_OUTPUT"
           echo "input_commit=$input_commit" >> "$GITHUB_OUTPUT"
 
+      - name: Verify registry belongs to the validated snapshot
+        run: |
+          python3 Scripts/validate_registry_snapshot.py
+          python3 Scripts/validate_registry_authority.py
+
       - name: Verify player PGN R2 receipt
         id: r2-receipt
         run: |

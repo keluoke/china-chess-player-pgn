@@ -154,6 +154,10 @@
    必须传递并核对实际 main 提交 SHA；派生提交禁止在 push 冲突后 rebase 到更新的
    输入快照。snapshot 必须记录实际输入提交；线上回执还必须确认发布 run-id
    存在于该提交可达的 local-release-manifest 历史中。
+8a-1. deploy 必须通过 `validate_registry_snapshot.py`，核对当前 registry 正文与
+   已验证 snapshot.outputs 中的唯一 SHA-256/字节数记录，并复核公开派生层的
+   registry 权威一致性。月度整表入库但重建失败时，其他代码或定时任务不得
+   发布新 registry 与旧派生快照的混合版本；只恢复失败重建，不回抓整表。
 8b. 全量棋手 PGN 只以完整 SHA-256 内容寻址对象进入生产 R2。每次 rebuild 在提交
    新快照前必须完成全量 `ListObjectsV2` key/size inventory、上传新增对象后 GET
    回读正文哈希，并按 receipt 持久游标轮换抽验既有对象；bucket/endpoint、当前

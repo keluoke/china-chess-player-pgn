@@ -17,7 +17,8 @@ from typing import Any, Iterator
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "docs" / "data" / "registry" / "players.json"
 TARGETS = (
-    ROOT / "docs" / "data" / "index" / "players.json",
+    # The retired index/players.json is excluded by prepare-static-site.
+    # Current player projections are rebuilt under by-player instead.
     ROOT / "docs" / "data" / "index" / "by-player",
     ROOT / "docs" / "data" / "search-bootstrap.json",
     ROOT / "docs" / "data" / "leaderboards.json",

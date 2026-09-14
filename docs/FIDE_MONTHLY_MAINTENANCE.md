@@ -39,6 +39,11 @@ artifact，不重新访问 FIDE。云端 rebuild/deploy 失败只重试对应阶
 保留 artifact，先审核差异；禁止强制推送。最终成功以线上 snapshot/inputCommit 和
 回执正文哈希核验为准。
 
+部署额外核对 registry players/manifest 与 snapshot.outputs 中经过重建验证的
+SHA-256 和字节数，并运行公开派生身份/等级分权威门禁。已退役且不发布的
+index/players.json 不作为公共校验对象，当前 by-player/search/API 仍必须一致。
+因此后续定时任务不能把新 registry 与旧快照一起上线。
+
 ## 来源说明
 
 - [FIDE 官方榜单下载页](https://ratings.fide.com/download_lists.phtml)
