@@ -2,7 +2,8 @@
 """Shared source and local-storage policy for every network collector.
 
 Chess-Results/FIDE collection is maintainer-local; the dedicated GitHub
-workflow may maintain the open Lichess broadcast archive. Chess-Results is
+workflow may maintain the open Lichess broadcast archive. The official FIDE
+monthly export has a separate exact-URL capability; general FIDE access stays local. Chess-Results is
 full-data by default: cleaned, structured event data (players, pairings,
 results, standings, PGN) is published through the manifest pipeline for data
 completeness.  Raw HTML responses always stay in the private run area outside
@@ -108,3 +109,17 @@ def source_release_metadata(source: str) -> dict[str, str]:
             "releasePolicy": "verified-public-object-replication",
         }
     return {"source": source, "releasePolicy": "review-required"}
+
+
+FIDE_MONTHLY_URLS = frozenset({
+    "https://ratings.fide.com/download_lists.phtml",
+    "https://ratings.fide.com/download/players_list_xml_legacy.zip",
+})
+
+
+def require_fide_monthly_download(url: str) -> None:
+    """Narrow hosted capability; never unlock the general FIDE collector."""
+    if (os.environ.get("GITHUB_ACTIONS") != "true"
+            or os.environ.get("CHINA_CHESS_FIDE_MONTHLY_CLOUD") != "1"
+            or url not in FIDE_MONTHLY_URLS):
+        raise SourcePolicyError("FIDE_MONTHLY_URL_FORBIDDEN", "只允许专用云端月度任务下载官方整表及核对月份")

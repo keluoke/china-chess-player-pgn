@@ -1,7 +1,10 @@
 # 维护者本地数据采集
 
-Chess-Results/FIDE 采集只能由维护者在本机住宅网络执行；GitHub Actions 和
-社区贡献工具不得访问这两个来源。Lichess Broadcast 开放月度库由
+Chess-Results/FIDE 详情采集只能由维护者在本机住宅网络执行；GitHub Actions 和
+社区贡献工具不得抓取这些详情。FIDE 官方公开月度整表另由
+`update-fide-ratings.yml` 每月 1 日北京时间 11:40 自动更新，2、3 日仅对当月
+尚未发布的情况补试；精确 URL 白名单、当月验证与失败恢复见
+`docs/FIDE_MONTHLY_MAINTENANCE.md`。Lichess Broadcast 开放月度库由
 `update-lichess-broadcasts.yml` 每月 5 日北京时间 11:17 自动维护，自动补齐
 截至上月的全部缺失切片，日常无需本机操作。实现和失败恢复见
 `docs/LICHESS_MONTHLY_MAINTENANCE.md`。派生索引仍由统一入口离线重建。

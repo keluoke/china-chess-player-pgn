@@ -33,7 +33,7 @@
 - 未达到契约规定的连续 7 天且至少 20 包双写对账、冲突/幂等/配额/回滚演练前，
   禁止把 Cloudflare ingest 切为生产主入口。
 
-1. Chess-Results/FIDE 来源访问只允许维护者本机住宅网络执行；GitHub Actions、
+1. Chess-Results/FIDE 详情访问只允许维护者本机住宅网络执行；GitHub Actions、
    云主机、社区贡献工具不得回抓。其唯一入口是
    `bash Scripts/local/refresh.sh <safe-command>`。
    **Lichess Broadcast 开放月度库例外**：由 GitHub Actions
@@ -44,6 +44,18 @@
    原档仅保存在 runner 临时区/生产 R2，不进入 Git 或发布 artifact；逐片验证
    完整 Zstandard 帧、局数、SHA-256 与 R2 正文回读。现存月片哈希冲突必须隔离，
    禁止覆盖。发布 artifact 只含精确 manifest 与清洗投影，失败发布重试不回抓。
+   **FIDE 官方公开月度整表例外**：`.github/workflows/update-fide-ratings.yml`
+   每月 1 日 03:40 UTC（北京时间 11:40）自动维护；2、3 日只对尚未发布的当月补试。
+   专用 `CHINA_CHESS_FIDE_MONTHLY_CLOUD=1` 仅授权
+   `https://ratings.fide.com/download_lists.phtml` 和
+   `https://ratings.fide.com/download/players_list_xml_legacy.zip`；重定向同样受白名单约束。
+   不得打开通用 FIDE/Chess-Results 云端采集，也不得伪装本地维护者。
+   必须验证当前榜单年月、ZIP CRC/成员日期新鲜度、SHA-256、registry 人数及三种等级分覆盖；
+   原始整表仅在 runner 临时区，发布只含清洗后的 registry、联邦快照及精确回执。
+   `listDate` 是官方榜单生效月，禁止用重建时间冒充更新时间。发布复用月度精确
+   manifest/基线哈希/快进 main → 统一 rebuild → R2 认证 → deploy，失败投递只重试
+   已保存 artifact。广播 WhiteElo/BlackElo、估算 rating diff 和 Lichess 站内分均不得
+   覆盖 registry 的官方慢棋/快棋/超快棋等级分。
 2. Chess-Results 采集以**赛事/对局数据完备性**为最高目标：维护者本机抓取赛事
    全量数据，本地完成清洗与校验后随发布管线上传，与云端比对合并后推送。
    旧的 link-only 政策已退役，文档提及时只能作"已退役"说明；本条与其他文档
@@ -102,7 +114,7 @@
      该基线的缺口按 P0 处理。
 3. 机器发布必须经过 staging、验证和精确 release manifest。FIDE/Chess-Results
    与本地补救包仍投递单写者 `local-data`，由云端 ingest 到 main 后离线 rebuild。
-   Lichess 月度云端包从不可变 main 基线构建，验证 artifact 中逐文件 SHA-256 /
+   Lichess/FIDE 官方月度云端包从不可变 main 基线构建，验证 artifact 中逐文件 SHA-256 /
    基线哈希后直接快进 main；禁止 rebase 或覆盖并发输入。随后显式传递实际提交
    SHA 给现有 rebuild → R2 棋手包认证 → deploy，不另建派生重建入口。
 4. 采集工作区永不 pull/rebase。GitHub 网络失败时只重投已生成的 release/outbox，
@@ -111,7 +123,7 @@
    `HTTP_PROXY=http://127.0.0.1:15236` 与 `HTTPS_PROXY=http://127.0.0.1:15236`
    （同时设置小写变量），或调用会注入同等变量的受控脚本。GitHub 代理绝不传给
    Chess-Results/FIDE 来源请求，其来源请求必须直连住宅 IP；
-   Lichess 月度云端请求使用 runner 自身网络，不配置本机 GitHub 代理。
+   Lichess/FIDE 官方月度云端请求使用 runner 自身网络，不配置本机 GitHub 代理。
 5. 代码和人工数据不得通过 local-data 发布。代码修改必须在独立的轻量代码工作区
    （默认同级 `<repo>-code`）完成；采集工作区只负责采集、outbox 和 `local-data`。
    用 `Scripts/local/code_workspace.sh init|sync|push` 初始化、同步和推送代码工作区，
@@ -176,7 +188,7 @@
   96 MiB，单文件最多 96 MiB；超过 16 MiB 以固定 8 MiB multipart 片上传并在 Queue
   原子合成。客户端以 10 文件注册分块、Queue 以 10 文件合并分块，
   最终只允许一次原子快照提交。分块是服务内部实现，不得拆成多个可见快照或降低原子性。
-- chess-results / FIDE 抓取必须直连住宅 IP(封数据中心 IP);终端 GitHub 访问显式
+- chess-results / FIDE 详情抓取必须直连住宅 IP(封数据中心 IP);终端 GitHub 访问显式
   注入 127.0.0.1:15236，`scutil` 只能用于发现候选代理，不能视为终端已继承代理。
 - CI 里绝不能回抓 chess-results(GitHub IP 被封);Chess-Results 只在维护者本机
   抓取、清洗、核对,入口是 `refresh.sh event-queue`;通过完整性门禁的赛事数据

@@ -1,0 +1,87 @@
+name: Update official FIDE ratings
+
+on:
+  schedule:
+    # Month start at 11:40 Asia/Shanghai; days 2/3 retry if day 1 was unpublished.
+    - cron: "40 3 1-3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-fide-ratings
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      skip: ${{ steps.current.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip already published month on scheduled retry
+        id: current
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python3 - <<'PYCODE'
+          import datetime, json, os, pathlib
+          path = pathlib.Path('data/generated/fide-monthly-receipt.json')
+          current = json.loads(path.read_text()).get('listMonth') if path.exists() else None
+          skip = os.environ['EVENT_NAME'] == 'schedule' and current == datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'skip={str(skip).lower()}\n')
+          PYCODE
+      - uses: ./.github/actions/setup-python-deps
+        if: steps.current.outputs.skip != 'true'
+        with:
+          python-version: "3.12"
+          packages: certifi pypinyin==0.55.0
+      - name: Download and validate official current-month registry in staging
+        if: steps.current.outputs.skip != 'true'
+        env:
+          CHINA_CHESS_FIDE_MONTHLY_CLOUD: "1"
+        run: python3 Scripts/update_fide_monthly.py collect --release "$RUNNER_TEMP/fide-release"
+      - name: Preserve exact release for source-free publication retries
+        if: steps.current.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fide-release
+          path: ${{ runner.temp }}/fide-release/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: collect
+    if: needs.collect.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: fide-release
+          path: ${{ runner.temp }}/fide-release
+      - name: Validate exact manifest, commit and fast-forward main
+        id: publish
+        run: python3 Scripts/update_fide_monthly.py publish --release "$RUNNER_TEMP/fide-release"
+      - name: Rebuild the exact published input
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}
+          workflow_inputs: '{"target_sha":"${{ steps.publish.outputs.target_sha }}"}'
+      - name: Record publication receipt
+        env:
+          TARGET_SHA: ${{ steps.publish.outputs.target_sha }}
+        run: |
+          echo "FIDE registry release committed to main: $TARGET_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Rebuild and deploy dispatched; online verification remains a downstream stage." >> "$GITHUB_STEP_SUMMARY"
