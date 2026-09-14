@@ -65,4 +65,23 @@ index/players.json 不作为公共校验对象，当前 by-player/search/API 仍
 [34848052370](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34848052370)
 实际拒绝旧 snapshot 搭配新 registry（players 与 manifest 哈希均不一致）。
 
-最终重建、R2、部署及线上正文核验结果待补充。
+最终 [重建与 R2 认证 34848869413](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34848869413)
+及 [部署 34849638307](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34849638307)
+均成功。发布提交 `1630620534c0a153f8fc2b5fc55e6842c5d32120`；
+快照 `20260914T132352Z-73723fe6`，输入提交
+`e2c3a185e6bc01b6a606ad9f6634a453c6f91341`。7,692 个棋手包、178 个赛事包通过 R2 认证。
+
+2026-09-14 普通生产 URL 核验：下列静态 JSON 均返回 JSON MIME，正文 SHA-256
+与发布提交一致；棋手 API 由 Pages Function 重序列化，核对完整 JSON 内容一致。
+注册表、搜索、API 中居文君（8603006）的慢棋等级分均为 2553（旧值 2560），
+搜索/API 的 snapshotId 与新快照一致，registry.listDate 为 2026-09-01。
+
+| 线上路径 | 正文 SHA-256 |
+| --- | --- |
+| `data/registry/manifest.json` | `400d1879e1d488c051d70e7edc3d7a96d1e937937d3a5c63ef8685c789045408` |
+| `data/registry/players.json` | `678d6a740585316cff907c458d7a58df442e371809054c1e22ac197f399591cf` |
+| `data/search-bootstrap.json` | `c6e82dfad3f3ad16334098bdd52727fea452365f19af1317e5f412f4f2efb2d3` |
+| `api/v1/players/fide-8603006.json` | `990edaf30141d2bbc3ae0f1d2f26dc867017c9a2692f841d1801444b45541055` |
+| `data/snapshot.json` | `40b03b3da15024b3e4ba10db63c75a19672efaa1992f21bce55cdbc096d75b4d` |
+| `data/index/player-pgn-r2-receipt.json` | `bdc1e3a6930667bfee7d2714d6c27bbf77b6e2ff9d5cab963a411d8f0d8fc514` |
+| `data/index/event-pgn-r2-receipt.json` | `02d821abcb1fe2977d39f221128ac1cc21cf0059932698b7d8171a258902cba2` |
