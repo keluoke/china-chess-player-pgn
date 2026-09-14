@@ -78,4 +78,3 @@ def publish(release: Path, *, root: Path, allowed, receipt: str, message: str) -
     sha = git("rev-parse", "HEAD")
     with open(os.environ["GITHUB_OUTPUT"], "a") as output:
         output.write(f"target_sha={sha}\n")
-
