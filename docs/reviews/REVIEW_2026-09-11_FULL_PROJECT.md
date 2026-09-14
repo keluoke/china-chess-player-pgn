@@ -78,7 +78,7 @@ main 输入 → registry + 不可变赛事/PGN事实 → player-event/game-facts
 发布同样不 rebase，并在落盘前复核远端 main。已提交 artifact 的重试只有在其
 所有路径与远端正文完全一致时才恢复下游。
 
-### P1-03：中国棋手广播投影的覆盖范围比 registry 窄（已实施，发布验收见实施记录）
+### P1-03：中国棋手广播投影的覆盖范围比 registry 窄（已完成并上线，见实施记录）
 
 `Scripts/sync_lichess_broadcast_bulk.py:921` 的 youth_matches 要求当前 federation
 等于 CHN 且存在 birth_year。即使 PGN 有精确 FIDE ID，缺出生年的 registry 成员
@@ -93,7 +93,7 @@ main 输入 → registry + 不可变赛事/PGN事实 → player-event/game-facts
 unknown-age 分类而不是丢棋局。转出棋手遵从 federation-overrides 的收录政策，
 不可直接修改注册表。验收须对“有 FIDE ID、无出生年、已转出、姓名歧义”做对照。
 
-### P1-04：旧工具与操作文档仍形成第二条发布路径（已实施，发布验收见实施记录）
+### P1-04：旧工具与操作文档仍形成第二条发布路径（已完成并上线，见实施记录）
 
 `docs/PGN_SCOUT.md:3` 仍推荐 pgn_scout → promote_public_pgn → sync_static_pgn
 作为当前采集与索引路径，其第 151 行也直接指导晋升/重建。refresh 已退役对应命令，
@@ -115,7 +115,7 @@ migration-only，增加调用阻断测试。先证明 imports/手动恢复没有
 静态 PGN 拆分边界；回归覆盖重复标签、跨读取块与 CRLF。78 个已有月片离线
 重新计数全部与原 manifest 一致，原档字节与哈希保持不变。
 
-### P2-01：大文件和真实复制函数抬高维护成本（已实施，发布验收见实施记录）
+### P2-01：大文件和真实复制函数抬高维护成本（已完成并上线，见实施记录）
 
 主要热点：sync_domestic_players 2,029 行；sync_chess_results_event 1,747 行；
 run_manager 1,376 行；panel 1,320 行；refresh.sh 1,220 行；app.js 2,621 行。
@@ -133,7 +133,7 @@ PGN，最坏为 O(索引条数 × 棋局数)，建议预建精确与宽松键索
 一次只迁一个能力，旧入口保留适配器，利用现有 parser fixture 与发布故障用例
 证明行为等价。不能为了缩短函数删掉有实际事故依据的校验。
 
-### P2-02：工作区实验与公共目录混杂，测试受未跟踪文件影响（已整理，验收见实施记录）
+### P2-02：工作区实验与公共目录混杂，测试受未跟踪文件影响（已完成，见实施记录）
 
 kimi-code 留有未跟踪的 estimated-rating 实验脚本/测试、历史交付文档及
 `docs/data-pipeline-assessment-report.html`。本次原工作树全量 unittest 的唯一
@@ -144,7 +144,7 @@ kimi-code 留有未跟踪的 estimated-rating 实验脚本/测试、历史交付
 整改：实验移到显式 experiments/ 或仓库外；报告放 docs/reviews/ 的 Markdown，
 生成站点时对 HTML 也有公共清单约束；测试的公共面扫描应与发布清单同源。
 
-### P2-03：审计/影子/观察层仍有演进债务（已实施，发布验收见实施记录）
+### P2-03：审计/影子/观察层仍有演进债务（已完成并上线，见实施记录）
 
 - `build_person_observations.py:176` 跳过已有 FIDE ID 的记录，统一证据时间线尚不完整；
   应逐步使用稳定 observation key 覆盖所有人员，不借此自动跨赛事并人。
