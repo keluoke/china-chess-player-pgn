@@ -173,7 +173,8 @@ def compact_aliases(player: dict) -> list[str]:
 
 
 def main() -> int:
-    youth = read(ROOT / "data" / "generated" / "youth-leaderboards.json", {})
+    from age_groups import YOUTH_STAGES, reference_year
+    year = reference_year()
     registry = read(DATA / "registry" / "players.json", [])
     aggregate = {str(row.get("fideID")): row for row in read(DATA / "index" / "by-player" / "players.json", [])}
     domestic = read(ROOT / "data" / "generated" / "domestic-search-index.json", [])
@@ -263,8 +264,14 @@ def main() -> int:
         "schemaVersion": 2,
         "snapshotId": sid,
         "generatedAt": generated_at,
-        "competitionYear": youth.get("competitionYear"),
-        "ageRule": youth.get("ageRule"),
+        "competitionYear": year,
+        "ageRule": {
+            "title": "李成智杯自然年龄组口径",
+            "description": "以比赛年度减出生年份计算年龄组，两年一组。",
+            "stages": [{"id": stage, "lowerAge": lower, "upperAge": upper,
+                        "birthYears": f"{year - upper}-{year - lower}"}
+                       for stage, lower, upper in YOUTH_STAGES],
+        },
         "totals": {"players": len(players) + len(domestic_rows), "fide": len(registry), "domestic": len(domestic_rows)},
         "deferred": {
             "domestic": "data/search-bootstrap-domestic.json",

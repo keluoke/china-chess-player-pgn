@@ -611,18 +611,14 @@ def prioritized_players(players: list[PlayerProfile], with_pgn: set[str]) -> lis
 
 def load_profiles() -> dict[str, PlayerProfile]:
     profiles: dict[str, PlayerProfile] = {}
-    for path, source in [(REGISTRY_PLAYERS_JSON, "registry"), (YOUTH_JSON, "youth-leaderboard")]:
-        if not path.exists():
-            continue
-        data = read_json(path)
+    # Current identity/rating authority is exclusively the official registry.
+    # Retired youth/static indexes must not resurrect missing ratings or IDs.
+    if REGISTRY_PLAYERS_JSON.exists():
+        data = read_json(REGISTRY_PLAYERS_JSON)
         players = data.get("players", []) if isinstance(data, dict) else data
         for player in players:
             if isinstance(player, dict):
-                merge_profile_row(profiles, player, source)
-    for path in sorted(STATIC_PLAYER_ROOT.glob("fide-*.json")):
-        data = read_json(path)
-        if isinstance(data, dict):
-            merge_profile_row(profiles, data, "static-index")
+                merge_profile_row(profiles, player, "registry")
     return profiles
 
 

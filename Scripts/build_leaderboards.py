@@ -2,9 +2,8 @@
 """Build docs/data/leaderboards.json — all age groups, youth AND adult.
 
 Pure computation from the committed registry (docs/data/registry/players.json),
-no network. Supersedes the youth-only leaderboard for the frontend; the
-legacy docs/data/youth-leaderboards.json is left untouched for backward
-compatibility until the frontend fully migrates.
+no network. Supersedes the historical data/generated/youth-leaderboards.json;
+that retained archive is not a current rating or frontend source.
 """
 
 from __future__ import annotations
