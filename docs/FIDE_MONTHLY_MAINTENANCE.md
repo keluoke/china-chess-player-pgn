@@ -52,4 +52,17 @@ index/players.json 不作为公共校验对象，当前 by-player/search/API 仍
 
 ## 实施验收
 
-待记录首次云端执行及线上实际更新结果；不能仅以新增 cron 宣称等级分已更新。
+首次采集发布 [34806401455](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34806401455)
+已通过官方月份、ZIP CRC、姓名及等级分门禁，入库提交
+`825e08a0ac33637e336c549ab5516baf687903b2`。榜单生效日期 `2026-09-01`，
+12,013 名棋手；相对旧注册表，慢棋/快棋/超快棋分别 1,180 / 876 / 575 条等级分变化。
+官方 ZIP 49,552,082 字节，SHA-256
+`c167f4bda07e320fc63a368cbddde7563a893b08ceb1ca8a4c321694c59d6595`。
+
+首次重建被已退役的旧索引等级分阻断，修复后仅重建，不重复下载来源。
+一并清除搜索入口对历史青少年榜单的年份依赖，以及审计从旧索引覆盖当前等级分的回流。
+修复回归测试共 432 项，2 项跳过；部署门禁运行
+[34848052370](https://github.com/keluoke/china-chess-player-pgn/actions/runs/34848052370)
+实际拒绝旧 snapshot 搭配新 registry（players 与 manifest 哈希均不一致）。
+
+最终重建、R2、部署及线上正文核验结果待补充。
