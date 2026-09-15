@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from build_event_catalog import ROUND_ITEM_RE, TEST_NAME_RE, event_id, has_chinese_text
+from game_quality import fact_quality, inspect_game
 from canonical_player_facts import (
     PLAYER_EVENT_FACTS,
     PLAYER_GAME_FACTS,
@@ -101,6 +102,7 @@ class PlayerGame:
     rank: Any = ""
     tournament_id: str = ""
     sha256: str = ""
+    quality: dict[str, Any] = field(default_factory=dict)
 
     def payload(self) -> dict[str, Any]:
         return without_empty(
@@ -125,6 +127,7 @@ class PlayerGame:
                 "sourceIndexPath": self.source_index_path,
                 "sourceShard": self.source_shard,
                 "sha256": self.sha256,
+                "quality": self.quality or inspect_game(self.pgn),
             }
         )
 
@@ -252,6 +255,9 @@ def finalize_from_details(
             **player,
             "gameCount": totals.get("games", len(games)),
             "eventCount": totals.get("events", 0),
+            "archivedGameCount": totals.get("archivedGames", totals.get("games", 0)),
+            "playableGameCount": totals.get("playableGames", 0),
+            "excludedGameCount": totals.get("excludedGames", 0),
             "packageCount": totals.get("packages", len(packages)),
             "playerPgnPath": all_package.get("pgnPath"),
             "playerPgnPublicURL": all_package.get("publicURL"),
@@ -365,6 +371,7 @@ def ingest_player_game_facts(
             )
             record = PlayerGame(
                 pgn=game,
+                quality=fact_quality(fact, game),
                 event=event_name,
                 date=date,
                 white=clean(fact.get("white") or headers.get("White")),
@@ -584,11 +591,12 @@ def write_outputs(
         player_dir = OUTPUT_PGN_ROOT / f"fide-{fide_id}"
         packages = []
 
+        playable_games = [game for game in bucket.games if (game.quality or inspect_game(game.pgn))["replayable"]]
         all_package = build_package(
             fide_id=fide_id,
             package_id="all",
             label="全部 PGN",
-            games=bucket.games,
+            games=playable_games,
             target=player_dir / "all.pgn",
             dry_run=dry_run,
             existing_packages=existing_packages,
@@ -596,7 +604,7 @@ def write_outputs(
         packages.append(all_package)
 
         for stage_id in ["U6", "U8", "U10", "U12", "U14", "U16", "U18", "adult", "unknown-age"]:
-            stage_games = [game for game in bucket.games if game.stage == stage_id]
+            stage_games = [game for game in playable_games if game.stage == stage_id]
             if not stage_games:
                 continue
             packages.append(
@@ -622,6 +630,9 @@ def write_outputs(
             "player": bucket.profile.payload(),
             "totals": {
                 "games": len(bucket.games),
+                "archivedGames": len(bucket.games),
+                "playableGames": len(playable_games),
+                "excludedGames": len(bucket.games) - len(playable_games),
                 "events": len(event_payloads),
                 "packages": len(packages),
                 "bytes": sum(package["pgnBytes"] for package in packages),
@@ -642,6 +653,9 @@ def write_outputs(
         summary = {
             **bucket.profile.payload(),
             "gameCount": len(bucket.games),
+            "archivedGameCount": len(bucket.games),
+            "playableGameCount": len(playable_games),
+            "excludedGameCount": len(bucket.games) - len(playable_games),
             "eventCount": len(event_payloads),
             "packageCount": len(packages),
             "playerPgnPath": all_package["pgnPath"],

@@ -14,6 +14,7 @@ import logging
 import pathlib
 import re
 import chess.pgn
+from game_quality import inspect_game, replayable
 import build_static_player_pgn as pgn
 from canonical_player_facts import PLAYER_GAME_FACTS, load_fact_dataset
 from event_identity import describe, stable_id
@@ -29,11 +30,7 @@ PACKAGE_INDEX = ROOT / 'docs/data/index/catalog-pgn-packages.json'
 
 def playable(game):
     """Nonempty legal mainline; unfinished games remain usable and labelled."""
-    try:
-        parsed = chess.pgn.read_game(io.StringIO(game))
-        return bool(parsed and not parsed.errors and next(iter(parsed.mainline_moves()), None) is not None)
-    except (ValueError, IndexError):
-        return False
+    return inspect_game(game)['replayable']
 
 
 def section_order(row):
@@ -182,7 +179,7 @@ def main():
             game = pgn.repair_pgn_text(games[index])
             if pgn.stable_game_hash(game) != fact['gameSha256']:
                 raise RuntimeError('EVENT_LIBRARY_GAME_HASH:'+asset)
-            if not playable(game):errors['emptyOrInvalidMainline']+=1;continue
+            if not replayable(fact, game):errors['emptyOrInvalidMainline']+=1;continue
             refs = []
             origins = fact.get('provenance') or [fact]
             for origin in origins:

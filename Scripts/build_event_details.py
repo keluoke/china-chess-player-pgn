@@ -182,6 +182,7 @@ def game_fact_lookups() -> tuple[
             "pgnPath": "./" + public_path.lstrip("/"),
             "gameIndex": fact.get("gameIndex"),
             "sha256": clean(fact.get("gameSha256")),
+            "quality": fact.get("quality"),
             "playerFideIDs": sorted({clean(value) for value in fact.get("playerFideIDs") or [] if clean(value)}),
         }
         names = tuple(sorted([normalize_name(record["white"]), normalize_name(record["black"])]))

@@ -31,6 +31,7 @@ from collections import defaultdict
 from typing import Any
 
 from canonical_player_facts import PLAYER_GAME_FACTS, load_fact_dataset, manifest_reference
+from game_quality import inspect_game, replayable
 from stable_json import write_json
 
 try:
@@ -297,6 +298,7 @@ def parse_archive_path(path: pathlib.Path, source: str) -> list[dict[str, str]]:
             "black": clean(headers.get("Black")),
             "result": clean(headers.get("Result")),
             "source": source,
+            "quality": inspect_game(chunk),
         })
     return games
 
@@ -498,6 +500,8 @@ def player_game_fact_index() -> tuple[dict[str, dict[tuple[str, tuple[str, str]]
     index: dict[str, dict[tuple[str, tuple[str, str]], set[str]]] = defaultdict(dict)
     facts, manifest = load_fact_dataset(PLAYER_GAME_FACTS, "player-game-facts")
     for game in facts:
+        if not replayable(game):
+            continue
         tid = clean(game.get("tournamentID"))
         if not tid:
             continue
@@ -905,10 +909,12 @@ def event_report(
                 if key in by_player_games:
                     playable_pairings_count += 1
 
-    playable_complete = publishable and len(played) > 0 and (
-        (archive_status == "matched-full" and public_archive_verified)
-        or playable_pairings_count >= len(played)
-    )
+    legal_archive = [game for game in archive_games if (game.get("quality") or {}).get("replayable") is True]
+    legal_match = match_archive_games(payload, legal_archive, played_keys, advertised_keys, reviewed_rematch=reviewed_rematch)
+    legal_covered = legal_match["matchedPlayedKeys"]
+    playable_complete = (publishable and len(played) > 0 and lichess_scope_verified
+                         and not unresolved_pairings
+                         and (played_keys.issubset(legal_covered) or playable_pairings_count >= len(played)))
     event_complete = publishable and archive_status == "matched-full"
 
     return {
@@ -945,6 +951,9 @@ def event_report(
             "lichessUnmatchedResidual": lichess_residual,
             "lichessIncompleteResidual": lichess_incomplete,
             "archivedGames": len(archive_games),
+            "playableArchivedGames": len(legal_archive),
+            "excludedArchivedGames": len(archive_games) - len(legal_archive),
+            "playableMatchedPairings": len(legal_covered),
             "matchedPairings": matched,
             "localGameFingerprints": len(local_fingerprints),
         },

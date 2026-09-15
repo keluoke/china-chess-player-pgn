@@ -20,6 +20,7 @@ from typing import Any, Iterable
 
 import build_static_player_pgn as pgn
 from snapshot_context import snapshot_id
+from game_quality import inspect_game
 from stable_json import write_json
 from pgn_matching import GameLookup, explicit_fide_ids
 
@@ -375,6 +376,7 @@ def add_game(
         "assetPath": repo_path(asset_path),
         "gameIndex": game_index,
         "gameSha256": pgn.stable_game_hash(repaired),
+        "quality": inspect_game(repaired),
         "publicPgnPath": public_pgn_path or public_data_path(asset_path) or None,
         "sourceIndexPath": source_index_path or None,
         "sourceShard": source_shard or None,
