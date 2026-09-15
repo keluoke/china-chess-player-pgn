@@ -251,6 +251,8 @@ def public_completeness(report: dict[str, Any]) -> dict[str, Any]:
     """User-facing completeness: understandable statuses, no internal codes."""
     counts = report.get("counts") or {}
     return {
+        "replayCoverage": report.get("replayCoverage"),
+        "counts": counts,
         "resultsStatus": report.get("resultsStatus"),
         "pgnAvailability": report.get("pgnAvailability"),
         "pgnSourceStatus": report.get("pgnSourceStatus"),
@@ -364,6 +366,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
             **({"pgnAvailability": report.get("pgnAvailability")} if report else {}),
             **({"pgnSourceStatus": report.get("pgnSourceStatus")} if report else {}),
             **({"eventComplete": True} if report.get("eventComplete") else {}),
+            "replayCoverage": report.get("replayCoverage"),
             **({"playableComplete": True} if report.get("playableComplete") else {}),
         })
         totals["events"] += 1

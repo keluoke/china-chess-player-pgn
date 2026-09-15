@@ -14,6 +14,7 @@ import logging
 import pathlib
 import re
 import chess.pgn
+from result_review import annotate_pgn
 from game_quality import inspect_game, replayable
 import build_static_player_pgn as pgn
 from canonical_player_facts import PLAYER_GAME_FACTS, load_fact_dataset
@@ -180,6 +181,7 @@ def main():
             if pgn.stable_game_hash(game) != fact['gameSha256']:
                 raise RuntimeError('EVENT_LIBRARY_GAME_HASH:'+asset)
             if not replayable(fact, game):errors['emptyOrInvalidMainline']+=1;continue
+            game = annotate_pgn(game, fact.get('quality') or inspect_game(game))
             refs = []
             origins = fact.get('provenance') or [fact]
             for origin in origins:

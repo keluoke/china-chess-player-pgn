@@ -31,7 +31,7 @@ from collections import defaultdict
 from typing import Any
 
 from canonical_player_facts import PLAYER_GAME_FACTS, load_fact_dataset, manifest_reference
-from game_quality import inspect_game, replayable
+from game_quality import inspect_game, replayable, coverage_contract
 from stable_json import write_json
 
 try:
@@ -917,7 +917,7 @@ def event_report(
                          and (played_keys.issubset(legal_covered) or playable_pairings_count >= len(played)))
     event_complete = publishable and archive_status == "matched-full"
 
-    return {
+    report = {
         "tournamentID": tid,
         "format": payload.get("format"),
         "captureStatus": capture_status,
@@ -935,6 +935,7 @@ def event_report(
         "publicArchiveVerified": public_archive_verified,
         "offlineRematchEvidenceVerified": reviewed_rematch,
         "playableComplete": playable_complete,
+        "playablePublishedComplete": bool(publishable and lichess_scope_verified and not unresolved_pairings and advertised_keys and advertised_keys.issubset(legal_match["matchedAdvertisedKeys"])),
         "eventComplete": event_complete,
         "counts": {
             "players": len(players),
@@ -962,6 +963,9 @@ def event_report(
         "lichessScopeVerified": lichess_scope_verified,
         "publishable": publishable,
     }
+
+    report["replayCoverage"] = coverage_contract(report)
+    return report
 
 
 def supplement_queue(reports: list[dict[str, Any]], leads: dict[str, dict[str, str]]) -> list[dict[str, Any]]:

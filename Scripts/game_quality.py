@@ -48,3 +48,26 @@ def fact_quality(fact: dict, text: str | None = None) -> dict:
 
 def replayable(fact: dict, text: str | None = None) -> bool:
     return fact_quality(fact, text)['replayable'] is True
+
+
+def coverage_contract(report: dict) -> dict:
+    """One serialized coverage vocabulary for catalog, details and series UI."""
+    status = report.get('pgnIngestStatus', '')
+    counts = report.get('counts') or {}
+    if report.get('resultsStatus') != 'results-complete' or 'unresolved' in status:
+        code, label = 'unknown', '棋谱覆盖待核验'
+    elif report.get('playableComplete') and status == 'full-board-complete':
+        code, label = 'full', '全台棋谱可复盘'
+    elif report.get('playablePublishedComplete') and status == 'source-published-complete':
+        code, label = 'live', '公开直播范围可复盘完整（非全台）'
+    elif counts.get('excludedArchivedGames', 0):
+        code, label = 'partial', '已归档，部分棋谱无法复盘'
+    elif status in {'not-published', 'not-applicable'}:
+        code, label = 'none', '赛果完整 · 来源未公开棋谱'
+    elif counts.get('archivedGames', 0):
+        code, label = 'partial', '部分棋谱可复盘 · 覆盖待补齐'
+    elif status == 'source-published-missing':
+        code, label = 'missing', '公开棋谱待归档'
+    else:
+        code, label = 'unknown', '棋谱覆盖待核验'
+    return {'version': 1, 'code': code, 'label': label}

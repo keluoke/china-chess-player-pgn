@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from build_event_catalog import ROUND_ITEM_RE, TEST_NAME_RE, event_id, has_chinese_text
+from result_review import annotate_pgn
 from game_quality import fact_quality, inspect_game
 from canonical_player_facts import (
     PLAYER_EVENT_FACTS,
@@ -137,6 +138,7 @@ class PlayerBucket:
     profile: PlayerProfile
     games: list[PlayerGame] = field(default_factory=list)
     seen_hashes: set[str] = field(default_factory=set)
+    participation_event_count: int = 0
 
     def add(self, game: PlayerGame) -> bool:
         # Canonical PGN fingerprint (players + result + normalized movetext):
@@ -255,6 +257,8 @@ def finalize_from_details(
             **player,
             "gameCount": totals.get("games", len(games)),
             "eventCount": totals.get("events", 0),
+            "pgnEventCount": totals.get("pgnEvents", totals.get("events", 0)),
+            "participationEventCount": totals.get("participationEvents", 0),
             "archivedGameCount": totals.get("archivedGames", totals.get("games", 0)),
             "playableGameCount": totals.get("playableGames", 0),
             "excludedGameCount": totals.get("excludedGames", 0),
@@ -323,6 +327,8 @@ def ingest_player_game_facts(
         for fact in event_facts
         if clean(fact.get("fideID")) and clean(fact.get("tournamentID"))
     }
+    for fide_id, bucket in buckets.items():
+        bucket.participation_event_count = len({str(row.get("tournamentID")) for row in event_facts if str(row.get("fideID")) == fide_id})
     asset_cache: dict[pathlib.Path, list[str]] = {}
     total = 0
     for fact in game_facts:
@@ -634,6 +640,8 @@ def write_outputs(
                 "playableGames": len(playable_games),
                 "excludedGames": len(bucket.games) - len(playable_games),
                 "events": len(event_payloads),
+                "pgnEvents": len(event_payloads),
+                "participationEvents": bucket.participation_event_count,
                 "packages": len(packages),
                 "bytes": sum(package["pgnBytes"] for package in packages),
                 "stages": stage_counts,
@@ -657,6 +665,8 @@ def write_outputs(
             "playableGameCount": len(playable_games),
             "excludedGameCount": len(bucket.games) - len(playable_games),
             "eventCount": len(event_payloads),
+            "pgnEventCount": len(event_payloads),
+            "participationEventCount": bucket.participation_event_count,
             "packageCount": len(packages),
             "playerPgnPath": all_package["pgnPath"],
             "playerPgnPublicURL": all_package["publicURL"],
@@ -710,7 +720,7 @@ def build_package(
     dry_run: bool,
     existing_packages: dict[str, tuple[str, str]],
 ) -> dict[str, Any]:
-    body = "\n\n".join(game.pgn.strip() for game in games if game.pgn.strip()).strip()
+    body = "\n\n".join(annotate_pgn(game.pgn, game.quality or inspect_game(game.pgn)).strip() for game in games if game.pgn.strip()).strip()
     # Upstream PGN wraps movetext with trailing spaces; normalize so packs
     # stay `git diff --check` clean without altering game semantics.
     body = "\n".join(line.rstrip() for line in body.split("\n"))

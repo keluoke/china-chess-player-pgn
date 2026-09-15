@@ -207,7 +207,8 @@ def main() -> int:
         if search_aliases:
             payload["searchAliases"] = search_aliases
         for key in (
-            "gameCount", "eventCount", "playerPgnPath", "playerPgnPublicURL",
+            "gameCount", "eventCount", "archivedGameCount", "playableGameCount", "excludedGameCount",
+            "participationEventCount", "pgnEventCount", "playerPgnPath", "playerPgnPublicURL",
             "playerIndexPath", "stages", "sources",
         ):
             if games.get(key) not in (None, "", [], {}):

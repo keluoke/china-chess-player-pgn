@@ -29,14 +29,14 @@ END_YEAR = 2026
 STATUS_META = {
     "full": {
         "label": "全台 PGN 完整",
-        "description": "全部实际对局均已匹配归档。",
+        "description": "全部实际对局均已匹配且主线可复盘。",
     },
     "live": {
         "label": "仅直播台次 PGN 完整",
-        "description": "来源公开的直播台次已全部归档，不代表全台完整。",
+        "description": "来源公开的直播台次均已匹配且可复盘，不代表全台完整。",
     },
     "partial": {
-        "label": "直播 PGN 待补齐",
+        "label": "棋谱质量或覆盖待补齐",
         "description": "已有部分直播棋谱，但公开范围尚未全部匹配归档。",
     },
     "missing": {
@@ -75,6 +75,8 @@ def as_int(value: Any) -> int | None:
 
 
 def pgn_category(report: dict[str, Any]) -> str:
+    if report.get("replayCoverage"):
+        return report["replayCoverage"]["code"]
     status = str(report.get("pgnIngestStatus") or "")
     archived = as_int((report.get("counts") or {}).get("archivedGames")) or 0
     if status == "full-board-complete":
@@ -118,7 +120,10 @@ def group_row(event: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
         "participants": as_int(event.get("participants")) or as_int(counts.get("players")),
         "rounds": as_int(event.get("rounds")) or as_int(counts.get("roundsExpected")),
         "pgnStatus": category,
-        "pgnStatusLabel": STATUS_META[category]["label"],
+        "pgnStatusLabel": (report.get("replayCoverage") or {}).get("label", STATUS_META[category]["label"]),
+        "replayCoverage": report.get("replayCoverage"),
+        "playableGames": counts.get("playableArchivedGames"),
+        "excludedGames": counts.get("excludedArchivedGames"),
         "archivedGames": archived,
         "playedGames": played,
         "allBoardCoveragePercent": coverage_percent(archived, played),

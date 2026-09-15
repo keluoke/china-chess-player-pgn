@@ -1,3 +1,4 @@
+import { replayCoverage, resultQualityLabel } from "./data-status.js";
 import {
   applyPresentationName,
   buildPresentationNameIndex,
@@ -552,7 +553,7 @@ async function renderSearchTrustLine() {
     }
     const parts = [
       totals.players ? `${Number(totals.players).toLocaleString("zh-CN")} 名注册棋手` : "",
-      totals.games ? `${Number(totals.games).toLocaleString("zh-CN")} 盘对局` : "",
+      totals.playableUniqueGames != null ? `${Number(totals.playableUniqueGames).toLocaleString("zh-CN")} 盘可复盘棋局` : "",
       updated ? `更新于 ${updated}` : ""
     ].filter(Boolean);
     if (!parts.length) return;
@@ -1132,14 +1133,16 @@ function pairingRow(event, round, pairing) {
     : pairing.hasPGN
     ? "暂未入库"
     : "无棋谱信息";
-  const pgnAction = localGame?.pgnPath
+  const pgnAction = localGame?.quality?.replayable === false
+    ? `<span class="pairing-pgn">棋谱已归档 · 无法复盘</span>`
+    : localGame?.pgnPath
     ? `<button type="button" class="pairing-pgn available" data-action="open-event-pgn" data-pgn-path="${escapeAttribute(localGame.pgnPath)}" data-round="${escapeAttribute(round)}" data-board="${escapeAttribute(pairing.board || localGame.board || "")}">● 本库 PGN</button>`
     : localGame && focusFideID
     ? `<button type="button" class="pairing-pgn available" data-action="select-event-player" data-fide="${escapeAttribute(focusFideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}" data-round="${escapeAttribute(round)}">● 本库 PGN</button>`
     : pairing.pgnURL
     ? `<a class="pairing-pgn external" href="${escapeAttribute(pairing.pgnURL)}" target="_blank" rel="noreferrer">PGN ↗</a>`
     : `<span class="pairing-pgn missing" title="${escapeAttribute(missingReason)}">${escapeHTML(missingReason)}</span>`;
-  return `<article class="pairing-row"><span class="pairing-board">${escapeHTML(pairing.board || "-")}</span><div>${eventSideControl(event, pairing.white ?? {}, round)}</div><strong class="pairing-result">${escapeHTML(pairing.result || "*")}</strong><div>${eventSideControl(event, pairing.black ?? {}, round)}</div>${pgnAction}</article>`;
+  return `<article class="pairing-row"><span class="pairing-board">${escapeHTML(pairing.board || "-")}</span><div>${eventSideControl(event, pairing.white ?? {}, round)}</div><strong class="pairing-result">${escapeHTML(pairing.result || "*")}<small>${escapeHTML(resultQualityLabel(localGame?.quality))}</small></strong><div>${eventSideControl(event, pairing.black ?? {}, round)}</div>${pgnAction}</article>`;
 }
 
 function eventSideControl(event, side, round) {
@@ -1901,7 +1904,7 @@ function viewerGameTitle(game, index) {
   const date = displayText(headers.EventDate ?? headers.Date ?? "");
   const white = displayText(headers.White ?? "白方");
   const black = displayText(headers.Black ?? "黑方");
-  const result = displayText(headers.Result ?? "*");
+  const result = displayText(headers.Result ?? "*") + (headers.ResultStatus === "disputed" ? "（比分待核）" : headers.ResultStatus === "reviewed" ? `（核定 ${headers.ReviewedResult}）` : "");
   return `${index + 1}. ${date ? `${date} · ` : ""}${headers.Section ? `${displayText(headers.Section)} · ` : ""}${white} - ${black} ${result}`;
 }
 
@@ -2404,21 +2407,14 @@ function presentationNameBadgeHTML(player, { detail = false } = {}) {
 }
 
 function eventDataStatus(event) {
-  // Copy derives from explicit completeness states only (review §5.1).
-  if (event?.playableComplete) return "complete";
-  if (event?.eventComplete) return "archive-complete";
-  if (["fetch-failed", "empty-response"].includes(event?.pgnSourceStatus)) return "pgn-failed";
-  const availability = event?.pgnAvailability;
-  if (availability === "not-published") return "results-only";
-  if (availability === "advertised-partial") return "partial-live";
-  if (availability === "advertised-full") return "pgn-pending";
-  if (Number(event?.gameCount) > 0 || Number(event?.pgnCount) > 0) return "cached";
-  if (event?.detailPath) return "results-only";
-  return "unverified";
+  return replayCoverage(event).code;
 }
 
 function dataStatusBadge(status) {
   const labels = {
+    full: "全台棋谱可复盘", live: "公开直播范围完整（非全台）",
+    partial: "棋谱质量或覆盖待补齐", none: "赛果完整 · 无公开棋谱",
+    missing: "公开棋谱待归档", unknown: "覆盖待核验",
     complete: "全台棋谱",
     "archive-complete": "本地归档完整",
     "partial-live": "部分直播台棋谱",
@@ -2432,22 +2428,11 @@ function dataStatusBadge(status) {
 }
 
 function completenessLabel(event, eventDetail) {
-  const completeness = eventDetail?.completeness ?? {};
-  const availability = completeness.pgnAvailability ?? event?.pgnAvailability;
-  const sourceStatus = completeness.pgnSourceStatus ?? event?.pgnSourceStatus;
-  const resultsOK = completeness.resultsStatus === "results-complete" || Boolean(event?.detailPath);
-  if (completeness.playableComplete || event?.playableComplete) return "赛果完整 · 全台棋谱";
-  if (completeness.eventComplete || event?.eventComplete) return "赛果完整 · 本地归档完整";
-  if (["fetch-failed", "empty-response"].includes(sourceStatus)) return "赛果完整 · 公开棋谱暂缺，待补录";
-  if (resultsOK && availability === "not-published") return "赛果完整 · 来源未公开棋谱";
-  if (resultsOK && availability === "advertised-partial") return "赛果完整 · 部分直播台棋谱";
-  if (resultsOK && availability === "advertised-full") return "赛果完整 · 棋谱待匹配";
-  if (resultsOK) return "赛果完整";
-  return event.pgnPath ? "已收录可查看棋谱，未宣称全台完整" : "已收录赛事档案";
+  return replayCoverage(event, eventDetail).label;
 }
 
 function playerCoverageStatus(player, staticInfo) {
-  const games = Number(staticInfo?.gameCount ?? player.gameCount ?? 0);
+  const games = Number(staticInfo?.playableGameCount ?? staticInfo?.playerPgnGameCount ?? player.playableGameCount ?? 0);
   const status = games > 0 ? "cached" : Number(player.eventCount ?? 0) > 0 ? "compare" : "missing";
   const message = status === "cached"
     ? `本库已缓存 ${games} 盘可复盘棋局。`

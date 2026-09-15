@@ -108,6 +108,14 @@ def main() -> int:
                         "severity": "review",
                     })
 
+    review_path = ROOT / "data/generated/game-result-review.json"
+    if review_path.is_file():
+        review = json.loads(review_path.read_text(encoding="utf-8"))
+        issues = [issue for issue in issues if issue["type"] != "pgn-result-mismatch"]
+        issues.extend({**issue, "type": "pgn-result-mismatch", "severity": "review",
+                       "resultStatsEligible": issue["status"] == "resolved"}
+                      for issue in review.get("issues", []))
+
     payload = {
         "schemaVersion": 1,
         "generatedAt": now.replace(microsecond=0).isoformat(),

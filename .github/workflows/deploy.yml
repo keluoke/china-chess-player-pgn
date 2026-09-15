@@ -74,6 +74,20 @@ jobs:
           echo "snapshot_id=$snapshot_id" >> "$GITHUB_OUTPUT"
           echo "input_commit=$input_commit" >> "$GITHUB_OUTPUT"
 
+      - name: Set up product verification
+        uses: ./.github/actions/setup-python-deps
+        with:
+          packages: chess==1.11.2
+
+      - name: Require rebuilt game quality before publication
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          manifest = json.load(open('data/generated/player-game-facts/manifest.json'))
+          if 'playableGames' not in manifest.get('totals', {}):
+              raise SystemExit('GAME_QUALITY_REBUILD_REQUIRED: rebuild this code before deployment')
+          PYCODE
+
       - name: Verify registry belongs to the validated snapshot
         run: |
           python3 Scripts/validate_registry_snapshot.py
@@ -116,6 +130,25 @@ jobs:
           echo "CLOUDFLARE_API_TOKEN secret is not set; Cloudflare Pages was NOT deployed." >&2
           exit 1
 
+      - name: Verify ordinary production product routes
+        id: product-canary
+        env:
+          EXPECTED_SNAPSHOT: ${{ steps.target.outputs.snapshot_id }}
+        run: |
+          for attempt in 1 2 3; do
+            python3 Scripts/verify_product_canary.py --expect-snapshot "$EXPECTED_SNAPSHOT" --output /tmp/product-canary.json && exit 0
+            if [ "$attempt" -lt 3 ]; then sleep 30; fi
+          done
+          exit 1
+
+      - name: Save product verification receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: product-canary
+          path: /tmp/product-canary.json
+          if-no-files-found: ignore
+
       - name: Record exact deployment receipt
         if: ${{ always() }}
         env:
@@ -135,6 +168,7 @@ jobs:
             echo "- event PGN R2 receipt: \`$EVENT_R2_RECEIPT_SHA256\`"
             echo "- target gate: \`${{ steps.target.outcome }}\`"
             echo "- R2 gate: \`${{ steps.r2-receipt.outcome }}\`"
+            echo "- product canary: \`${{ steps.product-canary.outcome }}\`"
             echo "- deploy action: \`${{ steps.deploy.outcome }}\`"
             echo "- conclusion: \`${{ job.status }}\`"
           } >> "$GITHUB_STEP_SUMMARY"

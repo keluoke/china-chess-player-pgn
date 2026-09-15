@@ -105,6 +105,7 @@ def output_facts() -> list[dict]:
         ROOT / "data/generated/person-observations.csv",
         ROOT / "data/generated/person-observations.meta.json",
         ROOT / "data/generated/event-completeness-report.json",
+        ROOT / "data/generated/game-result-review.json",
         ROOT / "data/generated/chess-results-player-events.csv",
         ROOT / "data/generated/chess-results-player-name-map.csv",
         ROOT / "data/generated/pgn-collection-status.json",
@@ -123,7 +124,7 @@ def output_facts() -> list[dict]:
 
 def input_facts() -> list[dict]:
     # Capture before the first builder mutates the candidate tree.
-    derived = {"event-completeness-report.json", "pgn-collection-status.json", "event-pgn-objects.json", "catalog-pgn-packages.json", "public-events.json"}
+    derived = {"game-result-review.json", "event-completeness-report.json", "pgn-collection-status.json", "event-pgn-objects.json", "catalog-pgn-packages.json", "public-events.json"}
     return [{**fact, "role": "retained-observation-baseline" if "person-observations" in fact["path"] else "canonical-input"}
             for fact in output_facts()
             if pathlib.Path(fact["path"]).name not in derived

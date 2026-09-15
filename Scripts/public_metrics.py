@@ -14,8 +14,8 @@ import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DOCS_DATA = REPO_ROOT / "docs" / "data"
-METRIC_VERSION = 1
-SCOPE = "去重后的全部可用 PGN；包含 direct、bulk 与已入库社区来源；按棋手聚合索引计数"
+METRIC_VERSION = 2
+SCOPE = "games 保留棋手关联次数；playableUniqueGames 为公共赛事目录可复盘独立棋局；archivedUniqueGames 为全部归档事实"
 
 
 def read_json(path: pathlib.Path, default=None):
@@ -27,6 +27,9 @@ def read_json(path: pathlib.Path, default=None):
 def canonical_public_metrics(docs_data: pathlib.Path = DOCS_DATA) -> dict:
     registry = read_json(docs_data / "registry" / "manifest.json", {}) or {}
     aggregate = read_json(docs_data / "index" / "by-player" / "manifest.json", {}) or {}
+    facts = read_json(docs_data.parent.parent / "data/generated/player-game-facts/manifest.json", {}) or {}
+    fact_totals = facts.get("totals", {})
+    catalog = read_json(docs_data / "index/public-events.json", {}) or {}
     registry_totals = registry.get("totals", {})
     aggregate_totals = aggregate.get("totals", {})
     players_with_games = aggregate_totals.get("players")
@@ -45,5 +48,11 @@ def canonical_public_metrics(docs_data: pathlib.Path = DOCS_DATA) -> dict:
             "withChineseName": registry_totals.get("withChineseName"),
             "playersWithGames": players_with_games,
             "games": games,
+            "playerGameLinks": games,
+            "archivedUniqueGames": fact_totals.get("games"),
+            "legalArchivedUniqueGames": fact_totals.get("playableGames"),
+            "excludedUniqueGames": fact_totals.get("excludedGames"),
+            "playablePlayerGameLinks": fact_totals.get("playablePlayerGameLinks"),
+            "playableUniqueGames": catalog.get("totals", {}).get("playableGames"),
         },
     }

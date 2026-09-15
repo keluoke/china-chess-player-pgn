@@ -26,9 +26,14 @@
 - A1 已实现 `game_quality.py` 版本化合法性/非空/结束状态，事实层写入 quality；赛事包消费共享判定；棋手默认包过滤非法/空记录，原始 metadata 与旧计数保留，新增 archived/playable/excluded 计数；完整性不再以归档认证旁路主线校验；公共 localGame 带质量。
 - A1 回归：82 项测试通过（quality/player_facts/event_library/completeness），compileall、diff --check 通过；包含“归档已认证但非法 SAN 不能算可复盘完整”反例。
 
+- A2：通过 Wrangler 实际更新 chess-data 桶 CORS，保留旧 allowlist 并加入正式域名；4 个 origin × GET/HEAD 共8项 canary 已通过，回执 `/tmp/chessdb-delivery-20260916/cors-verified.json`。新增部署后生产 canary（包正文 hash/MIME/合法性、版本409、指标、快照）。
+- B1：保留 v1 旧含义，新增 archived/playable/excluded 与 participationEventCount/pgnEventCount；首页改用目录独立可复盘局数；主站与专题消费同一 replayCoverage 契约。
+- B2：稳定结果冲突 ID/当期绑定哈希、证据哈希门禁与人工 CSV；未核定保持 disputed/pending，PGN 标签和公开详情标识，统计资格关闭。无证据的43候选未擅自裁决，等待全量重建重算（包含白黑方向排错）。
+- 必需回归及新增质量/争议/事实/目录/完整性测试共297项通过；compileall、bash -n、diff --check、3个前端文件语法检查通过。指标字典与裁决流程见 `docs/GAME_QUALITY_AND_METRICS.md`。
+
 ## 当前正在做
 
-A2/B：共享质量核心已实现，继续生产 CORS/canary、指标与争议裁决。尚未发布，完整隔离重建和生产样本验证留在交付阶段。
+A+B 实现已完成，进入完整隔离快照构建及真实样本验收。代码尚未推送；R2 CORS 已单独生效。下一步用已提交 main 的独立 worktree 全量离线重建，修复验证发现的问题，然后精确推送/CI/R2/部署/生产 canary。
 
 ## 待完成
 

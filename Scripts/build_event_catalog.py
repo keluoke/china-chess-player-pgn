@@ -345,6 +345,7 @@ def build_upstream_event(
             event["pgnSourceStatus"] = detail.get("pgnSourceStatus")
         if detail.get("eventComplete"):
             event["eventComplete"] = True
+        event["replayCoverage"] = detail.get("replayCoverage")
         if detail.get("playableComplete"):
             event["playableComplete"] = True
     if canonical_event_id:
@@ -460,6 +461,7 @@ def build_detail_only_event(
         **({"pgnAvailability": detail.get("pgnAvailability")} if detail.get("pgnAvailability") else {}),
         **({"pgnSourceStatus": detail.get("pgnSourceStatus")} if detail.get("pgnSourceStatus") else {}),
         **({"eventComplete": True} if detail.get("eventComplete") else {}),
+        "replayCoverage": detail.get("replayCoverage"),
         **({"playableComplete": True} if detail.get("playableComplete") else {}),
     }
 
@@ -868,6 +870,7 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         "pgnSourceStatus": event.get("pgnSourceStatus") or None,
         "eventComplete": event.get("eventComplete") or None,
         "playableComplete": event.get("playableComplete") or None,
+        "replayCoverage": event.get("replayCoverage"),
         "canonicalEventID": event.get("canonicalEventID"),
         "nameTranslationPending": not has_chinese_text(display_name) or None,
         "attribution": event.get("attribution"),

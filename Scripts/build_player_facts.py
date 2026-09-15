@@ -20,6 +20,7 @@ from typing import Any, Iterable
 
 import build_static_player_pgn as pgn
 from snapshot_context import snapshot_id
+from result_review import annotate
 from game_quality import inspect_game
 from stable_json import write_json
 from pgn_matching import GameLookup, explicit_fide_ids
@@ -593,6 +594,7 @@ def input_contract() -> list[dict[str, Any]]:
                 bulk_assets.append(path)
     return [
         tree_fact("registry", [REGISTRY]),
+        tree_fact("result-decisions", [ROOT / "data/community/game-result-decisions.csv", *sorted((ROOT / "data/manual/result-evidence").glob("**/*"))]),
         tree_fact("tournament-name-mappings", [MAPPINGS]),
         tree_fact("event-details", EVENT_DETAILS.glob("tnr*.json")),
         tree_fact("verified-event-pgn", EVENT_PGN.glob("tnr*.pgn")),
@@ -643,6 +645,9 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
     ingest_bulk_youth(games, registry, names, contexts)
     game_facts = sorted(games.values(), key=lambda row: (row.get("date", ""), row["id"]))
 
+    result_issues = annotate(game_facts, contexts, ROOT)
+    write_json(ROOT / "data/generated/game-result-review.json", {"schemaVersion": 1, "snapshotId": snapshot_id(), "issues": result_issues}, ensure_ascii=False, indent=2)
+
     games_by_player_event: dict[tuple[str, str], int] = defaultdict(int)
     games_by_player: dict[str, int] = defaultdict(int)
     for fact in game_facts:
@@ -665,6 +670,12 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
     game_manifest = write_dataset(GAME_FACT_ROOT, "player-game-facts", game_facts, inputs, {
         "registryPlayers": len(registry),
         "games": len(game_facts),
+        "disputedGames": sum(fact["quality"]["resultStatus"] == "disputed" for fact in game_facts),
+        "resultStatsEligibleGames": sum(fact["quality"]["resultStatsEligible"] for fact in game_facts),
+        "playableGames": sum(fact["quality"]["replayable"] for fact in game_facts),
+        "excludedGames": sum(not fact["quality"]["replayable"] for fact in game_facts),
+        "unfinishedGames": sum(not fact["quality"]["finished"] for fact in game_facts),
+        "playablePlayerGameLinks": sum(len(fact.get("playerFideIDs", [])) for fact in game_facts if fact["quality"]["replayable"]),
         "players": len(games_by_player),
         "playerGameLinks": sum(games_by_player.values()),
         "unlinkedGames": sum(not fact.get("playerFideIDs") for fact in game_facts),

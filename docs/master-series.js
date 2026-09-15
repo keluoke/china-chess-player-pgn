@@ -1,3 +1,4 @@
+import { replayCoverage } from "./data-status.js";
 const DATA_PATH = "./data/master-series-summary.json";
 const STATUS_ORDER = ["full", "live", "partial", "missing", "none", "unknown"];
 
@@ -139,7 +140,7 @@ function groupRow(group) {
       <span>${escapeHTML(facts)}</span>
     </div>
     <div class="group-pgn">
-      ${statusBadge(group.pgnStatus, group.pgnStatusLabel)}
+      ${statusBadge(group.pgnStatus, replayCoverage(group).label)}
       <span>${escapeHTML(coverageText(group))}</span>
     </div>
   </li>`;
