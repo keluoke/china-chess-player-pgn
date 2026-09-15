@@ -1,12 +1,12 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-14T13:27:10+00:00",
+  "generatedAt": "2026-09-15T06:42:50+00:00",
   "factInputs": {
     "playerGames": {
       "path": "data/generated/player-game-facts/manifest.json",
-      "sha256": "815538610cbef9cebe63080b0695de81aff494a74df0db483e6010c1bc973617",
-      "snapshotId": "20260914T132352Z-73723fe6",
-      "rows": 76519
+      "sha256": "4c80d345d4ca2e3f7170fd696ebd8a8eccf4ec6bd3351ad69d6f3fb6fd1cc77c",
+      "snapshotId": "20260915T063851Z-1850db6a",
+      "rows": 76520
     }
   },
   "summary": {
@@ -14,30 +14,30 @@
     "resultsComplete": 1024,
     "resultsUnknown": 25,
     "publishable": 1024,
-    "eventComplete": 23,
+    "eventComplete": 21,
     "pgnAvailability": {
-      "not-published": 800,
+      "not-published": 795,
       "no-pairings": 5,
-      "advertised-partial": 228,
-      "advertised-full": 38,
+      "advertised-partial": 231,
+      "advertised-full": 40,
       "unresolved-pairings": 1
     },
     "archiveStatus": {
-      "none-expected": 797,
-      "matched-advertised-complete": 161,
-      "matched-partial": 41,
-      "matched-full": 23,
+      "none-expected": 791,
+      "matched-advertised-complete": 153,
+      "matched-partial": 56,
+      "matched-full": 21,
       "locally-recoverable": 23,
-      "external-or-legacy-supplement": 8,
+      "external-or-legacy-supplement": 9,
       "missing": 18,
       "coverage-unresolved": 1
     },
     "pgnIngestStatus": {
-      "not-published": 799,
+      "not-published": 793,
       "not-applicable": 5,
-      "source-published-complete": 161,
-      "source-published-coverage-unresolved": 41,
-      "full-board-complete": 23,
+      "source-published-complete": 153,
+      "source-published-coverage-unresolved": 57,
+      "full-board-complete": 21,
       "source-published-missing": 41,
       "coverage-unresolved": 2
     },
@@ -32082,10 +32082,11 @@
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-partial",
       "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -32105,16 +32106,16 @@
         "playedGames": 184,
         "forfeits": 1,
         "advertisedPGN": 179,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "lichessBroadcastGames": 179,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 179,
+        "archivedGames": 358,
         "matchedPairings": 179,
-        "localGameFingerprints": 179
+        "localGameFingerprints": 194
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.9728,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -32258,10 +32259,11 @@
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-full",
       "pgnCoverageScope": "all-played-boards",
-      "archiveStatus": "matched-full",
-      "pgnIngestStatus": "full-board-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -32269,7 +32271,7 @@
       "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
       "playableComplete": true,
-      "eventComplete": true,
+      "eventComplete": false,
       "counts": {
         "players": 69,
         "standings": 69,
@@ -32281,16 +32283,16 @@
         "playedGames": 306,
         "forfeits": 0,
         "advertisedPGN": 306,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
-        "lichessIncompleteResidual": 0,
-        "archivedGames": 306,
+        "lichessBroadcastGames": 442,
+        "lichessUnmatchedResidual": 2,
+        "lichessIncompleteResidual": 2,
+        "archivedGames": 748,
         "matchedPairings": 306,
-        "localGameFingerprints": 306
+        "localGameFingerprints": 346
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 1.0,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -33287,34 +33289,35 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 87,
+          "expected": 98,
           "playedGames": 98,
           "playedUnknown": 0,
           "forfeits": 1
         },
         "pgnMatched": {
-          "expected": 87,
-          "matched": 87,
-          "matchedExact": 87,
+          "expected": 98,
+          "matched": 98,
+          "matchedExact": 98,
           "matchedNameFallback": 0,
           "keyNameMismatches": 0,
           "unmatchedArchiveGames": 0
         }
       },
       "resultsStatus": "results-complete",
-      "pgnAvailability": "advertised-partial",
-      "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "pgnAvailability": "advertised-full",
+      "pgnCoverageScope": "all-played-boards",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
       "pgnLastAttemptedAt": null,
       "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
-      "playableComplete": false,
+      "playableComplete": true,
       "eventComplete": false,
       "counts": {
         "players": 23,
@@ -33326,17 +33329,17 @@
         "nonByePairings": 99,
         "playedGames": 98,
         "forfeits": 1,
-        "advertisedPGN": 87,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "advertisedPGN": 98,
+        "lichessBroadcastGames": 98,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 87,
-        "matchedPairings": 87,
-        "localGameFingerprints": 87
+        "archivedGames": 185,
+        "matchedPairings": 98,
+        "localGameFingerprints": 108
       },
       "advertisedCoverage": 1.0,
-      "allBoardCoverage": 0.8878,
-      "lichessScopeVerified": true,
+      "allBoardCoverage": 1.0,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -37566,10 +37569,11 @@
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-full",
       "pgnCoverageScope": "all-played-boards",
-      "archiveStatus": "matched-full",
-      "pgnIngestStatus": "full-board-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -37577,7 +37581,7 @@
       "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
       "playableComplete": true,
-      "eventComplete": true,
+      "eventComplete": false,
       "counts": {
         "players": 28,
         "standings": 28,
@@ -37589,16 +37593,16 @@
         "playedGames": 121,
         "forfeits": 1,
         "advertisedPGN": 121,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
-        "lichessIncompleteResidual": 0,
-        "archivedGames": 121,
+        "lichessBroadcastGames": 120,
+        "lichessUnmatchedResidual": 2,
+        "lichessIncompleteResidual": 1,
+        "archivedGames": 241,
         "matchedPairings": 121,
-        "localGameFingerprints": 121
+        "localGameFingerprints": 135
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 1.0,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -37725,34 +37729,35 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 95,
+          "expected": 107,
           "playedGames": 107,
           "playedUnknown": 0,
           "forfeits": 1
         },
         "pgnMatched": {
-          "expected": 95,
-          "matched": 95,
-          "matchedExact": 95,
+          "expected": 107,
+          "matched": 107,
+          "matchedExact": 107,
           "matchedNameFallback": 0,
           "keyNameMismatches": 0,
           "unmatchedArchiveGames": 0
         }
       },
       "resultsStatus": "results-complete",
-      "pgnAvailability": "advertised-partial",
-      "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "pgnAvailability": "advertised-full",
+      "pgnCoverageScope": "all-played-boards",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
       "pgnLastAttemptedAt": null,
       "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
-      "playableComplete": false,
+      "playableComplete": true,
       "eventComplete": false,
       "counts": {
         "players": 24,
@@ -37764,17 +37769,17 @@
         "nonByePairings": 108,
         "playedGames": 107,
         "forfeits": 1,
-        "advertisedPGN": 95,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "advertisedPGN": 107,
+        "lichessBroadcastGames": 107,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 95,
-        "matchedPairings": 95,
-        "localGameFingerprints": 95
+        "archivedGames": 202,
+        "matchedPairings": 107,
+        "localGameFingerprints": 126
       },
       "advertisedCoverage": 1.0,
-      "allBoardCoverage": 0.8879,
-      "lichessScopeVerified": true,
+      "allBoardCoverage": 1.0,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -44334,15 +44339,15 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 96,
+          "expected": 105,
           "playedGames": 108,
           "playedUnknown": 0,
           "forfeits": 0
         },
         "pgnMatched": {
-          "expected": 96,
-          "matched": 96,
-          "matchedExact": 96,
+          "expected": 105,
+          "matched": 105,
+          "matchedExact": 105,
           "matchedNameFallback": 0,
           "keyNameMismatches": 0,
           "unmatchedArchiveGames": 0
@@ -44351,10 +44356,11 @@
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-partial",
       "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -44373,17 +44379,17 @@
         "nonByePairings": 108,
         "playedGames": 108,
         "forfeits": 0,
-        "advertisedPGN": 96,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
-        "lichessIncompleteResidual": 0,
-        "archivedGames": 96,
-        "matchedPairings": 96,
-        "localGameFingerprints": 96
+        "advertisedPGN": 105,
+        "lichessBroadcastGames": 99,
+        "lichessUnmatchedResidual": 8,
+        "lichessIncompleteResidual": 8,
+        "archivedGames": 195,
+        "matchedPairings": 105,
+        "localGameFingerprints": 114
       },
       "advertisedCoverage": 1.0,
-      "allBoardCoverage": 0.8889,
-      "lichessScopeVerified": true,
+      "allBoardCoverage": 0.9722,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -45553,10 +45559,11 @@
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-partial",
       "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -45576,16 +45583,16 @@
         "playedGames": 197,
         "forfeits": 1,
         "advertisedPGN": 179,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "lichessBroadcastGames": 179,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 179,
+        "archivedGames": 358,
         "matchedPairings": 179,
-        "localGameFingerprints": 179
+        "localGameFingerprints": 196
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.9086,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -47616,10 +47623,11 @@
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-partial",
       "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -47639,16 +47647,16 @@
         "playedGames": 198,
         "forfeits": 0,
         "advertisedPGN": 99,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
-        "lichessIncompleteResidual": 0,
-        "archivedGames": 99,
+        "lichessBroadcastGames": 98,
+        "lichessUnmatchedResidual": 1,
+        "lichessIncompleteResidual": 1,
+        "archivedGames": 197,
         "matchedPairings": 99,
-        "localGameFingerprints": 99
+        "localGameFingerprints": 109
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.5,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -48829,17 +48837,18 @@
           "matched": 143,
           "matchedExact": 143,
           "matchedNameFallback": 0,
-          "keyNameMismatches": 0,
-          "unmatchedArchiveGames": 0
+          "keyNameMismatches": 1,
+          "unmatchedArchiveGames": 1
         }
       },
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-partial",
       "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -48859,16 +48868,16 @@
         "playedGames": 267,
         "forfeits": 2,
         "advertisedPGN": 143,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "lichessBroadcastGames": 143,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 143,
+        "archivedGames": 286,
         "matchedPairings": 143,
-        "localGameFingerprints": 143
+        "localGameFingerprints": 172
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.5356,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -49105,30 +49114,32 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 0,
+          "expected": 4,
           "playedGames": 824,
           "playedUnknown": 0,
           "forfeits": 1
         },
         "pgnMatched": {
-          "expected": 0,
-          "matched": 0,
-          "matchedExact": 0,
+          "expected": 4,
+          "matched": 4,
+          "matchedExact": 4,
           "matchedNameFallback": 0,
-          "keyNameMismatches": 0,
-          "unmatchedArchiveGames": 0
+          "keyNameMismatches": 105,
+          "unmatchedArchiveGames": 105
         }
       },
       "resultsStatus": "results-complete",
-      "pgnAvailability": "not-published",
-      "pgnCoverageScope": "none-published",
-      "archiveStatus": "none-expected",
-      "pgnIngestStatus": "not-published",
-      "pgnArchiveSources": [],
+      "pgnAvailability": "advertised-partial",
+      "pgnCoverageScope": "selected-live-boards",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
+      "pgnArchiveSources": [
+        "Lichess Broadcasts"
+      ],
       "pgnSourceStatus": "not-published",
       "pgnSourceErrorCode": "SOURCE_PGN_NOT_PUBLISHED",
       "pgnLastAttemptedAt": null,
-      "publicArchiveVerified": false,
+      "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
       "playableComplete": false,
       "eventComplete": false,
@@ -49142,17 +49153,17 @@
         "nonByePairings": 825,
         "playedGames": 824,
         "forfeits": 1,
-        "advertisedPGN": 0,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "advertisedPGN": 4,
+        "lichessBroadcastGames": 109,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 0,
-        "matchedPairings": 0,
-        "localGameFingerprints": 0
+        "archivedGames": 109,
+        "matchedPairings": 4,
+        "localGameFingerprints": 109
       },
-      "advertisedCoverage": null,
-      "allBoardCoverage": 0.0,
-      "lichessScopeVerified": true,
+      "advertisedCoverage": 1.0,
+      "allBoardCoverage": 0.0049,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -49307,20 +49318,22 @@
           "matched": 0,
           "matchedExact": 0,
           "matchedNameFallback": 0,
-          "keyNameMismatches": 0,
-          "unmatchedArchiveGames": 0
+          "keyNameMismatches": 108,
+          "unmatchedArchiveGames": 108
         }
       },
       "resultsStatus": "results-complete",
       "pgnAvailability": "not-published",
       "pgnCoverageScope": "none-published",
-      "archiveStatus": "none-expected",
-      "pgnIngestStatus": "not-published",
-      "pgnArchiveSources": [],
+      "archiveStatus": "external-or-legacy-supplement",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
+      "pgnArchiveSources": [
+        "Lichess Broadcasts"
+      ],
       "pgnSourceStatus": "not-published",
       "pgnSourceErrorCode": "SOURCE_PGN_NOT_PUBLISHED",
       "pgnLastAttemptedAt": null,
-      "publicArchiveVerified": false,
+      "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
       "playableComplete": false,
       "eventComplete": false,
@@ -49335,16 +49348,16 @@
         "playedGames": 275,
         "forfeits": 0,
         "advertisedPGN": 0,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
-        "lichessIncompleteResidual": 0,
-        "archivedGames": 0,
+        "lichessBroadcastGames": 108,
+        "lichessUnmatchedResidual": 2,
+        "lichessIncompleteResidual": 2,
+        "archivedGames": 108,
         "matchedPairings": 0,
-        "localGameFingerprints": 0
+        "localGameFingerprints": 108
       },
       "advertisedCoverage": null,
       "allBoardCoverage": 0.0,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -49489,30 +49502,32 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 0,
+          "expected": 85,
           "playedGames": 1323,
           "playedUnknown": 0,
           "forfeits": 1
         },
         "pgnMatched": {
-          "expected": 0,
-          "matched": 0,
-          "matchedExact": 0,
+          "expected": 85,
+          "matched": 85,
+          "matchedExact": 85,
           "matchedNameFallback": 0,
-          "keyNameMismatches": 0,
-          "unmatchedArchiveGames": 0
+          "keyNameMismatches": 25,
+          "unmatchedArchiveGames": 25
         }
       },
       "resultsStatus": "results-complete",
-      "pgnAvailability": "not-published",
-      "pgnCoverageScope": "none-published",
-      "archiveStatus": "none-expected",
-      "pgnIngestStatus": "not-published",
-      "pgnArchiveSources": [],
+      "pgnAvailability": "advertised-partial",
+      "pgnCoverageScope": "selected-live-boards",
+      "archiveStatus": "matched-advertised-complete",
+      "pgnIngestStatus": "source-published-complete",
+      "pgnArchiveSources": [
+        "Lichess Broadcasts"
+      ],
       "pgnSourceStatus": "not-published",
       "pgnSourceErrorCode": "SOURCE_PGN_NOT_PUBLISHED",
       "pgnLastAttemptedAt": null,
-      "publicArchiveVerified": false,
+      "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
       "playableComplete": false,
       "eventComplete": false,
@@ -49526,16 +49541,16 @@
         "nonByePairings": 1324,
         "playedGames": 1323,
         "forfeits": 1,
-        "advertisedPGN": 0,
-        "lichessBroadcastGames": 0,
+        "advertisedPGN": 85,
+        "lichessBroadcastGames": 110,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 0,
-        "matchedPairings": 0,
-        "localGameFingerprints": 0
+        "archivedGames": 110,
+        "matchedPairings": 85,
+        "localGameFingerprints": 110
       },
-      "advertisedCoverage": null,
-      "allBoardCoverage": 0.0,
+      "advertisedCoverage": 1.0,
+      "allBoardCoverage": 0.0642,
       "lichessScopeVerified": true,
       "publishable": true
     },
@@ -49681,30 +49696,32 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 0,
+          "expected": 86,
           "playedGames": 715,
           "playedUnknown": 0,
           "forfeits": 0
         },
         "pgnMatched": {
-          "expected": 0,
-          "matched": 0,
-          "matchedExact": 0,
+          "expected": 86,
+          "matched": 86,
+          "matchedExact": 86,
           "matchedNameFallback": 0,
-          "keyNameMismatches": 0,
-          "unmatchedArchiveGames": 0
+          "keyNameMismatches": 23,
+          "unmatchedArchiveGames": 23
         }
       },
       "resultsStatus": "results-complete",
-      "pgnAvailability": "not-published",
-      "pgnCoverageScope": "none-published",
-      "archiveStatus": "none-expected",
-      "pgnIngestStatus": "not-published",
-      "pgnArchiveSources": [],
+      "pgnAvailability": "advertised-partial",
+      "pgnCoverageScope": "selected-live-boards",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
+      "pgnArchiveSources": [
+        "Lichess Broadcasts"
+      ],
       "pgnSourceStatus": "not-published",
       "pgnSourceErrorCode": "SOURCE_PGN_NOT_PUBLISHED",
       "pgnLastAttemptedAt": null,
-      "publicArchiveVerified": false,
+      "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
       "playableComplete": false,
       "eventComplete": false,
@@ -49718,17 +49735,17 @@
         "nonByePairings": 715,
         "playedGames": 715,
         "forfeits": 0,
-        "advertisedPGN": 0,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "advertisedPGN": 86,
+        "lichessBroadcastGames": 109,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 0,
-        "matchedPairings": 0,
-        "localGameFingerprints": 0
+        "archivedGames": 109,
+        "matchedPairings": 86,
+        "localGameFingerprints": 109
       },
-      "advertisedCoverage": null,
-      "allBoardCoverage": 0.0,
-      "lichessScopeVerified": true,
+      "advertisedCoverage": 1.0,
+      "allBoardCoverage": 0.1203,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -49873,30 +49890,32 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 0,
+          "expected": 110,
           "playedGames": 964,
           "playedUnknown": 0,
           "forfeits": 2
         },
         "pgnMatched": {
-          "expected": 0,
-          "matched": 0,
-          "matchedExact": 0,
+          "expected": 110,
+          "matched": 110,
+          "matchedExact": 110,
           "matchedNameFallback": 0,
           "keyNameMismatches": 0,
           "unmatchedArchiveGames": 0
         }
       },
       "resultsStatus": "results-complete",
-      "pgnAvailability": "not-published",
-      "pgnCoverageScope": "none-published",
-      "archiveStatus": "none-expected",
-      "pgnIngestStatus": "not-published",
-      "pgnArchiveSources": [],
+      "pgnAvailability": "advertised-partial",
+      "pgnCoverageScope": "selected-live-boards",
+      "archiveStatus": "matched-advertised-complete",
+      "pgnIngestStatus": "source-published-complete",
+      "pgnArchiveSources": [
+        "Lichess Broadcasts"
+      ],
       "pgnSourceStatus": "not-published",
       "pgnSourceErrorCode": "SOURCE_PGN_NOT_PUBLISHED",
       "pgnLastAttemptedAt": null,
-      "publicArchiveVerified": false,
+      "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
       "playableComplete": false,
       "eventComplete": false,
@@ -49910,16 +49929,16 @@
         "nonByePairings": 966,
         "playedGames": 964,
         "forfeits": 2,
-        "advertisedPGN": 0,
-        "lichessBroadcastGames": 0,
+        "advertisedPGN": 110,
+        "lichessBroadcastGames": 110,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 0,
-        "matchedPairings": 0,
-        "localGameFingerprints": 0
+        "archivedGames": 110,
+        "matchedPairings": 110,
+        "localGameFingerprints": 110
       },
-      "advertisedCoverage": null,
-      "allBoardCoverage": 0.0,
+      "advertisedCoverage": 1.0,
+      "allBoardCoverage": 0.1141,
       "lichessScopeVerified": true,
       "publishable": true
     },
@@ -50065,30 +50084,32 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 0,
+          "expected": 109,
           "playedGames": 352,
           "playedUnknown": 0,
           "forfeits": 0
         },
         "pgnMatched": {
-          "expected": 0,
-          "matched": 0,
-          "matchedExact": 0,
+          "expected": 109,
+          "matched": 109,
+          "matchedExact": 109,
           "matchedNameFallback": 0,
           "keyNameMismatches": 0,
           "unmatchedArchiveGames": 0
         }
       },
       "resultsStatus": "results-complete",
-      "pgnAvailability": "not-published",
-      "pgnCoverageScope": "none-published",
-      "archiveStatus": "none-expected",
-      "pgnIngestStatus": "not-published",
-      "pgnArchiveSources": [],
+      "pgnAvailability": "advertised-partial",
+      "pgnCoverageScope": "selected-live-boards",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
+      "pgnArchiveSources": [
+        "Lichess Broadcasts"
+      ],
       "pgnSourceStatus": "not-published",
       "pgnSourceErrorCode": "SOURCE_PGN_NOT_PUBLISHED",
       "pgnLastAttemptedAt": null,
-      "publicArchiveVerified": false,
+      "publicArchiveVerified": true,
       "offlineRematchEvidenceVerified": false,
       "playableComplete": false,
       "eventComplete": false,
@@ -50102,17 +50123,17 @@
         "nonByePairings": 352,
         "playedGames": 352,
         "forfeits": 0,
-        "advertisedPGN": 0,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
-        "lichessIncompleteResidual": 0,
-        "archivedGames": 0,
-        "matchedPairings": 0,
-        "localGameFingerprints": 0
+        "advertisedPGN": 109,
+        "lichessBroadcastGames": 109,
+        "lichessUnmatchedResidual": 1,
+        "lichessIncompleteResidual": 1,
+        "archivedGames": 109,
+        "matchedPairings": 109,
+        "localGameFingerprints": 109
       },
-      "advertisedCoverage": null,
-      "allBoardCoverage": 0.0,
-      "lichessScopeVerified": true,
+      "advertisedCoverage": 1.0,
+      "allBoardCoverage": 0.3097,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -50451,7 +50472,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -50471,12 +50493,12 @@
         "playedGames": 473,
         "forfeits": 0,
         "advertisedPGN": 55,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 55,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 55,
+        "archivedGames": 110,
         "matchedPairings": 55,
-        "localGameFingerprints": 55
+        "localGameFingerprints": 62
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.1163,
@@ -50645,7 +50667,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -50665,12 +50688,12 @@
         "playedGames": 286,
         "forfeits": 0,
         "advertisedPGN": 55,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 55,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 55,
+        "archivedGames": 110,
         "matchedPairings": 55,
-        "localGameFingerprints": 55
+        "localGameFingerprints": 62
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.1923,
@@ -50839,7 +50862,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -50859,12 +50883,12 @@
         "playedGames": 143,
         "forfeits": 0,
         "advertisedPGN": 55,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 55,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 55,
+        "archivedGames": 110,
         "matchedPairings": 55,
-        "localGameFingerprints": 55
+        "localGameFingerprints": 60
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.3846,
@@ -51033,7 +51057,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -51053,12 +51078,12 @@
         "playedGames": 77,
         "forfeits": 0,
         "advertisedPGN": 55,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 55,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 55,
+        "archivedGames": 110,
         "matchedPairings": 55,
-        "localGameFingerprints": 55
+        "localGameFingerprints": 60
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.7143,
@@ -51227,7 +51252,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -51247,12 +51273,12 @@
         "playedGames": 1188,
         "forfeits": 0,
         "advertisedPGN": 55,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 55,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 55,
+        "archivedGames": 110,
         "matchedPairings": 55,
-        "localGameFingerprints": 55
+        "localGameFingerprints": 60
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.0463,
@@ -51421,7 +51447,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -51441,12 +51468,12 @@
         "playedGames": 646,
         "forfeits": 3,
         "advertisedPGN": 55,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 55,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 55,
+        "archivedGames": 110,
         "matchedPairings": 55,
-        "localGameFingerprints": 55
+        "localGameFingerprints": 61
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.0851,
@@ -51615,7 +51642,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -51635,12 +51663,12 @@
         "playedGames": 291,
         "forfeits": 1,
         "advertisedPGN": 55,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 55,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 55,
+        "archivedGames": 110,
         "matchedPairings": 55,
-        "localGameFingerprints": 55
+        "localGameFingerprints": 59
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.189,
@@ -51806,10 +51834,11 @@
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-partial",
       "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -51829,16 +51858,16 @@
         "playedGames": 152,
         "forfeits": 2,
         "advertisedPGN": 54,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "lichessBroadcastGames": 54,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 54,
+        "archivedGames": 108,
         "matchedPairings": 54,
-        "localGameFingerprints": 54
+        "localGameFingerprints": 60
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.3553,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -55042,15 +55071,15 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 89,
+          "expected": 90,
           "playedGames": 193,
           "playedUnknown": 0,
           "forfeits": 1
         },
         "pgnMatched": {
-          "expected": 89,
-          "matched": 89,
-          "matchedExact": 89,
+          "expected": 90,
+          "matched": 90,
+          "matchedExact": 90,
           "matchedNameFallback": 0,
           "keyNameMismatches": 0,
           "unmatchedArchiveGames": 0
@@ -55062,7 +55091,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -55081,16 +55111,16 @@
         "nonByePairings": 194,
         "playedGames": 193,
         "forfeits": 1,
-        "advertisedPGN": 89,
-        "lichessBroadcastGames": 0,
+        "advertisedPGN": 90,
+        "lichessBroadcastGames": 90,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 89,
-        "matchedPairings": 89,
-        "localGameFingerprints": 89
+        "archivedGames": 179,
+        "matchedPairings": 90,
+        "localGameFingerprints": 105
       },
       "advertisedCoverage": 1.0,
-      "allBoardCoverage": 0.4611,
+      "allBoardCoverage": 0.4663,
       "lichessScopeVerified": true,
       "publishable": true
     },
@@ -55228,8 +55258,8 @@
           "matched": 90,
           "matchedExact": 90,
           "matchedNameFallback": 0,
-          "keyNameMismatches": 0,
-          "unmatchedArchiveGames": 0
+          "keyNameMismatches": 3,
+          "unmatchedArchiveGames": 3
         }
       },
       "resultsStatus": "results-complete",
@@ -55238,7 +55268,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -55258,12 +55289,12 @@
         "playedGames": 405,
         "forfeits": 1,
         "advertisedPGN": 90,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 90,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 90,
+        "archivedGames": 180,
         "matchedPairings": 90,
-        "localGameFingerprints": 90
+        "localGameFingerprints": 109
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.2222,
@@ -56960,15 +56991,15 @@
           "status": "complete"
         },
         "pgnExpected": {
-          "expected": 88,
+          "expected": 89,
           "playedGames": 359,
           "playedUnknown": 0,
           "forfeits": 7
         },
         "pgnMatched": {
-          "expected": 88,
-          "matched": 88,
-          "matchedExact": 88,
+          "expected": 89,
+          "matched": 89,
+          "matchedExact": 89,
           "matchedNameFallback": 0,
           "keyNameMismatches": 0,
           "unmatchedArchiveGames": 0
@@ -56977,10 +57008,11 @@
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-partial",
       "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -56999,17 +57031,17 @@
         "nonByePairings": 366,
         "playedGames": 359,
         "forfeits": 7,
-        "advertisedPGN": 88,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "advertisedPGN": 89,
+        "lichessBroadcastGames": 89,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 88,
-        "matchedPairings": 88,
-        "localGameFingerprints": 88
+        "archivedGames": 177,
+        "matchedPairings": 89,
+        "localGameFingerprints": 106
       },
       "advertisedCoverage": 1.0,
-      "allBoardCoverage": 0.2451,
-      "lichessScopeVerified": true,
+      "allBoardCoverage": 0.2479,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
@@ -60027,8 +60059,8 @@
           "matched": 90,
           "matchedExact": 90,
           "matchedNameFallback": 0,
-          "keyNameMismatches": 0,
-          "unmatchedArchiveGames": 0
+          "keyNameMismatches": 1,
+          "unmatchedArchiveGames": 1
         }
       },
       "resultsStatus": "results-complete",
@@ -60037,7 +60069,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -60057,12 +60090,12 @@
         "playedGames": 189,
         "forfeits": 0,
         "advertisedPGN": 90,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 90,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 90,
+        "archivedGames": 180,
         "matchedPairings": 90,
-        "localGameFingerprints": 90
+        "localGameFingerprints": 102
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.4762,
@@ -66115,7 +66148,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -66135,12 +66169,12 @@
         "playedGames": 238,
         "forfeits": 1,
         "advertisedPGN": 90,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 90,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 90,
+        "archivedGames": 180,
         "matchedPairings": 90,
-        "localGameFingerprints": 90
+        "localGameFingerprints": 105
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.3782,
@@ -74075,7 +74109,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "imported",
       "pgnSourceErrorCode": null,
@@ -74095,12 +74130,12 @@
         "playedGames": 349,
         "forfeits": 2,
         "advertisedPGN": 90,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 90,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 90,
+        "archivedGames": 180,
         "matchedPairings": 90,
-        "localGameFingerprints": 90
+        "localGameFingerprints": 97
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.2579,
@@ -75121,7 +75156,8 @@
       "archiveStatus": "matched-advertised-complete",
       "pgnIngestStatus": "source-published-complete",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -75141,12 +75177,12 @@
         "playedGames": 273,
         "forfeits": 3,
         "advertisedPGN": 90,
-        "lichessBroadcastGames": 0,
+        "lichessBroadcastGames": 90,
         "lichessUnmatchedResidual": 0,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 90,
+        "archivedGames": 180,
         "matchedPairings": 90,
-        "localGameFingerprints": 90
+        "localGameFingerprints": 97
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.3297,
@@ -166861,17 +166897,18 @@
           "matched": 331,
           "matchedExact": 331,
           "matchedNameFallback": 0,
-          "keyNameMismatches": 0,
-          "unmatchedArchiveGames": 0
+          "keyNameMismatches": 32,
+          "unmatchedArchiveGames": 32
         }
       },
       "resultsStatus": "results-complete",
       "pgnAvailability": "advertised-partial",
       "pgnCoverageScope": "selected-live-boards",
-      "archiveStatus": "matched-advertised-complete",
-      "pgnIngestStatus": "source-published-complete",
+      "archiveStatus": "matched-partial",
+      "pgnIngestStatus": "source-published-coverage-unresolved",
       "pgnArchiveSources": [
-        "Chess-Results"
+        "Chess-Results",
+        "Lichess Broadcasts"
       ],
       "pgnSourceStatus": "fetched",
       "pgnSourceErrorCode": null,
@@ -166891,16 +166928,16 @@
         "playedGames": 1046,
         "forfeits": 4,
         "advertisedPGN": 331,
-        "lichessBroadcastGames": 0,
-        "lichessUnmatchedResidual": 0,
+        "lichessBroadcastGames": 32,
+        "lichessUnmatchedResidual": 1,
         "lichessIncompleteResidual": 0,
-        "archivedGames": 331,
+        "archivedGames": 363,
         "matchedPairings": 331,
-        "localGameFingerprints": 331
+        "localGameFingerprints": 363
       },
       "advertisedCoverage": 1.0,
       "allBoardCoverage": 0.3164,
-      "lichessScopeVerified": true,
+      "lichessScopeVerified": false,
       "publishable": true
     },
     {
