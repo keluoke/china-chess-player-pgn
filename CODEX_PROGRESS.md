@@ -1,75 +1,59 @@
 # CODEX_PROGRESS
 
-更新时间：2026-09-16（Asia/Shanghai）；线上取证基线为 2026-09-15。
+更新时间：2026-09-16（Asia/Shanghai）
 
 ## 最终目标
 
-对 https://chessdb.aigclabs.cc/ 在真实环境中进行完整只读 review，从技术架构、产品体验、数据维护三个角度交付有复现证据、优先级、验收指标和迭代路线的中文报告。仅修改进度和评审文档，不改产品代码、不采集来源、不发布。
+用户已授权报告 A+B，继续工作至交付：修复 R2 正式域名跨域读取，统一棋局合法性、完整性和结果争议状态，统一指标与事件计数字段，完成测试、精确 main 发布、统一重建/R2 认证、部署及正常生产 URL 验证。
+本次不实施 C/D/E 全量体验或架构改造，不回抓赛事来源、不改变 registry 权威、不切换 Cloudflare shadow 为生产。
 
 ## 当前计划
 
-1. 阶段 1：建立评审范围与基线；记录本地版本、线上快照、页面与接口清单。
-2. 阶段 2：真实浏览器走查核心用户旅程，核验公开 HTTP/JSON/PGN、缓存及数据一致性，形成证据记录并提交。
-3. 阶段 3：结合源码、流水线和维护契约审查架构及数据维护机制，区分已证实问题与风险，更新记录并提交。
-4. 阶段 4：形成完整评审报告及分阶段优化方案；检查证据、链接和文档差异，提交交付。
-
-验收：覆盖首页/搜索/棋手/赛事/排行榜/棋谱/贡献与数据覆盖说明；重要结论带线上或源码证据；标明检查时间、样本范围与无法核实项；所有方案具备优先级、依赖、成本级别和验收条件。
+1. A0 基线与设计：受控同步代码 main，确认数据契约和受影响出口，补充进度并提交。
+2. A1 统一质量：事实层版本化解析/主线/终局质量；默认棋手包与赛事包一致过滤；完整性按合法配对覆盖判定；保留原档证据。补回归、验证并提交。
+3. A2 可信主路径：正式域名 R2 CORS 配置和生产 canary；新旧 origin 与 fallback 均验证，提交。
+4. B1 统一表达：指标字典、明确的参赛/有谱赛事计数、API v1 兼容新增字段；主站/专题/API 共用覆盖状态，测试并提交。
+5. B2 结果争议：稳定逐局问题 ID、人工裁决输入、证据门禁、公开争议标记和统计排除；处理高优先级样本为有证据的裁决或明确待核，绝不猜比分。测试并提交。
+6. 交付：必需回归与完整隔离快照构建，精确推送 main，追踪 CI→rebuild→R2→deploy，核对线上普通 URL、hash/MIME、CORS、质量/指标样本。记录最终回执并提交。
 
 ## 已完成
 
-- 已读取项目 AGENTS.md 与 Scripts/local/README.md，核对采集/代码工作区边界。
-- 已检查两个工作区的 git status、最近提交；此前均无 CODEX_PROGRESS.md。
-- 已建立包含七项必需内容的进度记录，完成独立文档提交；暂存 diff 格式检查通过。阶段 0 的提交标题为 `docs: initialize Codex progress handoff`；其提交结果以代码工作区 git log 为准。
-
-- 阶段 1 已完成：明确三维只读评审范围。远端 main 已实查为 `18f52e470c96dd995c7879cb6b52703d3e3ca91b`。
-- 阶段 2 HTTP/数据核验已完成：线上快照 `20260915T063851Z-1850db6a`，5 个 snapshot 输出 hash/bytes 一致，主页及核心 JS 与代码工作区一致；公开 PGN 做逐局解析。证据：`review-evidence/2026-09-15-production.json`。浏览器交互部分未完成，工具连接超时。
-- 核心新发现：1458883 原赛事包 162 局中 12 局非法 SAN，目录过滤后 150 局，但详情仍 playableComplete=true；1227491 为 89 局中 3 局非法 SAN，目录 86；居文君 717 局包含 6 局解析错误。R2 哈希正确不代表棋谱语义正确。
-- API 与搜索 eventCount 不同口径：居文君 API=0，bootstrap=135；待在报告解释。覆盖页仍展示退役 cr-contrib 漏斗。
-
-- 阶段 3 已完成：排行榜 60 维/3717 行校验无错误；9 条搜索 query 在当前线上 bootstrap + 已验证同正文 search-core 上离线检查，正常（不等于浏览器交互通过）。已有 search-core 测试及 presentation-names 5 项测试通过。
-- 质量队列含 43 项 result-mismatch/15 个赛事，实核 1059818 第1轮第62台，成绩 0-1 而 localGame 为 1-0；真实结果尚未裁决。
-- 最新 deploy run 34943857597 成功，部署 ce03b7f39c，产物 2384 文件/475928 KiB；末次快照正文未变化。
-- 架构决定：评审 JSON 证据移到仓库根 `review-evidence/`，因为站点组装仅排除 Markdown/HTML，放 docs/reviews 下的 JSON 会随未来部署复制。无需改产品代码。
-
-- 阶段 4 补核确认 R2 新域名 CORS 缺口：同一对象 GET/HEAD 带 Origin=https://chessdb.aigclabs.cc 无 ACAO；GET 带旧 Origin=https://4chess.cc 返回对应 ACAO 与 Vary: Origin。受控 r2-cors.json 未包含新域名；未修改线上配置。
-
-- 阶段 4 已完成：报告含三维评审、P0/P1 根因、五阶段计划/人日估算/依赖/验收，以及明确的交互验证缺口。79 次 HTTP 观测和 3 次 CORS 请求摘要已保存。
-- 最终文档校验：JSON 可解析，关键数值与证据一致，相对链接和引用源码路径存在，git diff --check 通过。未重跑无关全仓测试。
-- 最终提交标题：`docs: deliver production product review and iteration roadmap`；准确提交哈希以代码工作区 git log 为准。
+- 前轮评审报告：`docs/reviews/REVIEW_2026-09-15_PRODUCTION_PRODUCT.md`，证据：`review-evidence/2026-09-15-production.json`；最终评审提交 `9238a5c6aa`。
+- 已读取当前 AGENTS.md 与 Scripts/local/README.md；通过 `code_workspace.sh sync` 同步检查，main 未落后，本地有 5 个尚未推送的评审文档提交。
+- 历史线上基线：snapshot `20260915T063851Z-1850db6a`，input `482f395360a302037bac27073e3121dc96bf7859`，deploy run `34943857597`。
+- 已确认现有事实层保留全量原始记录，但合法主线过滤只在赛事库；完整性与棋手包尚不消费同一质量结论。
 
 ## 当前正在做
 
-报告编写与证据核对已完成，提交交付文档。报告：`docs/reviews/REVIEW_2026-09-15_PRODUCTION_PRODUCT.md`；证据：`review-evidence/2026-09-15-production.json`。产品代码与线上状态未修改。
+A0/A1：设计共享棋局质量契约，检查事实→棋手包→完整性→赛事库→API/前端全部消费者与测试。下一步实现事实质量与公共投影，并为 1458883、1227491、8603006 的行为建立回归。
 
 ## 待完成
 
-- 报告与优化方案已交付；没有正在运行的采集、发布或后台任务。
-- 阶段 2 的真实浏览器交互与移动端视觉验收仍未完成；2026-09-16 恢复后 getState 仍超时。待连接恢复后按报告第八节补验，不得标记通过。
+- A1、A2、B1、B2 与交付全部阶段。
+- 生产 R2 CORS 真实配置更新后必须 GET/HEAD 带 origin 验证；配置文件修改不能代替线上验证。
+- 43 个比分冲突候选仍须逐局有证据判定；允许明确 pending，不得批量反转结果或假装已裁决。
+- 浏览器工具在前轮持续超时；可恢复则补验真实核心路径，否则精确记录范围，不以源码/HTTP冒充浏览器交互。
 
 ## 重要技术决策
 
-- 当前项目入口：`/Volumes/AI/coding/kimi/CODEX_PROGRESS.md`。
-- Git 版本记录：`/Volumes/AI/coding/kimi-code/CODEX_PROGRESS.md`；该文件是受版本管理的主本。每次更新同时更新当前项目入口副本，保持内容一致；发生差异先核对 git diff 和日志。
-- 代码、人工文档提交位于 `/Volumes/AI/coding/kimi-code` 的 main。采集工作区不 pull/rebase，不将进度文档加入 local-data 发布包。
-- 仅暂存本任务精确路径，不使用 git add .，不清理或提交既有改动。
-- 文档初始化只需内容与 diff 校验。修改管线后必须执行 AGENTS.md 指定测试；测试未通过时明确记录，不标为阶段完成。
-- 被中断前先记录当前步骤、未提交文件、最后验证结果、失败原因和下一步；提交哈希通过最近 git log 获取，避免把本次提交自身哈希写进自身。
+- 代码仅在 `/Volumes/AI/coding/kimi-code` main；采集 `/Volumes/AI/coding/kimi` 不 pull/rebase/清理。两处根 CODEX_PROGRESS.md 保持一致。
+- 只精确提交本任务文件，保留既有未跟踪实验/人工数据。机器数据只由构建器生成，不手改。
+- 原始 PGN 与字节认证保留；合法可播放、归档记录、结果争议、结束状态、公开范围/全台覆盖独立表达。
+- 保持 v1 已发布字段含义，新增明确质量/指标字段；不能用减少原档事实或删错局来伪装修复。
+- 每个可运行阶段立即更新进度并 git commit。GitHub 终端请求显式注入大小写 127.0.0.1:15236 代理。
+- 发布沿现有统一快照构建与 R2 认证；失败只恢复失败阶段。
 
 ## 已知问题
 
-- 单次真实环境评审是时间点抽样；线上数据/缓存可持续更新，需保留快照与检查时间。
-- 采集工作区初始化 HEAD 为 `1f3914ea0ee`，有大量既有 tracked/untracked 改动，均不属于本轮工作。相对本地 origin/main 显示 ahead 309 / behind 1；未查询远端，此数值不代表线上状态。
-- 代码工作区初始化 HEAD 为 `18f52e470c`，main 与本地 origin/main 一致；无 tracked 改动。已有未跟踪路径：`.workbuddy/`、`HANDOFF_2026-07-22.md`、`REVIEW_2026-07-24.md`、`data/manual/event-time-controls.csv`、`docs/reviews/REVIEW_2026-08-01_完整项目评审.md`、`experiments/estimated-ratings/Scripts/`、`experiments/estimated-ratings/docs/`。这些不是本轮产物。
+- 1458883 原包 162 局/12 非法，目录150，但 playableComplete=true；1227491 原包89/3非法/目录86；8603006 棋手包717/6非法。
+- 1059818 第1轮62台，成绩0-1与localGame 1-0冲突；真实结果未获独立证据，不能擅自决定。
+- 新站 origin 未在 R2 CORS allowlist，旧站正常；有同源 fallback，不能说全站不可用。
+- v1 与 bootstrap eventCount 口径不同；80,270 是棋手关联次数，74,550 是目录可播放独立局数（均为评审基线）。
+- 本任务开始前 code 工作区未跟踪项：`.workbuddy/`、`HANDOFF_2026-07-22.md`、`REVIEW_2026-07-24.md`、`data/manual/event-time-controls.csv`、`docs/reviews/REVIEW_2026-08-01_完整项目评审.md`、`experiments/estimated-ratings/Scripts/`、`experiments/estimated-ratings/docs/`。保持原样。
+- collector 有大量历史 tracked/untracked 运行时及数据改动，不能广泛暂存或同步。
 
 ## 接续入口
 
-1. 本次评审报告已交付；若继续本任务，先补浏览器阻塞项。不能未经新指令开始实施报告中的整改建议。
-2. 在 `/Volumes/AI/coding/kimi-code` 查看 `git status --short --branch`、`git diff`、`git diff --cached`、`git log -5 --oneline`。
-3. 如从采集目录开始，同时查看该目录的 status/diff/log；既有脏状态不得视为需要同步或清理。
-4. 从“当前正在做”续接；每阶段更新本文件、运行相应验证并精确提交。
-
-### 本次评审临时证据
-
-- 完整 HTTP 正文与只读 probe 脚本位于 `/tmp/chessdb-review-20260915/`；可丢失，关键摘要已存入上述 Git 文档。
-- 已运行 python-chess 对 6 个目录包、3 个原赛事包、2 个棋手包（R2/代理各一份）解析。尚未跑浏览器交互、移动端或性能指标测试；curl 耗时不能称 LCP。
-- 不修改源代码、不推送、不触发部署、不回抓赛事源站。仅提交进度与报告证据。
+1. 查看本文件、两工作区 git status/diff、代码工作区最近 commits。用户已授权 A+B 实施及交付，不需再次请求实施/上线确认。
+2. 从“当前正在做”继续；每阶段完成记录实际命令/结果/下一步。
+3. 证据与隔离构建临时目录记录在后续进度条目；若临时数据丢失，用精确提交和线上不可变对象恢复，禁止回抓来源兜底。
