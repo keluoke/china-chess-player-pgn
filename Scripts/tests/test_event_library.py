@@ -3,7 +3,7 @@ import sys
 import unittest
 from unittest import mock
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parents[1]))
-from event_identity import classify, describe
+from event_identity import classify, describe, control, section
 from build_event_library import build_editions, playable, validate_catalog
 from sync_lichess_broadcast_bulk import compatible_target_broadcast, target_identity_compatible
 
@@ -27,6 +27,19 @@ class EventLibraryTests(unittest.TestCase):
         self.assertEqual(games['a'],{'1','2','3'})
         self.assertEqual(events[1]['sectionID'],'a')
         self.assertEqual({e['id'] for e in events},{'a','b','c'})
+
+    def test_broadcast_section_preserves_time_control_and_named_groups(self):
+        self.assertEqual(control('FIDE World Rapid & Blitz Championships 2025 | Rapid Open 31+'),'rapid')
+        self.assertEqual(control('FIDE World Rapid & Blitz Championships 2025 | Blitz Open 1-30'),'blitz')
+        self.assertEqual(control('World Rapid & Blitz Championships 2025'),'mixed')
+        self.assertEqual(classify('2026年维克安泽国际象棋大赛')[0],'tata-steel')
+        self.assertEqual(section('Tata Steel Chess 2025 | Masters'),'大师组')
+        self.assertEqual(section('Tata Steel Chess 2025 | Challengers'),'挑战者组')
+        events=[{'id':'rapid','name':'FIDE World Rapid & Blitz Championships 2025 | Rapid Open 31+','date':'2025-12-26'},
+                {'id':'blitz','name':'FIDE World Rapid & Blitz Championships 2025 | Blitz Open 1-30','date':'2025-12-28'}]
+        parents=build_editions(events,{'rapid':{'r'},'blitz':{'b'}})
+        self.assertEqual(parents[0]['sectionCount'],2)
+        self.assertEqual({e['timeControl'] for e in events},{'rapid','blitz'})
 
     def test_reviewed_parent_keeps_undated_sections_and_old_ids(self):
         events=[{'id':'master','tournamentID':'1227491','name':'2025 National Amateur Chess Ma',

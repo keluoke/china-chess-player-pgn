@@ -16,12 +16,19 @@ def classify(name):
     for rule in series_rules():
         if rule.get('exclude') and re.search(rule['exclude'], name, re.I):
             continue
-        if any(re.search(p, name, re.I) for p in rule['patterns']):
+        if rule['label'] in name or any(re.search(p, name, re.I) for p in rule['patterns']):
             return rule['id'], rule['label']
     return '', ''
 
 def control(name):
-    return 'blitz' if re.search(r'\bblitz\b|超快', name, re.I) else 'rapid' if re.search(r'\brapid\b|快棋', name, re.I) else 'standard'
+    # A broadcast title may name both formats; its section identifies the game.
+    scope = name.rsplit('|', 1)[-1]
+    blitz = bool(re.search(r'\bblitz\b|超快', scope, re.I))
+    rapid = bool(re.search(r'\brapid\b|(?<!超)快棋', scope, re.I))
+    if blitz and rapid:return 'mixed'
+    if blitz:return 'blitz'
+    if rapid:return 'rapid'
+    return 'standard'
 
 def section(name):
     # Specific master groups must win over their shared master suffix.
@@ -41,8 +48,10 @@ def section(name):
         female |= prefix.upper() == 'G'
         male |= prefix.upper() in {'B','O'}
         return f'U{int(age)}' + ('女子组' if female else '公开组' if male else '组')
+    for token, label in [('challengers','挑战者组'),('masters','大师组'),('futures','新秀组')]:
+        if re.search(r'\b'+token+r'\b', name, re.I):return label
     if female:return '女子组'
-    if male:return '公开组'
+    if male or re.search(r'\bopen\b',name,re.I):return '公开组'
     group = re.search(r'\bgroup\s+([A-Z])\b',name,re.I)
     if group:return group[1].upper()+'组'
     return ''
