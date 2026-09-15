@@ -1039,8 +1039,9 @@ def canonical_display_name(canonical_id: str, sections: list[dict[str, Any]], ch
 
 
 def mapping_candidates(events: list[dict[str, Any]], limit: int = 500) -> list[dict[str, Any]]:
-    candidates = [event for event in events if event.get("source") == "Chess-Results" and not event.get("chineseName")]
-    candidates.sort(key=lambda event: (event.get("date") or "", event.get("playerCount") or 0), reverse=True)
+    from event_identity import classify
+    candidates = [event for event in events if not event.get("chineseName") and not classify(clean(event.get("name")))[0]]
+    candidates.sort(key=lambda event: (event.get("gameCount") or 0, event.get("playerCount") or 0, event.get("date") or ""), reverse=True)
     return [{
         "source": event.get("source"),
         "tournamentID": event.get("tournamentID"),

@@ -350,10 +350,10 @@ def add_game(
         return
     fingerprint = pgn.game_fingerprint(repaired)
     payload = context.get("payload") or {}
-    date = pgn.normalize_pgn_date(
-        headers.get("EventDate") or headers.get("Date")
-        or payload.get("dateEnd") or payload.get("dateBegin")
-    )
+    date = next((normalized for value in (
+        headers.get("EventDate"), headers.get("Date"), headers.get("UTCDate"),
+        payload.get("dateEnd"), payload.get("dateBegin")
+    ) if (normalized := pgn.normalize_pgn_date(value))), "")
     fact = {
         "id": fingerprint.removeprefix("fp:"),
         "fingerprint": fingerprint,
@@ -381,15 +381,23 @@ def add_game(
         "verifiedBy": verified_by or None,
     }
     fact = {key: value for key, value in fact.items() if value not in (None, "", [], {})}
+    origin = {"source": source_label, "kind": source_kind, "assetPath": repo_path(asset_path),
+              "gameIndex": game_index, "tournamentID": tid, "event": fact["event"],
+              "date": date, "verifiedBy": verified_by}
+    fact["provenance"] = [origin]
     previous = games.get(fingerprint)
     if previous is None:
         games[fingerprint] = fact
         return
+    origins = previous.get("provenance", []) + [origin]
+    origins = list({json.dumps(row, sort_keys=True): row for row in origins}.values())
     merged_ids = sorted(set(previous.get("playerFideIDs") or []) | set(player_ids))
     if source_priority(source_kind) > source_priority(clean(previous.get("sourceKind"))):
+        fact["provenance"] = origins
         fact["playerFideIDs"] = merged_ids
         games[fingerprint] = fact
     else:
+        previous["provenance"] = origins
         previous["playerFideIDs"] = merged_ids
         previous["whiteFideID"] = previous.get("whiteFideID") or white_id or None
         previous["blackFideID"] = previous.get("blackFideID") or black_id or None
@@ -480,7 +488,7 @@ def ingest_static_event_pgns(
         return
     for path in sorted(STATIC_PGN_ROOT.rglob("*.pgn")):
         relative = path.relative_to(STATIC_PGN_ROOT)
-        if relative.parts and relative.parts[0] == "by-player":
+        if relative.parts and relative.parts[0] in {"by-player", "catalog-events"}:
             continue
         hint_match = re.search(r"fide-(\d+)", path.name)
         player_hint = hint_match.group(1) if hint_match else ""
@@ -589,7 +597,7 @@ def input_contract() -> list[dict[str, Any]]:
         tree_fact("event-pgn-receipt", [EVENT_PGN_RECEIPT]),
         tree_fact("static-canonical-pgn", (
             path for path in STATIC_PGN_ROOT.rglob("*.pgn")
-            if "by-player" not in path.relative_to(STATIC_PGN_ROOT).parts
+            if not {"by-player", "catalog-events"}.intersection(path.relative_to(STATIC_PGN_ROOT).parts)
         ) if STATIC_PGN_ROOT.is_dir() else []),
         tree_fact("lichess-event", [LICHESS_EVENT_MANIFEST, *sorted((LICHESS_EVENT_ROOT / "pgn").glob("tnr*.pgn"))]),
         tree_fact("bulk-youth", [BULK_YOUTH_MANIFEST, *bulk_assets] if BULK_YOUTH_MANIFEST.is_file() else []),

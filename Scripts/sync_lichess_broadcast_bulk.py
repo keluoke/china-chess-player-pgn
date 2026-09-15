@@ -521,8 +521,12 @@ def target_series_event(value: dict[str, Any]) -> bool:
     under the broad youth labels.  Those are deliberately excluded here so a
     broadcast cannot be attached to the wrong competition.
     """
+    from event_identity import classify, control
     series = clean(value.get("series")).casefold()
     name = clean(value.get("name")).casefold()
+    domestic, _ = classify(name)
+    if domestic in {"lichengzhi-cup", "chess-association-master"} or series in {"lichengzhi-cup", "chess-association-master"}:
+        return control(name) == "standard"
     excluded = ("rapid", "blitz", "schools", "school", "junior", "olympiad", "cup", "training", "eastern")
     if any(token in name for token in excluded):
         return False
@@ -534,11 +538,16 @@ def target_series_event(value: dict[str, Any]) -> bool:
 
 
 def target_event_rows() -> list[dict[str, Any]]:
+    from event_identity import classify
     if not PUBLIC_EVENTS_JSON.exists():
         return []
     payload = read_json(PUBLIC_EVENTS_JSON)
     rows = payload.get("events", []) if isinstance(payload, dict) else payload
     result: dict[str, dict[str, Any]] = {}
+    canonical_dates = {}
+    for item in rows:
+        if item.get('canonicalEventID') and item.get('date'):
+            canonical_dates.setdefault(item['canonicalEventID'], []).append(item['date'])
     for row in rows:
         tid = clean(row.get("tournamentID"))
         if not tid or tid in result or not target_series_event(row):
@@ -547,14 +556,19 @@ def target_event_rows() -> list[dict[str, Any]]:
         if not detail_path.exists():
             continue
         detail = read_json(detail_path)
-        year_match = re.search(r"\b(20(?:2[2-9]|3\d))\b", clean(row.get("date")) or clean(detail.get("sourceName")))
+        dates = canonical_dates.get(row.get('canonicalEventID'), [])
+        event_date = clean(row.get('date')) or (min(dates) if dates else '')
+        year_match = re.search(r"(?<!\d)(20(?:2[2-9]|3\d))(?!\d)", event_date or clean(detail.get("sourceName")))
         if not year_match:
             continue
+        classified_series = classify(clean(detail.get("sourceName")) or clean(row.get("name")))[0]
         result[tid] = {
             "tournamentID": tid,
-            "series": clean(row.get("series")),
+            "series": classified_series if classified_series in {'lichengzhi-cup','chess-association-master'} else clean(row.get('series')),
+            "groupLabel": clean(row.get("groupLabel")),
+            "station": clean(row.get("station")),
             "name": clean(detail.get("sourceName")) or clean(row.get("name")),
-            "date": clean(row.get("date")),
+            "date": event_date,
             "year": year_match.group(1),
             "detail": detail,
         }
@@ -626,8 +640,41 @@ def event_group(value: Any) -> tuple[str, str] | None:
     return sex, age
 
 
+def target_identity_compatible(pairing: dict, headers: dict) -> bool:
+    """Explicit FIDE conflicts and reversed colours cannot use a name fallback."""
+    for side in ('White', 'Black'):
+        player = pairing.get(side.lower()) or {}
+        expected = clean(player.get('fideID'))
+        expected = str(int(expected)) if expected.isdigit() and int(expected) else ''
+        actual_ids = explicit_fide_ids(headers, side)
+        if len(actual_ids) > 1:
+            return False
+        actual = next(iter(actual_ids), '')
+        if expected and actual:
+            if expected != actual:
+                return False
+        elif target_player_key(player.get('name'), allow_trailing_initial=True) != target_player_key(headers.get(side), allow_trailing_initial=True):
+            return False
+    return True
+
+
 def compatible_target_broadcast(event: dict[str, Any], headers: dict[str, str]) -> bool:
     broadcast = clean(headers.get("BroadcastName") or headers.get("Event"))
+    if event['series'] in {'lichengzhi-cup', 'chess-association-master'}:
+        from event_identity import classify, control, section, station
+        series, _ = classify(broadcast)
+        if series != event['series'] or control(broadcast) != 'standard':return False
+        target_group = section(event.get('name','')) or event.get('groupLabel') or ''
+        broadcast_group = section(broadcast)
+        if target_group and broadcast_group and target_group != broadcast_group:return False
+        if series == 'chess-association-master':
+            expected = station(event.get('name','')) or event.get('station')
+            if not expected or station(broadcast) != expected:return False
+        event_date = normalize_pgn_date(clean(event.get('date')))
+        game_date = normalize_pgn_date(headers.get('Date') or headers.get('UTCDate') or headers.get('EventDate') or '')
+        if not event_date or not game_date:return False
+        try:return abs((dt.date.fromisoformat(event_date)-dt.date.fromisoformat(game_date)).days) <= 20
+        except ValueError:return False
     lowered = broadcast.casefold()
     excluded = ("rapid", "blitz", "schools", "school", "junior", "olympiad", "cup", "training", "eastern", "western")
     if any(token in lowered for token in excluded):
@@ -635,7 +682,7 @@ def compatible_target_broadcast(event: dict[str, Any], headers: dict[str, str]) 
     if event["series"] == "asian-youth":
         if "asian youth" not in lowered or "championship" not in lowered:
             return False
-    elif event["series"] == "world-youth":
+    elif event["series"] in {"world-youth", "world-cadet"}:
         if "world" not in lowered or ("youth" not in lowered and "cadet" not in lowered) or "championship" not in lowered:
             return False
     target_group = event_group(event.get("name"))
@@ -747,6 +794,7 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
             "idMatches": 0,
             "nameMatches": 0,
             "pairingResults": {},
+            "pairingIdentities": {},
         }
         for round_row in detail.get("rounds", []):
             round_no = target_round(round_row.get("round"))
@@ -754,6 +802,11 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
                 board = clean(pairing.get("board"))
                 if round_no and board:
                     event_meta[event["tournamentID"]]["pairingResults"][(round_no, board)] = clean(pairing.get("result"))
+                    event_meta[event["tournamentID"]]["pairingIdentities"][(round_no, board)] = {
+                        side: {**(roster.get(clean((pairing.get(side) or {}).get('playerNo'))) or {}),
+                               **(pairing.get(side) or {})}
+                        for side in ('white', 'black')
+                    }
 
     ambiguous = 0
     scanned = 0
@@ -801,8 +854,9 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
                 ref
                 for ref in dict.fromkeys(refs)
                 if compatible_target_broadcast(event_meta[ref[0]], headers)
+                and target_identity_compatible(event_meta[ref[0]]["pairingIdentities"].get((round_no, ref[1]), {}), headers)
                 and (
-                    ref[0] not in reviewed_events
+                    (ref[0] not in reviewed_events and event_meta[ref[0]]["series"] not in {"lichengzhi-cup", "chess-association-master"})
                     or target_result_compatible(
                         event_meta[ref[0]]["pairingResults"].get((round_no, ref[1])),
                         headers.get("Result"),
@@ -833,6 +887,7 @@ def build_target_event_archives(shards: list[BroadcastShard], dry_run: bool) -> 
         hashes = meta.pop("gameHashes")
         matched_boards = meta.pop("matchedBoards")
         meta.pop("pairingResults")
+        meta.pop("pairingIdentities")
         broadcast_names = sorted(meta.pop("broadcastNames"))
         source_shards = sorted(meta.pop("sourceShards"))
         linked_container_games = sum(container_games.get(name, 0) for name in broadcast_names)

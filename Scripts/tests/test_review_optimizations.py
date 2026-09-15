@@ -97,12 +97,27 @@ class BoundaryTests(unittest.TestCase):
             body=b'[Event "Fixture"]\n\n1. e4 *\n';(source/'tnr12345.pgn').write_bytes(body)
             receipt=root/'data/generated/r2-object-receipts/events--chess-results.json';receipt.parent.mkdir()
             receipt.write_text(json.dumps({'objects':[{'key':'events/chess-results/tnr12345.pgn','sha256':hashlib.sha256(body).hexdigest(),'bytes':len(body)}, {'key':'events/chess-results/tnr54321.pgn','sha256':'a'*64,'bytes':1}]}))
-            with mock.patch.object(events,'ROOT',root),mock.patch.object(events,'SOURCE',source),mock.patch.object(events,'MANIFEST',root/'manifest.json'),mock.patch.object(events,'snapshot_id',return_value='test'):
+            with mock.patch.object(events,'ROOT',root),mock.patch.object(events,'SOURCE',source),mock.patch.object(events,'OBJECT_SOURCE',root/'objects'),mock.patch.object(events,'LIBRARY_INDEX',root/'library.json'),mock.patch.object(events,'MANIFEST',root/'manifest.json'),mock.patch.object(events,'snapshot_id',return_value='test'):
                 rows=events.build()
                 self.assertEqual(list(rows),['12345'])
                 self.assertIn('/objects/sha256/',rows['12345']['publicURL'])
                 (source/'tnr12345.pgn').write_bytes(b'wrong')
                 with self.assertRaisesRegex(ValueError,'EVENT_PGN_INPUT_RECEIPT_MISMATCH'):events.build()
+
+    def test_event_library_object_hash_is_checked_before_publication(self):
+        import event_pgn_objects as events
+        with tempfile.TemporaryDirectory() as directory:
+            root=pathlib.Path(directory);objects=root/'objects';objects.mkdir()
+            receipt=root/'data/generated/r2-object-receipts/events--chess-results.json';receipt.parent.mkdir(parents=True)
+            receipt.write_text(json.dumps({'objects':[]}))
+            ident='event-'+'c'*24;body=b'[Event "Example"]\n\n1. e4 *\n'
+            (objects/(ident+'.pgn')).write_bytes(body)
+            library=root/'library.json';library.write_text(json.dumps({'snapshotId':'test','packages':{ident:{'fileName':ident+'.pgn','sha256':hashlib.sha256(body).hexdigest(),'bytes':len(body)}}}))
+            with mock.patch.object(events,'ROOT',root),mock.patch.object(events,'SOURCE',root/'source'),mock.patch.object(events,'OBJECT_SOURCE',objects),mock.patch.object(events,'LIBRARY_INDEX',library),mock.patch.object(events,'MANIFEST',root/'manifest.json'),mock.patch.object(events,'snapshot_id',return_value='test'):
+                self.assertEqual(list(events.build()),[ident])
+                (objects/(ident+'.pgn')).write_bytes(b'altered')
+                with self.assertRaisesRegex(ValueError,'EVENT_LIBRARY_HASH_MISMATCH'):
+                    events.build()
 
     def test_html_surface_ignores_unlisted_experiment_files(self):
         import public_site_surface as surface

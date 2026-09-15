@@ -83,7 +83,7 @@
      仍不得标 `archived-full-board` 或宣称“全台棋谱完整”。来源未发布任何棋谱
      则标 `not-published`，不进入回抓队列；空响应、下载错误、少局或错配仍是
      `source-published-missing/partial`，不得用“通常只播前十台”豁免。
-   - **Lichess 广播交叉归档**：亚少赛、世少赛须在 Chess-Results 对阵事实层上
+   - **Lichess 广播交叉归档**：亚少赛、世少赛、李成智杯和棋协大师赛须在 Chess-Results 对阵事实层上
      与 Lichess Broadcast 月度库交叉比对。只接受赛事系列、慢棋项目、年份/
      日期窗口、年龄/性别组、轮次及双方身份均相容的唯一匹配；FIDE ID 优先，
      规范化姓名只作回退，歧义局拒绝。投影写入

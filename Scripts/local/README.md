@@ -28,7 +28,7 @@ Chess-Results/FIDE 详情采集只能由维护者在本机住宅网络执行；G
   只要实际公开的每局都已唯一匹配归档，可标 `source-published-complete`；
   该状态不得对外表述为全台完整。没有公开链接标 `not-published`，空响应或少局
   仍按缺口处理。
-- 亚少赛、世少赛通过 Lichess Broadcast 月度库补充：严格校验系列、慢棋项目、
+- 亚少赛、世少赛、李成智杯和棋协大师赛通过 Lichess Broadcast 月度库补充：严格校验系列、慢棋项目、
   年份/日期、年龄/性别组、轮次和双方身份，歧义局拒绝；投影写入
   `docs/data/bulk/lichess-events/` 并保留 CC BY-SA 4.0 署名。月度 `.pgn.zst`
   原档只在本地/R2，不能被加入 Git 发布 manifest。

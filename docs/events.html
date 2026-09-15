@@ -28,6 +28,7 @@
       .events-pager button:disabled{opacity:.4;cursor:not-allowed}
       .events-count{opacity:.75;font-size:.84rem}
       #eventsStatus{padding:30px 0;opacity:.75}
+      .event-sections{margin-top:8px}.event-sections summary{cursor:pointer;color:#666}.event-sections>div{display:flex;flex-wrap:wrap;gap:8px;padding:10px 0}.section-link{padding:6px 10px;border:1px solid #9995;border-radius:8px}
     </style>
   </head>
   <body class="coverage-page">
@@ -47,20 +48,22 @@
       </nav>
       <header class="coverage-head">
         <span class="eyebrow">Public event catalog</span>
-        <h1>公开赛事目录</h1>
-        <p>收录已发布赛果与棋谱归档赛事；全国棋协大师赛、李成智杯、世少赛和亚少赛保留独立系列分类。「完整赛果」表示已发布最终排名与逐轮对阵。</p>
+        <h1>赛事与棋谱</h1>
+        <p>按赛事、年份和组别查找棋谱。同届赛事集中展示，各组对阵与成绩独立保留。</p>
       </header>
 
       <div class="events-tabs" id="timeTabs">
-        <button data-tab="past" class="active">已结束</button>
+        <button data-tab="all" class="active">全部日期</button>
+        <button data-tab="past">已结束</button>
         <button data-tab="future">未来赛事</button>
         <button data-tab="unknown">日期未记录</button>
       </div>
 
       <div class="events-toolbar">
         <select id="scopeFilter">
-          <option value="all">全部公开目录</option>
-          <option value="full">仅完整赛果（排名+逐轮对阵）</option>
+          <option value="pgn">有谱赛事</option>
+          <option value="all">全部赛事</option>
+          <option value="results">暂无棋谱的赛事</option>
         </select>
         <select id="seriesFilter"><option value="">全部系列</option></select>
         <select id="yearFilter"><option value="">全部年份</option></select>
@@ -70,7 +73,7 @@
 
       <div id="eventsStatus">正在加载公开赛事目录…</div>
       <table class="events-table" id="eventsTable" hidden>
-        <thead><tr><th>日期</th><th>赛事</th><th>系列</th><th>组别</th><th>人数</th><th>轮次</th><th>赛果</th></tr></thead>
+        <thead><tr><th>日期</th><th>赛事</th><th>系列</th><th>棋谱</th></tr></thead>
         <tbody id="eventsBody"></tbody>
       </table>
       <div class="events-pager" id="pager" hidden>
@@ -80,6 +83,6 @@
       </div>
     </main>
 
-    <script type="module" src="./events.js?v=20260731-1"></script>
+    <script type="module" src="./events.js?v=20260915-1"></script>
   </body>
 </html>

@@ -7,7 +7,7 @@ const item={path:'events/chess-results/tnr12345.pgn',key,sha256:hash,bytes:12,pu
 const calls=[];let manifestStatus=200, length=12;
 globalThis.fetch=async(url,options)=>{
   calls.push([String(url),options]);
-  if(String(url).endsWith('event-pgn-objects.json'))return manifestStatus===200?Response.json({events:{'12345':item}}):new Response('',{status:manifestStatus});
+  if(String(url).endsWith('event-pgn-objects.json'))return manifestStatus===200?Response.json({events:{'12345':item,['event-'+ 'c'.repeat(24)]:{...item,path:'events/chess-results/event-'+ 'c'.repeat(24)+'.pgn'}}}):new Response('',{status:manifestStatus});
   return new Response('abcdefghijkl',{headers:{'content-length':String(length)}});
 };
 const context={request:new Request('https://4chess.cc/api/event-pgn?tnr=12345')};
@@ -20,4 +20,9 @@ length=13;assert.equal((await onRequestGet(context)).status,502);length=12;
 manifestStatus=503;assert.equal((await onRequestGet(context)).status,503);
 manifestStatus=404;calls.length=0;assert.equal((await onRequestGet(context)).status,503);assert.equal(calls.length,1);
 assert.equal((await onRequestGet({request:new Request('https://4chess.cc/api/event-pgn?tnr=../1')})).status,400);
+manifestStatus=200;
+const eventID='event-'+ 'c'.repeat(24);
+assert.equal((await onRequestGet({request:new Request('https://4chess.cc/api/event-pgn?event='+eventID+'&sha='+hash.slice(0,16))})).status,200);
+assert.equal((await onRequestGet({request:new Request('https://4chess.cc/api/event-pgn?event='+eventID+'&sha='+ 'b'.repeat(16))})).status,409);
+assert.equal((await onRequestGet({request:new Request('https://4chess.cc/api/event-pgn?event=../bad')})).status,400);
 console.log('event PGN proxy tests passed');

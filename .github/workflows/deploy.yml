@@ -84,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 Scripts/validate_player_pgn_r2_receipt.py
-          python3 Scripts/event_pgn_objects.py --validate
+          python3 Scripts/event_pgn_objects.py --validate --receipt-only
           echo "event_sha256=$(sha256sum docs/data/index/event-pgn-r2-receipt.json | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
           receipt_sha="$(sha256sum docs/data/index/player-pgn-r2-receipt.json | awk '{print $1}')"
           if ! [[ "$receipt_sha" =~ ^[0-9a-f]{64}$ ]]; then

@@ -55,6 +55,7 @@ REQUIRED_BUILDERS = (
     'Scripts/build_api.py',
     'Scripts/build_changelog.py',
     'Scripts/build_dashboard.py',
+    'Scripts/build_event_library.py',
     'Scripts/validate_registry_authority.py',
     'Scripts/validate_public_metrics.py',
     'Scripts/validate_public_privacy.py',
@@ -109,6 +110,8 @@ def output_facts() -> list[dict]:
         ROOT / "data/generated/pgn-collection-status.json",
         ROOT / "data/generated/r2-object-receipts/events--chess-results.json",
         ROOT / "docs/data/index/event-pgn-objects.json",
+        ROOT / "docs/data/index/catalog-pgn-packages.json",
+        ROOT / "docs/data/index/public-events.json",
         ROOT / "data/generated/player-event-facts/manifest.json",
         ROOT / "data/generated/player-game-facts/manifest.json",
         ROOT / "data/manual/domestic-player-sightings.csv",
@@ -120,7 +123,7 @@ def output_facts() -> list[dict]:
 
 def input_facts() -> list[dict]:
     # Capture before the first builder mutates the candidate tree.
-    derived = {"event-completeness-report.json", "pgn-collection-status.json", "event-pgn-objects.json"}
+    derived = {"event-completeness-report.json", "pgn-collection-status.json", "event-pgn-objects.json", "catalog-pgn-packages.json", "public-events.json"}
     return [{**fact, "role": "retained-observation-baseline" if "person-observations" in fact["path"] else "canonical-input"}
             for fact in output_facts()
             if pathlib.Path(fact["path"]).name not in derived
@@ -248,7 +251,6 @@ def main() -> int:
     # display-only identity candidate layer below.
     steps.append(step([py, "Scripts/build_event_details.py"]))
 
-    steps.append(step([py, "Scripts/event_pgn_objects.py"]))
 
     # --- identity layers (observations BEFORE domestic sync, review §3.2) --
     steps.append(step([py, "Scripts/build_person_observations.py"]))
@@ -264,6 +266,8 @@ def main() -> int:
 
     # --- public event projections --------------------------------------
     steps.append(step([py, "Scripts/build_event_catalog.py"]))
+    steps.append(step([py, "Scripts/build_event_library.py"]))
+    steps.append(step([py, "Scripts/event_pgn_objects.py"]))
     steps.append(step([py, "Scripts/build_master_series_summary.py"]))
     steps.append(step([py, "Scripts/build_player_participation.py"]))
 

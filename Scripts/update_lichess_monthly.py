@@ -70,7 +70,20 @@ def stream_object(client, bucket: str, key: str, destination: Path | None = None
     return h.hexdigest(), size
 
 
-def collect(release: Path) -> None:
+def select_shards(previous: dict, *, replay_only: bool):
+    import sync_lichess_broadcast_bulk as bulk
+    if replay_only:
+        shards = [bulk.BroadcastShard(month=row['month'], url=row['url'], file_name=row['fileName'],
+                  size_text=row.get('size',''), size_bytes=row['sizeBytes'], games=row['games'],
+                  calendar_url=row.get('calendarURL',''), local_path=row.get('path',''),
+                  sha256=row['sha256'], mirrored=True) for row in previous['shards']]
+        meta = {k:v for k,v in previous['sources'][0].items() if k not in {'shards','games','compressedBytesEstimated','mirroredShards','mirroredBytes'}}
+    else:
+        shards, meta = bulk.fetch_broadcast_metadata()
+    return shards, meta
+
+
+def collect(release: Path, *, replay_only: bool = False) -> None:
     import boto3
     import sync_lichess_broadcast_bulk as bulk
     from botocore.exceptions import ClientError
@@ -86,9 +99,10 @@ def collect(release: Path) -> None:
     previous_path = ROOT / (PREFIX + "lichess-broadcast/manifest.json")
     previous = json.loads(previous_path.read_text())
     previous_rows = {row["month"]: row for row in previous["shards"]}
-    shards, meta = bulk.fetch_broadcast_metadata()
+    shards, meta = select_shards(previous, replay_only=replay_only)
     today = dt.datetime.now(dt.timezone.utc).date()
-    check_months(shards, previous, today)
+    if not replay_only:
+        check_months(shards, previous, today)
     shards = [s for s in shards if s.month < today.strftime("%Y-%m")]
     objects = []
     # The runner's scratch tree never enters Git or the release artifact.
@@ -118,6 +132,7 @@ def collect(release: Path) -> None:
                 if not expected or sha != expected:
                     raise RuntimeError(f"R2_IMMUTABLE_HASH_MISMATCH: {key}")
             else:
+                if replay_only:raise RuntimeError(f"REPLAY_OBJECT_MISSING: {key}")
                 bulk.mirror_shards([shard], False, 0.2, False)
                 sha, size = digest(target), target.stat().st_size
                 if old.get("sha256") and old["sha256"] != sha:
@@ -136,7 +151,10 @@ def collect(release: Path) -> None:
         bulk.write_bulk_manifest(shards, meta, False)
         if not bulk.REGISTRY_PLAYERS_JSON.is_file() or not bulk.PUBLIC_EVENTS_JSON.is_file():
             raise RuntimeError("LICHESS_PROJECTION_INPUT_MISSING")
-        bulk.build_youth_index(shards, False)
+        if replay_only:
+            shutil.copytree(ROOT / "docs/data/bulk/youth", bulk.YOUTH_ROOT)
+        else:
+            bulk.build_youth_index(shards, False)
         bulk.build_target_event_archives(shards, False)
         # Only verified immutable monthly objects are created, never overwritten.
         for row in objects:
@@ -196,8 +214,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["collect", "publish"])
     parser.add_argument("--release", required=True, type=Path)
+    parser.add_argument("--replay-only", action="store_true", help="Replay verified R2 monthly objects without source requests")
     args = parser.parse_args()
-    (collect if args.command == "collect" else publish)(args.release.resolve())
+    if args.command == "collect":collect(args.release.resolve(), replay_only=args.replay_only)
+    else:publish(args.release.resolve())
 
 
 if __name__ == "__main__":

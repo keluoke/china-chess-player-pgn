@@ -3,10 +3,11 @@ const fail = (message, status) => new Response(message, { status, headers: { "Ca
 
 async function proxy({ request }, headOnly = false) {
   const params = new URL(request.url).searchParams;
-  const tournamentID = params.get("tnr") || "";
+  const tournamentID = params.get("tnr") || params.get("event") || "";
+  const objectName = /^\d+$/.test(tournamentID) ? `tnr${tournamentID}` : tournamentID;
   const requestedHash = params.get("sha") || "";
   if (requestedHash && !/^(?:[0-9a-f]{16}|[0-9a-f]{64})$/.test(requestedHash)) return fail("invalid PGN version", 400);
-  if (!/^\d{1,12}$/.test(tournamentID)) return fail("invalid tournament id", 400);
+  if (!/^(?:\d{1,12}|event-[0-9a-f]{24})$/.test(tournamentID)) return fail("invalid tournament id", 400);
   try {
     const manifest = await fetch(new URL("/data/index/event-pgn-objects.json", request.url), {
       cf: { cacheEverything: true, cacheTtl: 60 }
@@ -19,7 +20,7 @@ async function proxy({ request }, headOnly = false) {
       const key = `events/chess-results/objects/sha256/${sha.slice(0, 2)}/${sha}.pgn`;
       if (!/^[0-9a-f]{64}$/.test(sha) || object.key !== key
           || object.publicURL !== `${DATA_ORIGIN}/${key}`
-          || object.path !== `events/chess-results/tnr${tournamentID}.pgn`
+          || object.path !== `events/chess-results/${objectName}.pgn`
           || !Number.isSafeInteger(object.bytes) || object.bytes <= 0) {
         return fail("PGN object metadata mismatch", 503);
       }
@@ -36,7 +37,7 @@ async function proxy({ request }, headOnly = false) {
     }
     const headers = {
       "Content-Type": "application/x-chess-pgn; charset=utf-8",
-      "Content-Disposition": `inline; filename="tnr${tournamentID}.pgn"`,
+      "Content-Disposition": `inline; filename="${objectName}.pgn"`,
       "Cache-Control": "public, max-age=60, must-revalidate",
       "X-Content-Type-Options": "nosniff",
     };

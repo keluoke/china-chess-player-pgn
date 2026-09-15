@@ -87,6 +87,7 @@ const staticPlayerRequests = new Map();
 const pgnViewerCache = new Map();
 const pgnViewerRequests = new Map();
 let eventCatalog = null;
+let eventEditions = [];
 let eventCatalogRequest = null;
 let presentationGroups = null;      // groupID -> group (display-only aggregation)
 let presentationMemberIndex = null; // domesticID -> group
@@ -472,7 +473,7 @@ function initialize() {
         fideID: viewerPlayer.fideID,
         pgnPath: eventPGN.dataset.pgnPath,
         packageId: `event-${catalogEvent?.tournamentID ?? ""}`,
-        packageLabel: "赛事全台棋谱",
+        packageLabel: "赛事棋谱",
         packageGameCount: detail?.completeness?.matchedPairings ?? 0,
         focusRound: eventPGN.dataset.round || "",
         focusBoard: eventPGN.dataset.board || "",
@@ -958,7 +959,13 @@ function renderEvent() {
     ? eventDetail.standings.length : null;
   const participantCount = eventDetail && !eventDetail.error && Array.isArray(eventDetail.players)
     ? eventDetail.players.length : event.participants;
-  const eventArchive = eventPGNArchive(eventDetail);
+  const eventArchive = event.pgnPath ? {pgnPath:event.pgnPath,gameCount:event.gameCount} : eventPGNArchive(eventDetail);
+  const parent = event.isEdition ? event : findCatalogEvent(event.editionID);
+  const sections = (parent?.sections ?? []).map(id=>findCatalogEvent(id)).filter(Boolean);
+  const viewerIdentity = eventViewerPlayer(event);
+  if (eventArchive && state.viewer.fideID !== viewerIdentity.fideID) {
+    state.viewer = {fideID:viewerIdentity.fideID,pgnPath:eventArchive.pgnPath,packageLabel:"赛事棋谱",packageGameCount:eventArchive.gameCount,visible:true,status:"idle",gameIndex:0,orientation:"",error:"",autoplay:false};
+  }
   const archivedGameCount = eventArchive?.gameCount || Number(event.gameCount || 0);
   const coverageLabel = completenessLabel(event, eventDetail);
   const facts = [
@@ -969,8 +976,8 @@ function renderEvent() {
     ["本组参赛人数", participantCount],
     ["本组成绩表人数", standingCount !== null ? `${standingCount} 人` : null],
     ["覆盖口径", coverageLabel],
-    ["已归档 PGN", archivedGameCount ? `${compactNumber(archivedGameCount)} 盘` : null],
-    ["有棋谱棋手", event.pgnPlayerCount ? `${event.pgnPlayerCount} 名` : null]
+    ["可查看 PGN", archivedGameCount ? `${compactNumber(archivedGameCount)} 盘` : null],
+    ["已收录组别", event.isEdition ? event.sectionCount : null]
     ,["署名", event.attribution]
     ,["许可", event.license]
   ].filter(([, value]) => value !== null && value !== undefined && value !== "");
@@ -988,8 +995,10 @@ function renderEvent() {
     <div class="event-facts">
       ${facts.map(([label, value]) => `<div><span>${escapeHTML(label)}</span><strong>${escapeHTML(String(value))}</strong></div>`).join("")}
     </div>
+    ${sections.length ? `<nav class="event-section-nav" aria-label="赛事组别"><a class="action-link" href="?event=${encodeURIComponent(parent.id)}">全部组别</a>${sections.map(section=>`<a class="action-link" href="?event=${encodeURIComponent(section.tournamentID || section.id)}" aria-current="${section.id===(event.sectionID || event.id)?'page':'false'}">${escapeHTML(section.groupLabel || section.displayName)}${section.timeControl==='rapid'?' · 快棋':section.timeControl==='blitz'?' · 超快棋':''} · ${section.gameCount || 0} 局</a>`).join('')}</nav>` : ''}
+    ${eventArchive ? pgnViewerBlock(eventViewerPlayer(event), {packages:[]}) : '<p class="event-empty">暂无可查看棋谱，可查阅本组逐轮对阵与成绩。</p>'}
     ${eventDetail ? domesticEventData(event, eventDetail) : event.detailPath ? `<div class="event-loading">正在载入逐轮成绩与最终排名…</div>` : ""}
-    <p class="event-provenance">档案编号：${escapeHTML(event.tournamentID ?? event.id)}${event.nameTranslationPending ? " · 名称待译" : ""}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
+    <p class="event-provenance">档案编号：${escapeHTML(event.tournamentID ?? event.id)}${event.evidenceURL ? " · 中文名已由社区核验" : ""}</p>
   `;
   const viewerPlayer = eventViewerPlayer(event);
   if (state.viewer.visible && state.viewer.fideID === viewerPlayer.fideID && state.viewer.pgnPath) {
@@ -1103,7 +1112,6 @@ function domesticEventData(event, detail) {
       ${selectedRound ? `<div class="pairing-list">${(selectedRound.pairings ?? []).map(pairing => pairingRow(event, selectedRound.round, pairing)).join("") || `<div class="empty-state compact">该轮暂无对阵数据。</div>`}</div>` : `<div class="empty-state compact">暂无逐轮数据。</div>`}
     </details>`;
   return `
-    ${pgnViewerBlock(eventViewerPlayer(event), { packages: [] })}
     ${roundsSection}
     <details class="event-results-section event-fold"${foldOpen}>
       <summary class="section-heading"><h3>最终成绩排行</h3><span>本组共 ${standings.length} 人</span></summary>
@@ -1147,7 +1155,8 @@ function requestEventCatalog() {
   if (eventCatalogRequest) return eventCatalogRequest;
   eventCatalogRequest = fetchJSON(snapshotVersionedPath("./data/index/public-events.json"), true)
     .then(payload => {
-      eventCatalog = Array.isArray(payload?.events) ? payload.events : [];
+      eventEditions = payload?.editions ?? [];
+      eventCatalog = [...(Array.isArray(payload?.events) ? payload.events : []), ...eventEditions];
       renderEvent();
       if (state.query) renderSearch();
       if (isDomesticPlayer(selectedPlayer())) renderDetail();
@@ -1363,7 +1372,7 @@ function playerEventHistory(player) {
       : event.resultStatus === "scheduled" ? "报名/名单记录 · 尚未完赛"
       : event.resultStatus === "recorded" ? "赛果已收录 · 暂无棋谱" : "查看赛事";
     return `<button type="button" class="player-event-row" ${eventID ? `data-action="select-event" data-event-id="${escapeAttribute(eventRouteID(event))}"` : "disabled"}>
-      <span><strong>${escapeHTML(name)}${event.nameTranslationPending ? "（名称待译）" : ""}</strong><small>${escapeHTML([eventDateLabel(event), event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : ""].filter(Boolean).join(" · "))}</small></span>
+      <span><strong>${escapeHTML(name)}</strong><small>${escapeHTML([eventDateLabel(event), event.rounds ? `${event.rounds} 轮` : "", event.participants ? `${event.participants} 人` : ""].filter(Boolean).join(" · "))}</small></span>
       <em>${event.rank && event.rank !== "-" ? `<b>第 ${escapeHTML(String(event.rank))} 名</b>` : ""}${escapeHTML(status)}</em>
     </button>`;
   };
@@ -1676,7 +1685,9 @@ function pgnViewerBlock(player, info) {
   const games = cached.games;
   const gameIndex = clampInt(viewer.gameIndex, 0, games.length - 1);
   const game = games[gameIndex];
-  const selectOptions = games.map((item, index) => `
+  const viewerTerms = (state.viewer.query || "").split(/\s+/).map(normalize).filter(Boolean);
+  const matchingGames = games.map((item,index)=>({item,index})).filter(({item})=>viewerTerms.every(term=>normalize(Object.values(item.headers).join(" ")).includes(term)));
+  const selectOptions = matchingGames.map(({item, index}) => `
     <option value="${index}" ${index === gameIndex ? "selected" : ""}>${escapeHTML(viewerGameTitle(item, index))}</option>
   `).join("");
   const white = displayText(game.headers.White ?? "白方");
@@ -1696,6 +1707,8 @@ function pgnViewerBlock(player, info) {
 
       <a class="pgn-download-link" href="${escapeAttribute(viewer.pgnPath)}" download="${escapeAttribute(downloadName)}">${escapeHTML(downloadText)}</a>
 
+      <form id="viewerFilterForm" class="viewer-select"><label for="viewerFilter">筛选棋谱</label><input id="viewerFilter" type="search" value="${escapeAttribute(state.viewer.query || "")}" placeholder="棋手 / 对手 / 年份 / 组别 / 轮次 / 结果 / ECO"><button type="submit">筛选</button><span>${matchingGames.length} 局符合条件</span></form>
+      ${matchingGames.length ? `
       <label class="viewer-select">
         <span>对局</span>
         <select id="viewerGameSelect">${selectOptions}</select>
@@ -1710,7 +1723,7 @@ function pgnViewerBlock(player, info) {
           <dl>${gameInfo}</dl>
         </aside>
       </div>
-      <p class="viewer-keyboard-hint">键盘：← → 翻看着法，空格开始或暂停自动播放。手机端可使用棋盘下方控制按钮。</p>
+      <p class="viewer-keyboard-hint">键盘：← → 翻看着法，空格开始或暂停自动播放。手机端可使用棋盘下方控制按钮。</p>` : '<p class="empty-state compact">暂无匹配棋谱，请调整筛选条件。</p>'}
     </section>
   `;
 }
@@ -1719,6 +1732,7 @@ function viewerGameInfo(game) {
   const headers = game.headers ?? {};
   const items = [
     ["赛事", headers.Event],
+    ["组别", headers.Section],
     ["轮次", headers.Round],
     ["时间", headers.EventDate ?? headers.Date],
     ["地点", headers.Site],
@@ -1764,6 +1778,14 @@ function wirePGNViewerActions(player) {
   const cached = getCachedPGNViewerPackage(viewer.pgnPath);
   if (!cached) return;
 
+  document.querySelector('#viewerFilterForm')?.addEventListener('submit', event=>{
+    event.preventDefault();
+    state.viewer.query=document.querySelector('#viewerFilter').value.trim();
+    const terms=state.viewer.query.split(/\s+/).map(normalize).filter(Boolean);
+    const index=cached.games.findIndex(game=>terms.every(term=>normalize(Object.values(game.headers).join(' ')).includes(term)));
+    if(index>=0)state.viewer.gameIndex=index;
+    renderViewerTarget(player.fideID);
+  });
   document.querySelector("#viewerGameSelect")?.addEventListener("change", event => {
     stopViewerAutoplay();
     const gameIndex = clampInt(Number(event.target.value), 0, cached.games.length - 1);
@@ -1880,7 +1902,7 @@ function viewerGameTitle(game, index) {
   const white = displayText(headers.White ?? "白方");
   const black = displayText(headers.Black ?? "黑方");
   const result = displayText(headers.Result ?? "*");
-  return `${index + 1}. ${date ? `${date} · ` : ""}${white} - ${black} ${result}`;
+  return `${index + 1}. ${date ? `${date} · ` : ""}${headers.Section ? `${displayText(headers.Section)} · ` : ""}${white} - ${black} ${result}`;
 }
 
 function preferredBoardOrientation(player, game) {
@@ -2261,7 +2283,8 @@ function searchPlayers(query) {
 function searchEvents(query) {
   const normalized = normalize(query);
   if (!normalized || !eventCatalog) return { items: [], total: 0, truncated: false };
-  const scored = eventCatalog
+  const searchPool = eventEditions.length && !/^\d+$/.test(query.trim()) ? eventEditions : eventCatalog;
+  const scored = searchPool
     .map(event => {
       const terms = [
         event.displayName,
@@ -2270,7 +2293,8 @@ function searchEvents(query) {
         event.id,
         event.tournamentID,
         event.canonicalEventID,
-        ...(event.aliases ?? [])
+        ...(event.aliases ?? []),
+        ...(event.sections ?? []).flatMap(id=>{const row=findCatalogEvent(id);return row?[row.name,row.displayName,row.tournamentID]:[];})
       ].filter(Boolean).map(value => normalize(String(value)));
       let score = 0;
       if (terms.some(term => term === normalized)) score = 1000;
@@ -2279,7 +2303,7 @@ function searchEvents(query) {
       return { event, score };
     })
     .filter(entry => entry.score > 0)
-    .sort((a, b) => b.score - a.score || String(b.event.date ?? "").localeCompare(String(a.event.date ?? "")));
+    .sort((a, b) => b.score - a.score || Number(Boolean(b.event.pgnPath))-Number(Boolean(a.event.pgnPath)) || String(b.event.date ?? "").localeCompare(String(a.event.date ?? "")));
   const items = scored.slice(0, 12).map(entry => entry.event);
   return { items, total: scored.length, truncated: scored.length > items.length };
 }
@@ -2419,7 +2443,7 @@ function completenessLabel(event, eventDetail) {
   if (resultsOK && availability === "advertised-partial") return "赛果完整 · 部分直播台棋谱";
   if (resultsOK && availability === "advertised-full") return "赛果完整 · 棋谱待匹配";
   if (resultsOK) return "赛果完整";
-  return "仅展示已收录中国棋手";
+  return event.pgnPath ? "已收录可查看棋谱，未宣称全台完整" : "已收录赛事档案";
 }
 
 function playerCoverageStatus(player, staticInfo) {

@@ -30,6 +30,7 @@ MANIFEST_GLOBS = (
     "data/index/by-player/manifest.json",
     "data/index/event-details/manifest.json",
     "data/index/public-events.json",
+    "data/index/catalog-pgn-packages.json",
     "data/master-series-summary.json",
     "data/index/player-participation/manifest.json",
     "data/index/player-participation/buckets/*.json",
