@@ -1,6 +1,6 @@
 # CODEX_PROGRESS
 
-更新时间：2026-09-15（Asia/Shanghai）
+更新时间：2026-09-16（Asia/Shanghai）；线上取证基线为 2026-09-15。
 
 ## 最终目标
 
@@ -31,14 +31,20 @@
 - 最新 deploy run 34943857597 成功，部署 ce03b7f39c，产物 2384 文件/475928 KiB；末次快照正文未变化。
 - 架构决定：评审 JSON 证据移到仓库根 `review-evidence/`，因为站点组装仅排除 Markdown/HTML，放 docs/reviews 下的 JSON 会随未来部署复制。无需改产品代码。
 
+- 阶段 4 补核确认 R2 新域名 CORS 缺口：同一对象 GET/HEAD 带 Origin=https://chessdb.aigclabs.cc 无 ACAO；GET 带旧 Origin=https://4chess.cc 返回对应 ACAO 与 Vary: Origin。受控 r2-cors.json 未包含新域名；未修改线上配置。
+
+- 阶段 4 已完成：报告含三维评审、P0/P1 根因、五阶段计划/人日估算/依赖/验收，以及明确的交互验证缺口。79 次 HTTP 观测和 3 次 CORS 请求摘要已保存。
+- 最终文档校验：JSON 可解析，关键数值与证据一致，相对链接和引用源码路径存在，git diff --check 通过。未重跑无关全仓测试。
+- 最终提交标题：`docs: deliver production product review and iteration roadmap`；准确提交哈希以代码工作区 git log 为准。
+
 ## 当前正在做
 
-阶段 4：架构与维护根因审查完成，正在写最终报告。下一步完成方案、验收矩阵，核对引用与 git diff 后提交交付。
+报告编写与证据核对已完成，提交交付文档。报告：`docs/reviews/REVIEW_2026-09-15_PRODUCTION_PRODUCT.md`；证据：`review-evidence/2026-09-15-production.json`。产品代码与线上状态未修改。
 
 ## 待完成
 
-- 完成阶段 4：最终报告、证据引用、分期计划与文档验证。
-- 真实浏览器交互与移动端视觉检查受 CUA 连接超时阻塞；不得标记通过，最终报告必须注明限制。
+- 报告与优化方案已交付；没有正在运行的采集、发布或后台任务。
+- 阶段 2 的真实浏览器交互与移动端视觉验收仍未完成；2026-09-16 恢复后 getState 仍超时。待连接恢复后按报告第八节补验，不得标记通过。
 
 ## 重要技术决策
 
@@ -57,7 +63,7 @@
 
 ## 接续入口
 
-1. 阅读本文件及最近提交中的评审材料，从当前阶段继续，不重复已完成检查。
+1. 本次评审报告已交付；若继续本任务，先补浏览器阻塞项。不能未经新指令开始实施报告中的整改建议。
 2. 在 `/Volumes/AI/coding/kimi-code` 查看 `git status --short --branch`、`git diff`、`git diff --cached`、`git log -5 --oneline`。
 3. 如从采集目录开始，同时查看该目录的 status/diff/log；既有脏状态不得视为需要同步或清理。
 4. 从“当前正在做”续接；每阶段更新本文件、运行相应验证并精确提交。

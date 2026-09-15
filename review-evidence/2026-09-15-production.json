@@ -1,7 +1,7 @@
 {
   "reviewDate": "2026-09-15",
   "scope": "Read-only production HTTP, data parsing, source review; no browser interaction validation completed",
-  "browserLimitation": "CUA getBrowser returned documentation; createBrowserTab on iab, getState recovery and createBrowserTab on Chrome each timed out after 30 seconds. No screenshot or interaction result available.",
+  "browserLimitation": "CUA getBrowser returned documentation; createBrowserTab on iab, getState recovery and createBrowserTab on Chrome each timed out after 30 seconds. No screenshot or interaction result available. Resumed on 2026-09-16; getState again timed out after 30 seconds. Desktop/mobile interaction remains unverified.",
   "http": [
     {
       "path": "/",
@@ -2550,5 +2550,58 @@
     "resultTable": "0 - 1",
     "localGameResult": "1-0",
     "disposition": "Conflicting public representations; no decision about the true result without source adjudication."
+  },
+  "corsOriginChecks": [
+    {
+      "method": "HEAD",
+      "origin": "https://chessdb.aigclabs.cc",
+      "url": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/89/89a3aff2273c5fd7fe05a69e8db5828212865b7286b31d2f5434343e07a563b1.pgn",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 15 Sep 2026 13:10:45 GMT",
+        "content-type": "application/x-chess-pgn",
+        "cache-control": "public, max-age=31536000, immutable",
+        "cf-ray": "a3b7df94fc9bc494-MAN"
+      }
+    },
+    {
+      "method": "GET",
+      "origin": "https://chessdb.aigclabs.cc",
+      "url": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/89/89a3aff2273c5fd7fe05a69e8db5828212865b7286b31d2f5434343e07a563b1.pgn",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 15 Sep 2026 13:10:58 GMT",
+        "content-type": "application/x-chess-pgn",
+        "cache-control": "public, max-age=31536000, immutable",
+        "cf-ray": "a3b7dfe34d644ce8-BOS"
+      }
+    },
+    {
+      "method": "GET",
+      "origin": "https://4chess.cc",
+      "url": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/89/89a3aff2273c5fd7fe05a69e8db5828212865b7286b31d2f5434343e07a563b1.pgn",
+      "status": 200,
+      "headers": {
+        "date": "Tue, 15 Sep 2026 13:11:13 GMT",
+        "content-type": "application/x-chess-pgn",
+        "vary": "Origin",
+        "access-control-expose-headers": "ETag,Content-Length,Content-Type",
+        "access-control-allow-origin": "https://4chess.cc",
+        "cache-control": "public, max-age=31536000, immutable",
+        "cf-ray": "a3b7e044efc2db2b-MAN"
+      }
+    }
+  ],
+  "corsOriginChecksBodyHashMatch": true,
+  "reportFinalizedDate": "2026-09-16",
+  "validationRuntime": {
+    "python": "3.13.6",
+    "pythonChess": "1.11.2"
+  },
+  "documentValidation": {
+    "jsonParsed": true,
+    "numericClaimsChecked": true,
+    "relativeLinksChecked": true,
+    "sourceReferencesExist": true
   }
 }
