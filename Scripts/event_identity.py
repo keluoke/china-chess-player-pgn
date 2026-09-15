@@ -23,9 +23,12 @@ def classify(name):
 def control(name):
     # A broadcast title may name both formats; its section identifies the game.
     scope = name.rsplit('|', 1)[-1]
+    if not re.search(r'\b(?:blitz|rapid|standard|classical)\b|超快|快棋|慢棋', scope, re.I):
+        scope = name
     blitz = bool(re.search(r'\bblitz\b|超快', scope, re.I))
     rapid = bool(re.search(r'\brapid\b|(?<!超)快棋', scope, re.I))
-    if blitz and rapid:return 'mixed'
+    standard = bool(re.search(r'\b(?:standard|classical)\b|慢棋', scope, re.I))
+    if sum((blitz, rapid, standard)) > 1:return 'mixed'
     if blitz:return 'blitz'
     if rapid:return 'rapid'
     return 'standard'

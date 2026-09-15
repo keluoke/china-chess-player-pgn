@@ -32,6 +32,8 @@ class EventLibraryTests(unittest.TestCase):
         self.assertEqual(control('FIDE World Rapid & Blitz Championships 2025 | Rapid Open 31+'),'rapid')
         self.assertEqual(control('FIDE World Rapid & Blitz Championships 2025 | Blitz Open 1-30'),'blitz')
         self.assertEqual(control('World Rapid & Blitz Championships 2025'),'mixed')
+        self.assertEqual(control('Chinese Youth Rapid Championships | Boys U14'),'rapid')
+        self.assertEqual(control('Rapid & Classical Festival | Classical Open'),'standard')
         self.assertEqual(classify('2026年维克安泽国际象棋大赛')[0],'tata-steel')
         self.assertEqual(section('Tata Steel Chess 2025 | Masters'),'大师组')
         self.assertEqual(section('Tata Steel Chess 2025 | Challengers'),'挑战者组')
