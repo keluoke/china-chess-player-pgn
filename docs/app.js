@@ -1010,7 +1010,7 @@ function renderEvent() {
 }
 
 function eventPGNArchive(detail) {
-  if (!detail || detail.error) return null;
+  if (!detail || detail.error || Number(detail.completeness?.counts?.excludedArchivedGames) > 0) return null;
   for (const round of detail.rounds ?? []) {
     for (const pairing of round.pairings ?? []) {
       if (pairing?.localGame?.pgnPath) {
@@ -1136,7 +1136,7 @@ function pairingRow(event, round, pairing) {
   const pgnAction = localGame?.quality?.replayable === false
     ? `<span class="pairing-pgn">棋谱已归档 · 无法复盘</span>`
     : localGame?.pgnPath
-    ? `<button type="button" class="pairing-pgn available" data-action="open-event-pgn" data-pgn-path="${escapeAttribute(localGame.pgnPath)}" data-round="${escapeAttribute(round)}" data-board="${escapeAttribute(pairing.board || localGame.board || "")}">● 本库 PGN</button>`
+    ? `<button type="button" class="pairing-pgn available" data-action="open-event-pgn" data-pgn-path="${escapeAttribute(event.pgnPath || localGame.pgnPath)}" data-round="${escapeAttribute(round)}" data-board="${escapeAttribute(pairing.board || localGame.board || "")}">● 本库 PGN</button>`
     : localGame && focusFideID
     ? `<button type="button" class="pairing-pgn available" data-action="select-event-player" data-fide="${escapeAttribute(focusFideID)}" data-event-focus="${escapeAttribute(event.id)}" data-tournament-id="${escapeAttribute(event.tournamentID ?? "")}" data-round="${escapeAttribute(round)}">● 本库 PGN</button>`
     : pairing.pgnURL
@@ -1304,6 +1304,11 @@ function staticPlayerInfo(player) {
     const allPackage = (detail.packages ?? []).find(item => item.id === "all") ?? detail.packages?.[0];
     return {
       gameCount: detail.totals?.games ?? allPackage?.gameCount ?? 0,
+      archivedGameCount: detail.totals?.archivedGames ?? detail.totals?.games ?? 0,
+      playableGameCount: detail.totals?.playableGames ?? allPackage?.gameCount ?? 0,
+      excludedGameCount: detail.totals?.excludedGames ?? 0,
+      participationEventCount: detail.totals?.participationEvents ?? 0,
+      pgnEventCount: detail.totals?.pgnEvents ?? 0,
       eventCount: detail.totals?.events ?? detail.events?.length ?? 0,
       packageCount: detail.totals?.packages ?? detail.packages?.length ?? 0,
       pgnPath: allPackage?.pgnPath,
@@ -1317,7 +1322,12 @@ function staticPlayerInfo(player) {
   }
   if (player?.playerPgnPath) {
     return {
-      gameCount: Number(player.playerPgnGameCount ?? player.gameCount ?? 0),
+      gameCount: Number(player.archivedGameCount ?? player.gameCount ?? 0),
+      archivedGameCount: Number(player.archivedGameCount ?? player.gameCount ?? 0),
+      playableGameCount: Number(player.playableGameCount ?? player.playerPgnGameCount ?? 0),
+      excludedGameCount: Number(player.excludedGameCount ?? 0),
+      participationEventCount: Number(player.participationEventCount ?? 0),
+      pgnEventCount: Number(player.pgnEventCount ?? 0),
       eventCount: Number(player.eventCount ?? player.events?.length ?? 0),
       packageCount: Number(player.packageCount ?? 1),
       pgnPath: player.playerPgnPath,
@@ -1346,6 +1356,7 @@ function staticPlayerHitBlock(player, info) {
     .map(([stage, count]) => `${stage} ${count} 盘`)
     .join(" · ");
   const packageButtons = pgnPackages(info)
+    .filter(item => Number(item.gameCount) > 0)
     .map(item => `
       <button class="pgn-package-button" type="button" data-pgn-path="${escapeAttribute(packagePgnPath(item))}" aria-pressed="${isActiveViewerPackage(player, item)}">
         <strong>${escapeHTML(packageDisplayLabel(item))}</strong>
@@ -1356,7 +1367,7 @@ function staticPlayerHitBlock(player, info) {
   return `
     <div class="static-player-hit">
       <div>
-        <strong>已收录这位棋手的 ${compactNumber(info.gameCount)} 盘对局</strong>
+        <strong>已归档 ${compactNumber(info.archivedGameCount ?? info.gameCount)} 盘 · ${compactNumber(info.playableGameCount)} 盘可复盘${info.excludedGameCount ? ` · ${compactNumber(info.excludedGameCount)} 盘待修复` : ""}</strong>
         <span>${escapeHTML(stageLine || (info.sources ?? []).join(" · ") || "按赛事归档")}</span>
       </div>
       <div class="pgn-package-grid">${packageButtons}</div>
@@ -1695,7 +1706,7 @@ function pgnViewerBlock(player, info) {
   `).join("");
   const white = displayText(game.headers.White ?? "白方");
   const black = displayText(game.headers.Black ?? "黑方");
-  const result = displayText(game.headers.Result ?? "*");
+  const result = displayText(game.headers.Result ?? "*") + (game.headers.ResultStatus === "disputed" ? " · 比分待核" : "");
   const gameInfo = viewerGameInfo(game);
 
   return `
@@ -1739,7 +1750,8 @@ function viewerGameInfo(game) {
     ["轮次", headers.Round],
     ["时间", headers.EventDate ?? headers.Date],
     ["地点", headers.Site],
-    ["结果", headers.Result],
+    ["原记录结果", headers.Result],
+    ["结果状态", headers.ResultStatus === "disputed" ? "比分待核 · 不计入胜负统计" : headers.ResultStatus === "reviewed" ? `已核定：${headers.ReviewedResult}` : headers.Result === "*" ? "未完赛" : ""],
     ["白方", gamePlayerLine(headers, "White")],
     ["黑方", gamePlayerLine(headers, "Black")],
     ["ECO", headers.ECO],
@@ -2433,11 +2445,12 @@ function completenessLabel(event, eventDetail) {
 
 function playerCoverageStatus(player, staticInfo) {
   const games = Number(staticInfo?.playableGameCount ?? staticInfo?.playerPgnGameCount ?? player.playableGameCount ?? 0);
-  const status = games > 0 ? "cached" : Number(player.eventCount ?? 0) > 0 ? "compare" : "missing";
+  const archived = Number(staticInfo?.archivedGameCount ?? player.archivedGameCount ?? 0);
+  const status = games > 0 ? "cached" : archived > 0 || Number(player.participationEventCount ?? 0) > 0 ? "compare" : "missing";
   const message = status === "cached"
     ? `本库已缓存 ${games} 盘可复盘棋局。`
     : status === "compare"
-    ? "已有赛事记录，但棋谱仍待与数据源比对。"
+    ? archived > 0 ? `已归档 ${archived} 盘，主线待修复后才能复盘。` : "已有赛事记录，尚缺可复盘棋谱。"
     : "目前只有注册信息，尚缺可复盘赛事来源。";
   return `<div class="coverage-callout">${dataStatusBadge(status)}<span>${escapeHTML(message)}</span></div>`;
 }

@@ -57,6 +57,12 @@ def run_checks(site, expected_snapshot='', cors_only=False):
         return json.loads(body)
     snapshot = get('data/snapshot.json'); sid = snapshot['snapshotId']
     if expected_snapshot and sid != expected_snapshot: raise ValueError('CANARY_SNAPSHOT: ' + sid)
+    for path in ('docs/data/registry/players.json', 'docs/data/registry/manifest.json'):
+        entries = [entry for entry in snapshot['outputs'] if entry['path'] == path]
+        if len(entries) != 1: raise ValueError('CANARY_SNAPSHOT_OUTPUT: ' + path)
+        body, _ = fetch(urljoin(site+'/', path.removeprefix('docs/')))
+        if len(body) != entries[0]['bytes'] or hashlib.sha256(body).hexdigest() != entries[0]['sha256']:
+            raise ValueError('CANARY_REGISTRY_HASH: ' + path)
     bootstrap = get('data/search-bootstrap.json')
     players = {str(row.get('fideID')): row for row in bootstrap['players']}
     for fide_id in ('8602980', '8603006', '8608288', '260290'):
@@ -82,6 +88,19 @@ def run_checks(site, expected_snapshot='', cors_only=False):
         body, headers = fetch(urljoin(site+'/', event['pgnPath']))
         check_pgn(body, event['gameCount'])
         checks.append({'check':'event-package', 'tournamentID':tid, 'games':event['gameCount'], 'coverage':quality.get('replayCoverage')})
+    objects = get('data/index/event-pgn-objects.json')['events']
+    for tid in ('1458883', '1227491'):
+        entry = objects[tid]
+        body, _ = fetch(urljoin(site+'/', f"api/event-pgn?tnr={tid}&sha={entry['sha256'][:16]}"))
+        if hashlib.sha256(body).hexdigest() != entry['sha256']:
+            raise ValueError('CANARY_ARCHIVE_HASH: ' + tid)
+        checks.append({'check':'retained-archive', 'tournamentID':tid, 'sha256':entry['sha256'], 'records':len(split_pgn_games(body.decode('utf-8-sig')))})
+    disputed = get('data/index/event-details/tnr1059818.json')
+    pairing = next(pair for row in disputed['rounds'] if str(row['round']) == '1' for pair in row['pairings'] if str(pair['board']) == '62')
+    quality = pairing.get('localGame', {}).get('quality', {})
+    if quality.get('resultStatus') not in {'disputed', 'reviewed'} or (quality['resultStatus'] == 'disputed' and quality.get('resultStatsEligible') is not False):
+        raise ValueError('CANARY_RESULT_DISPUTE')
+    checks.append({'check':'result-dispute', 'tournamentID':'1059818', 'quality':quality})
     fetch(urljoin(site+'/', 'api/event-pgn?tnr=1458883&sha='+'0'*16), expected=409)
     metrics = get('data/public-metrics.json')['totals']
     if metrics.get('playableUniqueGames') != catalog['totals']['playableGames']:
