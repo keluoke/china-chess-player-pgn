@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260915T063851Z-1850db6a",
-  "generatedAt": "2026-09-15T06:42:22+00:00",
+  "snapshotId": "20260916T121909Z-7a2d1aed",
+  "generatedAt": "2026-09-16T12:29:54+00:00",
   "player": {
     "fideID": "8672962",
     "id": "fide-8672962",
@@ -21,9 +21,14 @@
   },
   "totals": {
     "games": 2,
+    "archivedGames": 2,
+    "playableGames": 1,
+    "excludedGames": 1,
     "events": 1,
+    "pgnEvents": 1,
+    "participationEvents": 0,
     "packages": 2,
-    "bytes": 9828,
+    "bytes": 8358,
     "stages": {
       "U14": 2
     }
@@ -33,13 +38,13 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8672962/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/c3/c38d15bce161be94449946ac157a56a60e1a23d849f331769d01eb5831947725.pgn",
-      "objectPath": "data/pgn/objects/sha256/c3/c38d15bce161be94449946ac157a56a60e1a23d849f331769d01eb5831947725.pgn",
-      "gameCount": 2,
-      "pgnBytes": 4914,
-      "sha256": "c38d15bce161be94449946ac157a56a60e1a23d849f331769d01eb5831947725",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/fc/fc693faa94aff9ed032b6d6fbec23ddf720253233e48723605f3a552dfbbde15.pgn",
+      "objectPath": "data/pgn/objects/sha256/fc/fc693faa94aff9ed032b6d6fbec23ddf720253233e48723605f3a552dfbbde15.pgn",
+      "gameCount": 1,
+      "pgnBytes": 4179,
+      "sha256": "fc693faa94aff9ed032b6d6fbec23ddf720253233e48723605f3a552dfbbde15",
       "stages": {
-        "U14": 2
+        "U14": 1
       },
       "sources": [
         "Lichess Broadcasts"
@@ -49,13 +54,13 @@
       "id": "U14",
       "label": "U14 PGN",
       "pgnPath": "data/pgn/by-player/fide-8672962/U14.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/09/0977086dbc5af716b0905eb4e5a6fcd581dbdb8c107bad5fb197ea38041f681a.pgn",
-      "objectPath": "data/pgn/objects/sha256/09/0977086dbc5af716b0905eb4e5a6fcd581dbdb8c107bad5fb197ea38041f681a.pgn",
-      "gameCount": 2,
-      "pgnBytes": 4914,
-      "sha256": "0977086dbc5af716b0905eb4e5a6fcd581dbdb8c107bad5fb197ea38041f681a",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/68/6814e8628fdb61685362df4b0bbb2e7f4f73a8d934aaf0b27e0d9912b03ab6f8.pgn",
+      "objectPath": "data/pgn/objects/sha256/68/6814e8628fdb61685362df4b0bbb2e7f4f73a8d934aaf0b27e0d9912b03ab6f8.pgn",
+      "gameCount": 1,
+      "pgnBytes": 4179,
+      "sha256": "6814e8628fdb61685362df4b0bbb2e7f4f73a8d934aaf0b27e0d9912b03ab6f8",
       "stages": {
-        "U14": 2
+        "U14": 1
       },
       "sources": [
         "Lichess Broadcasts"
@@ -96,7 +101,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
-      "sha256": "3e3c8d0f359aec5816e9047756bfc16e31fa701f83483a1e10a8cac6f459051e"
+      "sha256": "3e3c8d0f359aec5816e9047756bfc16e31fa701f83483a1e10a8cac6f459051e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 92,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d8f932822b51c33e3dcec370866a2f97af86faade68ce0995b6c24a5541c5866",
@@ -112,7 +128,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
-      "sha256": "d8f932822b51c33e3dcec370866a2f97af86faade68ce0995b6c24a5541c5866"
+      "sha256": "d8f932822b51c33e3dcec370866a2f97af86faade68ce0995b6c24a5541c5866",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "empty",
+        "legalPlies": 0,
+        "replayable": false,
+        "finished": false,
+        "resultStatus": "unfinished",
+        "resultStatsEligible": false,
+        "errors": []
+      }
     }
   ]
 }

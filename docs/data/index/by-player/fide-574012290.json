@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260915T063851Z-1850db6a",
-  "generatedAt": "2026-09-15T06:42:22+00:00",
+  "snapshotId": "20260916T121909Z-7a2d1aed",
+  "generatedAt": "2026-09-16T12:29:54+00:00",
   "player": {
     "fideID": "574012290",
     "id": "fide-574012290",
@@ -18,9 +18,14 @@
   },
   "totals": {
     "games": 2,
+    "archivedGames": 2,
+    "playableGames": 1,
+    "excludedGames": 1,
     "events": 2,
+    "pgnEvents": 2,
+    "participationEvents": 2,
     "packages": 2,
-    "bytes": 8253,
+    "bytes": 6873,
     "stages": {
       "U8": 2
     }
@@ -30,13 +35,13 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-574012290/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/8a/8af9cab54453458691d7564dddba01e2a39f1a734c3d8fc32ee1cf7e362ec991.pgn",
-      "objectPath": "data/pgn/objects/sha256/8a/8af9cab54453458691d7564dddba01e2a39f1a734c3d8fc32ee1cf7e362ec991.pgn",
-      "gameCount": 2,
-      "pgnBytes": 4127,
-      "sha256": "8af9cab54453458691d7564dddba01e2a39f1a734c3d8fc32ee1cf7e362ec991",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/48/487888843ae34b8da07b01112c805af211366be9465576ed242b91e369384114.pgn",
+      "objectPath": "data/pgn/objects/sha256/48/487888843ae34b8da07b01112c805af211366be9465576ed242b91e369384114.pgn",
+      "gameCount": 1,
+      "pgnBytes": 3437,
+      "sha256": "487888843ae34b8da07b01112c805af211366be9465576ed242b91e369384114",
       "stages": {
-        "U8": 2
+        "U8": 1
       },
       "sources": [
         "Lichess Broadcasts"
@@ -46,13 +51,13 @@
       "id": "U8",
       "label": "U8 PGN",
       "pgnPath": "data/pgn/by-player/fide-574012290/U8.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/c2/c26419299888279a75281045f35dd2c971fa928d8ba2373b48994f3dc3defc6e.pgn",
-      "objectPath": "data/pgn/objects/sha256/c2/c26419299888279a75281045f35dd2c971fa928d8ba2373b48994f3dc3defc6e.pgn",
-      "gameCount": 2,
-      "pgnBytes": 4126,
-      "sha256": "c26419299888279a75281045f35dd2c971fa928d8ba2373b48994f3dc3defc6e",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/4e/4e6f19e137fd7536d733f85be826fafb6578f79a5cd6637c340d0d8368ee2901.pgn",
+      "objectPath": "data/pgn/objects/sha256/4e/4e6f19e137fd7536d733f85be826fafb6578f79a5cd6637c340d0d8368ee2901.pgn",
+      "gameCount": 1,
+      "pgnBytes": 3436,
+      "sha256": "4e6f19e137fd7536d733f85be826fafb6578f79a5cd6637c340d0d8368ee2901",
       "stages": {
-        "U8": 2
+        "U8": 1
       },
       "sources": [
         "Lichess Broadcasts"
@@ -108,7 +113,20 @@
       "rank": "116",
       "tournamentID": "1470165",
       "sourcePgnPath": "api/event-pgn?tnr=1470165&sha=93480cfb95b4de8c",
-      "sha256": "1b6771dd7ecbec09b488d66c70b0b76452b3116e7446c946f0fbe25790b7da58"
+      "sha256": "1b6771dd7ecbec09b488d66c70b0b76452b3116e7446c946f0fbe25790b7da58",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 54,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'Kd4' in 6k1/pp4p1/1b2p3/3B1p2/1P5P/P1rK2P1/2r3P1/R3R3 w - - 1 28"
+        ]
+      }
     },
     {
       "id": "6c3c06058cc57aa50350c53b2b66b11e20fe1a20ae57d1b30509b1907055779d",
@@ -124,7 +142,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U8/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U8/games.json",
-      "sha256": "6c3c06058cc57aa50350c53b2b66b11e20fe1a20ae57d1b30509b1907055779d"
+      "sha256": "6c3c06058cc57aa50350c53b2b66b11e20fe1a20ae57d1b30509b1907055779d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 54,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     }
   ]
 }

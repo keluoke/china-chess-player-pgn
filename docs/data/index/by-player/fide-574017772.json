@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260915T063851Z-1850db6a",
-  "generatedAt": "2026-09-15T06:42:22+00:00",
+  "snapshotId": "20260916T121909Z-7a2d1aed",
+  "generatedAt": "2026-09-16T12:29:54+00:00",
   "player": {
     "fideID": "574017772",
     "id": "fide-574017772",
@@ -18,9 +18,14 @@
   },
   "totals": {
     "games": 2,
+    "archivedGames": 2,
+    "playableGames": 1,
+    "excludedGames": 1,
     "events": 2,
+    "pgnEvents": 2,
+    "participationEvents": 2,
     "packages": 2,
-    "bytes": 6972,
+    "bytes": 4680,
     "stages": {}
   },
   "packages": [
@@ -28,11 +33,11 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-574017772/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/56/5670ac3f77ab5c57145333930c6a24eb27bd8aefffdd3f3e3964884c0e6813e6.pgn",
-      "objectPath": "data/pgn/objects/sha256/56/5670ac3f77ab5c57145333930c6a24eb27bd8aefffdd3f3e3964884c0e6813e6.pgn",
-      "gameCount": 2,
-      "pgnBytes": 3485,
-      "sha256": "5670ac3f77ab5c57145333930c6a24eb27bd8aefffdd3f3e3964884c0e6813e6",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/eb/eb45cf8106498d462c8a12ae995dcd8dc86b754154f38203723b7549504ece5c.pgn",
+      "objectPath": "data/pgn/objects/sha256/eb/eb45cf8106498d462c8a12ae995dcd8dc86b754154f38203723b7549504ece5c.pgn",
+      "gameCount": 1,
+      "pgnBytes": 2339,
+      "sha256": "eb45cf8106498d462c8a12ae995dcd8dc86b754154f38203723b7549504ece5c",
       "stages": {},
       "sources": [
         "Lichess Broadcasts"
@@ -42,11 +47,11 @@
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-574017772/adult.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/50/50913c4e0b86427b37ae7a990827c25915923be6144226b6f889458f68026939.pgn",
-      "objectPath": "data/pgn/objects/sha256/50/50913c4e0b86427b37ae7a990827c25915923be6144226b6f889458f68026939.pgn",
-      "gameCount": 2,
-      "pgnBytes": 3487,
-      "sha256": "50913c4e0b86427b37ae7a990827c25915923be6144226b6f889458f68026939",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/5f/5fae03f6554afc371c9b76942560fd967de98a87ad54370b141e385fcd353c4a.pgn",
+      "objectPath": "data/pgn/objects/sha256/5f/5fae03f6554afc371c9b76942560fd967de98a87ad54370b141e385fcd353c4a.pgn",
+      "gameCount": 1,
+      "pgnBytes": 2341,
+      "sha256": "5fae03f6554afc371c9b76942560fd967de98a87ad54370b141e385fcd353c4a",
       "stages": {},
       "sources": [
         "Lichess Broadcasts"
@@ -102,7 +107,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "8ec8375873209e250604d667506e28c5dfcedf8be8eff52302b5146c7a02954a"
+      "sha256": "8ec8375873209e250604d667506e28c5dfcedf8be8eff52302b5146c7a02954a",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 25,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "580edf6c22c64a6d4bfdd7f8292b7e1f06ab3d6e71b6d698a2319f97effcd6d3",
@@ -118,7 +134,20 @@
       "rank": "73",
       "tournamentID": "1470165",
       "sourcePgnPath": "api/event-pgn?tnr=1470165&sha=93480cfb95b4de8c",
-      "sha256": "580edf6c22c64a6d4bfdd7f8292b7e1f06ab3d6e71b6d698a2319f97effcd6d3"
+      "sha256": "580edf6c22c64a6d4bfdd7f8292b7e1f06ab3d6e71b6d698a2319f97effcd6d3",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 25,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'cxb3' in r4rk1/p1q1bppp/b1p2n2/3pN1B1/1PpP4/2N5/P1P2PPP/R2QR1K1 b - - 0 13"
+        ]
+      }
     }
   ]
 }

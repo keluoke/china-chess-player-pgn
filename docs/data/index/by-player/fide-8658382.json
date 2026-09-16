@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260915T063851Z-1850db6a",
-  "generatedAt": "2026-09-15T06:42:22+00:00",
+  "snapshotId": "20260916T121909Z-7a2d1aed",
+  "generatedAt": "2026-09-16T12:29:54+00:00",
   "player": {
     "fideID": "8658382",
     "id": "fide-8658382",
@@ -18,9 +18,14 @@
   },
   "totals": {
     "games": 1,
+    "archivedGames": 1,
+    "playableGames": 0,
+    "excludedGames": 1,
     "events": 1,
-    "packages": 2,
-    "bytes": 2088,
+    "pgnEvents": 1,
+    "participationEvents": 1,
+    "packages": 1,
+    "bytes": 95,
     "stages": {
       "U10": 1
     }
@@ -30,28 +35,12 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8658382/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/54/54e57a863d7dc63cb425e79ea07d2e32afaac8ebd803fc0e0a8e5cb5e9327341.pgn",
-      "objectPath": "data/pgn/objects/sha256/54/54e57a863d7dc63cb425e79ea07d2e32afaac8ebd803fc0e0a8e5cb5e9327341.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1044,
-      "sha256": "54e57a863d7dc63cb425e79ea07d2e32afaac8ebd803fc0e0a8e5cb5e9327341",
-      "stages": {
-        "U10": 1
-      },
-      "sources": []
-    },
-    {
-      "id": "U10",
-      "label": "U10 PGN",
-      "pgnPath": "data/pgn/by-player/fide-8658382/U10.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/84/84cce7f6f674c75a7f55efe4b33d3cf39599676022403406e8a14a9a62220433.pgn",
-      "objectPath": "data/pgn/objects/sha256/84/84cce7f6f674c75a7f55efe4b33d3cf39599676022403406e8a14a9a62220433.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1044,
-      "sha256": "84cce7f6f674c75a7f55efe4b33d3cf39599676022403406e8a14a9a62220433",
-      "stages": {
-        "U10": 1
-      },
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/da/da56d580202367f7756ce991b36191362297a2658281c0d65d198e4e49220258.pgn",
+      "objectPath": "data/pgn/objects/sha256/da/da56d580202367f7756ce991b36191362297a2658281c0d65d198e4e49220258.pgn",
+      "gameCount": 0,
+      "pgnBytes": 95,
+      "sha256": "da56d580202367f7756ce991b36191362297a2658281c0d65d198e4e49220258",
+      "stages": {},
       "sources": []
     }
   ],
@@ -88,7 +77,20 @@
       "rank": "121",
       "tournamentID": "968933",
       "sourcePgnPath": "api/event-pgn?tnr=968933&sha=957860c0082cd936",
-      "sha256": "f679c5cb05c9ec5756f0bb84885ba68fcc8188d31840810fc60ff91075ae95f2"
+      "sha256": "f679c5cb05c9ec5756f0bb84885ba68fcc8188d31840810fc60ff91075ae95f2",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 100,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'Kd4' in 8/p7/1p6/1P3pp1/P1k3p1/4K1P1/8/8 w - - 2 51"
+        ]
+      }
     }
   ]
 }

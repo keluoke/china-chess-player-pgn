@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260915T063851Z-1850db6a",
-  "generatedAt": "2026-09-15T06:42:22+00:00",
+  "snapshotId": "20260916T121909Z-7a2d1aed",
+  "generatedAt": "2026-09-16T12:29:54+00:00",
   "player": {
     "fideID": "8618186",
     "id": "fide-8618186",
@@ -21,9 +21,14 @@
   },
   "totals": {
     "games": 2,
+    "archivedGames": 2,
+    "playableGames": 1,
+    "excludedGames": 1,
     "events": 1,
+    "pgnEvents": 1,
+    "participationEvents": 7,
     "packages": 2,
-    "bytes": 9530,
+    "bytes": 6114,
     "stages": {
       "U10": 2
     }
@@ -33,13 +38,13 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8618186/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/67/67c1e8a02feb3d612f9583eb7be306bd86014a6f55243089d8e849c8d41e40a9.pgn",
-      "objectPath": "data/pgn/objects/sha256/67/67c1e8a02feb3d612f9583eb7be306bd86014a6f55243089d8e849c8d41e40a9.pgn",
-      "gameCount": 2,
-      "pgnBytes": 4765,
-      "sha256": "67c1e8a02feb3d612f9583eb7be306bd86014a6f55243089d8e849c8d41e40a9",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/f5/f5759a0db765714ca0f8c1b9945008a4fc5f1dcf426a267b1e3ef6d31d9296f4.pgn",
+      "objectPath": "data/pgn/objects/sha256/f5/f5759a0db765714ca0f8c1b9945008a4fc5f1dcf426a267b1e3ef6d31d9296f4.pgn",
+      "gameCount": 1,
+      "pgnBytes": 3057,
+      "sha256": "f5759a0db765714ca0f8c1b9945008a4fc5f1dcf426a267b1e3ef6d31d9296f4",
       "stages": {
-        "U10": 2
+        "U10": 1
       },
       "sources": []
     },
@@ -47,13 +52,13 @@
       "id": "U10",
       "label": "U10 PGN",
       "pgnPath": "data/pgn/by-player/fide-8618186/U10.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/12/122cfff10f0bdc20c1222702e74310f677f32cf08dec940338453557bf9d3b5d.pgn",
-      "objectPath": "data/pgn/objects/sha256/12/122cfff10f0bdc20c1222702e74310f677f32cf08dec940338453557bf9d3b5d.pgn",
-      "gameCount": 2,
-      "pgnBytes": 4765,
-      "sha256": "122cfff10f0bdc20c1222702e74310f677f32cf08dec940338453557bf9d3b5d",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e2/e237fa90c59ee095b8a174463bf8f84ceb22786dd91e55063ca1bbab071b1ccd.pgn",
+      "objectPath": "data/pgn/objects/sha256/e2/e237fa90c59ee095b8a174463bf8f84ceb22786dd91e55063ca1bbab071b1ccd.pgn",
+      "gameCount": 1,
+      "pgnBytes": 3057,
+      "sha256": "e237fa90c59ee095b8a174463bf8f84ceb22786dd91e55063ca1bbab071b1ccd",
       "stages": {
-        "U10": 2
+        "U10": 1
       },
       "sources": []
     }
@@ -92,7 +97,20 @@
       "rank": "23",
       "tournamentID": "344027",
       "sourcePgnPath": "api/event-pgn?tnr=344027&sha=b915c0fe982a6555",
-      "sha256": "3a68f0dbc14ca5934e8cab455ee5b9c86723bba6757783af426fc9e8a5428c3f"
+      "sha256": "3a68f0dbc14ca5934e8cab455ee5b9c86723bba6757783af426fc9e8a5428c3f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 69,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'Kg7' in r4k2/3b1p1p/4pP2/3pP1Pp/r2B3P/2P5/pRPK4/R7 b - - 0 35"
+        ]
+      }
     },
     {
       "id": "4aee805c8a0c84a91c7191eeed2833d4cff1dc92396cbb15865a9ffd31ebe973",
@@ -108,7 +126,18 @@
       "rank": "23",
       "tournamentID": "344027",
       "sourcePgnPath": "api/event-pgn?tnr=344027&sha=b915c0fe982a6555",
-      "sha256": "4aee805c8a0c84a91c7191eeed2833d4cff1dc92396cbb15865a9ffd31ebe973"
+      "sha256": "4aee805c8a0c84a91c7191eeed2833d4cff1dc92396cbb15865a9ffd31ebe973",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 115,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     }
   ]
 }

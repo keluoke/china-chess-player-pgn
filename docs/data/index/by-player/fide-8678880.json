@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260915T063851Z-1850db6a",
-  "generatedAt": "2026-09-15T06:42:22+00:00",
+  "snapshotId": "20260916T121909Z-7a2d1aed",
+  "generatedAt": "2026-09-16T12:29:54+00:00",
   "player": {
     "fideID": "8678880",
     "id": "fide-8678880",
@@ -18,9 +18,14 @@
   },
   "totals": {
     "games": 11,
+    "archivedGames": 11,
+    "playableGames": 10,
+    "excludedGames": 1,
     "events": 1,
+    "pgnEvents": 1,
+    "participationEvents": 0,
     "packages": 2,
-    "bytes": 21180,
+    "bytes": 18802,
     "stages": {
       "U12": 11
     }
@@ -30,13 +35,13 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8678880/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/25/25f9793b82d5fd92cfd6579d234e827144bc083190d7b168ff3c8b36512c21b1.pgn",
-      "objectPath": "data/pgn/objects/sha256/25/25f9793b82d5fd92cfd6579d234e827144bc083190d7b168ff3c8b36512c21b1.pgn",
-      "gameCount": 11,
-      "pgnBytes": 10590,
-      "sha256": "25f9793b82d5fd92cfd6579d234e827144bc083190d7b168ff3c8b36512c21b1",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b9/b9e1d3647326114115be11a990202f614d55e6175732c5d9c093c4eca3d6253f.pgn",
+      "objectPath": "data/pgn/objects/sha256/b9/b9e1d3647326114115be11a990202f614d55e6175732c5d9c093c4eca3d6253f.pgn",
+      "gameCount": 10,
+      "pgnBytes": 9401,
+      "sha256": "b9e1d3647326114115be11a990202f614d55e6175732c5d9c093c4eca3d6253f",
       "stages": {
-        "U12": 11
+        "U12": 10
       },
       "sources": [
         "Static PGN"
@@ -46,13 +51,13 @@
       "id": "U12",
       "label": "U12 PGN",
       "pgnPath": "data/pgn/by-player/fide-8678880/U12.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b4/b40a21aff0417a9af031720b06f4f497c2da85628313100e986ddc99017a2683.pgn",
-      "objectPath": "data/pgn/objects/sha256/b4/b40a21aff0417a9af031720b06f4f497c2da85628313100e986ddc99017a2683.pgn",
-      "gameCount": 11,
-      "pgnBytes": 10590,
-      "sha256": "b40a21aff0417a9af031720b06f4f497c2da85628313100e986ddc99017a2683",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/2e/2e261ff2bb29ab28dc544acfb61b0c618a303e133aef911ac8926409577a0181.pgn",
+      "objectPath": "data/pgn/objects/sha256/2e/2e261ff2bb29ab28dc544acfb61b0c618a303e133aef911ac8926409577a0181.pgn",
+      "gameCount": 10,
+      "pgnBytes": 9401,
+      "sha256": "2e261ff2bb29ab28dc544acfb61b0c618a303e133aef911ac8926409577a0181",
       "stages": {
-        "U12": 11
+        "U12": 10
       },
       "sources": [
         "Static PGN"
@@ -94,7 +99,18 @@
       "role": "black",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8678189-1210270.pgn",
-      "sha256": "d8feee34ac1ad0de4d7d43d298051458f28c71a79c5272f957914a8d7d6115a8"
+      "sha256": "d8feee34ac1ad0de4d7d43d298051458f28c71a79c5272f957914a8d7d6115a8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 48,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "bd0315be15077a32ed35fa5d98bc14318d83f82bd87b3976588aff4d329b47ff",
@@ -110,7 +126,20 @@
       "role": "white",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8678170-1210270.pgn",
-      "sha256": "bd0315be15077a32ed35fa5d98bc14318d83f82bd87b3976588aff4d329b47ff"
+      "sha256": "bd0315be15077a32ed35fa5d98bc14318d83f82bd87b3976588aff4d329b47ff",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 142,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'Kd1' in 8/8/8/8/3nq3/6k1/3K4/4q3 w - - 0 72"
+        ]
+      }
     },
     {
       "id": "aab948340b753110ccd20dde691942316a714fbd193ef1f6415844b167458b5d",
@@ -126,7 +155,18 @@
       "role": "white",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8665168-1210270.pgn",
-      "sha256": "aab948340b753110ccd20dde691942316a714fbd193ef1f6415844b167458b5d"
+      "sha256": "aab948340b753110ccd20dde691942316a714fbd193ef1f6415844b167458b5d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 140,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3642a281dedff48f89fa4f2ab1a41dcc6a29095cfcc31949d5bdd2411d09b1c7",
@@ -142,7 +182,18 @@
       "role": "white",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8672768-1210270.pgn",
-      "sha256": "3642a281dedff48f89fa4f2ab1a41dcc6a29095cfcc31949d5bdd2411d09b1c7"
+      "sha256": "3642a281dedff48f89fa4f2ab1a41dcc6a29095cfcc31949d5bdd2411d09b1c7",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 98,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "061b27551e2e7d8cd5f1fc9d4aeb71a4fb1c1c8c5f038ab5affcee5f2e84a40e",
@@ -158,7 +209,18 @@
       "role": "white",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8642796-1210270.pgn",
-      "sha256": "061b27551e2e7d8cd5f1fc9d4aeb71a4fb1c1c8c5f038ab5affcee5f2e84a40e"
+      "sha256": "061b27551e2e7d8cd5f1fc9d4aeb71a4fb1c1c8c5f038ab5affcee5f2e84a40e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "94bfa55cf6394c3763f3e26082a6430d074e41c701bd7e464d7e2ac0ccc79259",
@@ -174,7 +236,18 @@
       "role": "white",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8656819-1210270.pgn",
-      "sha256": "94bfa55cf6394c3763f3e26082a6430d074e41c701bd7e464d7e2ac0ccc79259"
+      "sha256": "94bfa55cf6394c3763f3e26082a6430d074e41c701bd7e464d7e2ac0ccc79259",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 134,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "89389c661e33016ef988232f99421dd346395e42dd6e5bb6a51192ae5c9cb9a0",
@@ -190,7 +263,18 @@
       "role": "white",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8664943-1210270.pgn",
-      "sha256": "89389c661e33016ef988232f99421dd346395e42dd6e5bb6a51192ae5c9cb9a0"
+      "sha256": "89389c661e33016ef988232f99421dd346395e42dd6e5bb6a51192ae5c9cb9a0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 174,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "57ce4082e6b6567b0133dc0e777b50258e0a4129ad9a7d26845c9990fb9a8d0d",
@@ -206,7 +290,18 @@
       "role": "black",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8678111-1210270.pgn",
-      "sha256": "57ce4082e6b6567b0133dc0e777b50258e0a4129ad9a7d26845c9990fb9a8d0d"
+      "sha256": "57ce4082e6b6567b0133dc0e777b50258e0a4129ad9a7d26845c9990fb9a8d0d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 56,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8c42aff418baf50f9552e2e10c242edcdb523e9232d5b23f94f3c0d1266cbcea",
@@ -222,7 +317,18 @@
       "role": "black",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8678880-1210270.pgn",
-      "sha256": "8c42aff418baf50f9552e2e10c242edcdb523e9232d5b23f94f3c0d1266cbcea"
+      "sha256": "8c42aff418baf50f9552e2e10c242edcdb523e9232d5b23f94f3c0d1266cbcea",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 117,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e037d4851659f5b48ab3278d93ca450491bc76987a69dce60360cac3baf894b2",
@@ -238,7 +344,18 @@
       "role": "black",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8643580-1210270.pgn",
-      "sha256": "e037d4851659f5b48ab3278d93ca450491bc76987a69dce60360cac3baf894b2"
+      "sha256": "e037d4851659f5b48ab3278d93ca450491bc76987a69dce60360cac3baf894b2",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 87,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "29de7dff4caf3be0c0418f5812e7147e97ebb6a3c1e78760df76007b820f95e5",
@@ -254,7 +371,18 @@
       "role": "black",
       "tournamentID": "1210270",
       "sourcePgnPath": "data/pgn/chess-results/tnr1210270/fide-8666210-1210270.pgn",
-      "sha256": "29de7dff4caf3be0c0418f5812e7147e97ebb6a3c1e78760df76007b820f95e5"
+      "sha256": "29de7dff4caf3be0c0418f5812e7147e97ebb6a3c1e78760df76007b820f95e5",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 87,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260915T063851Z-1850db6a",
-  "generatedAt": "2026-09-15T06:42:22+00:00",
+  "snapshotId": "20260916T121909Z-7a2d1aed",
+  "generatedAt": "2026-09-16T12:29:54+00:00",
   "player": {
     "fideID": "8601283",
     "id": "fide-8601283",
@@ -25,9 +25,14 @@
   },
   "totals": {
     "games": 243,
+    "archivedGames": 243,
+    "playableGames": 240,
+    "excludedGames": 3,
     "events": 34,
+    "pgnEvents": 34,
+    "participationEvents": 3,
     "packages": 2,
-    "bytes": 777986,
+    "bytes": 767668,
     "stages": {}
   },
   "packages": [
@@ -35,11 +40,11 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8601283/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/26/269c23f825aefe5beb257d86a8733c8a10a2d31481e37889edb92d9edd28bcca.pgn",
-      "objectPath": "data/pgn/objects/sha256/26/269c23f825aefe5beb257d86a8733c8a10a2d31481e37889edb92d9edd28bcca.pgn",
-      "gameCount": 243,
-      "pgnBytes": 388992,
-      "sha256": "269c23f825aefe5beb257d86a8733c8a10a2d31481e37889edb92d9edd28bcca",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b3/b339e14c2371c94617a75bae9251520df421388a151200b9d5098a7fd0bd1393.pgn",
+      "objectPath": "data/pgn/objects/sha256/b3/b339e14c2371c94617a75bae9251520df421388a151200b9d5098a7fd0bd1393.pgn",
+      "gameCount": 240,
+      "pgnBytes": 383833,
+      "sha256": "b339e14c2371c94617a75bae9251520df421388a151200b9d5098a7fd0bd1393",
       "stages": {},
       "sources": [
         "Lichess Broadcasts",
@@ -50,11 +55,11 @@
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8601283/adult.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/93/9345eb7fbc3105d4a105a22b756304c9201952e15174060ed0bfba074e3ec682.pgn",
-      "objectPath": "data/pgn/objects/sha256/93/9345eb7fbc3105d4a105a22b756304c9201952e15174060ed0bfba074e3ec682.pgn",
-      "gameCount": 243,
-      "pgnBytes": 388994,
-      "sha256": "9345eb7fbc3105d4a105a22b756304c9201952e15174060ed0bfba074e3ec682",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/15/150484c46fb55544116cf98b7bb7dee359a793d9131d809687cd11a4b914b04a.pgn",
+      "objectPath": "data/pgn/objects/sha256/15/150484c46fb55544116cf98b7bb7dee359a793d9131d809687cd11a4b914b04a.pgn",
+      "gameCount": 240,
+      "pgnBytes": 383835,
+      "sha256": "150484c46fb55544116cf98b7bb7dee359a793d9131d809687cd11a4b914b04a",
       "stages": {},
       "sources": [
         "Lichess Broadcasts",
@@ -671,7 +676,18 @@
       "role": "black",
       "tournamentID": "1443674",
       "sourcePgnPath": "api/event-pgn?tnr=1443674&sha=fd2d2e4aa0d330b0",
-      "sha256": "bf438ae0ca79862e3fda1643146273c1a7be1f98b64eb10559e13058aad190fe"
+      "sha256": "bf438ae0ca79862e3fda1643146273c1a7be1f98b64eb10559e13058aad190fe",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "fda919e3ec6d9dd868db77d654dd1144f1ddf7bff0aac63741cf7310ce741c9c",
@@ -686,7 +702,18 @@
       "role": "white",
       "tournamentID": "1443674",
       "sourcePgnPath": "api/event-pgn?tnr=1443674&sha=fd2d2e4aa0d330b0",
-      "sha256": "fda919e3ec6d9dd868db77d654dd1144f1ddf7bff0aac63741cf7310ce741c9c"
+      "sha256": "fda919e3ec6d9dd868db77d654dd1144f1ddf7bff0aac63741cf7310ce741c9c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 89,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d272dfe2f25dd63949e9eb68d1d909036ec74d156d0e70d4de9422e60db99399",
@@ -701,7 +728,18 @@
       "role": "white",
       "tournamentID": "1443674",
       "sourcePgnPath": "api/event-pgn?tnr=1443674&sha=fd2d2e4aa0d330b0",
-      "sha256": "d272dfe2f25dd63949e9eb68d1d909036ec74d156d0e70d4de9422e60db99399"
+      "sha256": "d272dfe2f25dd63949e9eb68d1d909036ec74d156d0e70d4de9422e60db99399",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 77,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e15a7fdba23af521a97bb0d1b632c948d638b7db0e1a1d3df1401299dbad5ab6",
@@ -716,7 +754,18 @@
       "role": "white",
       "tournamentID": "1443674",
       "sourcePgnPath": "api/event-pgn?tnr=1443674&sha=fd2d2e4aa0d330b0",
-      "sha256": "e15a7fdba23af521a97bb0d1b632c948d638b7db0e1a1d3df1401299dbad5ab6"
+      "sha256": "e15a7fdba23af521a97bb0d1b632c948d638b7db0e1a1d3df1401299dbad5ab6",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 49,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d58f17c03a6da2a2e1e9f39df82238f4947227466af84ef0cf4df400793447b1",
@@ -731,7 +780,18 @@
       "role": "black",
       "tournamentID": "1443674",
       "sourcePgnPath": "api/event-pgn?tnr=1443674&sha=fd2d2e4aa0d330b0",
-      "sha256": "d58f17c03a6da2a2e1e9f39df82238f4947227466af84ef0cf4df400793447b1"
+      "sha256": "d58f17c03a6da2a2e1e9f39df82238f4947227466af84ef0cf4df400793447b1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 102,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "58f0ae988c28083cb045fc10c64b5ca15f6936cb8b2eedbb5b001012b9d26cdf",
@@ -746,7 +806,18 @@
       "role": "black",
       "tournamentID": "1443674",
       "sourcePgnPath": "api/event-pgn?tnr=1443674&sha=fd2d2e4aa0d330b0",
-      "sha256": "58f0ae988c28083cb045fc10c64b5ca15f6936cb8b2eedbb5b001012b9d26cdf"
+      "sha256": "58f0ae988c28083cb045fc10c64b5ca15f6936cb8b2eedbb5b001012b9d26cdf",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 68,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "06692bb6181519a43610739278b6648d08578d3e3ba40b7981384ba3e0484b72",
@@ -761,7 +832,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "06692bb6181519a43610739278b6648d08578d3e3ba40b7981384ba3e0484b72"
+      "sha256": "06692bb6181519a43610739278b6648d08578d3e3ba40b7981384ba3e0484b72",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 62,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "58238b16051bd3f803013c673961b97c5072e8575bba1752f6a49997a1dfbd46",
@@ -776,7 +858,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "58238b16051bd3f803013c673961b97c5072e8575bba1752f6a49997a1dfbd46"
+      "sha256": "58238b16051bd3f803013c673961b97c5072e8575bba1752f6a49997a1dfbd46",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 55,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3ba24f7ed2b3def16cc51ed23c3ee40356a513ee5b7121203854cb2365c8d50f",
@@ -791,7 +884,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "3ba24f7ed2b3def16cc51ed23c3ee40356a513ee5b7121203854cb2365c8d50f"
+      "sha256": "3ba24f7ed2b3def16cc51ed23c3ee40356a513ee5b7121203854cb2365c8d50f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 106,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "984ebf00d61669aa23941b70167145d589a64013efc8fe2a41ba14b96b02a854",
@@ -806,7 +910,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8600643-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "984ebf00d61669aa23941b70167145d589a64013efc8fe2a41ba14b96b02a854"
+      "sha256": "984ebf00d61669aa23941b70167145d589a64013efc8fe2a41ba14b96b02a854",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 62,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "eee22ff60636e812a5750fdfd6b4ce0ff402f58bcab6de6bcca303a4516fdeb3",
@@ -821,7 +936,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "eee22ff60636e812a5750fdfd6b4ce0ff402f58bcab6de6bcca303a4516fdeb3"
+      "sha256": "eee22ff60636e812a5750fdfd6b4ce0ff402f58bcab6de6bcca303a4516fdeb3",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 103,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "de9eb46a22a390482f3d4597e76605e0f5a67357990afc3ca689936c9718c57a",
@@ -836,7 +962,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8600201-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "de9eb46a22a390482f3d4597e76605e0f5a67357990afc3ca689936c9718c57a"
+      "sha256": "de9eb46a22a390482f3d4597e76605e0f5a67357990afc3ca689936c9718c57a",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "963c9f991ef9444cc3b682d08c5849388c17893cc786433aee7c1d6191036175",
@@ -851,7 +988,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "963c9f991ef9444cc3b682d08c5849388c17893cc786433aee7c1d6191036175"
+      "sha256": "963c9f991ef9444cc3b682d08c5849388c17893cc786433aee7c1d6191036175",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 160,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "59075530da6f3118b116f42f3b58504bd8cb971c950bc9be014af70c33e1f0d9",
@@ -866,7 +1014,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "59075530da6f3118b116f42f3b58504bd8cb971c950bc9be014af70c33e1f0d9"
+      "sha256": "59075530da6f3118b116f42f3b58504bd8cb971c950bc9be014af70c33e1f0d9",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 92,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "46cd1e0d49be3fb2186a0e322a7d40c44870ee8620a3b278cc756b0ea9e51436",
@@ -881,7 +1040,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "46cd1e0d49be3fb2186a0e322a7d40c44870ee8620a3b278cc756b0ea9e51436"
+      "sha256": "46cd1e0d49be3fb2186a0e322a7d40c44870ee8620a3b278cc756b0ea9e51436",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 88,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "df4113ca7f279b59da43ad02983f1254a27fdba79c3626d549a7cef76eb24810",
@@ -896,7 +1066,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "df4113ca7f279b59da43ad02983f1254a27fdba79c3626d549a7cef76eb24810"
+      "sha256": "df4113ca7f279b59da43ad02983f1254a27fdba79c3626d549a7cef76eb24810",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 124,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f2b97ac4b9cb50fadf3d9eb6fb4cfc28868862e6d2137eb94850e48f46bdd5bf",
@@ -911,7 +1092,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2026-chinese-chess-team-championship-women-2026-eb797a01/fide-8601283-2026-chinese-chess-team-championship-women-2026-eb797a01.pgn",
-      "sha256": "f2b97ac4b9cb50fadf3d9eb6fb4cfc28868862e6d2137eb94850e48f46bdd5bf"
+      "sha256": "f2b97ac4b9cb50fadf3d9eb6fb4cfc28868862e6d2137eb94850e48f46bdd5bf",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 48,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cb0f1eb9020e73bfd42b3d18eb1abafb15551600cfe05134681702b560e65cd8",
@@ -927,7 +1119,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "cb0f1eb9020e73bfd42b3d18eb1abafb15551600cfe05134681702b560e65cd8"
+      "sha256": "cb0f1eb9020e73bfd42b3d18eb1abafb15551600cfe05134681702b560e65cd8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 160,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e6d7863a2cf19c5b8e267be4e887ba7a931e245ca74ff2c218a524c1d4fe2865",
@@ -942,7 +1145,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2025-chinese-chess-league-division-a-relegation-play-2026-6e9764bc/fide-8601283-2025-chinese-chess-league-division-a-relegation-play-2026-6e9764bc.pgn",
-      "sha256": "e6d7863a2cf19c5b8e267be4e887ba7a931e245ca74ff2c218a524c1d4fe2865"
+      "sha256": "e6d7863a2cf19c5b8e267be4e887ba7a931e245ca74ff2c218a524c1d4fe2865",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 125,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "701d9a209ef16d719c321338a82f872d00bd1cf65e0ad7c0fbbd6ca5c3f97175",
@@ -957,7 +1171,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2025-chinese-chess-league-division-a-relegation-play-2026-6e9764bc/fide-8601283-2025-chinese-chess-league-division-a-relegation-play-2026-6e9764bc.pgn",
-      "sha256": "701d9a209ef16d719c321338a82f872d00bd1cf65e0ad7c0fbbd6ca5c3f97175"
+      "sha256": "701d9a209ef16d719c321338a82f872d00bd1cf65e0ad7c0fbbd6ca5c3f97175",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 68,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4f9b66709b267fb75154752728d31e5a64483c6a612d62b9d1d4dbd0d5ec4c05",
@@ -973,7 +1198,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
-      "sha256": "4f9b66709b267fb75154752728d31e5a64483c6a612d62b9d1d4dbd0d5ec4c05"
+      "sha256": "4f9b66709b267fb75154752728d31e5a64483c6a612d62b9d1d4dbd0d5ec4c05",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 80,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "27328fe0a153bc577c6f936fb1db735dc2fb21aeda93a45b3fc6b745b848045e",
@@ -989,7 +1225,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
-      "sha256": "27328fe0a153bc577c6f936fb1db735dc2fb21aeda93a45b3fc6b745b848045e"
+      "sha256": "27328fe0a153bc577c6f936fb1db735dc2fb21aeda93a45b3fc6b745b848045e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 86,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6682a0c0713ad723c2b0a208d7c7a21ee99e5607a06678460d432cbf671e288b",
@@ -1005,7 +1252,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/U14/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U14/games.json",
-      "sha256": "6682a0c0713ad723c2b0a208d7c7a21ee99e5607a06678460d432cbf671e288b"
+      "sha256": "6682a0c0713ad723c2b0a208d7c7a21ee99e5607a06678460d432cbf671e288b",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 57,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "905286b92e625337cecc0227d6d2a440e68e8a360c4bdac631c09db7b9a65e65",
@@ -1021,7 +1279,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "905286b92e625337cecc0227d6d2a440e68e8a360c4bdac631c09db7b9a65e65"
+      "sha256": "905286b92e625337cecc0227d6d2a440e68e8a360c4bdac631c09db7b9a65e65",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 98,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d0f2baeeb0c637c02a7bd31d5d52133791e5388a9d34a94b615785b8558453c8",
@@ -1037,7 +1306,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "d0f2baeeb0c637c02a7bd31d5d52133791e5388a9d34a94b615785b8558453c8"
+      "sha256": "d0f2baeeb0c637c02a7bd31d5d52133791e5388a9d34a94b615785b8558453c8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 108,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "af28db1cdb33e77d914d7ba792e8d3db0f84b6401f98744402be5705fcd800b0",
@@ -1053,7 +1333,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "af28db1cdb33e77d914d7ba792e8d3db0f84b6401f98744402be5705fcd800b0"
+      "sha256": "af28db1cdb33e77d914d7ba792e8d3db0f84b6401f98744402be5705fcd800b0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 64,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "fc969f5b06718254ae4e916928b4d6e1c4e7bdb8663e0a046868de3c61f0142b",
@@ -1069,7 +1360,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "fc969f5b06718254ae4e916928b4d6e1c4e7bdb8663e0a046868de3c61f0142b"
+      "sha256": "fc969f5b06718254ae4e916928b4d6e1c4e7bdb8663e0a046868de3c61f0142b",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 169,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "bde8bc46803804fd03de7b60581482bb38c15a9d16857387bec78195298fbf0c",
@@ -1085,7 +1387,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "bde8bc46803804fd03de7b60581482bb38c15a9d16857387bec78195298fbf0c"
+      "sha256": "bde8bc46803804fd03de7b60581482bb38c15a9d16857387bec78195298fbf0c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 93,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "0281dfb84666df10451a9f36f1157d3d77f7c43f23c7f6e7fde45d829f2de07d",
@@ -1101,7 +1414,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "0281dfb84666df10451a9f36f1157d3d77f7c43f23c7f6e7fde45d829f2de07d"
+      "sha256": "0281dfb84666df10451a9f36f1157d3d77f7c43f23c7f6e7fde45d829f2de07d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 91,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f975d993c7c11f797937521b5a9051c7e3e915ec6c3c869c659803887dcded23",
@@ -1117,7 +1441,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "f975d993c7c11f797937521b5a9051c7e3e915ec6c3c869c659803887dcded23"
+      "sha256": "f975d993c7c11f797937521b5a9051c7e3e915ec6c3c869c659803887dcded23",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 60,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c77bd297bb662ce2247e72aa4a163e128e9a53de17defff09aa5f9bfab5cc8d5",
@@ -1133,7 +1468,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "c77bd297bb662ce2247e72aa4a163e128e9a53de17defff09aa5f9bfab5cc8d5"
+      "sha256": "c77bd297bb662ce2247e72aa4a163e128e9a53de17defff09aa5f9bfab5cc8d5",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 120,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3bc5d8d8236878f557510bf443a3d62f046459ad71f4ccd820c323137056d920",
@@ -1149,7 +1495,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "3bc5d8d8236878f557510bf443a3d62f046459ad71f4ccd820c323137056d920"
+      "sha256": "3bc5d8d8236878f557510bf443a3d62f046459ad71f4ccd820c323137056d920",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 54,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "7cd659aaab730c59573e31e745569464b9a171b598b2b17c4eff1f045d8a4937",
@@ -1165,7 +1522,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "7cd659aaab730c59573e31e745569464b9a171b598b2b17c4eff1f045d8a4937"
+      "sha256": "7cd659aaab730c59573e31e745569464b9a171b598b2b17c4eff1f045d8a4937",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 89,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "9b387b31a350c65c3174f0bcd823b62dddce7bc85eed2a7eadf6af515d28338c",
@@ -1181,7 +1549,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "9b387b31a350c65c3174f0bcd823b62dddce7bc85eed2a7eadf6af515d28338c"
+      "sha256": "9b387b31a350c65c3174f0bcd823b62dddce7bc85eed2a7eadf6af515d28338c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 98,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6c62d7f5a5924319f2ddc1105075bd3fb1981bad4f2e19afb771ff0a6085c0c5",
@@ -1197,7 +1576,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "6c62d7f5a5924319f2ddc1105075bd3fb1981bad4f2e19afb771ff0a6085c0c5"
+      "sha256": "6c62d7f5a5924319f2ddc1105075bd3fb1981bad4f2e19afb771ff0a6085c0c5",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 61,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8d8c8cd2a12cd10997dde49da42cc753f9c797466ed8b7f00ada2ca8bc13ba69",
@@ -1213,7 +1603,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "8d8c8cd2a12cd10997dde49da42cc753f9c797466ed8b7f00ada2ca8bc13ba69"
+      "sha256": "8d8c8cd2a12cd10997dde49da42cc753f9c797466ed8b7f00ada2ca8bc13ba69",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 82,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "9ee8bd8f1f91f7a33803c275ac15a181bb4fb2cf330dce306d941d5d2c539dac",
@@ -1229,7 +1630,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "9ee8bd8f1f91f7a33803c275ac15a181bb4fb2cf330dce306d941d5d2c539dac"
+      "sha256": "9ee8bd8f1f91f7a33803c275ac15a181bb4fb2cf330dce306d941d5d2c539dac",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 45,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3a5f03cb3abf3e881b8b53bc61dd0a713a20b2d729bcae8a1d1f922b065a33b1",
@@ -1245,7 +1657,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "3a5f03cb3abf3e881b8b53bc61dd0a713a20b2d729bcae8a1d1f922b065a33b1"
+      "sha256": "3a5f03cb3abf3e881b8b53bc61dd0a713a20b2d729bcae8a1d1f922b065a33b1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 65,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "36628ff87a39a3097129352a8834d50484729116fb19881da061d3d287c376e1",
@@ -1261,7 +1684,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/U16/lichess-broadcast-youth.pgn",
       "sourceIndexPath": "data/bulk/youth/index/U16/games.json",
-      "sha256": "36628ff87a39a3097129352a8834d50484729116fb19881da061d3d287c376e1"
+      "sha256": "36628ff87a39a3097129352a8834d50484729116fb19881da061d3d287c376e1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "523eea0c8c6f606a6812130561b9a7fe3a2e7eb3a0c23ea4c37f61b50a1ec676",
@@ -1276,7 +1710,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2025-chinese-chess-league-division-a-regular-round-1-2025-6190920e/fide-8601283-2025-chinese-chess-league-division-a-regular-round-1-2025-6190920e.pgn",
-      "sha256": "523eea0c8c6f606a6812130561b9a7fe3a2e7eb3a0c23ea4c37f61b50a1ec676"
+      "sha256": "523eea0c8c6f606a6812130561b9a7fe3a2e7eb3a0c23ea4c37f61b50a1ec676",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 126,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "a27767d12446b2652a63373fe4de1214f6f2961c963191c69a77b65d77da0607",
@@ -1291,7 +1736,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2025-chinese-chess-league-division-a-regular-round-1-2025-6190920e/fide-8601283-2025-chinese-chess-league-division-a-regular-round-1-2025-6190920e.pgn",
-      "sha256": "a27767d12446b2652a63373fe4de1214f6f2961c963191c69a77b65d77da0607"
+      "sha256": "a27767d12446b2652a63373fe4de1214f6f2961c963191c69a77b65d77da0607",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 89,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "847daeb1e1e8187cfc455e8a9c12bd3221bb2fdd6c5ae6b0c8028328ac0eeb72",
@@ -1306,7 +1762,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2025-chinese-chess-league-division-a-regular-round-1-2025-6190920e/fide-8601283-2025-chinese-chess-league-division-a-regular-round-1-2025-6190920e.pgn",
-      "sha256": "847daeb1e1e8187cfc455e8a9c12bd3221bb2fdd6c5ae6b0c8028328ac0eeb72"
+      "sha256": "847daeb1e1e8187cfc455e8a9c12bd3221bb2fdd6c5ae6b0c8028328ac0eeb72",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 64,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f89b280552d754fac47f3ea739ea8ed43c10a39592f1c1245e856f29544195f0",
@@ -1321,7 +1788,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2025-chinese-chess-league-division-a-regular-round-1-2025-6190920e/fide-8601283-2025-chinese-chess-league-division-a-regular-round-1-2025-6190920e.pgn",
-      "sha256": "f89b280552d754fac47f3ea739ea8ed43c10a39592f1c1245e856f29544195f0"
+      "sha256": "f89b280552d754fac47f3ea739ea8ed43c10a39592f1c1245e856f29544195f0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 110,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cccf57cc69a3db691b8dd73713a7544b0b81f6485c517bfe2277e05bd1f265e0",
@@ -1337,7 +1815,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "cccf57cc69a3db691b8dd73713a7544b0b81f6485c517bfe2277e05bd1f265e0"
+      "sha256": "cccf57cc69a3db691b8dd73713a7544b0b81f6485c517bfe2277e05bd1f265e0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 93,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "0f35f25eb06ea36bc36f585fa410f324e1dc5c3cc9f51977ed8518be5f9df158",
@@ -1353,7 +1842,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "0f35f25eb06ea36bc36f585fa410f324e1dc5c3cc9f51977ed8518be5f9df158"
+      "sha256": "0f35f25eb06ea36bc36f585fa410f324e1dc5c3cc9f51977ed8518be5f9df158",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 35,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "fb7e1c5933cfc558e5d2ae8daf0c122135d210c5c809c5e3b2ba60dd967ae708",
@@ -1369,7 +1869,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "fb7e1c5933cfc558e5d2ae8daf0c122135d210c5c809c5e3b2ba60dd967ae708"
+      "sha256": "fb7e1c5933cfc558e5d2ae8daf0c122135d210c5c809c5e3b2ba60dd967ae708",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 150,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "27830db4cfaa0fc0d90eb5734b68b67e8e23b422abdbbfacb3f857dc72bddf9e",
@@ -1385,7 +1896,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "27830db4cfaa0fc0d90eb5734b68b67e8e23b422abdbbfacb3f857dc72bddf9e"
+      "sha256": "27830db4cfaa0fc0d90eb5734b68b67e8e23b422abdbbfacb3f857dc72bddf9e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 109,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e81489f87ec89884a1863fd9be1c4439242e593eeac5724387044fd00a3604f8",
@@ -1401,7 +1923,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "e81489f87ec89884a1863fd9be1c4439242e593eeac5724387044fd00a3604f8"
+      "sha256": "e81489f87ec89884a1863fd9be1c4439242e593eeac5724387044fd00a3604f8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 65,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3fcad5c62c107be5a020d44f6dcadf68657b10c57382c74051fcfd80979700ef",
@@ -1417,7 +1950,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "3fcad5c62c107be5a020d44f6dcadf68657b10c57382c74051fcfd80979700ef"
+      "sha256": "3fcad5c62c107be5a020d44f6dcadf68657b10c57382c74051fcfd80979700ef",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 64,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "0563487a0c2780f56573e25648705304c6b66b0822f8ac0f4aec4b4bd6929fab",
@@ -1433,7 +1977,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "0563487a0c2780f56573e25648705304c6b66b0822f8ac0f4aec4b4bd6929fab"
+      "sha256": "0563487a0c2780f56573e25648705304c6b66b0822f8ac0f4aec4b4bd6929fab",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 61,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "14460b425fbf6ec2df8090def39f3fa16a433385bee41635851bf4436653495e",
@@ -1449,7 +2004,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "14460b425fbf6ec2df8090def39f3fa16a433385bee41635851bf4436653495e"
+      "sha256": "14460b425fbf6ec2df8090def39f3fa16a433385bee41635851bf4436653495e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 85,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "73acfba72dc13de189f2f837a56aba6dcc350e4ed98f4c339346044d8f959b23",
@@ -1464,7 +2030,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "73acfba72dc13de189f2f837a56aba6dcc350e4ed98f4c339346044d8f959b23"
+      "sha256": "73acfba72dc13de189f2f837a56aba6dcc350e4ed98f4c339346044d8f959b23",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 109,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4b76688e8ad3c7c2284f406b3fe208726652506b404c5176e9d3ab07e1cd6d62",
@@ -1479,7 +2056,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "4b76688e8ad3c7c2284f406b3fe208726652506b404c5176e9d3ab07e1cd6d62"
+      "sha256": "4b76688e8ad3c7c2284f406b3fe208726652506b404c5176e9d3ab07e1cd6d62",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 66,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "de48f33f29eab20df11c21551447a0650039300630fafbfbd790e9aa9094b3ce",
@@ -1494,7 +2082,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "de48f33f29eab20df11c21551447a0650039300630fafbfbd790e9aa9094b3ce"
+      "sha256": "de48f33f29eab20df11c21551447a0650039300630fafbfbd790e9aa9094b3ce",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 56,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "ffee6c73abf4ed644761d4e69314035fab4ea0a0e1854c3fa39dd6c3b4bccfaa",
@@ -1509,7 +2108,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "ffee6c73abf4ed644761d4e69314035fab4ea0a0e1854c3fa39dd6c3b4bccfaa"
+      "sha256": "ffee6c73abf4ed644761d4e69314035fab4ea0a0e1854c3fa39dd6c3b4bccfaa",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 95,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f550cf40d531eebb735f876719e82f8904e678b0582f2f59c1a33737f422ca7c",
@@ -1524,7 +2134,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "f550cf40d531eebb735f876719e82f8904e678b0582f2f59c1a33737f422ca7c"
+      "sha256": "f550cf40d531eebb735f876719e82f8904e678b0582f2f59c1a33737f422ca7c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 149,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "119b810206658a7caa76f9ac470dddf7c592d57c4d716a7c9f794c6422457ef0",
@@ -1539,7 +2160,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "119b810206658a7caa76f9ac470dddf7c592d57c4d716a7c9f794c6422457ef0"
+      "sha256": "119b810206658a7caa76f9ac470dddf7c592d57c4d716a7c9f794c6422457ef0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 54,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "2c0c2c7b6931d5e204bd543306a0cce94aa6a821b7df80d764bf570f99b9fac2",
@@ -1554,7 +2186,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "2c0c2c7b6931d5e204bd543306a0cce94aa6a821b7df80d764bf570f99b9fac2"
+      "sha256": "2c0c2c7b6931d5e204bd543306a0cce94aa6a821b7df80d764bf570f99b9fac2",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 87,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "b077176e1cce5068badbbcb3d6c9a1d0900fc717447190ed1e7f42930fb97528",
@@ -1569,7 +2212,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "b077176e1cce5068badbbcb3d6c9a1d0900fc717447190ed1e7f42930fb97528"
+      "sha256": "b077176e1cce5068badbbcb3d6c9a1d0900fc717447190ed1e7f42930fb97528",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e8d9a25d20826a5e601a4c520a7c2efb663967abbf78b18094715c4ac6215937",
@@ -1584,7 +2238,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "e8d9a25d20826a5e601a4c520a7c2efb663967abbf78b18094715c4ac6215937"
+      "sha256": "e8d9a25d20826a5e601a4c520a7c2efb663967abbf78b18094715c4ac6215937",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 119,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "733928c6f9405ad01637b3295f7b5b0e5ba9c66ff6376b59228fa104d710c0a9",
@@ -1599,7 +2264,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "733928c6f9405ad01637b3295f7b5b0e5ba9c66ff6376b59228fa104d710c0a9"
+      "sha256": "733928c6f9405ad01637b3295f7b5b0e5ba9c66ff6376b59228fa104d710c0a9",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 147,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "30a44eff08ea7f0d294b93d24b8c8ebfd55a8d79080afb168158537db8b2baca",
@@ -1614,7 +2290,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a/fide-8601283-fide-women-s-world-blitz-championships-2024-2024-bfb0ab6a.pgn",
-      "sha256": "30a44eff08ea7f0d294b93d24b8c8ebfd55a8d79080afb168158537db8b2baca"
+      "sha256": "30a44eff08ea7f0d294b93d24b8c8ebfd55a8d79080afb168158537db8b2baca",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 107,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3ff184e37b7a8c29b4110e24520717731e20bef74639dbf0afd4c5911852dd07",
@@ -1630,7 +2317,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "3ff184e37b7a8c29b4110e24520717731e20bef74639dbf0afd4c5911852dd07"
+      "sha256": "3ff184e37b7a8c29b4110e24520717731e20bef74639dbf0afd4c5911852dd07",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 80,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4874f6442af222021522653ef60fcbb56f9c9959657705688fc0f89b3bba0d67",
@@ -1646,7 +2344,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "4874f6442af222021522653ef60fcbb56f9c9959657705688fc0f89b3bba0d67"
+      "sha256": "4874f6442af222021522653ef60fcbb56f9c9959657705688fc0f89b3bba0d67",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 111,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "ab3feeefedf6e3573bb54bd07a6a6fd8400d07612efbc8acb32d5a048d75dec5",
@@ -1661,7 +2370,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "ab3feeefedf6e3573bb54bd07a6a6fd8400d07612efbc8acb32d5a048d75dec5"
+      "sha256": "ab3feeefedf6e3573bb54bd07a6a6fd8400d07612efbc8acb32d5a048d75dec5",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "027afa3684ffdce34b0e3c596be9dd42d65e6e62f4fe3c50daa8abd8c350d269",
@@ -1676,7 +2396,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "027afa3684ffdce34b0e3c596be9dd42d65e6e62f4fe3c50daa8abd8c350d269"
+      "sha256": "027afa3684ffdce34b0e3c596be9dd42d65e6e62f4fe3c50daa8abd8c350d269",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 88,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cb1d962c2b55e897a995041434189302e3ec66f1bf8f44748e49354851bdc12a",
@@ -1691,7 +2422,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "cb1d962c2b55e897a995041434189302e3ec66f1bf8f44748e49354851bdc12a"
+      "sha256": "cb1d962c2b55e897a995041434189302e3ec66f1bf8f44748e49354851bdc12a",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 97,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3027ee5f9b76b682cd2fa8dcf9cff37ae14fa0771c7e6f884969d5dd35e13bfa",
@@ -1706,7 +2448,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "3027ee5f9b76b682cd2fa8dcf9cff37ae14fa0771c7e6f884969d5dd35e13bfa"
+      "sha256": "3027ee5f9b76b682cd2fa8dcf9cff37ae14fa0771c7e6f884969d5dd35e13bfa",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 105,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "38a29c09c60bf9c8961d661fa4d1db37404e943be70578c6bcd9938e09fe9df2",
@@ -1721,7 +2474,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "38a29c09c60bf9c8961d661fa4d1db37404e943be70578c6bcd9938e09fe9df2"
+      "sha256": "38a29c09c60bf9c8961d661fa4d1db37404e943be70578c6bcd9938e09fe9df2",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 87,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "25c7f7200dab63047798be681f1c5ace26415f082f445d5cb8f0965cac86560f",
@@ -1736,7 +2500,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "25c7f7200dab63047798be681f1c5ace26415f082f445d5cb8f0965cac86560f"
+      "sha256": "25c7f7200dab63047798be681f1c5ace26415f082f445d5cb8f0965cac86560f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 98,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "a0b889141dea6843b04549033f8e0511ff3e7282a10ac15dcfc75bbad7ffa9e8",
@@ -1751,7 +2526,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "a0b889141dea6843b04549033f8e0511ff3e7282a10ac15dcfc75bbad7ffa9e8"
+      "sha256": "a0b889141dea6843b04549033f8e0511ff3e7282a10ac15dcfc75bbad7ffa9e8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 131,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4ce75f1fb156b82477e0602c02bd2b818d3de8ce76ad4305249d5f97aa0bef85",
@@ -1766,7 +2552,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "4ce75f1fb156b82477e0602c02bd2b818d3de8ce76ad4305249d5f97aa0bef85"
+      "sha256": "4ce75f1fb156b82477e0602c02bd2b818d3de8ce76ad4305249d5f97aa0bef85",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 110,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6597e5ff6674bc2bc65f6a6df11633d147abb255f04c0f570a501d206705fe8e",
@@ -1781,7 +2578,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "6597e5ff6674bc2bc65f6a6df11633d147abb255f04c0f570a501d206705fe8e"
+      "sha256": "6597e5ff6674bc2bc65f6a6df11633d147abb255f04c0f570a501d206705fe8e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 92,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "7f17624a353c25dc4abfff59ac75c0a19c8057ca36bb0c2a6b7c767153fa540c",
@@ -1796,7 +2604,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/fide-women-s-world-rapid-championships-2024-2024-4516f04c/fide-8601283-fide-women-s-world-rapid-championships-2024-2024-4516f04c.pgn",
-      "sha256": "7f17624a353c25dc4abfff59ac75c0a19c8057ca36bb0c2a6b7c767153fa540c"
+      "sha256": "7f17624a353c25dc4abfff59ac75c0a19c8057ca36bb0c2a6b7c767153fa540c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 93,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "81b59c94d65475d024283e00a0b7da07b879194caff325e347a681871682645b",
@@ -1811,7 +2630,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "81b59c94d65475d024283e00a0b7da07b879194caff325e347a681871682645b"
+      "sha256": "81b59c94d65475d024283e00a0b7da07b879194caff325e347a681871682645b",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 138,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "22d5604521e3035867a2d330f7712d703f36d5aa5ab4c2e4ad05f03b8488ec84",
@@ -1826,7 +2656,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "22d5604521e3035867a2d330f7712d703f36d5aa5ab4c2e4ad05f03b8488ec84"
+      "sha256": "22d5604521e3035867a2d330f7712d703f36d5aa5ab4c2e4ad05f03b8488ec84",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 73,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "89506b390bc10b64e349a2a622fffbf48d3856d88fddea73ad068cd7de3f7240",
@@ -1841,7 +2682,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "89506b390bc10b64e349a2a622fffbf48d3856d88fddea73ad068cd7de3f7240"
+      "sha256": "89506b390bc10b64e349a2a622fffbf48d3856d88fddea73ad068cd7de3f7240",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 61,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8352bba8a0633377147049a14ead322070b0d759fa76dcd6984fec271215e364",
@@ -1856,7 +2708,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "8352bba8a0633377147049a14ead322070b0d759fa76dcd6984fec271215e364"
+      "sha256": "8352bba8a0633377147049a14ead322070b0d759fa76dcd6984fec271215e364",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 85,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d913e7b980ba4376d9f218f5e9aa4436f1ff0cb2057c47d3f6fec95d0202ba12",
@@ -1871,7 +2734,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "d913e7b980ba4376d9f218f5e9aa4436f1ff0cb2057c47d3f6fec95d0202ba12"
+      "sha256": "d913e7b980ba4376d9f218f5e9aa4436f1ff0cb2057c47d3f6fec95d0202ba12",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 68,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "0ef180a242fa4d6c20fb81cde8cb209f3cb672c374f2dc3ae16d445f9983486f",
@@ -1886,7 +2760,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "0ef180a242fa4d6c20fb81cde8cb209f3cb672c374f2dc3ae16d445f9983486f"
+      "sha256": "0ef180a242fa4d6c20fb81cde8cb209f3cb672c374f2dc3ae16d445f9983486f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 73,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "360efbf4184741ace8fb7aaba3b879d1e5c1773984a2287a4cda649bf4dd97cc",
@@ -1901,7 +2786,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "360efbf4184741ace8fb7aaba3b879d1e5c1773984a2287a4cda649bf4dd97cc"
+      "sha256": "360efbf4184741ace8fb7aaba3b879d1e5c1773984a2287a4cda649bf4dd97cc",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 86,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "a21b7cf1495dafca94c3b7c0a72d480edd1ad829dd407473fc7d65afad966804",
@@ -1916,7 +2812,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "a21b7cf1495dafca94c3b7c0a72d480edd1ad829dd407473fc7d65afad966804"
+      "sha256": "a21b7cf1495dafca94c3b7c0a72d480edd1ad829dd407473fc7d65afad966804",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 110,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6c1100e3572831008ef211d6e644c89756d8d5f9b0c0a27534855591d5e19810",
@@ -1931,7 +2838,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "6c1100e3572831008ef211d6e644c89756d8d5f9b0c0a27534855591d5e19810"
+      "sha256": "6c1100e3572831008ef211d6e644c89756d8d5f9b0c0a27534855591d5e19810",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 122,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "59533bc4312147b62409c86de910c60080a34e01d711341590dd89b79cd9164f",
@@ -1946,7 +2864,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f/fide-8601283-2024-shenzhen-nanshan-chess-master-tournament-women-2024-3e31349f.pgn",
-      "sha256": "59533bc4312147b62409c86de910c60080a34e01d711341590dd89b79cd9164f"
+      "sha256": "59533bc4312147b62409c86de910c60080a34e01d711341590dd89b79cd9164f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 120,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "18825ef5c846165e8d23106162479c791de168c9107ed88bed9b5c8c0fa88853",
@@ -1961,7 +2890,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab/fide-8601283-2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab.pgn",
-      "sha256": "18825ef5c846165e8d23106162479c791de168c9107ed88bed9b5c8c0fa88853"
+      "sha256": "18825ef5c846165e8d23106162479c791de168c9107ed88bed9b5c8c0fa88853",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 87,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d36450b44f7cb054ef9a7a13026d01606428e5584e396b7342dc2e214a2bf47f",
@@ -1976,7 +2916,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab/fide-8601283-2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab.pgn",
-      "sha256": "d36450b44f7cb054ef9a7a13026d01606428e5584e396b7342dc2e214a2bf47f"
+      "sha256": "d36450b44f7cb054ef9a7a13026d01606428e5584e396b7342dc2e214a2bf47f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 71,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "804a287b87d4b2e573b59d0c61909a5966d0c8412cc8ef841e356bcd65e28a66",
@@ -1991,7 +2942,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab/fide-8601283-2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab.pgn",
-      "sha256": "804a287b87d4b2e573b59d0c61909a5966d0c8412cc8ef841e356bcd65e28a66"
+      "sha256": "804a287b87d4b2e573b59d0c61909a5966d0c8412cc8ef841e356bcd65e28a66",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 64,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "2ea68b06f51c9b7ca3ab704f280f5eaf85d733566708685a2e98480f7e6289e8",
@@ -2006,7 +2968,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab/fide-8601283-2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab.pgn",
-      "sha256": "2ea68b06f51c9b7ca3ab704f280f5eaf85d733566708685a2e98480f7e6289e8"
+      "sha256": "2ea68b06f51c9b7ca3ab704f280f5eaf85d733566708685a2e98480f7e6289e8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 99,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c3e514b98ff8fb0c1f9df6e5ad70927ed384d1034b65f8731f18361a9fe926ac",
@@ -2021,7 +2994,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab/fide-8601283-2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab.pgn",
-      "sha256": "c3e514b98ff8fb0c1f9df6e5ad70927ed384d1034b65f8731f18361a9fe926ac"
+      "sha256": "c3e514b98ff8fb0c1f9df6e5ad70927ed384d1034b65f8731f18361a9fe926ac",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 63,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "852365b7abbf8c4f80ea50c0938efb46e8dd4e586d7b9e557b67bac4030d0ddf",
@@ -2036,7 +3020,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab/fide-8601283-2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab.pgn",
-      "sha256": "852365b7abbf8c4f80ea50c0938efb46e8dd4e586d7b9e557b67bac4030d0ddf"
+      "sha256": "852365b7abbf8c4f80ea50c0938efb46e8dd4e586d7b9e557b67bac4030d0ddf",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 123,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "ae7800e740f89a183d310118b987fe868d4b08f77de75413f16a93ca9e3add19",
@@ -2051,7 +3046,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab/fide-8601283-2023-chinese-chess-league-division-a-final-knock-out-2023-90d1cdab.pgn",
-      "sha256": "ae7800e740f89a183d310118b987fe868d4b08f77de75413f16a93ca9e3add19"
+      "sha256": "ae7800e740f89a183d310118b987fe868d4b08f77de75413f16a93ca9e3add19",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 76,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "03b4f07f0ef95f45ffb14b382c4a8db2a64bd1ed25e4e8ecd88a64e6ced508a0",
@@ -2067,7 +3073,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "03b4f07f0ef95f45ffb14b382c4a8db2a64bd1ed25e4e8ecd88a64e6ced508a0"
+      "sha256": "03b4f07f0ef95f45ffb14b382c4a8db2a64bd1ed25e4e8ecd88a64e6ced508a0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 67,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "67f593fed928fcf22da690eca38811d675e611d6b1b45d46db2862245c7b63ba",
@@ -2083,7 +3100,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "67f593fed928fcf22da690eca38811d675e611d6b1b45d46db2862245c7b63ba"
+      "sha256": "67f593fed928fcf22da690eca38811d675e611d6b1b45d46db2862245c7b63ba",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 140,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d9f8ad08bffef45fa2eae4d4852d3ea0d880ed5578d21f0fc59c65318b9a741b",
@@ -2099,7 +3127,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "d9f8ad08bffef45fa2eae4d4852d3ea0d880ed5578d21f0fc59c65318b9a741b"
+      "sha256": "d9f8ad08bffef45fa2eae4d4852d3ea0d880ed5578d21f0fc59c65318b9a741b",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 82,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c992391cf47d262aab2209d36796f99a89f2896bf6513590a083c1bbae470ea7",
@@ -2115,7 +3154,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "c992391cf47d262aab2209d36796f99a89f2896bf6513590a083c1bbae470ea7"
+      "sha256": "c992391cf47d262aab2209d36796f99a89f2896bf6513590a083c1bbae470ea7",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 88,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cefbeb106449c66e1f6b3708af7bfb298408c4237e8b7f705a25dae32b875745",
@@ -2131,7 +3181,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "cefbeb106449c66e1f6b3708af7bfb298408c4237e8b7f705a25dae32b875745"
+      "sha256": "cefbeb106449c66e1f6b3708af7bfb298408c4237e8b7f705a25dae32b875745",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 92,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3c593ced0f778fa83e9f4e616186a520b12dcf2a9b53fbde1ad3ed34e3220e25",
@@ -2146,7 +3207,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-regular-2023-ed1597dd/fide-8601283-2023-chinese-chess-league-division-a-regular-2023-ed1597dd.pgn",
-      "sha256": "3c593ced0f778fa83e9f4e616186a520b12dcf2a9b53fbde1ad3ed34e3220e25"
+      "sha256": "3c593ced0f778fa83e9f4e616186a520b12dcf2a9b53fbde1ad3ed34e3220e25",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 69,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "352e7c232e9a75d48621ede5b6fb7f66f2d7a75425ce293674e46e153155769d",
@@ -2161,7 +3233,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-regular-2023-ed1597dd/fide-8601283-2023-chinese-chess-league-division-a-regular-2023-ed1597dd.pgn",
-      "sha256": "352e7c232e9a75d48621ede5b6fb7f66f2d7a75425ce293674e46e153155769d"
+      "sha256": "352e7c232e9a75d48621ede5b6fb7f66f2d7a75425ce293674e46e153155769d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 89,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "2d3cd9d2a0f46ce235d3996239c82b76610cd6dfd71838cbbeedbc06fcef13dc",
@@ -2176,7 +3259,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-regular-2023-ed1597dd/fide-8601283-2023-chinese-chess-league-division-a-regular-2023-ed1597dd.pgn",
-      "sha256": "2d3cd9d2a0f46ce235d3996239c82b76610cd6dfd71838cbbeedbc06fcef13dc"
+      "sha256": "2d3cd9d2a0f46ce235d3996239c82b76610cd6dfd71838cbbeedbc06fcef13dc",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 79,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "782d8cb36fa3bd55a123452a69c324d2f06cfbf2198a6bd189b9efcae40a2f38",
@@ -2191,7 +3285,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-regular-2023-ed1597dd/fide-8601283-2023-chinese-chess-league-division-a-regular-2023-ed1597dd.pgn",
-      "sha256": "782d8cb36fa3bd55a123452a69c324d2f06cfbf2198a6bd189b9efcae40a2f38"
+      "sha256": "782d8cb36fa3bd55a123452a69c324d2f06cfbf2198a6bd189b9efcae40a2f38",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 135,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "053f2153f97889b8f980eb463ce210e6a028ee2e795e159199ddca97b96ab9ed",
@@ -2206,7 +3311,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-regular-2023-ed1597dd/fide-8601283-2023-chinese-chess-league-division-a-regular-2023-ed1597dd.pgn",
-      "sha256": "053f2153f97889b8f980eb463ce210e6a028ee2e795e159199ddca97b96ab9ed"
+      "sha256": "053f2153f97889b8f980eb463ce210e6a028ee2e795e159199ddca97b96ab9ed",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 63,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e2b62f5578273a4d49accef4aeff051ffabb3e4d8d9bddec2b1d269630f50b53",
@@ -2221,7 +3337,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-regular-2023-ed1597dd/fide-8601283-2023-chinese-chess-league-division-a-regular-2023-ed1597dd.pgn",
-      "sha256": "e2b62f5578273a4d49accef4aeff051ffabb3e4d8d9bddec2b1d269630f50b53"
+      "sha256": "e2b62f5578273a4d49accef4aeff051ffabb3e4d8d9bddec2b1d269630f50b53",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 73,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "7144a02108a39b997b701ead981158dc5b78b19c93d83fa68c49638ffddd9376",
@@ -2236,7 +3363,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-regular-2023-ed1597dd/fide-8601283-2023-chinese-chess-league-division-a-regular-2023-ed1597dd.pgn",
-      "sha256": "7144a02108a39b997b701ead981158dc5b78b19c93d83fa68c49638ffddd9376"
+      "sha256": "7144a02108a39b997b701ead981158dc5b78b19c93d83fa68c49638ffddd9376",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 82,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "77ff49ed01da8a80173b2e12efe9082a0f39e1107c6c3a14b77e8bc9dd7d4b64",
@@ -2251,7 +3389,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2023-chinese-chess-league-division-a-regular-2023-ed1597dd/fide-8601283-2023-chinese-chess-league-division-a-regular-2023-ed1597dd.pgn",
-      "sha256": "77ff49ed01da8a80173b2e12efe9082a0f39e1107c6c3a14b77e8bc9dd7d4b64"
+      "sha256": "77ff49ed01da8a80173b2e12efe9082a0f39e1107c6c3a14b77e8bc9dd7d4b64",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 57,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3ad886ccc36428157ac17d14d8bf40ccda97ae6e60d8f63cf7ed8f84f36f3f24",
@@ -2266,7 +3415,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2022-the-first-china-women-s-chess-open-finals-2023-257bc29e/fide-8601283-2022-the-first-china-women-s-chess-open-finals-2023-257bc29e.pgn",
-      "sha256": "3ad886ccc36428157ac17d14d8bf40ccda97ae6e60d8f63cf7ed8f84f36f3f24"
+      "sha256": "3ad886ccc36428157ac17d14d8bf40ccda97ae6e60d8f63cf7ed8f84f36f3f24",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 70,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "b9e10d10ba1c4d40a84a0d367af41ddfe941985c0573dbad379e46c8aa952454",
@@ -2281,7 +3441,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2022-the-first-china-women-s-chess-open-finals-2023-257bc29e/fide-8601283-2022-the-first-china-women-s-chess-open-finals-2023-257bc29e.pgn",
-      "sha256": "b9e10d10ba1c4d40a84a0d367af41ddfe941985c0573dbad379e46c8aa952454"
+      "sha256": "b9e10d10ba1c4d40a84a0d367af41ddfe941985c0573dbad379e46c8aa952454",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 44,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4b195ca66041f7c98ca232fa7aeba700ec8b5a0bef686279f4821a7b0b95c84c",
@@ -2296,7 +3467,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2022-the-first-china-women-s-chess-open-finals-2023-257bc29e/fide-8601283-2022-the-first-china-women-s-chess-open-finals-2023-257bc29e.pgn",
-      "sha256": "4b195ca66041f7c98ca232fa7aeba700ec8b5a0bef686279f4821a7b0b95c84c"
+      "sha256": "4b195ca66041f7c98ca232fa7aeba700ec8b5a0bef686279f4821a7b0b95c84c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 100,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "712cb2b3d338552d43b78a2184e128a205b9c2ac4b68b1a65da17531ad891880",
@@ -2311,7 +3493,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2022-the-first-china-women-s-chess-open-finals-2023-257bc29e/fide-8601283-2022-the-first-china-women-s-chess-open-finals-2023-257bc29e.pgn",
-      "sha256": "712cb2b3d338552d43b78a2184e128a205b9c2ac4b68b1a65da17531ad891880"
+      "sha256": "712cb2b3d338552d43b78a2184e128a205b9c2ac4b68b1a65da17531ad891880",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 86,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8776ddc0b2378d258a2c7109423f9951edd19a8e3b36c39cc2123f9c2311637d",
@@ -2326,7 +3519,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2022-the-first-china-women-s-chess-open-finals-2023-257bc29e/fide-8601283-2022-the-first-china-women-s-chess-open-finals-2023-257bc29e.pgn",
-      "sha256": "8776ddc0b2378d258a2c7109423f9951edd19a8e3b36c39cc2123f9c2311637d"
+      "sha256": "8776ddc0b2378d258a2c7109423f9951edd19a8e3b36c39cc2123f9c2311637d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 69,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "68d9ea8729951ce87c0f1eedee3ba6de84401f94ab40904809080a2d5154b160",
@@ -2341,7 +3545,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2022-the-first-china-women-s-chess-open-finals-2023-257bc29e/fide-8601283-2022-the-first-china-women-s-chess-open-finals-2023-257bc29e.pgn",
-      "sha256": "68d9ea8729951ce87c0f1eedee3ba6de84401f94ab40904809080a2d5154b160"
+      "sha256": "68d9ea8729951ce87c0f1eedee3ba6de84401f94ab40904809080a2d5154b160",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 54,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "24460af90e06f3eeb52fd1c58687360f8942b2e441f2c7a6fb8553eaa8975bef",
@@ -2356,7 +3571,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2022-the-first-china-women-s-chess-open-finals-2023-257bc29e/fide-8601283-2022-the-first-china-women-s-chess-open-finals-2023-257bc29e.pgn",
-      "sha256": "24460af90e06f3eeb52fd1c58687360f8942b2e441f2c7a6fb8553eaa8975bef"
+      "sha256": "24460af90e06f3eeb52fd1c58687360f8942b2e441f2c7a6fb8553eaa8975bef",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 71,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8e3e94416b4081f413f665af96a77643ac10db12a5f2c0f100fa386f61c6ecb9",
@@ -2372,7 +3598,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "8e3e94416b4081f413f665af96a77643ac10db12a5f2c0f100fa386f61c6ecb9"
+      "sha256": "8e3e94416b4081f413f665af96a77643ac10db12a5f2c0f100fa386f61c6ecb9",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 93,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "79845512cacc7b497e59880ffb99ac251f69f8afb781b38b64b90b5845f7d5c4",
@@ -2387,7 +3624,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "79845512cacc7b497e59880ffb99ac251f69f8afb781b38b64b90b5845f7d5c4"
+      "sha256": "79845512cacc7b497e59880ffb99ac251f69f8afb781b38b64b90b5845f7d5c4",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 99,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c0dcd8d9e0218c8efce3e7942b145f708af5dc70c9a235b87f32368413e534dc",
@@ -2402,7 +3650,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "c0dcd8d9e0218c8efce3e7942b145f708af5dc70c9a235b87f32368413e534dc"
+      "sha256": "c0dcd8d9e0218c8efce3e7942b145f708af5dc70c9a235b87f32368413e534dc",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 93,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "428c062804edffd9aa825d77087a8b89e540f94b52fddcff886580fa40db53a9",
@@ -2417,7 +3676,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "428c062804edffd9aa825d77087a8b89e540f94b52fddcff886580fa40db53a9"
+      "sha256": "428c062804edffd9aa825d77087a8b89e540f94b52fddcff886580fa40db53a9",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 71,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f784bcd67bb6a5c87c34fc3656d513074b61c1a1ed9056a937457ca5999598f7",
@@ -2432,7 +3702,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "f784bcd67bb6a5c87c34fc3656d513074b61c1a1ed9056a937457ca5999598f7"
+      "sha256": "f784bcd67bb6a5c87c34fc3656d513074b61c1a1ed9056a937457ca5999598f7",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 145,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "5d28415d1c24e864c39a81c079abb080f1e4832ba15d0ebd1d21a6cae258f82e",
@@ -2447,7 +3728,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "5d28415d1c24e864c39a81c079abb080f1e4832ba15d0ebd1d21a6cae258f82e"
+      "sha256": "5d28415d1c24e864c39a81c079abb080f1e4832ba15d0ebd1d21a6cae258f82e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 102,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "5570f54aee6fff35da6fdcae26855e102b09d51e195dfca21b28eaa85242c28f",
@@ -2462,7 +3754,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "5570f54aee6fff35da6fdcae26855e102b09d51e195dfca21b28eaa85242c28f"
+      "sha256": "5570f54aee6fff35da6fdcae26855e102b09d51e195dfca21b28eaa85242c28f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 60,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8a24a93235031474d1b206a771446f38012b6575c716a902b7b5db75b0b38b09",
@@ -2477,7 +3780,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "8a24a93235031474d1b206a771446f38012b6575c716a902b7b5db75b0b38b09"
+      "sha256": "8a24a93235031474d1b206a771446f38012b6575c716a902b7b5db75b0b38b09",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 90,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "080254e70ea9368efe20db9015be01f9a526d70ccd3865f110fcd1a098b153cd",
@@ -2492,7 +3806,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "080254e70ea9368efe20db9015be01f9a526d70ccd3865f110fcd1a098b153cd"
+      "sha256": "080254e70ea9368efe20db9015be01f9a526d70ccd3865f110fcd1a098b153cd",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 106,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "ffe58223451f9f2f33402c7c4d058bf486dc0b1db6b15c732476b4089bfc3c73",
@@ -2507,7 +3832,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-de10f384/fide-8601283-2021-fide-online-olympiad-2021-de10f384.pgn",
-      "sha256": "ffe58223451f9f2f33402c7c4d058bf486dc0b1db6b15c732476b4089bfc3c73"
+      "sha256": "ffe58223451f9f2f33402c7c4d058bf486dc0b1db6b15c732476b4089bfc3c73",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 104,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c60adf94c8b359b75aa7861a478f45f7daa4b37fab453e1553fbb18091bbc798",
@@ -2523,7 +3859,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "c60adf94c8b359b75aa7861a478f45f7daa4b37fab453e1553fbb18091bbc798"
+      "sha256": "c60adf94c8b359b75aa7861a478f45f7daa4b37fab453e1553fbb18091bbc798",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 71,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "a0ecba462ae940fa406dfbe05342225cb027ce8c64800b7bcccbca03b35815f1",
@@ -2539,7 +3886,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "a0ecba462ae940fa406dfbe05342225cb027ce8c64800b7bcccbca03b35815f1"
+      "sha256": "a0ecba462ae940fa406dfbe05342225cb027ce8c64800b7bcccbca03b35815f1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 82,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "0b856cbc0c203a5769f8b644de49dac1d4cc7c3cd389426de9335a2f9d2573b1",
@@ -2555,7 +3913,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "0b856cbc0c203a5769f8b644de49dac1d4cc7c3cd389426de9335a2f9d2573b1"
+      "sha256": "0b856cbc0c203a5769f8b644de49dac1d4cc7c3cd389426de9335a2f9d2573b1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 114,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "98a42073b9d188cd35b5d87b88cafe4ee9aead53c5fa6d5e759982c8e831dba0",
@@ -2570,7 +3939,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "98a42073b9d188cd35b5d87b88cafe4ee9aead53c5fa6d5e759982c8e831dba0"
+      "sha256": "98a42073b9d188cd35b5d87b88cafe4ee9aead53c5fa6d5e759982c8e831dba0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 157,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "df24a6d3a1fde71949d494598cf42af37675f04241a7d1633bfd13600d10e04e",
@@ -2585,7 +3965,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "df24a6d3a1fde71949d494598cf42af37675f04241a7d1633bfd13600d10e04e"
+      "sha256": "df24a6d3a1fde71949d494598cf42af37675f04241a7d1633bfd13600d10e04e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 103,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "9a9c36ff2eb6463af977f3438cf324500e079975f940f50e46bb7108ca4156db",
@@ -2600,7 +3991,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "9a9c36ff2eb6463af977f3438cf324500e079975f940f50e46bb7108ca4156db"
+      "sha256": "9a9c36ff2eb6463af977f3438cf324500e079975f940f50e46bb7108ca4156db",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 71,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "b1d9d3c47db2e7bb973cdd1f9137dc5878e871e0649ae0d97e09c89ba794122e",
@@ -2615,7 +4017,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "b1d9d3c47db2e7bb973cdd1f9137dc5878e871e0649ae0d97e09c89ba794122e"
+      "sha256": "b1d9d3c47db2e7bb973cdd1f9137dc5878e871e0649ae0d97e09c89ba794122e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 96,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cd02554c5932d40a25b1312bd02004f1c0e5512993053f5b9e9621093d41a4de",
@@ -2630,7 +4043,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "cd02554c5932d40a25b1312bd02004f1c0e5512993053f5b9e9621093d41a4de"
+      "sha256": "cd02554c5932d40a25b1312bd02004f1c0e5512993053f5b9e9621093d41a4de",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 82,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "7d22844ddbe0f2cf22b283b557f642d53fa773eaa2f6303733e963b6299b81cf",
@@ -2645,7 +4069,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "7d22844ddbe0f2cf22b283b557f642d53fa773eaa2f6303733e963b6299b81cf"
+      "sha256": "7d22844ddbe0f2cf22b283b557f642d53fa773eaa2f6303733e963b6299b81cf",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 114,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "9c044b1945ea1cad057e432debc3db7842c6e5c7d4aed5f4cd8a6132a06476ce",
@@ -2660,7 +4095,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "9c044b1945ea1cad057e432debc3db7842c6e5c7d4aed5f4cd8a6132a06476ce"
+      "sha256": "9c044b1945ea1cad057e432debc3db7842c6e5c7d4aed5f4cd8a6132a06476ce",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 82,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "284fb6c7d062d9f9e5a3d4328b4d635278b786d7f527475c7a742652d9c15dd6",
@@ -2675,7 +4121,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "284fb6c7d062d9f9e5a3d4328b4d635278b786d7f527475c7a742652d9c15dd6"
+      "sha256": "284fb6c7d062d9f9e5a3d4328b4d635278b786d7f527475c7a742652d9c15dd6",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 107,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cd456c57a48c761582fafd18bfd9a3f9a7ee205d53f831720bbd6305a2304f78",
@@ -2690,7 +4147,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2021-fide-online-olympiad-2021-6676054c/fide-8601283-2021-fide-online-olympiad-2021-6676054c.pgn",
-      "sha256": "cd456c57a48c761582fafd18bfd9a3f9a7ee205d53f831720bbd6305a2304f78"
+      "sha256": "cd456c57a48c761582fafd18bfd9a3f9a7ee205d53f831720bbd6305a2304f78",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 72,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "027ddd06bbf1df8b34fd68b063b928365ebd8e6b8b5aed9dfc9489d1cd2f0999",
@@ -2705,7 +4173,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "027ddd06bbf1df8b34fd68b063b928365ebd8e6b8b5aed9dfc9489d1cd2f0999"
+      "sha256": "027ddd06bbf1df8b34fd68b063b928365ebd8e6b8b5aed9dfc9489d1cd2f0999",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 82,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cf5a361d03debf8d3536d64fd4e29a5c6d04701d04a485492a6407292fa67a70",
@@ -2720,7 +4199,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "cf5a361d03debf8d3536d64fd4e29a5c6d04701d04a485492a6407292fa67a70"
+      "sha256": "cf5a361d03debf8d3536d64fd4e29a5c6d04701d04a485492a6407292fa67a70",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 104,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "1504d56de69ecad634f1576e2f06d4ce418b1c1c5b9002c672804043735a11dd",
@@ -2735,7 +4225,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "1504d56de69ecad634f1576e2f06d4ce418b1c1c5b9002c672804043735a11dd"
+      "sha256": "1504d56de69ecad634f1576e2f06d4ce418b1c1c5b9002c672804043735a11dd",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 107,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f60aba9ec235c101ae713415068339ee035a3fb7919a0c4f8f4b61680dafd136",
@@ -2750,7 +4251,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "f60aba9ec235c101ae713415068339ee035a3fb7919a0c4f8f4b61680dafd136"
+      "sha256": "f60aba9ec235c101ae713415068339ee035a3fb7919a0c4f8f4b61680dafd136",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 146,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "52c35361cbafbc889fd2b3597c81e795957a9259e6c5a23e17e214ff48079f34",
@@ -2765,7 +4277,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "52c35361cbafbc889fd2b3597c81e795957a9259e6c5a23e17e214ff48079f34"
+      "sha256": "52c35361cbafbc889fd2b3597c81e795957a9259e6c5a23e17e214ff48079f34",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 74,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e08f6ff39088fefefb465a8885bfa4a2223fc56c91b8dc89ba0eb2f3f9595fa8",
@@ -2780,7 +4303,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "e08f6ff39088fefefb465a8885bfa4a2223fc56c91b8dc89ba0eb2f3f9595fa8"
+      "sha256": "e08f6ff39088fefefb465a8885bfa4a2223fc56c91b8dc89ba0eb2f3f9595fa8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 78,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e53d2c91f015f21be1d05c1f4fc50eb54f891b537150d47f33024c48f930724c",
@@ -2795,7 +4329,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "e53d2c91f015f21be1d05c1f4fc50eb54f891b537150d47f33024c48f930724c"
+      "sha256": "e53d2c91f015f21be1d05c1f4fc50eb54f891b537150d47f33024c48f930724c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 58,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3eefdbfa07815b3757eadeecfa2c619507df086fdc8808e70eb6171ff20cfd39",
@@ -2810,7 +4355,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "3eefdbfa07815b3757eadeecfa2c619507df086fdc8808e70eb6171ff20cfd39"
+      "sha256": "3eefdbfa07815b3757eadeecfa2c619507df086fdc8808e70eb6171ff20cfd39",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 100,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "433fde5da4b78e196b987ce994b685104d1e45ed72f8c571896f48f7df8a7252",
@@ -2825,7 +4381,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "433fde5da4b78e196b987ce994b685104d1e45ed72f8c571896f48f7df8a7252"
+      "sha256": "433fde5da4b78e196b987ce994b685104d1e45ed72f8c571896f48f7df8a7252",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 76,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "7f98457543464e158ed58d190e5c9f033615d6b8da90c4fae4fa4cb9565654b1",
@@ -2840,7 +4407,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "7f98457543464e158ed58d190e5c9f033615d6b8da90c4fae4fa4cb9565654b1"
+      "sha256": "7f98457543464e158ed58d190e5c9f033615d6b8da90c4fae4fa4cb9565654b1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 150,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "58c79897a412a292ecaff245fac79f13534ccb9c7715a455987faa39396bc463",
@@ -2855,7 +4433,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "58c79897a412a292ecaff245fac79f13534ccb9c7715a455987faa39396bc463"
+      "sha256": "58c79897a412a292ecaff245fac79f13534ccb9c7715a455987faa39396bc463",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 123,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3ab9ca1697af78381d01e1a0d73b8ca7c64a40eb789282a316d0dfe4eb0893c4",
@@ -2870,7 +4459,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "3ab9ca1697af78381d01e1a0d73b8ca7c64a40eb789282a316d0dfe4eb0893c4"
+      "sha256": "3ab9ca1697af78381d01e1a0d73b8ca7c64a40eb789282a316d0dfe4eb0893c4",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 46,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3d742400f7125fd92d82384231c2d5594f8262d57c06cc8e0f6db0d1e8fb5e95",
@@ -2885,7 +4485,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "3d742400f7125fd92d82384231c2d5594f8262d57c06cc8e0f6db0d1e8fb5e95"
+      "sha256": "3d742400f7125fd92d82384231c2d5594f8262d57c06cc8e0f6db0d1e8fb5e95",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8d8174853cd707d14b7474ff36fc87a29e24ba9fa4cd3fcb373916ec6406a9de",
@@ -2900,7 +4511,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "8d8174853cd707d14b7474ff36fc87a29e24ba9fa4cd3fcb373916ec6406a9de"
+      "sha256": "8d8174853cd707d14b7474ff36fc87a29e24ba9fa4cd3fcb373916ec6406a9de",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "399eb7e4242fbf8339e415cf76ec5390c10eb85884cb250fc312c8b9f7a6e641",
@@ -2915,7 +4537,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "399eb7e4242fbf8339e415cf76ec5390c10eb85884cb250fc312c8b9f7a6e641"
+      "sha256": "399eb7e4242fbf8339e415cf76ec5390c10eb85884cb250fc312c8b9f7a6e641",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 34,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8719a20e7f137ded8e85f120fdcf81940139dff69ccbb15ca6b03026915f93bf",
@@ -2930,7 +4563,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "8719a20e7f137ded8e85f120fdcf81940139dff69ccbb15ca6b03026915f93bf"
+      "sha256": "8719a20e7f137ded8e85f120fdcf81940139dff69ccbb15ca6b03026915f93bf",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 82,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "aa260a05b6d7744361ab834182d34de51d8358f2fa3fa5daaebd6aa715000d12",
@@ -2945,7 +4589,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "aa260a05b6d7744361ab834182d34de51d8358f2fa3fa5daaebd6aa715000d12"
+      "sha256": "aa260a05b6d7744361ab834182d34de51d8358f2fa3fa5daaebd6aa715000d12",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 154,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4a54a56fa19659e52cc74b8cb04e231bb0eef43a424670d7690d92d7df2de793",
@@ -2960,7 +4615,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "4a54a56fa19659e52cc74b8cb04e231bb0eef43a424670d7690d92d7df2de793"
+      "sha256": "4a54a56fa19659e52cc74b8cb04e231bb0eef43a424670d7690d92d7df2de793",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 95,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c9cfb3ceeab49f6aad94d6ed77ce7e6b487c1b7efa3b92de336d62f88e120d0e",
@@ -2975,7 +4641,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "c9cfb3ceeab49f6aad94d6ed77ce7e6b487c1b7efa3b92de336d62f88e120d0e"
+      "sha256": "c9cfb3ceeab49f6aad94d6ed77ce7e6b487c1b7efa3b92de336d62f88e120d0e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 65,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "14dae484e009b5bde2cdd392fed91fce285527435fffa300918894c2dd07f979",
@@ -2990,7 +4667,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "14dae484e009b5bde2cdd392fed91fce285527435fffa300918894c2dd07f979"
+      "sha256": "14dae484e009b5bde2cdd392fed91fce285527435fffa300918894c2dd07f979",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 118,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "dbf90a7e7f65deb7659a9cefd02093ddea89e6a32a1393502964b145c551050e",
@@ -3005,7 +4693,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "dbf90a7e7f65deb7659a9cefd02093ddea89e6a32a1393502964b145c551050e"
+      "sha256": "dbf90a7e7f65deb7659a9cefd02093ddea89e6a32a1393502964b145c551050e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 129,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "fc94146f59df1c29efa1cfcfbfa3a286057fe62830fa764d7b8fb7b3c96a3b29",
@@ -3020,7 +4719,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-b47ea22d/fide-8601283-2019-imsa-world-masters-championship-2019-b47ea22d.pgn",
-      "sha256": "fc94146f59df1c29efa1cfcfbfa3a286057fe62830fa764d7b8fb7b3c96a3b29"
+      "sha256": "fc94146f59df1c29efa1cfcfbfa3a286057fe62830fa764d7b8fb7b3c96a3b29",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 66,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "9e252b08add428bfe63933f8cb026a9bde88ca4455f47a1203afdf07d6acc386",
@@ -3035,7 +4745,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "9e252b08add428bfe63933f8cb026a9bde88ca4455f47a1203afdf07d6acc386"
+      "sha256": "9e252b08add428bfe63933f8cb026a9bde88ca4455f47a1203afdf07d6acc386",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 170,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f565519a1dcc4458322439e16efd3a3778dee174024c21a4cadf0f1abafab8e5",
@@ -3050,7 +4771,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "f565519a1dcc4458322439e16efd3a3778dee174024c21a4cadf0f1abafab8e5"
+      "sha256": "f565519a1dcc4458322439e16efd3a3778dee174024c21a4cadf0f1abafab8e5",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 104,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "932f2c5a5dd80617ed073eeece30ecb1bb76691a5d8e8dd1ca8a4b2b10a05dce",
@@ -3065,7 +4797,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "932f2c5a5dd80617ed073eeece30ecb1bb76691a5d8e8dd1ca8a4b2b10a05dce"
+      "sha256": "932f2c5a5dd80617ed073eeece30ecb1bb76691a5d8e8dd1ca8a4b2b10a05dce",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 93,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "7d2e48035dfc2a4f0a0bba731a559a1aa6fdfa3158218fb91f0651afc42bf32e",
@@ -3080,7 +4823,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "7d2e48035dfc2a4f0a0bba731a559a1aa6fdfa3158218fb91f0651afc42bf32e"
+      "sha256": "7d2e48035dfc2a4f0a0bba731a559a1aa6fdfa3158218fb91f0651afc42bf32e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 60,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "2f6133854975af7efbb2be8f4861be1b4909a11f0fadf3087322e6a53784287e",
@@ -3095,7 +4849,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "2f6133854975af7efbb2be8f4861be1b4909a11f0fadf3087322e6a53784287e"
+      "sha256": "2f6133854975af7efbb2be8f4861be1b4909a11f0fadf3087322e6a53784287e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 105,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d3864dcb495c58291a48dd2e73824800fac7b52467faad9decfad5c0cf4a16a0",
@@ -3110,7 +4875,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "d3864dcb495c58291a48dd2e73824800fac7b52467faad9decfad5c0cf4a16a0"
+      "sha256": "d3864dcb495c58291a48dd2e73824800fac7b52467faad9decfad5c0cf4a16a0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 150,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "5a5bbc709d8d22c21eaf71926fc93b99fca4287dc9b966740720b3450f84908d",
@@ -3125,7 +4901,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "5a5bbc709d8d22c21eaf71926fc93b99fca4287dc9b966740720b3450f84908d"
+      "sha256": "5a5bbc709d8d22c21eaf71926fc93b99fca4287dc9b966740720b3450f84908d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 79,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d3ef27e96dff1f1445a83068a80e9ad145580d3e2f0a80f9f06bcd247de0dc69",
@@ -3140,7 +4927,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "d3ef27e96dff1f1445a83068a80e9ad145580d3e2f0a80f9f06bcd247de0dc69"
+      "sha256": "d3ef27e96dff1f1445a83068a80e9ad145580d3e2f0a80f9f06bcd247de0dc69",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 112,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "9c4a1984ee9b1f59842f572961cc01f96068bc70aada0676e8fdd4d3556cc2c5",
@@ -3155,7 +4953,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "9c4a1984ee9b1f59842f572961cc01f96068bc70aada0676e8fdd4d3556cc2c5"
+      "sha256": "9c4a1984ee9b1f59842f572961cc01f96068bc70aada0676e8fdd4d3556cc2c5",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 130,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "ca9323ce3d24b66387502c8e6383eb28ae09b9d1b033ab21731d7c7ed31e08dd",
@@ -3170,7 +4979,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "ca9323ce3d24b66387502c8e6383eb28ae09b9d1b033ab21731d7c7ed31e08dd"
+      "sha256": "ca9323ce3d24b66387502c8e6383eb28ae09b9d1b033ab21731d7c7ed31e08dd",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 98,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4f787bf41dc0b8f24bad4c980014fbdd756775d6d433737611c75cd4b2651c33",
@@ -3185,7 +5005,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2019-imsa-world-masters-championship-2019-124038e5/fide-8601283-2019-imsa-world-masters-championship-2019-124038e5.pgn",
-      "sha256": "4f787bf41dc0b8f24bad4c980014fbdd756775d6d433737611c75cd4b2651c33"
+      "sha256": "4f787bf41dc0b8f24bad4c980014fbdd756775d6d433737611c75cd4b2651c33",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 53,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4487d78f6b61052b776ba783fbc2de419abd1f62aea7d5fd7f084085ee11098e",
@@ -3200,7 +5031,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2017-chinese-chess-league-2017-bd6b2c65/fide-8601283-2017-chinese-chess-league-2017-bd6b2c65.pgn",
-      "sha256": "4487d78f6b61052b776ba783fbc2de419abd1f62aea7d5fd7f084085ee11098e"
+      "sha256": "4487d78f6b61052b776ba783fbc2de419abd1f62aea7d5fd7f084085ee11098e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 125,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "9870dc4c7a799e300887d4ad8f1d9895f3f160650853b8e6b713aad6a859659c",
@@ -3215,7 +5057,20 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2017-chinese-chess-league-2017-bd6b2c65/fide-8601283-2017-chinese-chess-league-2017-bd6b2c65.pgn",
-      "sha256": "9870dc4c7a799e300887d4ad8f1d9895f3f160650853b8e6b713aad6a859659c"
+      "sha256": "9870dc4c7a799e300887d4ad8f1d9895f3f160650853b8e6b713aad6a859659c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 111,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'Kd5' in 5nB1/p6p/2k3p1/6P1/1P2KP1P/8/8/8 b - - 2 56"
+        ]
+      }
     },
     {
       "id": "6d14c66dfe0d3c0a9ad44c51a14eab19091ce5e38a4a05bb14d6700b661aca85",
@@ -3230,7 +5085,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2017-chinese-chess-league-2017-bd6b2c65/fide-8601283-2017-chinese-chess-league-2017-bd6b2c65.pgn",
-      "sha256": "6d14c66dfe0d3c0a9ad44c51a14eab19091ce5e38a4a05bb14d6700b661aca85"
+      "sha256": "6d14c66dfe0d3c0a9ad44c51a14eab19091ce5e38a4a05bb14d6700b661aca85",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 107,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "72c19fec66fc7bdde5e24b112d80c6676093da262dc7f63fcf2ff377e7a62cc2",
@@ -3245,7 +5111,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2017-chinese-chess-league-2017-bd6b2c65/fide-8601283-2017-chinese-chess-league-2017-bd6b2c65.pgn",
-      "sha256": "72c19fec66fc7bdde5e24b112d80c6676093da262dc7f63fcf2ff377e7a62cc2"
+      "sha256": "72c19fec66fc7bdde5e24b112d80c6676093da262dc7f63fcf2ff377e7a62cc2",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 72,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "0fa1ff2ea8f82fc24f9fe5b35c5264da65195b5a1bd99522fc8b03f2fcbbdc81",
@@ -3260,7 +5137,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2017-chinese-chess-league-2017-bd6b2c65/fide-8601283-2017-chinese-chess-league-2017-bd6b2c65.pgn",
-      "sha256": "0fa1ff2ea8f82fc24f9fe5b35c5264da65195b5a1bd99522fc8b03f2fcbbdc81"
+      "sha256": "0fa1ff2ea8f82fc24f9fe5b35c5264da65195b5a1bd99522fc8b03f2fcbbdc81",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 61,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "afb1cd2af64545d1e931c95d66eb0b512a6bc1c9dbc1a1172ee3b3c434f1e7c0",
@@ -3275,7 +5163,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2017-chinese-chess-league-2017-bd6b2c65/fide-8601283-2017-chinese-chess-league-2017-bd6b2c65.pgn",
-      "sha256": "afb1cd2af64545d1e931c95d66eb0b512a6bc1c9dbc1a1172ee3b3c434f1e7c0"
+      "sha256": "afb1cd2af64545d1e931c95d66eb0b512a6bc1c9dbc1a1172ee3b3c434f1e7c0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 108,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "103b20407b9dfd9f90cb3685965c9860459d85af2dbd15984495dda290efb78a",
@@ -3290,7 +5189,20 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2017-chinese-chess-league-2017-bd6b2c65/fide-8601283-2017-chinese-chess-league-2017-bd6b2c65.pgn",
-      "sha256": "103b20407b9dfd9f90cb3685965c9860459d85af2dbd15984495dda290efb78a"
+      "sha256": "103b20407b9dfd9f90cb3685965c9860459d85af2dbd15984495dda290efb78a",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 148,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'Kd4' in 8/8/4n3/5p1p/5P1P/1kpKN3/8/8 w - - 17 75"
+        ]
+      }
     },
     {
       "id": "3730c82555771341061723eeac64e46f77086de396aff505e20a8a7df23a8ef7",
@@ -3305,7 +5217,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/asian-nations-cup-women-2016-83194805/fide-8601283-asian-nations-cup-women-2016-83194805.pgn",
-      "sha256": "3730c82555771341061723eeac64e46f77086de396aff505e20a8a7df23a8ef7"
+      "sha256": "3730c82555771341061723eeac64e46f77086de396aff505e20a8a7df23a8ef7",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 111,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4eac47bc70cbe00347c9cf545c05bbeaa888f13b2ad3a5fcfe549f36330e15e3",
@@ -3320,7 +5243,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/asian-nations-cup-women-2016-83194805/fide-8601283-asian-nations-cup-women-2016-83194805.pgn",
-      "sha256": "4eac47bc70cbe00347c9cf545c05bbeaa888f13b2ad3a5fcfe549f36330e15e3"
+      "sha256": "4eac47bc70cbe00347c9cf545c05bbeaa888f13b2ad3a5fcfe549f36330e15e3",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 85,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "be18da29212c57a137da4d3b8183e5c01bd0f830e66c391f9735b006beb4adc1",
@@ -3335,7 +5269,20 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-nations-cup-women-2016-83194805/fide-8601283-asian-nations-cup-women-2016-83194805.pgn",
-      "sha256": "be18da29212c57a137da4d3b8183e5c01bd0f830e66c391f9735b006beb4adc1"
+      "sha256": "be18da29212c57a137da4d3b8183e5c01bd0f830e66c391f9735b006beb4adc1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 96,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'Ke4' in 8/1p2b3/8/2p2k1p/2P5/4PKP1/1B6/8 w - - 2 49"
+        ]
+      }
     },
     {
       "id": "e35f67138cb3f77b84ac28ce59a43fda523a80409d8d07490d20b849d5b6b086",
@@ -3350,7 +5297,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-nations-cup-women-2016-83194805/fide-8601283-asian-nations-cup-women-2016-83194805.pgn",
-      "sha256": "e35f67138cb3f77b84ac28ce59a43fda523a80409d8d07490d20b849d5b6b086"
+      "sha256": "e35f67138cb3f77b84ac28ce59a43fda523a80409d8d07490d20b849d5b6b086",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 78,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "b06c470841e384a08d67de10b2e739e748b5a825125826aed5f44b4c1bfd0025",
@@ -3365,7 +5323,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-nations-cup-women-2016-83194805/fide-8601283-asian-nations-cup-women-2016-83194805.pgn",
-      "sha256": "b06c470841e384a08d67de10b2e739e748b5a825125826aed5f44b4c1bfd0025"
+      "sha256": "b06c470841e384a08d67de10b2e739e748b5a825125826aed5f44b4c1bfd0025",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 124,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f8f03688a858e2b92558c114e26fbecfdeeaa531aeeab4af78a962cea78806fa",
@@ -3380,7 +5349,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-nations-cup-women-2016-83194805/fide-8601283-asian-nations-cup-women-2016-83194805.pgn",
-      "sha256": "f8f03688a858e2b92558c114e26fbecfdeeaa531aeeab4af78a962cea78806fa"
+      "sha256": "f8f03688a858e2b92558c114e26fbecfdeeaa531aeeab4af78a962cea78806fa",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 136,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c14b3cb658755367d69d501a00a1adde481d4c74bc82b14d3843519205c43ee7",
@@ -3395,7 +5375,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-nations-cup-women-2016-83194805/fide-8601283-asian-nations-cup-women-2016-83194805.pgn",
-      "sha256": "c14b3cb658755367d69d501a00a1adde481d4c74bc82b14d3843519205c43ee7"
+      "sha256": "c14b3cb658755367d69d501a00a1adde481d4c74bc82b14d3843519205c43ee7",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 40,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "38fd4ce119c8a3af11a6a432498bda580f10d0323f1a2b99c4264ffbc72b6c5e",
@@ -3410,7 +5401,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/aimag-4th-women-2013-f82cd11b/fide-8601283-aimag-4th-women-2013-f82cd11b.pgn",
-      "sha256": "38fd4ce119c8a3af11a6a432498bda580f10d0323f1a2b99c4264ffbc72b6c5e"
+      "sha256": "38fd4ce119c8a3af11a6a432498bda580f10d0323f1a2b99c4264ffbc72b6c5e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 59,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "86832bf27435f4cfa7c898a006409b222634b3788765433268e699461a2d12e8",
@@ -3425,7 +5427,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/aimag-4th-women-2013-f82cd11b/fide-8601283-aimag-4th-women-2013-f82cd11b.pgn",
-      "sha256": "86832bf27435f4cfa7c898a006409b222634b3788765433268e699461a2d12e8"
+      "sha256": "86832bf27435f4cfa7c898a006409b222634b3788765433268e699461a2d12e8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 243,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "3c85f6173900288f5eded607c4f151f9b13076ad92fd6c11beaf3884980bab09",
@@ -3440,7 +5453,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/aimag-4th-women-2013-f82cd11b/fide-8601283-aimag-4th-women-2013-f82cd11b.pgn",
-      "sha256": "3c85f6173900288f5eded607c4f151f9b13076ad92fd6c11beaf3884980bab09"
+      "sha256": "3c85f6173900288f5eded607c4f151f9b13076ad92fd6c11beaf3884980bab09",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 43,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "5dfad241f15d09b26053183092d58213fa0f89847d0dfbca7d026b2b33064cf9",
@@ -3455,7 +5479,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/aimag-4th-women-2013-f82cd11b/fide-8601283-aimag-4th-women-2013-f82cd11b.pgn",
-      "sha256": "5dfad241f15d09b26053183092d58213fa0f89847d0dfbca7d026b2b33064cf9"
+      "sha256": "5dfad241f15d09b26053183092d58213fa0f89847d0dfbca7d026b2b33064cf9",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 66,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f4b7c4025fbd19b7db082f23195a4abc99c75864fa8fc76a3f487288f063f2a1",
@@ -3470,7 +5505,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/aimag-4th-women-2013-f82cd11b/fide-8601283-aimag-4th-women-2013-f82cd11b.pgn",
-      "sha256": "f4b7c4025fbd19b7db082f23195a4abc99c75864fa8fc76a3f487288f063f2a1"
+      "sha256": "f4b7c4025fbd19b7db082f23195a4abc99c75864fa8fc76a3f487288f063f2a1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 98,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "84ce2a9ba5259cd2b9abe3297bb0b463028092d8f516c7346ef7a741aa3e82dc",
@@ -3485,7 +5531,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/aimag-4th-women-2013-f82cd11b/fide-8601283-aimag-4th-women-2013-f82cd11b.pgn",
-      "sha256": "84ce2a9ba5259cd2b9abe3297bb0b463028092d8f516c7346ef7a741aa3e82dc"
+      "sha256": "84ce2a9ba5259cd2b9abe3297bb0b463028092d8f516c7346ef7a741aa3e82dc",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 70,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "56b6410933b68f7f3e00c51415d61350964bad271afb5d8f13743298a8887ad3",
@@ -3500,7 +5557,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/aimag-4th-women-2013-f82cd11b/fide-8601283-aimag-4th-women-2013-f82cd11b.pgn",
-      "sha256": "56b6410933b68f7f3e00c51415d61350964bad271afb5d8f13743298a8887ad3"
+      "sha256": "56b6410933b68f7f3e00c51415d61350964bad271afb5d8f13743298a8887ad3",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 92,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "41c15eb63a2054b58bec6acd914474e9f709785bb85a0a8728e5e422e6a3b9da",
@@ -3515,7 +5583,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d/fide-8601283-2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d.pgn",
-      "sha256": "41c15eb63a2054b58bec6acd914474e9f709785bb85a0a8728e5e422e6a3b9da"
+      "sha256": "41c15eb63a2054b58bec6acd914474e9f709785bb85a0a8728e5e422e6a3b9da",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 91,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "121dcb3b6777dca092913c07769d0603ed3f685efc5e3f4540e3344406cb35d5",
@@ -3530,7 +5609,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d/fide-8601283-2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d.pgn",
-      "sha256": "121dcb3b6777dca092913c07769d0603ed3f685efc5e3f4540e3344406cb35d5"
+      "sha256": "121dcb3b6777dca092913c07769d0603ed3f685efc5e3f4540e3344406cb35d5",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 83,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "5e0a7b7d641e9a45086e884e7263ed97fb7ecc29fced1b785acf1e9f9dec26b9",
@@ -3545,7 +5635,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d/fide-8601283-2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d.pgn",
-      "sha256": "5e0a7b7d641e9a45086e884e7263ed97fb7ecc29fced1b785acf1e9f9dec26b9"
+      "sha256": "5e0a7b7d641e9a45086e884e7263ed97fb7ecc29fced1b785acf1e9f9dec26b9",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 109,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "d841c8a6a61598f54a7637d6a6793f303668b7bebe244b41b21fca436ae278c1",
@@ -3560,7 +5661,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d/fide-8601283-2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d.pgn",
-      "sha256": "d841c8a6a61598f54a7637d6a6793f303668b7bebe244b41b21fca436ae278c1"
+      "sha256": "d841c8a6a61598f54a7637d6a6793f303668b7bebe244b41b21fca436ae278c1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 128,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "ba1bd3dd388913d51f23b016b8191cbad954fb65a35176248f4de6fb160371dd",
@@ -3575,7 +5687,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d/fide-8601283-2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d.pgn",
-      "sha256": "ba1bd3dd388913d51f23b016b8191cbad954fb65a35176248f4de6fb160371dd"
+      "sha256": "ba1bd3dd388913d51f23b016b8191cbad954fb65a35176248f4de6fb160371dd",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 116,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "b55f5e97228ea180cadd3f0da8cb0ba800ec245251926fb31dd28ccbe7be7f9f",
@@ -3590,7 +5713,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d/fide-8601283-2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d.pgn",
-      "sha256": "b55f5e97228ea180cadd3f0da8cb0ba800ec245251926fb31dd28ccbe7be7f9f"
+      "sha256": "b55f5e97228ea180cadd3f0da8cb0ba800ec245251926fb31dd28ccbe7be7f9f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 67,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8387928f208199d6defdde6130351efe9c65074be99afcdccc7a24bd31f7811e",
@@ -3605,7 +5739,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d/fide-8601283-2012-zaozhuang-china-asian-nations-chess-cup-2012-e13baf2d.pgn",
-      "sha256": "8387928f208199d6defdde6130351efe9c65074be99afcdccc7a24bd31f7811e"
+      "sha256": "8387928f208199d6defdde6130351efe9c65074be99afcdccc7a24bd31f7811e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 136,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "a3dea3d7c544e12f37219466ae5f8d24d24d4cbb8a4aeef0e9e354a843db3c4a",
@@ -3620,7 +5765,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8600201-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "a3dea3d7c544e12f37219466ae5f8d24d24d4cbb8a4aeef0e9e354a843db3c4a"
+      "sha256": "a3dea3d7c544e12f37219466ae5f8d24d24d4cbb8a4aeef0e9e354a843db3c4a",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 125,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "5179def426f20eefc575ac434ce6e49ab8b77e41d292f53b67eef1b6fbf62094",
@@ -3635,7 +5791,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8601283-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "5179def426f20eefc575ac434ce6e49ab8b77e41d292f53b67eef1b6fbf62094"
+      "sha256": "5179def426f20eefc575ac434ce6e49ab8b77e41d292f53b67eef1b6fbf62094",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 126,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "13a3bc7fbf70c83eccdeb556e3253eb641bb7fb78fab14a06a5f295375490a65",
@@ -3650,7 +5817,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8601283-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "13a3bc7fbf70c83eccdeb556e3253eb641bb7fb78fab14a06a5f295375490a65"
+      "sha256": "13a3bc7fbf70c83eccdeb556e3253eb641bb7fb78fab14a06a5f295375490a65",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 65,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "75c904d625ae3ca0a932dde8f1f53c4d71cf978d6145a7de8e7cda829977aa86",
@@ -3665,7 +5843,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8601283-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "75c904d625ae3ca0a932dde8f1f53c4d71cf978d6145a7de8e7cda829977aa86"
+      "sha256": "75c904d625ae3ca0a932dde8f1f53c4d71cf978d6145a7de8e7cda829977aa86",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 71,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c5756099975c87ee70a4e956535a0abf05165d4dab2ade300783ed7bc45575c8",
@@ -3680,7 +5869,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8601283-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "c5756099975c87ee70a4e956535a0abf05165d4dab2ade300783ed7bc45575c8"
+      "sha256": "c5756099975c87ee70a4e956535a0abf05165d4dab2ade300783ed7bc45575c8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 60,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "0ceffe6c247120bf524589135b39c1548ec64285c9d5841e23b7a193d1b41685",
@@ -3695,7 +5895,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8601283-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "0ceffe6c247120bf524589135b39c1548ec64285c9d5841e23b7a193d1b41685"
+      "sha256": "0ceffe6c247120bf524589135b39c1548ec64285c9d5841e23b7a193d1b41685",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 102,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "5516fdf773cd465d941743ed748d3f4a10f55587acc86247bdb0862e93a81215",
@@ -3710,7 +5921,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8601283-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "5516fdf773cd465d941743ed748d3f4a10f55587acc86247bdb0862e93a81215"
+      "sha256": "5516fdf773cd465d941743ed748d3f4a10f55587acc86247bdb0862e93a81215",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 103,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8bead938e38b271193b4e766a1d3f254ab293c6f61eb4d8b73e1f20a473101b3",
@@ -3725,7 +5947,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8601283-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "8bead938e38b271193b4e766a1d3f254ab293c6f61eb4d8b73e1f20a473101b3"
+      "sha256": "8bead938e38b271193b4e766a1d3f254ab293c6f61eb4d8b73e1f20a473101b3",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 139,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "645966bb3b13c67f75c311e46aadfbac153cc22a85bfaccda0f1f02f9eb0f293",
@@ -3740,7 +5973,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/asian-women-2012-2012-553fe0d9/fide-8601283-asian-women-2012-2012-553fe0d9.pgn",
-      "sha256": "645966bb3b13c67f75c311e46aadfbac153cc22a85bfaccda0f1f02f9eb0f293"
+      "sha256": "645966bb3b13c67f75c311e46aadfbac153cc22a85bfaccda0f1f02f9eb0f293",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 101,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "30c2abc4643339befcc31c2dde50e1139a38481cac6e9529d9451fe879c31898",
@@ -3755,7 +5999,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff/fide-8601283-2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff.pgn",
-      "sha256": "30c2abc4643339befcc31c2dde50e1139a38481cac6e9529d9451fe879c31898"
+      "sha256": "30c2abc4643339befcc31c2dde50e1139a38481cac6e9529d9451fe879c31898",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 121,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8619785656f923aa7a5cb08e27b3aec04b95b07a5dfb61d0985c7d73f1d62dea",
@@ -3770,7 +6025,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff/fide-8601283-2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff.pgn",
-      "sha256": "8619785656f923aa7a5cb08e27b3aec04b95b07a5dfb61d0985c7d73f1d62dea"
+      "sha256": "8619785656f923aa7a5cb08e27b3aec04b95b07a5dfb61d0985c7d73f1d62dea",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 79,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "a249ba633d8bc071f14d0d36551ede65148468d0086eae14537d5c3906893961",
@@ -3785,7 +6051,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff/fide-8601283-2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff.pgn",
-      "sha256": "a249ba633d8bc071f14d0d36551ede65148468d0086eae14537d5c3906893961"
+      "sha256": "a249ba633d8bc071f14d0d36551ede65148468d0086eae14537d5c3906893961",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 89,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "fcf25dd0894621d1339994448ef3e82e5f96198a94cd983f7cc824177c7ff09c",
@@ -3800,7 +6077,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff/fide-8600201-2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff.pgn",
-      "sha256": "fcf25dd0894621d1339994448ef3e82e5f96198a94cd983f7cc824177c7ff09c"
+      "sha256": "fcf25dd0894621d1339994448ef3e82e5f96198a94cd983f7cc824177c7ff09c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 76,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "a46629663064bdc6e6d46be517fd5b78ac749ec9173b06fefd13caee854447da",
@@ -3815,7 +6103,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff/fide-8601283-2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff.pgn",
-      "sha256": "a46629663064bdc6e6d46be517fd5b78ac749ec9173b06fefd13caee854447da"
+      "sha256": "a46629663064bdc6e6d46be517fd5b78ac749ec9173b06fefd13caee854447da",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 119,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6664d80cbe7fb148d0f6af1d559c0be708aba53d4a3ffc02579f3c1194e9f048",
@@ -3830,7 +6129,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff/fide-8601283-2012-yi-cheng-cup-chinese-chess-league-division-a-2012-4f114cff.pgn",
-      "sha256": "6664d80cbe7fb148d0f6af1d559c0be708aba53d4a3ffc02579f3c1194e9f048"
+      "sha256": "6664d80cbe7fb148d0f6af1d559c0be708aba53d4a3ffc02579f3c1194e9f048",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 90,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cf9da438fe677fceeb59a1c199c0b10b6f4284b7bb5f5dfe60d002e8c2f5a01e",
@@ -3845,7 +6155,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/12th-european-club-cup-for-wom-2007-dbc870fe/fide-8601283-12th-european-club-cup-for-wom-2007-dbc870fe.pgn",
-      "sha256": "cf9da438fe677fceeb59a1c199c0b10b6f4284b7bb5f5dfe60d002e8c2f5a01e"
+      "sha256": "cf9da438fe677fceeb59a1c199c0b10b6f4284b7bb5f5dfe60d002e8c2f5a01e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 105,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "63835936d0105d2623c1a7e08bc20a623a49d6a2b07cf81506e2bf5ee8a140a1",
@@ -3860,7 +6181,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/12th-european-club-cup-for-wom-2007-dbc870fe/fide-8601283-12th-european-club-cup-for-wom-2007-dbc870fe.pgn",
-      "sha256": "63835936d0105d2623c1a7e08bc20a623a49d6a2b07cf81506e2bf5ee8a140a1"
+      "sha256": "63835936d0105d2623c1a7e08bc20a623a49d6a2b07cf81506e2bf5ee8a140a1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 141,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "414ebfec3c1d6c14ccc34d030f1339fcd9a0715d3a08b1d6a449f71b1e52e4b0",
@@ -3875,7 +6207,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/12th-european-club-cup-for-wom-2007-dbc870fe/fide-8601283-12th-european-club-cup-for-wom-2007-dbc870fe.pgn",
-      "sha256": "414ebfec3c1d6c14ccc34d030f1339fcd9a0715d3a08b1d6a449f71b1e52e4b0"
+      "sha256": "414ebfec3c1d6c14ccc34d030f1339fcd9a0715d3a08b1d6a449f71b1e52e4b0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 63,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "34dc4cea659f0c4dd8fc67fff64f14f4c9e828ccff673cc230aee7f4692a65c1",
@@ -3890,7 +6233,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/12th-european-club-cup-for-wom-2007-dbc870fe/fide-8601283-12th-european-club-cup-for-wom-2007-dbc870fe.pgn",
-      "sha256": "34dc4cea659f0c4dd8fc67fff64f14f4c9e828ccff673cc230aee7f4692a65c1"
+      "sha256": "34dc4cea659f0c4dd8fc67fff64f14f4c9e828ccff673cc230aee7f4692a65c1",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 41,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "a2df5a24a2af42e6bb6d4bead713250a09e98f33147ae35b66dc3ac898b4b1c6",
@@ -3905,7 +6259,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/12th-european-club-cup-for-wom-2007-dbc870fe/fide-8601283-12th-european-club-cup-for-wom-2007-dbc870fe.pgn",
-      "sha256": "a2df5a24a2af42e6bb6d4bead713250a09e98f33147ae35b66dc3ac898b4b1c6"
+      "sha256": "a2df5a24a2af42e6bb6d4bead713250a09e98f33147ae35b66dc3ac898b4b1c6",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 97,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6f99c337cdab26a0382cb1c014ec124f866fd9e802d8d5096e4318fdca46952b",
@@ -3920,7 +6285,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/12th-european-club-cup-for-wom-2007-dbc870fe/fide-8601283-12th-european-club-cup-for-wom-2007-dbc870fe.pgn",
-      "sha256": "6f99c337cdab26a0382cb1c014ec124f866fd9e802d8d5096e4318fdca46952b"
+      "sha256": "6f99c337cdab26a0382cb1c014ec124f866fd9e802d8d5096e4318fdca46952b",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 66,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "4ec23a5359f9372ffdab02099f9e31e95d7f157eb986ea9fe666b83bf8fac23c",
@@ -3935,7 +6311,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/12th-european-club-cup-for-wom-2007-dbc870fe/fide-8601283-12th-european-club-cup-for-wom-2007-dbc870fe.pgn",
-      "sha256": "4ec23a5359f9372ffdab02099f9e31e95d7f157eb986ea9fe666b83bf8fac23c"
+      "sha256": "4ec23a5359f9372ffdab02099f9e31e95d7f157eb986ea9fe666b83bf8fac23c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 91,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "629c64a82ef1db4ac010af97dab4642eb5397c102252c2cb3c6a17861df01011",
@@ -3950,7 +6337,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "629c64a82ef1db4ac010af97dab4642eb5397c102252c2cb3c6a17861df01011"
+      "sha256": "629c64a82ef1db4ac010af97dab4642eb5397c102252c2cb3c6a17861df01011",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 117,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "2181212057a5df19bcf7ba38de05846f2625dd2ac72e688e39cbd28fa6e99af0",
@@ -3965,7 +6363,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "2181212057a5df19bcf7ba38de05846f2625dd2ac72e688e39cbd28fa6e99af0"
+      "sha256": "2181212057a5df19bcf7ba38de05846f2625dd2ac72e688e39cbd28fa6e99af0",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 111,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "403fb739376cff7ac7050a976976f8a128bae6790e30f06abba08f8e3fb804ab",
@@ -3980,7 +6389,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "403fb739376cff7ac7050a976976f8a128bae6790e30f06abba08f8e3fb804ab"
+      "sha256": "403fb739376cff7ac7050a976976f8a128bae6790e30f06abba08f8e3fb804ab",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 99,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "bb58322cbd36bb95a9f4efaa9965c4e5a3d78a411b38d76842edc2f832b1f549",
@@ -3995,7 +6415,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "bb58322cbd36bb95a9f4efaa9965c4e5a3d78a411b38d76842edc2f832b1f549"
+      "sha256": "bb58322cbd36bb95a9f4efaa9965c4e5a3d78a411b38d76842edc2f832b1f549",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 111,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "e0f635f9f5c3660c6f569739dfb4fcfa24d2ffe4761053ee894ad88c17616c4a",
@@ -4010,7 +6441,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "e0f635f9f5c3660c6f569739dfb4fcfa24d2ffe4761053ee894ad88c17616c4a"
+      "sha256": "e0f635f9f5c3660c6f569739dfb4fcfa24d2ffe4761053ee894ad88c17616c4a",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 79,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "ea052fc8b805be9afc0b9f6a22765c8e0d340e069b66761bec70da05a5c2d1f4",
@@ -4025,7 +6467,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "ea052fc8b805be9afc0b9f6a22765c8e0d340e069b66761bec70da05a5c2d1f4"
+      "sha256": "ea052fc8b805be9afc0b9f6a22765c8e0d340e069b66761bec70da05a5c2d1f4",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 105,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "46f6bede9b3da4e684bbfb21065de94e3a5c05e071dd8f5523e47f42aa23556f",
@@ -4040,7 +6493,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "46f6bede9b3da4e684bbfb21065de94e3a5c05e071dd8f5523e47f42aa23556f"
+      "sha256": "46f6bede9b3da4e684bbfb21065de94e3a5c05e071dd8f5523e47f42aa23556f",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 75,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8bee0567c911597a66c2d5c920160871e469c82e749e61485539d632110530ca",
@@ -4055,7 +6519,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "8bee0567c911597a66c2d5c920160871e469c82e749e61485539d632110530ca"
+      "sha256": "8bee0567c911597a66c2d5c920160871e469c82e749e61485539d632110530ca",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 139,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "bcaadce6869afeff09b8179e96f46c8806bc5ed9ee949eb627928a0ee679ae69",
@@ -4070,7 +6545,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "bcaadce6869afeff09b8179e96f46c8806bc5ed9ee949eb627928a0ee679ae69"
+      "sha256": "bcaadce6869afeff09b8179e96f46c8806bc5ed9ee949eb627928a0ee679ae69",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 169,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "ec4682bdcc599a5089fac70c262ee688052e1f3da46b693c1bc6178e68c5acc4",
@@ -4085,7 +6571,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "ec4682bdcc599a5089fac70c262ee688052e1f3da46b693c1bc6178e68c5acc4"
+      "sha256": "ec4682bdcc599a5089fac70c262ee688052e1f3da46b693c1bc6178e68c5acc4",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 86,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "14043d579d793006725a065b63b843cdfc17e5687db4946c2cf6bee49a452937",
@@ -4100,7 +6597,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "14043d579d793006725a065b63b843cdfc17e5687db4946c2cf6bee49a452937"
+      "sha256": "14043d579d793006725a065b63b843cdfc17e5687db4946c2cf6bee49a452937",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 68,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "5ad8d00de13ace574e9c0257ea54138f210dca4d3d5b4f02a61e503e6e00ae52",
@@ -4115,7 +6623,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "5ad8d00de13ace574e9c0257ea54138f210dca4d3d5b4f02a61e503e6e00ae52"
+      "sha256": "5ad8d00de13ace574e9c0257ea54138f210dca4d3d5b4f02a61e503e6e00ae52",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 166,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "cd8678d8a4ff71b9e4af05788cd5b093df9e1c77c6449131c60f00a33074c567",
@@ -4130,7 +6649,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/37th-chess-olympiad-2006-women-2006-1bb60295/fide-8601283-37th-chess-olympiad-2006-women-2006-1bb60295.pgn",
-      "sha256": "cd8678d8a4ff71b9e4af05788cd5b093df9e1c77c6449131c60f00a33074c567"
+      "sha256": "cd8678d8a4ff71b9e4af05788cd5b093df9e1c77c6449131c60f00a33074c567",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 69,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "c7f972b892d7ac049eaf88f2a2cf74adef5f2817341029f4d65b0d42a0c772dd",
@@ -4145,7 +6675,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "c7f972b892d7ac049eaf88f2a2cf74adef5f2817341029f4d65b0d42a0c772dd"
+      "sha256": "c7f972b892d7ac049eaf88f2a2cf74adef5f2817341029f4d65b0d42a0c772dd",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 126,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "f2237f31acd96f161cd67515b21e98467a1db100a3e9ac539b597e3be8cc454c",
@@ -4160,7 +6701,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "f2237f31acd96f161cd67515b21e98467a1db100a3e9ac539b597e3be8cc454c"
+      "sha256": "f2237f31acd96f161cd67515b21e98467a1db100a3e9ac539b597e3be8cc454c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 175,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "b8a06fd6899d47e9326e38ccef84249e4c47b31db8f694d59648533de589ee5c",
@@ -4175,7 +6727,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "b8a06fd6899d47e9326e38ccef84249e4c47b31db8f694d59648533de589ee5c"
+      "sha256": "b8a06fd6899d47e9326e38ccef84249e4c47b31db8f694d59648533de589ee5c",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 79,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "24ae0069a42def5390b75d45da080d814ce047187b5965ddef4429acead2e86a",
@@ -4190,7 +6753,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "24ae0069a42def5390b75d45da080d814ce047187b5965ddef4429acead2e86a"
+      "sha256": "24ae0069a42def5390b75d45da080d814ce047187b5965ddef4429acead2e86a",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 85,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "43f8aef07307c130991b9c7a3e749190dcf1bacbd426d8cda1e7370398a9c991",
@@ -4205,7 +6779,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "43f8aef07307c130991b9c7a3e749190dcf1bacbd426d8cda1e7370398a9c991"
+      "sha256": "43f8aef07307c130991b9c7a3e749190dcf1bacbd426d8cda1e7370398a9c991",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 77,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6dffe9238ff1df56b8678d4e313a9d305b3468ab20ee5f06077f6126a0f44ffb",
@@ -4220,7 +6805,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "6dffe9238ff1df56b8678d4e313a9d305b3468ab20ee5f06077f6126a0f44ffb"
+      "sha256": "6dffe9238ff1df56b8678d4e313a9d305b3468ab20ee5f06077f6126a0f44ffb",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 109,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6d0f2351ba46cae3cbb795aab748dfc99b130e462de5e95a62a77b27f33e67c8",
@@ -4235,7 +6831,18 @@
       "naturalStage": "adult",
       "role": "white",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "6d0f2351ba46cae3cbb795aab748dfc99b130e462de5e95a62a77b27f33e67c8"
+      "sha256": "6d0f2351ba46cae3cbb795aab748dfc99b130e462de5e95a62a77b27f33e67c8",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 57,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "6c979ca384670931dba409f6c6d2d88a022e2ab590c9b2e7bb66d5974c160362",
@@ -4250,7 +6857,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "6c979ca384670931dba409f6c6d2d88a022e2ab590c9b2e7bb66d5974c160362"
+      "sha256": "6c979ca384670931dba409f6c6d2d88a022e2ab590c9b2e7bb66d5974c160362",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 80,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "97af1f99f72400129d5514e91b9fa0ac3de14145a33be7f45235c45ca6bea4d2",
@@ -4265,7 +6883,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "97af1f99f72400129d5514e91b9fa0ac3de14145a33be7f45235c45ca6bea4d2"
+      "sha256": "97af1f99f72400129d5514e91b9fa0ac3de14145a33be7f45235c45ca6bea4d2",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 86,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "43effb9b4a01a3bfc4162faa887f28447d3032f9818dad309590dc50c96499b9",
@@ -4280,7 +6909,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "43effb9b4a01a3bfc4162faa887f28447d3032f9818dad309590dc50c96499b9"
+      "sha256": "43effb9b4a01a3bfc4162faa887f28447d3032f9818dad309590dc50c96499b9",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 136,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "8bfb23e8c1202e245abfe80083d6ca0ab9ef4b332ee47693bce6dd23c1d09a00",
@@ -4295,7 +6935,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "8bfb23e8c1202e245abfe80083d6ca0ab9ef4b332ee47693bce6dd23c1d09a00"
+      "sha256": "8bfb23e8c1202e245abfe80083d6ca0ab9ef4b332ee47693bce6dd23c1d09a00",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 84,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "66e9a30d1dd8da40bd5501a4bdb763dc67b0e19cd3bfd824c28bf0d12f1d024e",
@@ -4310,7 +6961,18 @@
       "naturalStage": "adult",
       "role": "black",
       "sourcePgnPath": "data/pgn/chess-results/36th-chess-olympiad-2004-2004-a7f2604f/fide-8601283-36th-chess-olympiad-2004-2004-a7f2604f.pgn",
-      "sha256": "66e9a30d1dd8da40bd5501a4bdb763dc67b0e19cd3bfd824c28bf0d12f1d024e"
+      "sha256": "66e9a30d1dd8da40bd5501a4bdb763dc67b0e19cd3bfd824c28bf0d12f1d024e",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 110,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "30668c23a709328d06cbc15c420f7819538fc34cc4674c30cb39c9ce979e62b7",
@@ -4324,7 +6986,18 @@
       "role": "white",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "30668c23a709328d06cbc15c420f7819538fc34cc4674c30cb39c9ce979e62b7"
+      "sha256": "30668c23a709328d06cbc15c420f7819538fc34cc4674c30cb39c9ce979e62b7",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 58,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     },
     {
       "id": "87a0a3420cfa072ea6e4b0c0bd196c593d3b5777f019a2012c2d04e5ce84d5de",
@@ -4338,7 +7011,18 @@
       "role": "black",
       "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
       "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
-      "sha256": "87a0a3420cfa072ea6e4b0c0bd196c593d3b5777f019a2012c2d04e5ce84d5de"
+      "sha256": "87a0a3420cfa072ea6e4b0c0bd196c593d3b5777f019a2012c2d04e5ce84d5de",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 52,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
     }
   ]
 }
