@@ -1,0 +1,122 @@
+{
+  "snapshotId": "20260916T121909Z-7a2d1aed",
+  "inputCommit": "b06d347755ee76e19ffbf005ea835a7acdb293f6",
+  "checks": [
+    {
+      "check": "cors",
+      "origin": "https://chessdb.aigclabs.cc",
+      "method": "GET",
+      "ok": true
+    },
+    {
+      "check": "cors",
+      "origin": "https://chessdb.aigclabs.cc",
+      "method": "HEAD",
+      "ok": true
+    },
+    {
+      "check": "cors",
+      "origin": "https://4chess.cc",
+      "method": "GET",
+      "ok": true
+    },
+    {
+      "check": "cors",
+      "origin": "https://4chess.cc",
+      "method": "HEAD",
+      "ok": true
+    },
+    {
+      "check": "cors",
+      "origin": "https://www.4chess.cc",
+      "method": "GET",
+      "ok": true
+    },
+    {
+      "check": "cors",
+      "origin": "https://www.4chess.cc",
+      "method": "HEAD",
+      "ok": true
+    },
+    {
+      "check": "cors",
+      "origin": "https://china-chess-player-pgn.pages.dev",
+      "method": "GET",
+      "ok": true
+    },
+    {
+      "check": "cors",
+      "origin": "https://china-chess-player-pgn.pages.dev",
+      "method": "HEAD",
+      "ok": true
+    },
+    {
+      "check": "player-package",
+      "fideID": "8603006",
+      "games": 711,
+      "sha256": "5fcb6db6a79a6b2edcac8447b4a029f1f2ed0b40c6b3a396fb2fe5d85ca2bf9c"
+    },
+    {
+      "check": "event-package",
+      "tournamentID": "1458883",
+      "games": 150,
+      "coverage": {
+        "version": 1,
+        "code": "partial",
+        "label": "已归档，部分棋谱无法复盘"
+      }
+    },
+    {
+      "check": "event-package",
+      "tournamentID": "1227491",
+      "games": 86,
+      "coverage": {
+        "version": 1,
+        "code": "partial",
+        "label": "已归档，部分棋谱无法复盘"
+      }
+    },
+    {
+      "check": "retained-archive",
+      "tournamentID": "1458883",
+      "sha256": "638e1d58e037293725cd27ab8e5d4e66197cbc4307917bcdb42d40a872e539f4",
+      "records": 162
+    },
+    {
+      "check": "retained-archive",
+      "tournamentID": "1227491",
+      "sha256": "6e5f940216425cac2f0a324074db95e777ecbd16f590099621e99b09be4bf102",
+      "records": 89
+    },
+    {
+      "check": "result-dispute",
+      "tournamentID": "1059818",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 40,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "disputed",
+        "resultStatsEligible": false,
+        "errors": [],
+        "issueID": "result-da142782be4833c34acb6cd8"
+      }
+    }
+  ],
+  "metrics": {
+    "players": 12013,
+    "withChineseName": 2439,
+    "playersWithGames": 3127,
+    "games": 80270,
+    "playerGameLinks": 80270,
+    "archivedUniqueGames": 76520,
+    "legalArchivedUniqueGames": 75177,
+    "excludedUniqueGames": 1343,
+    "playablePlayerGameLinks": 78762,
+    "playableUniqueGames": 74550
+  },
+  "verificationDate": "2026-09-17",
+  "deploymentRun": 35097317431
+}
