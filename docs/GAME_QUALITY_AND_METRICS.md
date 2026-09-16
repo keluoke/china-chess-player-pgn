@@ -23,7 +23,8 @@ API v1 旧字段保留含义，新增字段用于消除歧义：
 | 棋手 gameCount / archivedGameCount | 该棋手归档记录数，保留旧口径 |
 | playableGameCount / excludedGameCount | 该棋手合法非空主线数 / 被默认包排除记录数 |
 | packages[].gameCount | 该下载包实际包含局数，必须与正文一致 |
-| participationEventCount | 结构化赛事参赛事实中的不同赛事数 |
+| participationEventCount | 结构化赛事参赛事实中的不同赛事数，包含详情尚未公开的记录 |
+| publishedParticipationEventCount | API 实际公开 events 数组中的参赛赛事数 |
 | pgnEventCount | 棋手 PGN 归档按原有 event_summaries 规则分组的赛事数，包含待修复记录 |
 | API v1 eventCount | 保留原有结构化参赛赛事数 |
 | bootstrap eventCount | 保留原有 PGN 分组赛事数；新客户端应使用明确命名字段 |
@@ -34,7 +35,7 @@ API v1 旧字段保留含义，新增字段用于消除歧义：
 
 离线构建输出 `data/generated/game-result-review.json`。自然键为赛事、轮次、台次、双方 playerNo，生成稳定 issueID；bindingSha256 绑定当期 PGN 哈希、结果和方向。白黑交换先统一方向，姓名匹配不唯一则不自动断言冲突。
 
-人工裁决写 `data/community/game-result-decisions.csv`，仅接受 accept-table / accept-pgn。必须填写 issue_id、binding_sha256、decision、evidence_path、evidence_sha256、reviewer、reviewed_at。证据置于 `data/manual/result-evidence/`，使用可审阅的脱敏记录；不要提交原始 HTML。证据缺失、正文哈希不符、绑定过期、重复或未匹配裁决都会中止构建。
+人工裁决写 `data/community/game-result-decisions.csv`，仅接受 accept-table / accept-pgn。必须填写 issue_id、binding_sha256、decision、evidence_path、evidence_sha256、reviewer、reviewed_at。证据置于 `data/manual/result-evidence/`，使用可审阅的脱敏记录；不要提交原始 HTML。证据缺失、正文哈希不符、绑定过期、重复或未匹配裁决都会中止构建。若要在采集工作区执行相关重建，新增证据文件必须同时加入 collector-runtime-files.json 的 core 控制输入清单并经受控 runtime-sync 安装，不能手工复制。
 
 没有足够证据时保持 pending。构建器不抓来源，不从多数票或引擎棋力推断比分。核定后 `effectiveResult` / ReviewedResult 表达有效比分，历史原文仍可追溯。未来胜负统计只能使用 `resultStatsEligible` 为 true 的棋局并优先读取 effectiveResult。
 

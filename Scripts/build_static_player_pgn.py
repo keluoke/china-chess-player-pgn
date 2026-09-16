@@ -327,8 +327,9 @@ def ingest_player_game_facts(
         for fact in event_facts
         if clean(fact.get("fideID")) and clean(fact.get("tournamentID"))
     }
-    for fide_id, bucket in buckets.items():
-        bucket.participation_event_count = len({str(row.get("tournamentID")) for row in event_facts if str(row.get("fideID")) == fide_id})
+    participation_events: dict[str, set[str]] = {}
+    for row in event_facts:
+        participation_events.setdefault(str(row.get("fideID")), set()).add(str(row.get("tournamentID")))
     asset_cache: dict[pathlib.Path, list[str]] = {}
     total = 0
     for fact in game_facts:
@@ -399,6 +400,8 @@ def ingest_player_game_facts(
             )
             if bucket_for(buckets, profile).add(record):
                 total += 1
+    for fide_id, bucket in buckets.items():
+        bucket.participation_event_count = len(participation_events.get(fide_id, set()))
     return total
 
 

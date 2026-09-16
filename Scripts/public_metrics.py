@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Canonical public metrics shared by every user-facing manifest.
 
-The by-player aggregate is the only public PGN coverage authority because it
-deduplicates every usable game after direct, bulk, and promoted sources have
-been combined. Source-specific manifests may retain their own diagnostics, but
-must not publish those diagnostics as whole-database totals.
+Legacy games counts player/archive links. Explicit fields distinguish canonical
+archived facts, legal mainlines and unique publicly playable catalog games.
 """
 
 from __future__ import annotations

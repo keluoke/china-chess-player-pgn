@@ -130,6 +130,13 @@ class CanonicalPlayerFactTest(unittest.TestCase):
             with mock.patch.dict(os.environ, {"SNAPSHOT_ID": "snap-facts"}):
                 facts, _ = cpf.load_fact_dataset(paths["game_facts"] / "manifest.json", "player-game-facts")
             self.assertEqual(facts[0]["playerFideIDs"], ["1001", "1002"])
+            with mock.patch.dict(os.environ, {"SNAPSHOT_ID": "snap-facts"}):
+                event_rows, _ = cpf.load_fact_dataset(paths["event_facts"] / "manifest.json", "player-event-facts")
+            buckets = {}
+            with mock.patch.object(bsp, "REPO_ROOT", root):
+                bsp.ingest_player_game_facts(buckets, {fid:bsp.PlayerProfile(fid) for fid in ("1001", "1002")}, facts, event_rows)
+            self.assertEqual(buckets["1001"].participation_event_count, 1)
+
 
     def test_unverified_event_archive_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 import pathlib
 import sys
 import tempfile
@@ -38,6 +39,27 @@ class GameQualityTest(unittest.TestCase):
         self.assertFalse(report['playableComplete'])
         self.assertEqual(report['counts']['excludedArchivedGames'], 1)
         self.assertEqual(report['counts']['playableMatchedPairings'], 1)
+
+    def test_default_package_excludes_bad_game_but_retains_archive_counts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            bucket = packages.PlayerBucket(packages.PlayerProfile('1001', name='Player, A'))
+            for i, moves in enumerate(('1. e4 e5 *', '1. e4 e5 2. Kd5 *')):
+                text = HEADER + moves
+                bucket.add(packages.PlayerGame(pgn=text, event='Regression', date='2026-09-16',
+                    white='Player, A', black='Player, B', result='*', source='fixture',
+                    sha256=str(i), quality=q.inspect_game(text)))
+            with mock.patch.object(packages, 'OUTPUT_INDEX_ROOT', root/'index/by-player'), \
+                 mock.patch.object(packages, 'OUTPUT_BUCKET_ROOT', root/'index/by-player-buckets'), \
+                 mock.patch.object(packages, 'OUTPUT_PGN_ROOT', root/'pgn/by-player'), \
+                 mock.patch.object(packages, 'DOCS_DATA', root):
+                packages.write_outputs({'1001':bucket}, False, {})
+            detail=json.loads((root/'index/by-player/fide-1001.json').read_text())
+            self.assertEqual(detail['totals']['games'],2)
+            self.assertEqual(detail['totals']['playableGames'],1)
+            self.assertEqual(detail['packages'][0]['gameCount'],1)
+            self.assertEqual(len(detail['games']),2)
+            self.assertNotIn('Kd5',(root/'pgn/by-player/fide-1001/all.pgn').read_text())
 
     def test_unknown_fact_quality_fails_closed(self):
         with self.assertRaisesRegex(ValueError, 'GAME_QUALITY_MISSING'):

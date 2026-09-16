@@ -58,6 +58,7 @@ REQUIRED_BUILDERS = (
     'Scripts/build_event_library.py',
     'Scripts/validate_registry_authority.py',
     'Scripts/validate_public_metrics.py',
+    'Scripts/validate_game_quality.py',
     'Scripts/validate_public_privacy.py',
     'Scripts/validate_snapshot_consistency.py',
     'Scripts/validate_registry_release.py',
@@ -289,6 +290,7 @@ def main() -> int:
     # --- gates ----------------------------------------------------------
     steps.append(step([py, "Scripts/validate_registry_authority.py"]))
     steps.append(step([py, "Scripts/validate_public_metrics.py"]))
+    steps.append(step([py, "Scripts/validate_game_quality.py"]))
     steps.append(step([py, "Scripts/validate_public_privacy.py"]))
 
     # The consistency gate reads the canonical path, so install a candidate

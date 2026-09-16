@@ -260,7 +260,6 @@ def public_completeness(report: dict[str, Any]) -> dict[str, Any]:
         "pgnCoverageScope": report.get("pgnCoverageScope"),
         "archiveStatus": report.get("archiveStatus"),
         "pgnIngestStatus": report.get("pgnIngestStatus"),
-        "pgnArchiveSources": report.get("pgnArchiveSources") or [],
         "nonByePairings": counts.get("nonByePairings"),
         "advertisedPGN": counts.get("advertisedPGN"),
         "lichessBroadcastGames": counts.get("lichessBroadcastGames"),
