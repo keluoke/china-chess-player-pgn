@@ -105,7 +105,7 @@ class FrontendInitializationOrderTest(unittest.TestCase):
             self.assertIn('data-theme-choice="auto"', html)
             self.assertIn('data-theme-choice="light"', html)
             self.assertIn('data-theme-choice="dark"', html)
-            self.assertLess(html.index("theme.js?v=20260727-1"), html.index("styles.css?v=20260729-1"))
+            self.assertLess(html.index("theme.js?v="), html.index("styles.css?v="))
 
     def test_brand_and_search_hero_use_theme_appropriate_logos(self) -> None:
         index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
