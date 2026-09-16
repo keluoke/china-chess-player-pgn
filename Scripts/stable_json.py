@@ -9,6 +9,8 @@ actually changes.
 
 from __future__ import annotations
 
+import gzip
+import io
 import json
 import os
 import pathlib
@@ -19,8 +21,8 @@ def preserve_generated_at(path: pathlib.Path, data: Any) -> Any:
     if not path.exists() or not isinstance(data, dict) or "generatedAt" not in data:
         return data
     try:
-        previous = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
+        previous = json.loads(gzip.decompress(path.read_bytes()).decode("utf-8") if path.suffix == ".gz" else path.read_text(encoding="utf-8"))
+    except (OSError, EOFError, UnicodeError, json.JSONDecodeError):
         return data
     if not isinstance(previous, dict) or not previous.get("generatedAt"):
         return data
@@ -58,5 +60,23 @@ def write_json(
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     temporary.write_text(text, encoding="utf-8")
+    os.replace(temporary, path)
+    return True
+
+
+def write_json_gzip(path: pathlib.Path, data: Any) -> bool:
+    """Deterministic compressed JSON for large internal fact datasets."""
+    payload = preserve_generated_at(path, data)
+    body = (json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+    stream = io.BytesIO()
+    # GzipFile fixes the OS byte to 255 and omits filename/time metadata.
+    with gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0, compresslevel=6) as archive:
+        archive.write(body)
+    compressed = stream.getvalue()
+    if path.is_file() and path.read_bytes() == compressed:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_bytes(compressed)
     os.replace(temporary, path)
     return True

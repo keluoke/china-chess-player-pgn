@@ -8,6 +8,7 @@ projection.  A warm build must never fall back to a previous snapshot's
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import os
@@ -33,7 +34,7 @@ def read_required_json(path: pathlib.Path, label: str) -> Any:
         raise RuntimeError(f"REQUIRED_FACT_MANIFEST_MISSING: {label}: {path}")
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+    except (OSError, EOFError, UnicodeError, json.JSONDecodeError) as error:
         raise RuntimeError(f"REQUIRED_FACT_MANIFEST_INVALID: {label}: {path}: {error}") from error
 
 
@@ -68,8 +69,8 @@ def load_fact_dataset(
             f"got {actual_sha}"
         )
     try:
-        payload = json.loads(data_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        payload = json.loads(gzip.decompress(data_path.read_bytes()).decode("utf-8") if data_path.suffix == ".gz" else data_path.read_text(encoding="utf-8"))
+    except (OSError, EOFError, UnicodeError, json.JSONDecodeError) as error:
         raise RuntimeError(f"REQUIRED_FACT_DATA_INVALID: {expected_kind}: {data_path}: {error}") from error
     facts = payload.get("facts") if isinstance(payload, dict) else None
     if not isinstance(facts, list):

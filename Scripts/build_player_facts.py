@@ -22,7 +22,7 @@ import build_static_player_pgn as pgn
 from snapshot_context import snapshot_id
 from result_review import annotate
 from game_quality import inspect_game
-from stable_json import write_json
+from stable_json import write_json, write_json_gzip
 from pgn_matching import GameLookup, explicit_fide_ids
 
 
@@ -611,14 +611,19 @@ def input_contract() -> list[dict[str, Any]]:
 def write_dataset(root: pathlib.Path, kind: str, facts: list[dict[str, Any]], inputs: list[dict[str, Any]], totals: dict[str, Any]) -> dict[str, Any]:
     sid = snapshot_id()
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
-    data_path = root / "facts.json"
-    write_json(data_path, {
+    compressed = kind == "player-game-facts"
+    data_path = root / ("facts.json.gz" if compressed else "facts.json")
+    payload = {
         "schemaVersion": 1,
         "snapshotId": sid,
         "generatedAt": generated_at,
         "kind": kind,
         "facts": facts,
-    }, ensure_ascii=False, separators=(",", ":"))
+    }
+    if compressed:
+        write_json_gzip(data_path, payload)
+    else:
+        write_json(data_path, payload, ensure_ascii=False, separators=(",", ":"))
     manifest = {
         "schemaVersion": 1,
         "snapshotId": sid,
@@ -632,6 +637,8 @@ def write_dataset(root: pathlib.Path, kind: str, facts: list[dict[str, Any]], in
         "inputs": inputs,
     }
     write_json(root / "manifest.json", manifest, ensure_ascii=False, indent=2)
+    if compressed:
+        (root / "facts.json").unlink(missing_ok=True)
     return manifest
 
 

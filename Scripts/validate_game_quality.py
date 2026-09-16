@@ -10,6 +10,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 def validate(root=ROOT):
     facts, manifest = load_fact_dataset(root/'data/generated/player-game-facts/manifest.json', 'player-game-facts')
+    data_path = root/'data/generated/player-game-facts'/manifest['dataFile']
+    if data_path.stat().st_size >= 100 * 1024 * 1024:
+        raise ValueError('FACT_FILE_EXCEEDS_GIT_LIMIT')
     event_facts, _ = load_fact_dataset(root/'data/generated/player-event-facts/manifest.json', 'player-event-facts')
     event_counts = collections.defaultdict(set)
     for fact in event_facts:

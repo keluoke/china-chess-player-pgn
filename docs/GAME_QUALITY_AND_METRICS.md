@@ -10,6 +10,10 @@
 - `replayCoverage` 是主站、赛事页和专题共同消费的版本化状态：full / live / partial / missing / none / unknown。live 只指公开直播范围，不表示全台。
 - 比分争议不禁止复盘。`resultStatus=disputed` 必须配 `resultStatsEligible=false`；PGN 附加 ResultStatus、ResultIssueID、ResultStatsEligible 标签，原始 Result 不改。
 
+## 内部事实存储
+
+棋局事实使用确定性的 `facts.json.gz`，避免质量字段使单文件超过 GitHub 的100 MiB上限。manifest 的 dataFile/dataPath 指向压缩文件，dataSha256 校验压缩正文；解压后继续校验行数与snapshotId。共享读取器兼容旧 facts.json。构建器自动移除已替换的大JSON，质量门禁限制事实文件大小。该格式仅用于内部事实层，公开JSON/API格式不变。
+
 ## 指标字典与兼容性
 
 API v1 旧字段保留含义，新增字段用于消除歧义：

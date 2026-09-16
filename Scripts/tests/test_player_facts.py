@@ -115,7 +115,7 @@ class CanonicalPlayerFactTest(unittest.TestCase):
                 }
                 cold.update({
                     path.relative_to(root).as_posix(): path.read_bytes()
-                    for path in (paths["game_facts"].glob("*.json"))
+                    for path in (paths["game_facts"].glob("*"))
                 })
                 poison = root / "docs/data/index/by-player/fide-1001.json"
                 poison.parent.mkdir(parents=True)
