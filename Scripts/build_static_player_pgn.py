@@ -1106,7 +1106,7 @@ def prune_stale_outputs(buckets: dict[str, PlayerBucket]) -> None:
         player_dir = OUTPUT_PGN_ROOT / f"fide-{fide_id}"
         expected_pgn.add(player_dir / "all.pgn")
         for stage_id in ["U6", "U8", "U10", "U12", "U14", "U16", "U18", "adult", "unknown-age"]:
-            if any(game.stage == stage_id for game in bucket.games):
+            if any(game.stage == stage_id and (game.quality or inspect_game(game.pgn))["replayable"] for game in bucket.games):
                 expected_pgn.add(player_dir / f"{stage_id}.pgn")
     for root, expected in ((OUTPUT_INDEX_ROOT, expected_index), (OUTPUT_PGN_ROOT, expected_pgn)):
         for path in root.rglob("*"):
