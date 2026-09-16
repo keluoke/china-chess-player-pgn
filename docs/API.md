@@ -43,7 +43,7 @@ https://china-chess-player-pgn.pages.dev
 
 赛事字段：`participationEventCount` 是结构化参赛事实数，`pgnEventCount` 是归档棋谱赛事分组数，`publishedParticipationEventCount` 是当前 `events[]` 长度。原 v1 `eventCount` 保持等于公开 `events[]` 长度。
 
-全站 `/data/public-metrics.json` 的 `games` 是棋手与对局关联次数，`playableUniqueGames` 才是公共目录的独立可复盘局数。完整定义见 [质量与指标契约](GAME_QUALITY_AND_METRICS.md)。
+全站 `/data/public-metrics.json` 的 `games` 是棋手与对局关联次数，`playableUniqueGames` 才是公共目录的独立可复盘局数。完整定义见 [质量与指标契约](https://github.com/keluoke/china-chess-player-pgn/blob/main/docs/GAME_QUALITY_AND_METRICS.md)。
 
 该 URL 保持不变；部署内部按 `int(fideID) % 256` 合并到
 `/api/v1/player-buckets/{bucket}.json`，由边缘兼容路由返回单棋手对象。
