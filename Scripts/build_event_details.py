@@ -352,7 +352,7 @@ def build() -> tuple[list[dict[str, Any]], dict[str, int]]:
                 totals["eventComplete"] += 1
         strip_private_fields(payload)
         output_path = OUTPUT / f"tnr{tid}.json"
-        write_json(output_path, payload, ensure_ascii=False, indent=2)
+        write_json(output_path, stamp(payload), ensure_ascii=False, indent=2)
         manifest_events.append({
             "tournamentID": tid,
             "path": f"data/index/event-details/tnr{tid}.json",

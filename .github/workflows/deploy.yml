@@ -87,6 +87,7 @@ jobs:
           if 'playableGames' not in manifest.get('totals', {}):
               raise SystemExit('GAME_QUALITY_REBUILD_REQUIRED: rebuild this code before deployment')
           PYCODE
+          python3 Scripts/validate_game_quality.py
 
       - name: Verify registry belongs to the validated snapshot
         run: |

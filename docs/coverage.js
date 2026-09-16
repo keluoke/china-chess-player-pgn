@@ -1,10 +1,11 @@
-const [coverage, sourceCoverage, eventQueue, quality, dashboard, changelog] = await Promise.all([
+const [coverage, sourceCoverage, eventQueue, quality, dashboard, changelog, publicMetrics] = await Promise.all([
   fetchJSON("./data/audit/player-coverage.json"),
   fetchJSON("./data/audit/source-coverage.json"),
   fetchJSON("./data/audit/event-queue-summary.json"),
   fetchJSON("./data/audit/data-quality-review.json"),
   fetchJSON("./data/dashboard.json"),
-  fetchJSON("./data/changelog.json")
+  fetchJSON("./data/changelog.json"),
+  fetchJSON("./data/public-metrics.json")
 ]);
 const funnel = await fetchJSON("./data/contribution-funnel.json").catch(() => null);
 
@@ -13,7 +14,7 @@ document.querySelector("#coverageHeadline").innerHTML = [
   ["注册棋手", totals.registryPlayers],
   ["已有 PGN", totals.playersWithPgn],
   ["总体覆盖", totals.coveragePercent != null ? `${totals.coveragePercent}%` : null],
-  ["收录棋局", sourceCoverage?.totals?.games]
+  ["可复盘独立棋局", publicMetrics?.totals?.playableUniqueGames]
 ].filter(([, value]) => value != null).map(([label, value]) => `<div><strong>${escapeHTML(format(value))}</strong><span>${escapeHTML(label)}</span></div>`).join("");
 
 document.querySelector("#coverageUpdated").textContent = `更新于 ${formatTime(coverage?.generatedAt)}`;
@@ -27,7 +28,7 @@ document.querySelector("#coverageChangelogMeta").textContent = changes.length ? 
 document.querySelector("#coverageChangelog").innerHTML = changes.length ? changes.map(entry => {
   const delta = entry.delta ?? {};
   const parts = [];
-  if (delta.games) parts.push(`对局 ${delta.games > 0 ? "+" : ""}${format(delta.games)}`);
+  if (delta.games) parts.push(`棋手与对局关联 ${delta.games > 0 ? "+" : ""}${format(delta.games)}`);
   if (delta.playersWithGames) parts.push(`有棋谱棋手 ${delta.playersWithGames > 0 ? "+" : ""}${format(delta.playersWithGames)}`);
   if (delta.withChineseName) parts.push(`中文名 ${delta.withChineseName > 0 ? "+" : ""}${format(delta.withChineseName)}`);
   return `<div class="cl-row"><span>${escapeHTML(parts.join(" · ") || "数据索引重建")}</span><span class="cl-date">${escapeHTML(String(entry.date || "").slice(0, 10))}</span></div>`;

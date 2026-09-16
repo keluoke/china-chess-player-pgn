@@ -37,6 +37,7 @@ def canonical_public_metrics(docs_data: pathlib.Path = DOCS_DATA) -> dict:
     if not isinstance(games, int) or games < 0:
         raise ValueError("by-player manifest totals.games is missing or invalid")
     return {
+        "snapshotId": aggregate.get("snapshotId"),
         "metricVersion": METRIC_VERSION,
         "scope": SCOPE,
         "source": "docs/data/index/by-player/manifest.json",

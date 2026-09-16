@@ -50,11 +50,15 @@ def run_checks(site, expected_snapshot='', cors_only=False):
                 raise ValueError('CANARY_CORS: ' + origin + ' ' + method)
             checks.append({'check':'cors', 'origin':origin, 'method':method, 'ok':True})
     if cors_only: return {'checks': checks}
+    sid = ""
     def get(path):
         body, headers = fetch(urljoin(site+'/', path.lstrip('/')))
         if 'json' not in headers.get('content-type', ''):
             raise ValueError('CANARY_JSON_MIME: ' + path)
-        return json.loads(body)
+        payload = json.loads(body)
+        if sid and payload.get("snapshotId") != sid:
+            raise ValueError("CANARY_MIXED_SNAPSHOT: " + path)
+        return payload
     snapshot = get('data/snapshot.json'); sid = snapshot['snapshotId']
     if expected_snapshot and sid != expected_snapshot: raise ValueError('CANARY_SNAPSHOT: ' + sid)
     for path in ('docs/data/registry/players.json', 'docs/data/registry/manifest.json'):
