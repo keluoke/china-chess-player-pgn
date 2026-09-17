@@ -80,7 +80,7 @@ REFRESH_DAYS = 30
 ALLOWED_COMMANDS = {
     "health", "all", "registry", "event-queue", "discover-events", "candidates",
     "bulk", "bulk-full", "publish", "deliver", "receipts", "reindex",
-    "recover-events", "shadow-publish",
+    "recover-events",
 }
 EXTRA_TOKEN = re.compile(r"^[A-Za-z0-9_.:/=-]{1,200}$")
 TNR_TOKEN = re.compile(r"^\d{4,9}$")
@@ -101,7 +101,6 @@ STATUS_LABELS = {
 DELIVERED_STATUSES = {
     "pushed", "ingested-to-main", "indexes-rebuilt", "deployed", "online-verified",
 }
-SHADOW_TERMINAL = {"complete", "conflict", "failed", "ineligible"}
 TNR_RELEASE_PATH = re.compile(r"(?:^|/)tnr(\d{4,9})(?:[./-]|$)")
 
 
@@ -222,24 +221,13 @@ def automation_payload() -> dict:
         if delivery_attention_code(item)
     ]
     attention_ids = {str(item.get("runId")) for item in attention}
-    shadow_rows = []
-    for item in entries:
-        state = _read_json_file(pathlib.Path(str(item.get("path") or "")) / "shadow-delivery.json")
-        if state:
-            shadow_rows.append(state)
-    shadow_attention = [
-        {"runId": item.get("runId"), "status": item.get("status"), "errorCode": item.get("errorCode")}
-        for item in shadow_rows
-        if item.get("status") in {"conflict", "failed", "ineligible", "paused"}
-    ]
     return {
         "enabled": payload.get("enabled", True),
-        "shadowEnabled": payload.get("shadowEnabled", False),
+        "shadowEnabled": False,
+        "shadowRetired": True,
         "lastAction": payload.get("lastAction"),
         "lastActionAt": payload.get("lastActionAt"),
         "nextCheckAt": payload.get("nextCheckAt"),
-        "shadowPausedAt": payload.get("shadowPausedAt"),
-        "shadowPauseReason": payload.get("shadowPauseReason"),
         "attention": attention,
         "pending": sum(1 for item in entries if item.get("status") == "pending"),
         "advancing": sum(
@@ -249,15 +237,12 @@ def automation_payload() -> dict:
             }
             and str(item.get("runId")) not in attention_ids
         ),
-        "shadowPending": sum(1 for item in shadow_rows if item.get("status") not in SHADOW_TERMINAL),
-        "shadowComplete": sum(1 for item in shadow_rows if item.get("status") == "complete"),
-        "shadowAttention": shadow_attention,
     }
 
 
 def set_automation(enabled: bool, **fields: object) -> dict:
     payload = _read_json_file(AUTOMATION_PATH)
-    payload.update({"schemaVersion": 1, "enabled": bool(enabled), **fields})
+    payload.update({"schemaVersion": 1, "enabled": bool(enabled), **fields, "shadowEnabled": False, "shadowRetired": True})
     atomic_json(AUTOMATION_PATH, payload)
     return automation_payload()
 
@@ -265,13 +250,7 @@ def set_automation(enabled: bool, **fields: object) -> dict:
 def update_automation(body: dict) -> dict:
     current = _read_json_file(AUTOMATION_PATH)
     enabled = bool(body.get("enabled")) if "enabled" in body else bool(current.get("enabled", True))
-    fields: dict[str, object] = {}
-    if "shadowEnabled" in body:
-        fields["shadowEnabled"] = bool(body.get("shadowEnabled"))
-        if fields["shadowEnabled"]:
-            fields["shadowPausedAt"] = None
-            fields["shadowPauseReason"] = None
-    return set_automation(enabled, **fields)
+    return set_automation(enabled)
 
 
 def automation_monitor() -> None:
@@ -281,8 +260,7 @@ def automation_monitor() -> None:
     while not monitor_stop.wait(backoff[index]):
         config = automation_payload()
         git_enabled = bool(config.get("enabled"))
-        shadow_enabled = bool(config.get("shadowEnabled"))
-        if (not git_enabled and not shadow_enabled) or durable_state().get("running"):
+        if not git_enabled or durable_state().get("running"):
             continue
         entries = outbox_entries()
         pending = [
@@ -306,10 +284,8 @@ def automation_monitor() -> None:
                 )
             )
         ] if git_enabled else []
-        shadow_pending = bool(shadow_enabled and config.get("shadowPending"))
         command = (
             "publish" if pending
-            else "shadow-publish" if shadow_pending
             else "receipts" if advancing
             else ""
         )
@@ -340,6 +316,31 @@ def stop_job() -> tuple[bool, str]:
     except ProcessLookupError:
         return False, "任务刚刚结束"
     return True, "已发送中止信号；未通过校验的暂存数据不会进入发布包"
+
+
+CAPTURE_MODES = {
+    "auto": [],
+    "update": ["--check-updates"],
+    "replay": ["--replay", "--overwrite"],
+    "pgn": ["--pgn-only"],
+}
+
+
+def capture_plan(text: object) -> dict:
+    captures = load_captures()
+    statuses = {e["tournamentID"]: e.get("publication", {}) for e in events_payload()["entries"]}
+    # Read-only projection: inspecting pasted links never starts a run.
+    entries = []
+    for tid in parse_capture_text(text)[:10]:
+        item = captures.get(tid) or {}
+        published = _read_json_file(EVENT_DETAIL_ROOT / f"tnr{tid}.json")
+        status = item.get("status") or published.get("captureStatus")
+        label = "已完成，可复用" if status == "complete" else "需要补缺" if item else "尚未采集"
+        if item.get("parserVersion") and item["parserVersion"] != PARSER_VERSION:
+            label = "解析器已更新，将离线重解析"
+        entries.append({"tournamentID": tid, "label": label, "capturedAt": item.get("capturedAt"),
+                        "publication": {"online-verified": "已上线验证", "pending": "等待投递", "pushed": "已投递，等待入库", "ingested-to-main": "已入库，等待重建", "indexes-rebuilt": "已重建，等待部署", "deployed": "已部署，等待线上验证"}.get(statuses.get(tid, {}).get("status"), "已有本地结果，发布状态待核实" if published else "尚未发布")})
+    return {"entries": entries}
 
 
 def normalize_capture_token(value: object) -> str:
@@ -919,6 +920,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/run":
             ok, message = start_job(str(body.get("cmd") or ""), [str(x) for x in body.get("extra") or []])
             self.send_json({"ok": ok, "message": message}, 200 if ok else 409)
+        elif self.path == "/api/capture-plan":
+            self.send_json(capture_plan(body.get("text")))
         elif self.path == "/api/capture":
             tnrs = parse_capture_text(body.get("text")) if body.get("text") is not None else [
                 str(x) for x in body.get("tnrs") or []
@@ -929,7 +932,12 @@ class Handler(BaseHTTPRequestHandler):
             if len(tnrs) > 10 or any(not TNR_TOKEN.fullmatch(t) for t in tnrs):
                 self.send_json({"ok": False, "message": "一次最多 10 场，且 TNR 必须是 4-9 位数字"}, 400)
                 return
-            ok, message = start_job("event-queue", tnrs)
+            mode = body.get("mode", "auto")
+            flags = CAPTURE_MODES.get(mode)
+            if flags is None:
+                self.send_json({"ok": False, "message": "未知采集操作"}, 400)
+                return
+            ok, message = start_job("event-queue", [*tnrs, *flags])
             self.send_json({"ok": ok, "message": message, "count": len(tnrs)}, 200 if ok else 409)
         elif self.path == "/api/stop":
             ok, message = stop_job()
@@ -945,7 +953,7 @@ class Handler(BaseHTTPRequestHandler):
 
 PAGE = r"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>本地数据采集与双通道发布面板</title><style>
+<title>本地数据采集与发布面板</title><style>
 :root{--bg:#f5f3ee;--card:#fff;--ink:#20232a;--muted:#68707b;--line:#ddd8ce;--blue:#175bd3;--ok:#177a3d;--bad:#b3261e;--warn:#a25700}
 @media(prefers-color-scheme:dark){:root{--bg:#15171c;--card:#20232a;--ink:#eee;--muted:#a1a6b0;--line:#373b44;--blue:#7aa5f8;--ok:#62d18d;--bad:#ee918b;--warn:#e3a85f}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,"PingFang SC",sans-serif}.wrap{max-width:1120px;margin:auto;padding:28px 20px 70px}h1{margin:0;font-size:1.7rem}h1 small{display:block;color:var(--muted);font-size:.84rem;font-weight:400;margin-top:5px}.notice{margin:18px 0;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--card)}.notice b{color:var(--ok)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:13px}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px}.head{display:flex;justify-content:space-between;gap:8px}.badge{color:var(--blue);font-size:.76rem}.desc,.meta{color:var(--muted);font-size:.84rem}.meta{margin-top:8px}.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}button.primary{background:var(--blue);border-color:var(--blue);color:white}button.danger{color:var(--bad)}button:disabled{opacity:.45;cursor:not-allowed}.status{display:flex;gap:10px;align-items:flex-start;margin:22px 0;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:12px}.dot{width:11px;height:11px;border-radius:50%;background:var(--muted);margin-top:6px}.dot.running{background:var(--blue);animation:pulse 1.2s infinite}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}@keyframes pulse{50%{opacity:.35}}#statusMeta{color:var(--muted);font-size:.83rem}#log{background:#0d1117;color:#d7e0ea;border-radius:11px;padding:14px;height:320px;overflow:auto;white-space:pre-wrap;font:12px/1.5 ui-monospace,SFMono-Regular,monospace}table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:.83rem}h2{font-size:1.15rem;margin-top:34px;border-bottom:2px solid var(--line);padding-bottom:6px}h3{font-size:.98rem;margin:20px 0 8px}footer{display:flex;justify-content:space-between;color:var(--muted);font-size:.8rem;margin-top:20px}a{color:var(--blue);cursor:pointer;text-decoration:none}
@@ -961,16 +969,18 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
 .resultRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:6px;font-size:.85rem;flex-wrap:wrap}.resultGroup{margin-top:14px;font-size:.86rem}.resultGroup>b{display:block;margin-bottom:5px}.publishLine{margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--bg);font-size:.84rem}
 .pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:18px 0}.stage{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}.stage b{display:block}.stage span{font-size:.78rem;color:var(--muted)}@media(max-width:760px){.pipeline{grid-template-columns:1fr 1fr}}
 </style></head><body><div class="wrap">
-<h1>本地数据采集与双通道发布面板<small>唯一维护入口 · 来源只在住宅网络访问 · 原始页面永不离开本机</small></h1>
-<div class="pipeline"><div class="stage"><b>① 本机采集</b><span>抓取、清洗、完整性门禁</span></div><div class="stage"><b>② 不可变 outbox</b><span>manifest、自然键、SHA-256</span></div><div class="stage"><b>③A GitHub 生产</b><span>main、离线重建、部署、线上验证</span></div><div class="stage"><b>③B Cloudflare 影子</b><span>可选并行双写；鉴权、R2、D1 回执</span></div></div>
-<div class="notice"><b>当前生产边界：</b>GitHub 仍是生产发布通道；Cloudflare 是隔离影子通道。影子逻辑包上限 384 文件/64 MiB，内部按 10 文件分块但只提交一个原子快照。影子冲突、超限或网络失败不会阻断 GitHub，也不会触发重新抓取。只有 <code>online-verified</code> 才算生产上线。</div>
+<h1>本地数据采集与发布面板<small>唯一维护入口 · 来源只在住宅网络访问 · 原始页面永不离开本机</small></h1>
+<div class="pipeline"><div class="stage"><b>① 本机采集</b><span>抓取、清洗、完整性门禁</span></div><div class="stage"><b>② 不可变 outbox</b><span>manifest、自然键、SHA-256</span></div><div class="stage"><b>③ GitHub 入库</b><span>main、离线重建、部署、线上验证</span></div><div class="stage"><b>④ Cloudflare 网站</b><span>Pages 网站与 R2 棋谱</span></div></div>
+<div class="notice">完整结果优先复用，缺失页面按需补齐。只有线上验证通过，才算发布完成。</div>
 <div class="status"><span id="dot" class="dot"></span><div style="flex:1"><b id="statusText">读取状态…</b><div id="statusMeta"></div><div id="progressList"></div></div><button id="stop" class="danger" onclick="stopJob()">中止任务</button></div>
-<div class="notice"><label><input type="checkbox" id="autoAdvance" onchange="toggleAutomation()"> <b>自动推进 GitHub 生产发布</b></label><span id="automationMeta" class="meta"></span><br><label><input type="checkbox" id="shadowAdvance" onchange="toggleShadow()"> <b>自动双写 Cloudflare 影子</b></label><span id="shadowMeta" class="meta">默认关闭；勾选即授权未来符合免费层门禁的 outbox 写入专用 Worker/R2/D1。</span></div>
+<div class="notice"><label><input type="checkbox" id="autoAdvance" onchange="toggleAutomation()"> <b>自动推进 GitHub 生产发布</b></label><span id="automationMeta" class="meta"></span></div>
 
 <h2>① 赛事采集与发布（来源访问仅限本机）</h2>
 <div class="card">
 <textarea id="tnrInput" placeholder="粘贴 Chess-Results 链接或 TNR，一行一个，例如：&#10;1110333&#10;tnr1213323&#10;https://chess-results.com/tnr1156008.aspx?lan=1"></textarea>
 <div class="chips" id="tnrChips"></div>
+<div id="capturePlan" class="small" aria-live="polite"></div>
+<div class="actions"><label>操作 <select id="captureMode"><option value="auto">采集 / 补缺（复用完整结果）</option><option value="update">检查更新（访问源站）</option><option value="replay">离线重解析（不访问源站）</option><option value="pgn">仅补棋谱（不重抓详情）</option></select></label></div>
 <div class="actions"><button class="primary" id="captureBtn" onclick="startCapture()">开始采集</button><span id="captureMsg" class="small"></span></div>
 <div class="actions"><button onclick="runCmd('recover-events',[],false)">接管中断产物并发布</button><span class="small">只接管通过路径/JSON/PGN 格式校验的机器产物；不会回抓，也不会自动丢弃文件。</span></div>
 </div>
@@ -1002,22 +1012,22 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
 <table><thead><tr><th>日期 / 赛事</th><th>状态</th><th>完整度</th><th>发布</th><th>抓取时间</th><th>动作</th></tr></thead><tbody id="recent"></tbody></table>
 <div class="pager"><button onclick="ePage=Math.max(0,ePage-1);renderEvents()">上一页</button><span id="eventPageInfo"></span><button onclick="ePage++;renderEvents()">下一页</button></div>
 
-<h2>② 双通道发布中心</h2>
+<h2>② 发布中心</h2>
 <div class="summary" id="publishInfo"></div>
 <div class="grid">
  <div class="card"><div class="head"><b>FIDE 注册表</b><span class="badge">可发布</span></div><div class="desc">临时下载、ZIP/语义/人数/分片/勘误校验，通过后才原子晋升。姓名和等级分唯一权威。</div><div class="actions"><button class="primary" onclick="runCmd('registry',[],false)">开始</button><span class="small" id="fideDue"></span></div></div>
  <div class="card"><div class="head"><b>Lichess Broadcast</b><span class="badge">CC BY-SA 4.0</span></div><div class="desc">在暂存区验证分片并重建数据包，manifest 保留许可证和署名链接。</div><div class="actions"><button class="primary" onclick="runCmd('bulk',[],false)">开始</button><button onclick="runCmd('bulk-full',[],true)">全量刷新</button><span class="small" id="lichessDue"></span></div></div>
- <div class="card"><div class="head"><b>推进双通道</b><span class="badge">不抓取</span></div><div class="desc">推进 GitHub 生产投递，并在已授权时续传 Cloudflare 影子回执；任一失败都只重试投递，不回抓来源。</div><div class="actions"><button class="primary" onclick="runCmd('publish',[],false)">立即推进</button></div></div>
+ <div class="card"><div class="head"><b>推进发布</b><span class="badge">不抓取</span></div><div class="desc">推进 GitHub 生产投递与上线验证；失败只重试对应阶段，不回抓来源。</div><div class="actions"><button class="primary" onclick="runCmd('publish',[],false)">立即推进</button></div></div>
  <div class="card"><div class="head"><b>同步云端回执</b><span class="badge">只读</span></div><div class="desc">查询 GitHub ingest/rebuild/deploy 结论并校验线上文件哈希；pushed 不等于已发布。</div><div class="actions"><button class="primary" onclick="runCmd('receipts',[],false)">同步回执</button></div></div>
 </div>
-<h3>同一 outbox 的两套独立回执</h3>
-<div class="small">生产：pending → pushed → ingested-to-main → indexes-rebuilt → deployed → <b>online-verified</b>。影子：registering → registered → uploading → queued → processing → complete/conflict/ineligible。</div>
-<table><thead><tr><th>run-id</th><th>GitHub 生产</th><th>Cloudflare 影子</th><th>commit / snapshot</th><th>回执</th><th>最近错误</th></tr></thead><tbody id="outbox"></tbody></table>
+<h3>发布进度与回执</h3>
+<div class="small">生产：pending → pushed → ingested-to-main → indexes-rebuilt → deployed → <b>online-verified</b>。</div>
+<table><thead><tr><th>run-id</th><th>GitHub 生产</th><th>commit / snapshot</th><th>回执</th><th>最近错误</th></tr></thead><tbody id="outbox"></tbody></table>
 
 <h2>③ 一键例行维护与诊断</h2>
 <div class="grid">
  <div class="card"><div class="head"><b>健康检查</b><span class="badge">只读</span></div><div class="desc">磁盘、FIDE last-good、发布路径、.git 锁、三个来源直连和 GitHub 投递路线。</div><div class="actions"><button class="primary" onclick="runCmd('health',[],false)">检查</button></div></div>
- <div class="card"><div class="head"><b>安全常规刷新</b><span class="badge">独立阶段</span></div><div class="desc">FIDE 满 25 天才更新；另采集队列前 3 个赛事。每个新 outbox 按上方授权独立推进生产与影子。</div><div class="actions"><button class="primary" onclick="runCmd('all',[],false)">开始</button></div></div>
+ <div class="card"><div class="head"><b>安全常规刷新</b><span class="badge">独立阶段</span></div><div class="desc">FIDE 满 25 天才更新；另采集队列前 3 个赛事。每个新 outbox 按上方开关推进生产发布。</div><div class="actions"><button class="primary" onclick="runCmd('all',[],false)">开始</button></div></div>
  <div class="card"><div class="head"><b>姓名候选</b><span class="badge">仅私有</span></div><div class="desc">生成待人工审查的姓名候选；不会自动写 manual/community 或覆盖 registry。</div><div class="actions"><button class="primary" onclick="runCmd('candidates',[],false)">开始</button></div></div>
  <div class="card"><div class="head"><b>本地离线诊断</b><span class="badge">不交付</span></div><div class="desc">本地重建派生索引用于诊断；不会自动暂存、提交或推送。</div><div class="actions"><button class="primary" onclick="runCmd('reindex',[],false)">离线运行</button></div></div>
 </div>
@@ -1036,9 +1046,8 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function post(path,body){return fetch(path,{method:"POST",headers:{"Content-Type":"application/json","X-Panel-Token":TOKEN},body:JSON.stringify(body)}).then(r=>r.json())}
 async function runCmd(cmd,extra,full){if(full&&!confirm("全量刷新会消耗大量流量，确认继续？"))return;const r=await post('/api/run',{cmd,extra});if(!r.ok)alert(r.message);setTimeout(poll,400)}
 async function stopJob(){if(!confirm("中止当前任务？已抓页面与检查点会保留，续跑只补缺页。"))return;const r=await post('/api/stop',{});alert(r.message)}
-async function loadAutomation(){const a=await(await fetch('/api/automation')).json();$('#autoAdvance').checked=!!a.enabled;$('#shadowAdvance').checked=!!a.shadowEnabled;$('#automationMeta').textContent=`不访问来源 · 待投递 ${a.pending||0} · 推进中 ${a.advancing||0}${(a.attention||[]).length?' · 需处理 '+a.attention.length:''}`;$('#shadowMeta').textContent=`${a.shadowEnabled?'已授权自动双写':a.shadowPauseReason?'已自动暂停：'+a.shadowPauseReason:'未授权，保持关闭'} · 完成 ${a.shadowComplete||0} · 待推进 ${a.shadowPending||0} · 需处理 ${(a.shadowAttention||[]).length}`}
+async function loadAutomation(){const a=await(await fetch('/api/automation')).json();$('#autoAdvance').checked=!!a.enabled;$('#automationMeta').textContent=`不访问来源 · 待投递 ${a.pending||0} · 推进中 ${a.advancing||0}${(a.attention||[]).length?' · 需处理 '+a.attention.length:''}`;}
 async function toggleAutomation(){const a=await post('/api/automation',{enabled:$('#autoAdvance').checked});$('#automationMeta').textContent=a.enabled?'自动推进已开启；不会自动抓取。':'自动推进已暂停。'}
-async function toggleShadow(){const enabled=$('#shadowAdvance').checked;if(enabled&&!confirm('启用后，未来符合免费层门禁的清洗后机器数据 outbox 将自动写入专用 Cloudflare 影子 Worker/R2/D1。原始 HTML、人工数据和代码不会上传。确认启用？')){$('#shadowAdvance').checked=false;return}await post('/api/automation',{shadowEnabled:enabled});loadAutomation()}
 function queueTop(n){runCmd('event-queue',['--from-queue',String(n)],false);watchRun('队列前 '+n+' 个')}
 function discoverEvents(){
  const raw=($('#fideDiscoveryInput').value||'').trim();
@@ -1064,7 +1073,8 @@ function refreshChips(){
  $('#captureBtn').textContent=good.length?`开始采集（${good.length} 场）`:'开始采集';
  return {good,bad};
 }
-$('#tnrInput').addEventListener('input',refreshChips);
+let planTimer, planGeneration=0;
+$('#tnrInput').addEventListener('input',()=>{refreshChips();clearTimeout(planTimer);const generation=++planGeneration;planTimer=setTimeout(async()=>{try{const p=await post('/api/capture-plan',{text:$('#tnrInput').value});if(generation!==planGeneration)return;$('#capturePlan').innerHTML=(p.entries||[]).map(e=>`tnr${esc(e.tournamentID)}：${esc(e.label)}${e.capturedAt?' · 上次采集 '+esc(e.capturedAt.slice(0,16)):''} · ${esc(e.publication)} <br>`).join('');}catch(e){$('#capturePlan').textContent='暂时无法读取本地记录';}},250);});
 let watchingRun=false, watchLabel='';
 function watchRun(label){watchingRun=true;watchLabel=label;batchResult.style.display='none'}
 async function startCapture(){
@@ -1072,7 +1082,7 @@ async function startCapture(){
  if(!good.length){alert('请先粘贴至少一个有效的 TNR 或 chess-results.com 链接');return}
  if(bad.length&&!confirm(`${bad.length} 行无法识别，将被忽略。继续采集 ${good.length} 场？`))return;
  if(good.length>10){alert('一次最多 10 场；请分批粘贴以保护访问预算。');return}
- const r=await post('/api/capture',{text:$('#tnrInput').value});
+ const r=await post('/api/capture',{text:$('#tnrInput').value,mode:$('#captureMode').value});
  if(!r.ok){alert(r.message);return}
  watchRun('指定赛事 '+good.length+' 场');
  setTimeout(async()=>{const s=await(await fetch('/api/state')).json();$('#captureMsg').textContent=`已启动 run ${s.runId||''} · 共 ${good.length} 场`},600);
@@ -1096,14 +1106,14 @@ async function renderBatchResult(){
   const err=t.errorCode?` · <span class="chip ${cls}">${esc(t.errorCode)}${t.failedPage?' @ '+esc(t.failedPage):''}</span>`:'';
   const change=t.releaseFiles?`<span class="chip ok">更新 ${esc(t.releaseFiles)} 文件 · ${formatBytes(t.releaseBytes||0)}</span>`:pub.status==='failed-before-release'?'<span class="chip bad">未形成发布清单</span>':'<span class=small>无直接赛事文件变化</span>';
   const btns=(t.status==='complete'||t.status==='partial')?`<button onclick="showPreview('${tid}')">本地预览</button>`:'';
-  return `<div class=resultRow><span class="chip ${cls}">${esc((r.statusLabels||{})[t.status]||t.status)}</span><b>tnr${esc(tid)}</b><span>${esc(t.title||'')}${stats}${err}</span>${change}${btns}<button onclick="runCmd('event-queue',['${tid}'],false)">重新抓取</button></div>`
+  return `<div class=resultRow><span class="chip ${cls}">${esc((r.statusLabels||{})[t.status]||t.status)}</span><b>tnr${esc(tid)}</b><span>${esc(t.title||'')}${stats}${err}</span>${change}${btns}<button onclick="runCmd('event-queue',['${tid}'],false)">检查更新</button></div>`
  }).join('');
  const successRows=rows.filter(([,t])=>t.status==='complete');
  const attentionRows=rows.filter(([,t])=>t.status!=='complete');
  batchResult.style.display='block';
  batchResult.innerHTML=`<div class=head><b>本批结果${r.running?'（进行中）':''}</b><span class=badge>run ${esc(r.runId||'')}</span></div>
  <div class=meta>${summary}</div>
- <div class="publishLine"><b>GitHub 生产</b> <span class="chip ${pubClass}">${esc(pubText)}</span> · 数据文件 ${esc(pub.changedFiles||0)}（新增/更新 ${esc(pub.upserts||0)}，删除 ${esc(pub.deletes||0)}）${pub.route?' · 路线 '+esc(pub.route):''}${pub.remoteSHA?' · remote '+esc(String(pub.remoteSHA).slice(0,12)):''}${pub.lastError?' · '+esc(pub.lastError):''}<br><b>Cloudflare 影子</b> <span class="chip ${pub.shadow?.status==='complete'?'ok':pub.shadow?.status?'warn':''}">${esc(pub.shadow?.status||'未启用/未双写')}</span>${pub.shadow?.snapshot_id?' · snapshot '+esc(pub.shadow.snapshot_id):''}${pub.shadow?.errorCode?' · '+esc(pub.shadow.errorCode):''}</div>
+ <div class="publishLine"><b>GitHub 生产</b> <span class="chip ${pubClass}">${esc(pubText)}</span> · 数据文件 ${esc(pub.changedFiles||0)}（新增/更新 ${esc(pub.upserts||0)}，删除 ${esc(pub.deletes||0)}）${pub.route?' · 路线 '+esc(pub.route):''}${pub.remoteSHA?' · remote '+esc(String(pub.remoteSHA).slice(0,12)):''}${pub.lastError?' · '+esc(pub.lastError):''}</div>
  ${successRows.length?`<div class=resultGroup><b>完整成功（${successRows.length}）</b>${renderRows(successRows)}</div>`:''}
  ${attentionRows.length?`<div class=resultGroup><b style="color:var(--warn)">部分完成 / 失败（${attentionRows.length}）</b>${renderRows(attentionRows)}</div>`:''}`;
  return r;
@@ -1160,7 +1170,7 @@ function renderQueue(){
   const stColor=t.status==='quarantined'||t.status==='needs-parser'||t.status==='partial'?'var(--warn)':t.status==='retry-wait'?'var(--muted)':t.status==='privately-captured'?'var(--ok)':'inherit';
   const st=`<span style="color:${stColor}">${esc(t.statusLabel)}</span>${t.errorCode?`<br><span class=meta>${esc(t.errorCode)}${t.failedPage?' · '+esc(t.failedPage):''}${t.nextRetryAt?' · 隔离/重试至 '+esc(String(t.nextRetryAt).slice(0,16)):''}</span>`:t.lastCapturedAt?`<br><span class=meta>${esc(String(t.lastCapturedAt).slice(0,16))} · ${esc(t.captureStats?.players??'-')} 人 / ${esc(t.captureStats?.rounds??'-')} 轮</span>`:''}`;
   const act=t.status==='partial'?`<button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">续跑补缺页</button>`
-    :t.status==='privately-captured'?`<button onclick="showPreview('${t.tournamentID}')">本地预览</button> <button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">重新抓取</button>`
+    :t.status==='privately-captured'?`<button onclick="showPreview('${t.tournamentID}')">本地预览</button> <button onclick="runCmd('event-queue',['${t.tournamentID}','--check-updates'],false)">检查更新</button>`
     :`<button onclick="runCmd('event-queue',['${t.tournamentID}'],false)">采集</button>`;
   const why=(t.priorityReasons||[]).join(' · ');
   return `<tr><td>${esc(t.eventName)}${t.privateDiscovery?'<br><span class=meta>棋手参赛记录发现</span>':''}</td><td>${esc(t.tournamentID)}</td><td>${esc(t.priorityScore)}${why?`<br><span class=meta>${esc(why)}</span>`:''}</td><td>${st}</td><td>${act}</td></tr>`
@@ -1186,7 +1196,7 @@ function renderEvents(){
   const pubLabels={'not-packaged':'尚无发布包','pending':'发布包待投递','pushed':'已投递','ingested-to-main':'已合并 main','indexes-rebuilt':'索引已重建','deployed':'已部署待校验','online-verified':'线上已验证'};
   const completeness=[e.resultsStatus,e.pgnAvailability,e.archiveStatus].filter(Boolean).map(esc).join('<br>')||'-';
   const btns=(e.status==='complete'||e.status==='partial')?`<button onclick="showPreview('${e.tournamentID}')">预览</button> `:'';
-  return `<tr><td>${esc(e.date||'日期未知')}<br><b>${esc(e.name)}</b><br><span class=meta>tnr${esc(e.tournamentID)} · ${esc(e.players??'-')} 人 / ${esc(e.rounds??'-')} 轮 / ${esc(e.standings??'-')} 行排名</span></td><td><span class="chip ${cls}">${esc(e.statusLabel)}</span>${e.errorCode?`<br><span class=meta>${esc(e.errorCode)}</span>`:''}</td><td>${completeness}</td><td><span class="chip ${pubCls}">${esc(pubLabels[pub.status]||pub.status||'-')}</span></td><td>${esc(String(e.capturedAt||'').slice(0,16))}</td><td>${btns}<button onclick="runCmd('event-queue',['${e.tournamentID}'],false)">重新抓取</button>${pub.status==='pending'?` <button onclick="runCmd('deliver',[],false)">投递</button>`:''}</td></tr>`
+  return `<tr><td>${esc(e.date||'日期未知')}<br><b>${esc(e.name)}</b><br><span class=meta>tnr${esc(e.tournamentID)} · ${esc(e.players??'-')} 人 / ${esc(e.rounds??'-')} 轮 / ${esc(e.standings??'-')} 行排名</span></td><td><span class="chip ${cls}">${esc(e.statusLabel)}</span>${e.errorCode?`<br><span class=meta>${esc(e.errorCode)}</span>`:''}</td><td>${completeness}</td><td><span class="chip ${pubCls}">${esc(pubLabels[pub.status]||pub.status||'-')}</span></td><td>${esc(String(e.capturedAt||'').slice(0,16))}</td><td>${btns}<button onclick="runCmd('event-queue',['${e.tournamentID}','--check-updates'],false)">检查更新</button>${pub.status==='pending'?` <button onclick="runCmd('deliver',[],false)">投递</button>`:''}</td></tr>`
  }).join('')||'<tr><td colspan=6>尚无抓取记录</td></tr>';
 }
 
@@ -1198,9 +1208,8 @@ async function loadOutbox(){
  $('#publishInfo').innerHTML=`<span class=pill>FIDE ${o.fideDue?'<b style="color:var(--warn)">到期</b>':'未到期'}</span><span class=pill>Lichess ${o.lichessDue?'<b style="color:var(--warn)">到期</b>':'未到期'}</span><a class=pill href="${SITE}/" target="_blank">打开线上站点 ↗</a>`;
  outboxBody.innerHTML=(o.entries||[]).map(e=>{
   const cls=e.status==='online-verified'?'ok':e.status==='pending'?'warn':'';
-  const shadow=e.shadow||{}, shadowCls=shadow.status==='complete'?'ok':shadow.status?'warn':'';
   const rc=Object.entries(e.receipts||{}).map(([k,v])=>v.url?`<a href="${esc(v.url)}" target="_blank">${k}${v.conclusion?':'+esc(v.conclusion):''}</a>`:(k==='online'?`online:${v.ok?'✔':'✘'}`:'')).filter(Boolean).join(' · ');
-  return `<tr><td>${esc(e.runId)}</td><td><span class="chip ${cls}">${esc(e.status)}</span><br><span class=meta>${esc(e.route||'-')}</span></td><td><span class="chip ${shadowCls}">${esc(shadow.status||'未双写')}</span></td><td>${esc(e.commit)}${shadow.snapshot_id?'<br>'+esc(String(shadow.snapshot_id).slice(0,28)):''}</td><td>${rc||'-'}</td><td>${esc(e.lastError||shadow.errorCode||'-')}</td></tr>`
+  return `<tr><td>${esc(e.runId)}</td><td><span class="chip ${cls}">${esc(e.status)}</span><br><span class=meta>${esc(e.route||'-')}</span></td><td>${esc(e.commit)}</td><td>${rc||'-'}</td><td>${esc(e.lastError||'-')}</td></tr>`
  }).join('')||'<tr><td colspan=6>没有待投递或最近投递的发布包</td></tr>';
 }
 

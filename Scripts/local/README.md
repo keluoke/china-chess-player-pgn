@@ -78,23 +78,11 @@ partial 目标可一键"续跑补缺页"。队列汇总栏区分：
 
 “已抓赛事”按赛事日期列出本机已有清洗结果，并合并显示抓取状态、人数/轮次/
 排名、完整性门禁和发布阶段；支持搜索、日期/采集时间排序、发布状态筛选与分页。
-面板把发布拆成两个互不授权的开关：“GitHub 生产自动推进”默认开启，只执行
-`publish`/`receipts`；“Cloudflare 自动影子双写”默认关闭，只有维护者确认开启后，
-才把同一不可变 outbox 双写到影子 Worker。两个开关都不会自动访问任何数据源。
+面板只保留“GitHub 生产自动推进”，默认开启，仅执行 `publish`/`receipts`，不会自动访问数据源。影子链已归档退役，旧开关不能重新启用。
 网络型投递失败按 30 秒、120 秒、300 秒退避重试；基线冲突、manifest
 错误、路径/哈希错误和已证实的线上哈希不一致会停止自动重试并列入“需要人工处理”。
 自动生产投递会跳过这些需人工处理的包并继续后续独立包，不允许 oldest-first
 队列被一个确定性冲突永久堵塞；策略冲突会明确显示为隔离，不再伪报为网络故障。
-影子双写始终排在 GitHub 生产投递之后；自动影子请求单次最多等待 15 秒，首次
-不可达或状态不确定即只暂停影子开关并保留回执，禁止在后台反复超时。维护者明确
-重新启用影子开关后才会继续；GitHub 生产开关和状态不受影响。
-影子逻辑包若超过 384 文件、96 MiB 或单文件 96 MiB，会在本机预检中标为
-`ineligible`；不会上传、不会拆成可见子快照，也不会阻塞 GitHub 生产发布。超过
-16 MiB 的合格单文件自动按固定 8 MiB multipart 片续传，Queue 合成并回读验证后才
-允许进入 path head。
-合格逻辑包内部按 10 文件分片登记与合并，分片不产生可见快照；所有分片完成后
-才原子切换一个影子 snapshot。因此 50 文件赛事包可正常双写，仍保持单一回执。
-
 ## 安全命令
 
 ```bash
@@ -134,28 +122,12 @@ bash Scripts/local/refresh.sh bulk-full
 # 仅重放已验证本地分片，不访问 Lichess；用于严格赛事投影离线重匹配
 bash Scripts/local/refresh.sh bulk-reindex
 
-# 推进 GitHub 生产投递和已显式启用的 Cloudflare 影子回执，不重新抓取
+# 推进 GitHub 生产投递和回执，不重新抓取
 bash Scripts/local/refresh.sh publish
 # deliver 仅为命令行兼容别名
 bash Scripts/local/refresh.sh deliver
-# 仅推进已授权且已开始的影子回执，不触碰 GitHub
-bash Scripts/local/refresh.sh shadow-publish
-
-# 同步云端回执：查询 ingest/rebuild/deploy workflow 结论并校验线上文件哈希
+# 同步云端回执
 bash Scripts/local/refresh.sh receipts
-
-# 显式回填一个已经存在的 outbox 包到 Cloudflare 免费层影子服务；不访问数据源，
-# 不改变 GitHub 生产发布状态。默认使用契约内影子 endpoint（可由
-# CLOUDFLARE_INGEST_URL 覆盖）；HMAC secret 默认从 macOS Keychain service
-# china-chess-cloudflare-ingest-shadow 读取。
-bash Scripts/local/refresh.sh shadow-deliver -- 20260812-081901-9ae22db0
-
-# 历史全量基线只允许从固定 Git commit 的干净完整 checkout 准备到仓库外迁移区；
-# prepare-cleanup 生成补偿删除包，deliver 单次最多推进 8 包，reconcile 做双向全量对账。
-python3 Scripts/local/cloudflare_baseline.py prepare --snapshot-root /absolute/clean/snapshot --target-commit <sha>
-python3 Scripts/local/cloudflare_baseline.py prepare-cleanup --migration-dir "/absolute/state/baseline-migrations/baseline-<sha>"
-python3 Scripts/local/cloudflare_baseline.py deliver --migration-dir "/absolute/state/baseline-migrations/baseline-<sha>"
-python3 Scripts/local/cloudflare_baseline.py reconcile --migration-dir "/absolute/state/baseline-migrations/baseline-<sha>"
 
 # storage-migrate 同时处理 data/generated/chess-results-event-pgn 与
 # docs/data/pgn，并在共享回执中分别记录 objects / playerObjects。
@@ -197,7 +169,7 @@ venv 并切换本次任务；这兼容 PEP 668，安装错误会原样进入 run
 - **逐页检查点**：每个 HTTP 成功页面先原子写入
   `raw/chess-results/tnr<id>/<kind>.html.gz`（附 `pages.json` 的 URL/SHA-256
   元数据），然后才解析。解析失败永远留有可离线复现的证据。
-- **续跑**：中断或失败后再次运行同一目标，只补缺页；已通过哈希校验保存的
+- **续跑**：中断或失败后再次运行同一目标，补缺页并刷新过期页；已通过哈希校验且未过期的
   页面通过缓存复用，重复请求 = 0。
 - **单目标隔离**：一个赛事失败不会终止批次；失败被记录进 capture-state 后
   继续下一个目标，批处理以退出码 4 表示部分成功（`PARTIAL_FAILURE`）。
@@ -243,14 +215,6 @@ venv 并切换本次任务；这兼容 PEP 668，安装错误会原样进入 run
   `source-published-coverage-unresolved`，不能静默视为完整。
 
 ## 发布事务
-
-### Cloudflare 免费层影子发布
-
-`cloudflare/ingest/` 是机器数据直达 Cloudflare 的第一阶段影子服务。它不取代当前
-GitHub 生产链路；本机 outbox 可双写到该服务做 SHA-256/三方冲突/回执对账。
-免费额度、鉴权、不可变快照和生产切流门禁以
-`docs/CLOUDFLARE_INGEST_CONTRACT.md` 为准。达到任一硬上限时影子发布必须停止，
-不得降低校验、借用生产桶或自动切换付费计划。
 
 每次运行创建独立目录：
 
@@ -464,3 +428,18 @@ Git/GitHub API，绝不能传给 Chess-Results、FIDE 或 Lichess 来源请求�
   采集机仍可保留原有兼容对象；公共接口按认证清单解析，不再长时间缓存可变对象。
 - 公共 HTML 由 Scripts/public_html_allowlist.txt 控制，实验资料留在
   experiments/estimated-ratings，不进入生产测试发现或静态站点。
+
+## 重复赛事与缓存
+
+输入链接即显示已采集时间和发布状态，按 TNR 去重。面板提供采集/补缺、检查更新、离线重解析和仅补棋谱。完整本地结果默认复用，不因重复粘贴重新抓详情或棋谱。
+
+```bash
+bash Scripts/local/refresh.sh event-queue -- 1110333 --check-updates
+bash Scripts/local/refresh.sh event-queue -- 1110333 --replay --overwrite
+bash Scripts/local/refresh.sh event-queue -- 1110333 --pgn-only
+```
+
+缓存读取必须核对 SHA-256/字节数；复制缓存保留原始 fetchedAt。未完成、日期未知或赛后 14 天内的赛事页面 24 小时失效，失败页 6 小时失效；历史完整赛事长期复用。近期完整赛事在自动队列中每日最多检查一次；解析器升级优先离线重解析，禁止离线重解析顺带访问 PGN 源站。损坏缓存在线补取、离线明确报错，原始证据保留。
+
+影子链源码、测试和旧契约已归档至 archive/cloudflare-shadow；旧入口只返回退役提示。
+产品分工见 [极简架构说明](../../docs/LOCAL_DATA_PIPELINE_GUIDE.md)。

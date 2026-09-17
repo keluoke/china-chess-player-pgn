@@ -25,11 +25,9 @@
 #   bulk         Mirror Lichess Broadcasts under CC BY-SA 4.0 and release.
 #   bulk-full    Same as bulk, force-refresh every selected shard.
 #   bulk-reindex Rebuild target-event projections from verified local shards; no source access.
-#   publish      Advance GitHub production delivery and opted-in Cloudflare shadow receipts.
+#   publish      Advance GitHub production delivery and receipts.
 #   deliver      CLI-compatible alias of publish; never re-scrapes.
 #   receipts     Sync cloud ingest/rebuild/deploy receipts + online check.
-#   shadow-publish  Advance opted-in Cloudflare shadow receipts only; never touches GitHub.
-#   shadow-deliver  Double-write one existing outbox run to Cloudflare shadow ingest.
 #   reindex      Offline diagnostic rebuild only; never commits or pushes.
 #
 # Retired/blocked by policy: crawl*, pgn*, events*, aliases, promote,
@@ -58,6 +56,12 @@ case "$command" in
     sed -n '2,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
+esac
+
+case "$command" in
+  shadow-publish|shadow-deliver)
+    echo "CLOUDFLARE_SHADOW_RETIRED: 影子链已归档退役；请使用 publish。" >&2
+    exit 2 ;;
 esac
 
 workspace_role="$(git -C "$REPO_ROOT" config --get chessdb.workspaceRole 2>/dev/null || true)"
@@ -126,7 +130,6 @@ DATA_COMMITTED=false
 DELIVERY_PENDING=false
 DELIVERED_COUNT=0
 DELIVERY_ATTENTION_COUNT=0
-SHADOW_SUMMARY=""
 RUN_DIR=""
 
 acquire_args=(--command "$command" --pid "$$")
@@ -540,114 +543,6 @@ deliver_outbox() {
   [ "$failed" -eq 0 ]
 }
 
-shadow_status() {
-  python3 - "$STATE_ROOT/outbox/$1/shadow-delivery.json" <<'PY'
-import json, pathlib, sys
-try:
-    print(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")).get("status") or "")
-except Exception:
-    print("")
-PY
-}
-
-shadow_auto_enabled() {
-  [ "${CLOUDFLARE_SHADOW_AUTO:-}" = "1" ] && return 0
-  [ "${CLOUDFLARE_SHADOW_AUTO:-}" = "0" ] && return 1
-  python3 - "$STATE_ROOT/automation.json" <<'PY'
-import json, pathlib, sys
-try:
-    enabled = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")).get("shadowEnabled") is True
-except Exception:
-    enabled = False
-raise SystemExit(0 if enabled else 1)
-PY
-}
-
-pause_shadow_automation() {
-  local reason="$1"
-  python3 - "$STATE_ROOT/automation.json" "$reason" <<'PY'
-import datetime, json, os, pathlib, sys
-path = pathlib.Path(sys.argv[1])
-try:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-except Exception:
-    payload = {}
-payload.update({
-    "schemaVersion": 1,
-    "shadowEnabled": False,
-    "shadowPausedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-    "shadowPauseReason": sys.argv[2],
-})
-path.parent.mkdir(parents=True, exist_ok=True)
-tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-os.replace(tmp, path)
-PY
-}
-
-shadow_error_code() {
-  python3 - "$STATE_ROOT/outbox/$1/shadow-delivery.json" <<'PY'
-import json, pathlib, sys
-try:
-    print(json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")).get("errorCode") or "")
-except Exception:
-    print("")
-PY
-}
-
-shadow_deliver_one() {
-  local run_id="$1" wait_seconds="${2:-30}" force="${3:-false}" status
-  status="$(shadow_status "$run_id")"
-  case "$status" in
-    complete|conflict|failed|ineligible) return 0 ;;
-    "") [ "$force" = "true" ] || return 0 ;;
-  esac
-  if CLOUDFLARE_INGEST_SINGLE_ATTEMPT=1 CLOUDFLARE_INGEST_REQUEST_TIMEOUT=15 \
-      py Scripts/local/cloudflare_ingest.py --run-id "$run_id" \
-      --wait-seconds "$wait_seconds" --accept-queued; then
-    SHADOW_SUMMARY="Cloudflare 影子已接收或完成"
-    return 0
-  fi
-  status="$(shadow_status "$run_id")"
-  case "$status" in
-    conflict) SHADOW_SUMMARY="Cloudflare 影子发现基线冲突，生产 GitHub 不受影响" ;;
-    failed)
-      SHADOW_SUMMARY="Cloudflare 影子包遇到不可重试协议错误，已停止该包并继续后续包"
-      echo "WARNING: ${SHADOW_SUMMARY}（run ${run_id}）。" >&2
-      return 0
-      ;;
-    ineligible)
-      SHADOW_SUMMARY="发布包超过影子免费层单包门禁，仅继续 GitHub 生产发布"
-      echo "WARNING: ${SHADOW_SUMMARY}（run ${run_id}）。" >&2
-      return 0
-      ;;
-    *) SHADOW_SUMMARY="Cloudflare 影子暂不可用，已保留独立状态" ;;
-  esac
-  echo "WARNING: ${SHADOW_SUMMARY}（run ${run_id}）。" >&2
-  return 1
-}
-
-shadow_retry_existing() {
-  local line run_id sha error retried=0
-  while IFS=$'\t' read -r run_id sha; do
-    [ -n "$run_id" ] || continue
-    [ -f "$STATE_ROOT/outbox/$run_id/shadow-delivery.json" ] || continue
-    case "$(shadow_status "$run_id")" in
-      complete|conflict|failed|ineligible) continue ;;
-    esac
-    if ! shadow_deliver_one "$run_id" 30 true; then
-      error="$(shadow_error_code "$run_id")"
-      error="${error:-CLOUDFLARE_INGEST_UNAVAILABLE}"
-      pause_shadow_automation "$error"
-      SHADOW_SUMMARY="Cloudflare 影子因 ${error} 已自动暂停；GitHub 生产继续"
-      echo "WARNING: ${SHADOW_SUMMARY}。" >&2
-      return 1
-    fi
-    retried=$((retried + 1))
-  done < <(py "$RUN_MANAGER" outbox-list --plain)
-  [ "$retried" -gt 0 ] && SHADOW_SUMMARY="已推进 ${retried} 个 Cloudflare 影子回执" || true
-}
-
 commit_prepared_release() {
   local message="$1"
   if git diff --cached --quiet; then
@@ -664,13 +559,6 @@ commit_prepared_release() {
     --commit "$(git rev-parse HEAD)" >/dev/null || return $?
   DATA_COMMITTED=true
   run_id="$(basename "$RUN_DIR")"
-  # Shadow auto-write is opt-in from the loopback-only panel.  Until the
-  # maintainer explicitly enables it, new bundles continue to use only the
-  # established GitHub production path.
-  if shadow_auto_enabled; then
-    state "shadow-delivering" "将同一 outbox 自动双写到 Cloudflare 免费层影子 ingest"
-    shadow_deliver_one "$run_id" 0 true || true
-  fi
   if [ "$PUSH" = "true" ]; then
     state "delivering" "投递 outbox 发布包到单写者 local-data 分支"
     if ! deliver_outbox; then
@@ -1156,7 +1044,7 @@ case "$command" in
     ;;
 
   publish|deliver)
-    state "delivering" "推进 GitHub 生产投递与已启用的 Cloudflare 影子回执；不重新访问任何数据源"
+    state "delivering" "推进 GitHub 生产投递与回执；不重新访问任何数据源"
     if [ -z "$(py "$RUN_MANAGER" outbox-list --status pending --plain)" ]; then
       # Legacy fallback: HEAD carries a committed manifest from before the
       # outbox existed and it has not been pushed yet. Import it as a bundle.
@@ -1171,10 +1059,6 @@ case "$command" in
         "GitHub 传输或认证失败；可重试发布包保留在 outbox。策略冲突包已单独隔离。"
       PUSH_SUMMARY="已投递 ${DELIVERED_COUNT:-0} 个 GitHub 发布包；新增人工关注 ${DELIVERY_ATTENTION_COUNT:-0} 个"
     fi
-    shadow_auto_enabled && shadow_retry_existing || true
-    if [ -n "$SHADOW_SUMMARY" ]; then
-      PUSH_SUMMARY="${PUSH_SUMMARY}；${SHADOW_SUMMARY}"
-    fi
     ;;
 
   receipts)
@@ -1182,25 +1066,6 @@ case "$command" in
     py_extra Scripts/local/check_receipts.py || fail "RECEIPT_CHECK_FAILED" \
       "部分云端回执暂不可读；已确认的阶段不会回退，稍后只重试 receipts。"
     PUSH_SUMMARY="云端回执已同步；线上验证结果见 outbox 状态"
-    ;;
-
-  shadow-publish)
-    shadow_auto_enabled || fail "CLOUDFLARE_SHADOW_NOT_AUTHORIZED" \
-      "Cloudflare 自动影子双写未启用；请先在本机面板明确授权。"
-    state "shadow-delivering" "仅推进已授权的 Cloudflare 影子回执；不访问来源、不触碰 GitHub"
-    shadow_retry_existing || fail "CLOUDFLARE_SHADOW_AUTO_PAUSED" \
-      "影子端点不可用或状态不确定，自动影子双写已暂停；GitHub 生产不受影响。"
-    PUSH_SUMMARY="${SHADOW_SUMMARY:-Cloudflare 影子没有待推进回执}"
-    ;;
-
-  shadow-deliver)
-    [ "${#EXTRA[@]}" -eq 1 ] || fail "UNSAFE_ARGUMENT_BLOCKED" \
-      "shadow-deliver 只接受一个现有 outbox run-id；不会访问任何数据源。"
-    state "shadow-delivering" "将现有不可变 outbox 双写到 Cloudflare 免费层影子 ingest"
-    py Scripts/local/cloudflare_ingest.py --run-id "${EXTRA[0]}" \
-      || fail "CLOUDFLARE_SHADOW_DELIVERY_FAILED" \
-        "影子投递未完成；GitHub 生产链路和本机 outbox 未改变。"
-    PUSH_SUMMARY="Cloudflare 影子发布完成；生产仍使用 GitHub 链路"
     ;;
 
   reindex)

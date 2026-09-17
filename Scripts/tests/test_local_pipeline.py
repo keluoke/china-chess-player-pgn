@@ -258,7 +258,19 @@ class PanelPipelineTests(unittest.TestCase):
             self.assertEqual(captures["999001"]["status"], "retry-wait")
             self.assertEqual(captures["999002"]["status"], "quarantined")
 
-    def test_shadow_automation_is_independent_and_opt_in(self) -> None:
+    def test_pasted_duplicates_show_existing_capture_and_real_publication(self) -> None:
+        with (mock.patch.object(local_panel, "load_captures", return_value={"100001": {"status": "complete", "capturedAt": "2026-09-01", "parserVersion": local_panel.PARSER_VERSION}}),
+              mock.patch.object(local_panel, "events_payload", return_value={"entries": [{"tournamentID": "100001", "publication": {"status": "online-verified"}}]}),
+              mock.patch.object(local_panel, "_read_json_file", return_value={}),
+              mock.patch.object(local_panel, "start_job") as start):
+            plan = local_panel.capture_plan("100001 https://chess-results.com/tnr100001.aspx 100002")
+        self.assertEqual(len(plan["entries"]), 2)
+        self.assertEqual(plan["entries"][0]["label"], "已完成，可复用")
+        self.assertEqual(plan["entries"][0]["publication"], "已上线验证")
+        self.assertEqual(plan["entries"][1]["label"], "尚未采集")
+        start.assert_not_called()
+
+    def test_retired_shadow_cannot_be_reenabled(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = pathlib.Path(temp)
             automation = root / "automation.json"
@@ -272,11 +284,11 @@ class PanelPipelineTests(unittest.TestCase):
 
                 updated = local_panel.update_automation({"shadowEnabled": True})
                 self.assertTrue(updated["enabled"])
-                self.assertTrue(updated["shadowEnabled"])
+                self.assertFalse(updated["shadowEnabled"])
 
                 disabled_git = local_panel.update_automation({"enabled": False})
                 self.assertFalse(disabled_git["enabled"])
-                self.assertTrue(disabled_git["shadowEnabled"])
+                self.assertFalse(disabled_git["shadowEnabled"])
 
     def test_free_tier_ineligible_shadow_is_visible_without_blocking_git(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -300,7 +312,8 @@ class PanelPipelineTests(unittest.TestCase):
             ):
                 payload = local_panel.automation_payload()
             self.assertEqual(payload["pending"], 1)
-            self.assertEqual(payload["shadowAttention"][0]["status"], "ineligible")
+            self.assertTrue(payload["shadowRetired"])
+            self.assertEqual(payload["attention"], [])
 
     def test_production_merge_conflict_requires_human_attention(self) -> None:
         entries = [
@@ -1622,21 +1635,18 @@ class GitTransportTests(unittest.TestCase):
         publish_start = source.index("  publish|deliver)")
         publish_end = source.index("\n  receipts)", publish_start)
         publish = source[publish_start:publish_end]
-        self.assertLess(publish.index("deliver_outbox"), publish.index("shadow_retry_existing"))
+        self.assertIn("deliver_outbox", publish)
+        self.assertNotIn("shadow_retry_existing", publish)
         self.assertNotIn("所有 GitHub 路线均不可用", publish)
-        self.assertIn('if [ -n "$SHADOW_SUMMARY" ]; then', publish)
         self.assertNotIn('[ -n "$SHADOW_SUMMARY" ] &&', publish)
 
-    def test_shadow_automatic_failure_is_bounded_and_pauses_only_shadow(self) -> None:
+    def test_retired_shadow_rejected_before_runtime_or_network(self) -> None:
         source = REFRESH_SH.read_text(encoding="utf-8")
-        self.assertIn("CLOUDFLARE_INGEST_SINGLE_ATTEMPT=1", source)
-        self.assertIn("CLOUDFLARE_INGEST_REQUEST_TIMEOUT=15", source)
-        self.assertIn('"shadowEnabled": False', source)
-        self.assertIn('"shadowPauseReason": sys.argv[2]', source)
-        self.assertNotIn('"enabled": False', source[source.index("pause_shadow_automation()"):])
-        self.assertGreaterEqual(source.count("complete|conflict|failed|ineligible"), 2)
-        failed_case = source[source.index('    failed)\n', source.index("shadow_deliver_one()")):]
-        self.assertLess(failed_case.index("return 0"), failed_case.index("    ineligible)"))
+        self.assertLess(source.index("CLOUDFLARE_SHADOW_RETIRED"), source.index("workspace_role="))
+        result = subprocess.run(["bash", str(REFRESH_SH), "shadow-deliver", "--", "old-run"], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("CLOUDFLARE_SHADOW_RETIRED", result.stderr)
+        self.assertNotIn("cloudflare_ingest.py", source)
 
 
 class SharedStateProjectionTests(unittest.TestCase):
@@ -1931,12 +1941,12 @@ class PanelBatchResultTests(unittest.TestCase):
         start = source.index("def automation_monitor()")
         end = source.index("\ndef stop_job", start)
         monitor = source[start:end]
-        self.assertIn('"shadow-publish" if shadow_pending', monitor)
+        self.assertNotIn("shadow-publish", monitor)
         self.assertIn("if git_enabled else []", monitor)
-        self.assertIn("if (not git_enabled and not shadow_enabled)", monitor)
+        self.assertIn("if not git_enabled", monitor)
         self.assertNotIn("event-queue", monitor)
         self.assertIn("自动推进 GitHub 生产发布", local_panel.PAGE)
-        self.assertIn("自动双写 Cloudflare 影子", local_panel.PAGE)
+        self.assertNotIn("自动双写 Cloudflare 影子", local_panel.PAGE)
 
     def test_panel_automation_quarantines_online_hash_mismatch(self) -> None:
         with (

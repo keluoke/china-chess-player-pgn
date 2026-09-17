@@ -16,7 +16,6 @@ import build_static_player_pgn as pgn
 import build_person_observations as observations
 import sync_domestic_players as domestic
 import build_release_snapshot as snapshot
-import cloudflare_ingest as shadow
 from pgn_matching import GameLookup
 
 
@@ -141,16 +140,5 @@ class BoundaryTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'SNAPSHOT_BUILDER_MISSING'):
                 snapshot.preflight_builders()
             run.assert_not_called()
-
-    def test_shared_protocol_fixture(self):
-        fixture=json.loads((ROOT/'cloudflare/ingest/test/protocol-v1.json').read_text())
-        self.assertEqual(fixture['schemaVersion'],1)
-        r=fixture['canonicalRequest']
-        self.assertEqual(shadow.canonical_request(r['method'],r['path'],r['timestamp'],r['nonce'],r['digest']),fixture['expectedRequest'])
-        raw=shadow.chunk_fingerprint_bytes(fixture['files'])
-        self.assertEqual(raw.decode(),fixture['expectedChunk'])
-        self.assertEqual(hashlib.sha256(raw).hexdigest(),fixture['chunkSha256'])
-        limits=fixture['limits']
-        self.assertEqual((shadow.MAX_RELEASE_FILES,shadow.MAX_RELEASE_BYTES,shadow.MAX_FILE_BYTES,shadow.MAX_CHUNK_FILES,shadow.MULTIPART_PART_BYTES),(limits['maxFiles'],limits['maxBytes'],limits['maxFileBytes'],limits['chunkFiles'],limits['partBytes']))
 
 if __name__=='__main__':unittest.main()

@@ -20,11 +20,11 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 SAFE_COMMANDS = {
     "health", "all", "registry", "event-queue", "discover-events", "candidates",
     "bulk", "bulk-full", "bulk-reindex", "publish", "deliver", "receipts", "reindex",
-    "recover-events", "storage-migrate", "shadow-publish", "shadow-deliver", "help",
+    "recover-events", "storage-migrate", "help",
 }
 RETIRED_COMMANDS = {
     "crawl", "crawl-full", "pgn", "pgn-full", "events", "events-full",
-    "aliases", "promote", "reconcile", "verify", "contrib",
+    "aliases", "promote", "reconcile", "verify", "contrib", "shadow-publish", "shadow-deliver",
 }
 
 COMMAND_PATTERN = re.compile(r"refresh\.sh[ \t]+([a-z][a-z-]*)")

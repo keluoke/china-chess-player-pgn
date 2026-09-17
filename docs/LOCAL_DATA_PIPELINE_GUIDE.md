@@ -1,69 +1,33 @@
-# 本地数据抓取管线操作指南
+# 产品架构与部署：极简说明
 
-## 当前流程
+本机采集 → 清洗校验 → GitHub 入库 → 统一重建 → Cloudflare 网站与棋谱 → 用户。
 
-```text
-住宅网络本机抓取
-  → 私有 raw / 逐页检查点
-  → 本地清洗与完整性校验
-  → 不可变 outbox + SHA-256 manifest
-  ├→ GitHub local-data → main ingest → 离线 rebuild → Cloudflare Pages（生产）
-  └→ 鉴权 Worker → R2/D1/Queue → 影子快照与回执（可选、非生产）
-```
+| 部分 | 职责 |
+|---|---|
+| 本机 kimi | 住宅网络采集赛事详情；原始页面、断点、待发布包留在本机 |
+| 本机 kimi-code | 维护代码和人工规则，提交 main |
+| GitHub / Git | 管理版本；结构化机器数据目前仍通过 local-data 入库 main |
+| GitHub Actions | 执行入库、测试、统一重建、认证 R2 对象、部署及线上验证 |
+| Cloudflare Pages / Functions | 提供网站、静态索引和轻量 API |
+| Cloudflare 生产 R2 | 保存和提供棋谱、月度广播归档 |
 
-数据不是默认直接写入 Cloudflare 生产。Git 生产链路仍承担代码/人工数据边界、
-当前 main 基线、可审计提交和离线重建；Cloudflare ingest 目前只做独立影子双写。
+代码走 main；本机机器数据走 local-data → main。FIDE 官方月榜和 Lichess 月度广播由专用 Actions 定时维护，再接入统一重建发布。用户浏览网站不会触发抓取。
 
-## 日常操作
+发布完成需同时通过入库、重建、R2 认证、部署、线上验证。失败只重试相应阶段，绝不为发布失败重新抓来源。
 
-1. 双击根目录“`一键抓取面板.command`”，或运行：
+影子双写于 2026-09-17 经维护者决定归档退役；源码与旧契约保存在 archive/cloudflare-shadow。旧开关和命令不能恢复写入，历史回执保留。生产 Cloudflare 服务继续使用。
 
-   ```bash
-   python3 Scripts/local/panel.py
-   ```
+## 采集操作
 
-2. 先点“环境健康检查”。只有来源直连、私有状态区和发布路径预检通过后再抓取。
-3. 在“抓取指定赛事”粘贴 TNR、`tnr123456`、Chess-Results URL，或从表格复制的
-   逗号/空白分隔文本；面板会在后端再次校验、去重，每批最多 10 场。
-4. 点击开始后观察逐场状态。`partial` 可续跑缺页，`retry-wait` 等待退避到期，
-   `quarantined`/`unsupported` 需要检查保存的私有证据或更新解析器；不要用重抓
-   代替发布重投。
-5. “GitHub 生产自动推进”默认开启。面板把 outbox 依次推进到
-   `online-verified`；只有这个状态才表示生产线上已确认。
-6. 若要参与 Cloudflare 影子对账，单独开启“Cloudflare 自动影子双写”并确认授权。
-   它不会切换生产读取，也不会替代 GitHub 回执。
+双击仓库根目录“一键抓取面板.command”，粘贴赛事链接。输入即显示已有采集和发布状态，相同赛事 ID 去重。
 
-## 发布与故障恢复
+- 采集 / 补缺：复用已有完整结果；未完成赛事补缺并更新过期页面。
+- 检查更新：明确访问源站重新核对页面，用于赛后更正。
+- 离线重解析：用本地原始页面应用新版解析器，禁止后续 PGN 网络步骤。
+- 仅补棋谱：要求已有完整赛事结果；不重复抓取名单、排名和对阵。
 
-只重投现有 outbox，不访问任何数据源：
+页面读缓存先校验 SHA-256 与字节数，复制缓存保留真实抓取时间。未完成、日期未知或赛后 14 天内的赛事页面默认 24 小时失效，曾失败页面 6 小时失效；自动队列的近期完整赛事每日最多检查一次。确认完赛超过 14 天的完整结果长期复用；仍可手动检查更新。解析器版本变更优先离线重解析。
 
-```bash
-bash Scripts/local/refresh.sh publish
-bash Scripts/local/refresh.sh receipts
-```
+默认调度不主动抓尚未结束的赛事，显式输入可采集。结构性隔离和网络退避门禁继续生效；来源未公开棋谱不进入无意义补抓。
 
-若 GitHub 自动推进已暂停、只需继续已授权的影子回执：
-
-```bash
-bash Scripts/local/refresh.sh shadow-publish
-```
-
-显式回填某个历史包到影子服务：
-
-```bash
-bash Scripts/local/refresh.sh shadow-deliver -- <run-id>
-```
-
-- GitHub 网络失败：保留 `pending`，恢复后运行 `publish`，不要重新抓取。
-- `RELEASE_BASE_CONFLICT`：整包隔离，人工核对 baseline/current/candidate。
-- 影子 `ineligible`：逻辑包超过 384 文件、96 MiB 或单文件 96 MiB；按契约不上传。
-  16 MiB 以上的合格文件自动使用 8 MiB multipart 传输片，合成完成前不形成快照。
-  384 文件以内由客户端和 Queue 自动按 10 文件分块处理，但对外仍是一个原子快照；
-  GitHub 生产继续。
-- 影子 `conflict`/`failed`：只处理影子回执，不回滚已验证的 GitHub 生产阶段。
-
-## 切流条件
-
-Cloudflare 影子只有在连续 7 天、至少 20 个合格真实包逐路径 SHA-256 对账一致，
-并完成幂等、乱序、冲突、Queue 重试、配额耗尽、回滚和原始 URL 验证后，才允许
-另行评审生产切流。在契约状态仍为 `shadow` 时，面板和脚本不得绕过 Git。
+命令与完整维护契约见 [本地采集说明](../Scripts/local/README.md)。

@@ -106,7 +106,7 @@ class ReleaseConflictSuccessorTests(unittest.TestCase):
             self.assertEqual(selected[path][2]["operation"], "delete")
             self.assertIsNone(successor.candidate_content(selected[path][1], selected[path][2]))
 
-    def test_manifest_records_separate_production_and_shadow_baselines(self):
+    def test_manifest_uses_production_baseline_without_shadow_dependency(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             path = "data/generated/chess-results-event-details/tnr2.json"
@@ -124,27 +124,12 @@ class ReleaseConflictSuccessorTests(unittest.TestCase):
                 production_commit="b" * 40,
                 production_oids={path: "c" * 40},
                 production_contents={path: b"old"},
-                shadow_heads={path: {"sha256": "d" * 64, "deleted": 0}},
             )
             item = manifest["files"][0]
             self.assertEqual(item["baseBlobOid"], "c" * 40)
             self.assertEqual(item["baseSha256"], hashlib.sha256(b"old").hexdigest())
-            self.assertEqual(item["shadowBaseSha256"], "d" * 64)
+            self.assertNotIn("shadowBaseSha256", item)
             self.assertEqual(contents[path], content)
-
-    def test_completed_shadow_migration_loads_as_baseline(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            migration = pathlib.Path(temporary)
-            (migration / "migration.json").write_text(json.dumps({
-                "migrationId": "baseline-test",
-                "status": "delivered",
-                "entries": [["data/generated/example.json", "a" * 40, "b" * 64, 2, "chess-results"]],
-                "packages": [{"status": "complete"}],
-                "cleanupPackages": [{"status": "complete"}],
-            }), encoding="utf-8")
-            migration_id, heads = successor.load_shadow_baseline(migration)
-            self.assertEqual(migration_id, "baseline-test")
-            self.assertEqual(heads["data/generated/example.json"]["sha256"], "b" * 64)
 
     def test_github_get_retries_read_failure(self):
         failure = __import__("subprocess").CalledProcessError(1, ["gh"], stderr=b"TLS")

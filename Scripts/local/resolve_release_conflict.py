@@ -4,7 +4,7 @@
 The source outbox bundles remain untouched.  Candidate files are selected in
 the supplied run order (later runs win duplicate paths), explicit rejected
 paths are either omitted or converted to reviewed deletes, and the successor
-records separate production-main and Cloudflare-shadow baselines.  This
+records the reviewed production-main baseline.  This
 command never contacts a chess source.
 """
 
@@ -28,8 +28,6 @@ SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-import cloudflare_baseline  # noqa: E402
-import cloudflare_ingest  # noqa: E402
 import publish_data_via_api  # noqa: E402
 import run_manager  # noqa: E402
 from source_policy import local_state_root  # noqa: E402
@@ -147,23 +145,6 @@ def reject_partial_event_candidates(
             raise SuccessorError(f"PARTIAL_EVENT_CANDIDATE_FORBIDDEN: {path}")
 
 
-def load_shadow_baseline(migration_dir: pathlib.Path) -> tuple[str, dict[str, dict[str, Any]]]:
-    root_path = migration_dir / "migration.json"
-    if not root_path.is_file():
-        raise SuccessorError(f"SHADOW_BASELINE_MISSING: {migration_dir}")
-    root = json.loads(root_path.read_text(encoding="utf-8"))
-    if root.get("status") not in {"delivered", "reconciled"}:
-        raise SuccessorError("SHADOW_BASELINE_INCOMPLETE")
-    packages = [*(root.get("packages") or []), *(root.get("cleanupPackages") or [])]
-    if any(item.get("status") != "complete" for item in packages):
-        raise SuccessorError("SHADOW_BASELINE_PACKAGE_INCOMPLETE")
-    heads = {
-        str(row[0]): {"path": str(row[0]), "sha256": str(row[2]), "deleted": 0}
-        for row in (root.get("entries") or [])
-    }
-    return str(root.get("migrationId") or migration_dir.name), heads
-
-
 def build_manifest(
     *,
     run_id: str,
@@ -174,7 +155,6 @@ def build_manifest(
     production_commit: str,
     production_oids: dict[str, str],
     production_contents: dict[str, bytes],
-    shadow_heads: dict[str, dict[str, Any]],
 ) -> tuple[dict[str, Any], dict[str, bytes]]:
     files: list[dict[str, Any]] = []
     contents: dict[str, bytes] = {}
@@ -186,8 +166,6 @@ def build_manifest(
         if current_oid and current_content is None:
             raise SuccessorError(f"PRODUCTION_BASE_CONTENT_MISSING: {path}")
         current_sha = hashlib.sha256(current_content).hexdigest() if current_content is not None else None
-        shadow = shadow_heads.get(path) or {}
-        shadow_sha = None if int(shadow.get("deleted") or 0) else shadow.get("sha256")
         item = {
             "path": path,
             "operation": source_item["operation"],
@@ -195,7 +173,6 @@ def build_manifest(
             "bytes": int(source_item.get("bytes") or 0),
             "baseBlobOid": current_oid,
             "baseSha256": current_sha,
-            "shadowBaseSha256": shadow_sha,
             "sourceRunId": source_run_id,
         }
         files.append(item)
@@ -218,7 +195,6 @@ def build_manifest(
         "files": files,
     }
     run_manager.validate_manifest(manifest)
-    cloudflare_ingest.validate_shadow_limits({"files": files})
     return manifest, contents
 
 
@@ -272,8 +248,6 @@ def main() -> int:
     parser.add_argument("--delete-path", action="append", default=[])
     parser.add_argument("--run-id", default=default_run_id())
     parser.add_argument("--state-root", type=pathlib.Path, default=local_state_root())
-    parser.add_argument("--endpoint", default=cloudflare_ingest.DEFAULT_ENDPOINT)
-    parser.add_argument("--shadow-baseline-migration-dir", type=pathlib.Path)
     parser.add_argument("--prepare", action="store_true")
     args = parser.parse_args()
     if not re.fullmatch(r"[0-9]{8}-[0-9]{6}-[0-9a-f]{8}", args.run_id):
@@ -309,16 +283,6 @@ def main() -> int:
             else:
                 production_contents[path] = github_blob_bytes(repository, oid)
 
-        shadow_baseline_id = None
-        if args.shadow_baseline_migration_dir:
-            shadow_baseline_id, shadow_heads = load_shadow_baseline(
-                args.shadow_baseline_migration_dir.resolve(),
-            )
-        else:
-            secret = cloudflare_ingest.ingest_secret()
-            if not secret:
-                raise SuccessorError("CLOUDFLARE_INGEST_HMAC_SECRET is required")
-            shadow_heads = cloudflare_baseline.fetch_heads(args.endpoint, secret)
         manifest, contents = build_manifest(
             run_id=args.run_id,
             sources=sources,
@@ -328,10 +292,7 @@ def main() -> int:
             production_commit=str(production_commit),
             production_oids=production_oids,
             production_contents=production_contents,
-            shadow_heads=shadow_heads,
         )
-        if shadow_baseline_id:
-            manifest["resolution"]["shadowBaselineMigrationId"] = shadow_baseline_id
         summary = {
             "runId": args.run_id,
             "sourceRunIds": args.source_run,
@@ -348,7 +309,6 @@ def main() -> int:
         return 0
     except (
         SuccessorError,
-        cloudflare_ingest.ShadowDeliveryError,
         run_manager.RunManagerError,
         OSError,
         json.JSONDecodeError,

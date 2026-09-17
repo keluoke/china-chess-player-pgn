@@ -12,26 +12,11 @@
 
 ## 本地采集与 GitHub 投递铁律
 
-### Cloudflare 免费层影子 ingest（迁移期硬契约）
+### Cloudflare 影子链已归档退役
 
-- 机器数据直达 Cloudflare 的新链路当前仅允许 `shadow` 双写，不得替代生产
-  `local-data → main → rebuild → deploy`。完整契约见
-  `docs/CLOUDFLARE_INGEST_CONTRACT.md`。
-- 专用 Worker/R2/D1/Queue 必须保持免费计划，禁止自动升级或配置付费资源。服务
-  硬上限：8 releases/day、384 files/logical release、96 MiB/release、96 MiB/file；
-  超过 16 MiB 必须按固定 8 MiB multipart 片传输（最多 12 片）、
-  5,000 Worker requests/day、100,000 D1 reads/day、30,000 D1 writes/day、
-  1,000 Queue ops/day、100,000 R2 Class A/month、250,000 Class B/month、
-  128 MiB D1、1 GiB 影子 R2 预留。Free 单次调用最多 50 个子请求，10 文件合并片
-  最坏少于 30 个；Queue consumer 并发固定为 1。任一额度无法确认或达到上限即 fail-closed。
-- Worker 只做 HMAC 鉴权、manifest/路径/哈希门禁和流式 R2 写；普通 HTTP 请求禁止
-  执行整库解析或索引重建。Queue 分片/异步处理，D1 只存小型元数据、path head、
-  snapshot 指针和 receipt，PGN/大 JSON 正文只存内容寻址 R2 对象。
-- `data/manual/`、`data/community/`、代码与 schema 继续只走 Git；原始 HTML/WARC
-  永不上传。影子链路仍须保持 registry 权威压制和 baseline/current/candidate
-  fail-closed 冲突隔离。
-- 未达到契约规定的连续 7 天且至少 20 包双写对账、冲突/幂等/配额/回滚演练前，
-  禁止把 Cloudflare ingest 切为生产主入口。
+- 影子双写已于 2026-09-17 经维护者决定退役；禁止启用旧 Worker、客户端或自动双写。
+- 历史源码和契约保存在 `archive/cloudflare-shadow/`，历史 outbox/回执及影子数据保留。
+- 生产仍走 `local-data → main → rebuild → deploy`；Cloudflare Pages、Functions 和生产 R2 继续服务。
 
 1. Chess-Results/FIDE 详情访问只允许维护者本机住宅网络执行；GitHub Actions、
    云主机、社区贡献工具不得回抓。其唯一入口是
@@ -187,11 +172,7 @@
   但不承载采集运行状态、机器产物或 outbox。
 - 采集与投递解耦:GitHub push 失败只把发布包标记为 delivery-pending 留在 outbox，
   不阻塞后续采集；恢复后运行 `refresh.sh publish` 重投。
-- 面板把 GitHub 生产推进与 Cloudflare 影子双写设为两个独立开关。生产推进默认
-  开启；影子双写必须由维护者显式开启，默认关闭。一个逻辑发布包最多 384 文件、
-  96 MiB，单文件最多 96 MiB；超过 16 MiB 以固定 8 MiB multipart 片上传并在 Queue
-  原子合成。客户端以 10 文件注册分块、Queue 以 10 文件合并分块，
-  最终只允许一次原子快照提交。分块是服务内部实现，不得拆成多个可见快照或降低原子性。
+- 面板只自动推进 GitHub 生产发布与回执，不自动抓取；影子入口已退役。
 - chess-results / FIDE 详情抓取必须直连住宅 IP(封数据中心 IP);终端 GitHub 访问显式
   注入 127.0.0.1:15236，`scutil` 只能用于发现候选代理，不能视为终端已继承代理。
 - CI 里绝不能回抓 chess-results(GitHub IP 被封);Chess-Results 只在维护者本机

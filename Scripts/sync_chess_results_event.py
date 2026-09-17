@@ -12,6 +12,7 @@ replays the private raw pages offline (``--replay``) with zero source access.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import datetime as dt
 import gzip
 import hashlib
@@ -284,10 +285,14 @@ class PageStore:
         *,
         offline: bool = False,
         reuse_cache: bool = True,
+        max_age_seconds: int | None = None,
+        failed_page: str | None = None,
     ):
         self.root = root
         self.extra_roots = [path for path in extra_roots if path and path.is_dir()] if reuse_cache else []
         self.offline = offline
+        self.max_age_seconds = max_age_seconds
+        self.failed_page = failed_page
 
     def _meta_path(self, root: pathlib.Path, tournament_id: str) -> pathlib.Path:
         return root / f"tnr{tournament_id}" / "pages.json"
@@ -313,22 +318,32 @@ class PageStore:
                 continue
             try:
                 body = gzip.decompress(target.read_bytes()).decode("utf-8", errors="replace")
-            except OSError:
+            except (OSError, EOFError):
                 continue
+            raw = body.encode("utf-8")
+            if meta.get("sha256") != hashlib.sha256(raw).hexdigest() or meta.get("bytes") != len(raw):
+                if self.offline:
+                    raise EventCaptureError("PAGE_CACHE_CORRUPT", "本地缓存哈希不一致；原档保留，请在线检查更新。", failed_page=kind, structural=False)
+                continue
+            if not self.offline and self.max_age_seconds is not None:
+                stamp = parse_timestamp(meta.get("fetchedAt"))
+                ttl = min(self.max_age_seconds, 6 * 3600) if kind == self.failed_page else self.max_age_seconds
+                if stamp is None or (dt.datetime.now(dt.timezone.utc) - stamp).total_seconds() >= ttl:
+                    continue
             url = str(meta.get("url") or page_url(tournament_id, 0, None))
             if self.root and root != self.root:
-                self.save(tournament_id, kind, url, body, request_url=str(meta.get("requestURL") or ""))
+                self.save(tournament_id, kind, url, body, request_url=str(meta.get("requestURL") or ""), fetched_at=meta.get("fetchedAt"))
             return body, url
         return None
 
-    def save(self, tournament_id: str, kind: str, url: str, body: str, *, request_url: str = "") -> dict[str, Any]:
+    def save(self, tournament_id: str, kind: str, url: str, body: str, *, request_url: str = "", fetched_at: str | None = None) -> dict[str, Any]:
         content = body.encode("utf-8")
         entry = {
             "url": url,
             "requestURL": request_url or url,
             "sha256": hashlib.sha256(content).hexdigest(),
             "bytes": len(content),
-            "fetchedAt": now_iso(),
+            "fetchedAt": fetched_at or now_iso(),
         }
         if self.root is None:
             return entry
@@ -1216,6 +1231,15 @@ def parse_timestamp(value: Any) -> dt.datetime | None:
     return stamp.astimezone(dt.timezone.utc)
 
 
+def cache_max_age(entry: dict[str, Any]) -> int | None:
+    """Only final results older than the correction window are immutable."""
+    end = parse_timestamp(str(entry.get("dateEnd") or ""))
+    if (entry.get("status") == "complete" and end
+            and end < dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=14)):
+        return None
+    return 24 * 3600
+
+
 def should_skip_target(entry: dict[str, Any], refresh_days: int) -> str:
     """Return a skip reason for queue scheduling, or '' to attempt the target."""
     if not entry:
@@ -1223,8 +1247,12 @@ def should_skip_target(entry: dict[str, Any], refresh_days: int) -> str:
     status = entry.get("status") or "complete"
     now = dt.datetime.now(dt.timezone.utc)
     if status == "complete":
-        stamp = parse_timestamp(entry.get("capturedAt"))
-        if stamp and refresh_days > 0 and stamp >= now - dt.timedelta(days=refresh_days):
+        if entry.get("parserVersion") and entry["parserVersion"] != PARSER_VERSION:
+            return ""
+        if cache_max_age(entry) is None:
+            return "historical-complete"
+        stamp = parse_timestamp(entry.get("lastSourceCheckAt") or entry.get("capturedAt"))
+        if stamp and refresh_days > 0 and stamp >= now - dt.timedelta(days=min(refresh_days, 1)):
             return "recently-captured"
         return ""
     if status in {"quarantined", "retry-wait"}:
@@ -1318,9 +1346,12 @@ def record_target_result(
             "players": len(payload.get("players", [])),
             "rounds": len(payload.get("rounds", [])),
             "standings": len(payload.get("standings", [])),
+            "dateEnd": payload.get("dateEnd"),
             "format": payload.get("format"),
             "releasePolicy": payload.get("releasePolicy") or chess_results_release_policy(),
         })
+    if collector is not None and collector.pages_fetched:
+        entry["lastSourceCheckAt"] = now_iso()
     if status == "complete":
         entry.update(status="complete", errorCode=None, failedPage=None, nextRetryAt=None, structureFailures=0)
         events[tournament_id] = entry
@@ -1378,6 +1409,9 @@ def main() -> int:
     parser.add_argument("--delay", type=float, default=1.0)
     parser.add_argument("--max-rounds", type=int, default=0)
     parser.add_argument("--overwrite", action="store_true")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--check-updates", action="store_true", help="检查源站最新页面，不复用旧页")
+    modes.add_argument("--pgn-only", action="store_true", help="只补已有完整赛事的棋谱，不抓赛事详情")
     parser.add_argument(
         "--force-source", action="store_true",
         help="force fresh event-page requests instead of reusing previous-run raw cache",
@@ -1407,11 +1441,22 @@ def main() -> int:
         help="--publish 的旧别名",
     )
     args = parser.parse_args()
+    if args.replay and (args.check_updates or args.pgn_only):
+        raise SystemExit("离线重解析不能同时检查更新或补抓棋谱")
+    if args.pgn_only and (args.force_source or args.overwrite or args.no_pgn):
+        raise SystemExit("仅补棋谱不能强制刷新详情或禁用棋谱")
+    if args.check_updates:
+        args.force_source = True
+        args.overwrite = True
+    if args.replay:
+        args.no_pgn = True  # Offline replay must never invoke a network PGN step.
     if args.force_source and args.replay:
         raise SystemExit("--force-source 与 --replay 不能同时使用")
     publish = args.publish or args.authorized_publication
     if args.from_queue > 10:
         raise SystemExit("单次赛事队列最多 10 个目标；请拆分运行以保护访问预算。")
+    if args.pgn_only and (not publish or args.from_queue):
+        raise SystemExit("仅补棋谱需要显式赛事 ID 和发布模式")
     if publish:
         require_chess_results_publication()
     private_root = (
@@ -1528,6 +1573,7 @@ def main() -> int:
     stats: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
     budget_stopped = False
+    pgn_targets: list[str] = []
     for tid in ids:
         entry = captured_events.get(tid) if isinstance(captured_events.get(tid), dict) else {}
         # Reuse raw pages from this run and from the previous attempt so a
@@ -1537,28 +1583,40 @@ def main() -> int:
         previous_root = entry.get("runPrivateRoot") if entry else None
         if previous_root and not args.force_source:
             extra_roots.append(pathlib.Path(previous_root) / "raw" / "chess-results")
+        parser_replay = bool(entry.get("parserVersion") and entry["parserVersion"] != PARSER_VERSION
+                             and previous_root and not args.force_source and not args.pgn_only)
+        offline = args.replay or parser_replay
         store = PageStore(
             None if args.dry_run else snapshot_output,
             extra_roots,
-            offline=args.replay,
+            offline=offline,
             reuse_cache=not args.force_source,
+            max_age_seconds=cache_max_age(entry),
+            failed_page=entry.get("failedPage"),
         )
+        collector_options = dataclasses.replace(options, offline=offline)
         collector = EventCollector(
-            tid, options, store, queue_rounds=rounds_metadata.get(tid, 0), progress=progress_writer,
+            tid, collector_options, store, queue_rounds=rounds_metadata.get(tid, 0), progress=progress_writer,
         )
         output = output_root / f"tnr{tid}.json"
         public_output = PUBLIC_OUTPUT / f"tnr{tid}.json"
         preview_output = output
         try:
             reusable_output = public_output if publish else output
+            if args.pgn_only and not public_output.exists():
+                raise EventCaptureError("PGN_REQUIRES_COMPLETE_EVENT", "请先采集完整赛事结果，再补棋谱。", structural=False)
             if (
                 reusable_output.exists()
                 and not args.overwrite
+                and not parser_replay
+                and (not entry or entry.get("status") == "complete" or args.pgn_only)
                 and not args.force_source
                 and tid not in queued_ids
                 and not args.replay
             ):
                 payload = json.loads(reusable_output.read_text(encoding="utf-8"))
+                if args.pgn_only and payload.get("captureStatus", "complete") != "complete":
+                    raise EventCaptureError("PGN_REQUIRES_COMPLETE_EVENT", "赛事结果尚未完整，不能仅补棋谱。", structural=False)
                 preview_output = reusable_output
             else:
                 payload = collector.collect()
@@ -1642,18 +1700,21 @@ def main() -> int:
             standings=len(payload.get("standings", [])), cachedPages=collector.pages_cached,
             preview=str(preview_output) if not args.dry_run else None,
         )
+        if not offline and (collector.pages_fetched or args.pgn_only or not entry):
+            pgn_targets.append(tid)
         if not args.dry_run:
+            checkpoint_root = private_root if collector.pages_fetched or collector.pages_cached else (pathlib.Path(previous_root) if previous_root else None)
             if status == "complete":
                 record_target_result(
                     captured_events, tid, status="complete",
-                    private_root=private_root, payload=payload, collector=collector,
+                    private_root=checkpoint_root, payload=payload, collector=collector,
                 )
             else:
                 record_target_result(
                     captured_events, tid, status="partial",
                     error_code=payload.get("captureErrorCode") or "",
                     failed_page=payload.get("failedPage") or "",
-                    structural=True, private_root=private_root, payload=payload, collector=collector,
+                    structural=True, private_root=checkpoint_root, payload=payload, collector=collector,
                 )
             # Checkpoint each target immediately: a later failure never erases
             # earlier completed captures.
@@ -1663,6 +1724,7 @@ def main() -> int:
     # layers; without it, collection stays entirely in the private run area.
     # Manual/community data is never mutated in either mode.
     complete_ids = [item["tournamentID"] for item in stats if item.get("status") == "complete"]
+    pgn_ids = [tid for tid in complete_ids if tid in pgn_targets and not source_explicitly_omits_pgn(tid)]
     if publish and not args.dry_run and not args.no_players and complete_ids:
         command = [
             sys.executable,
@@ -1677,14 +1739,14 @@ def main() -> int:
                 "domestic-players",
                 [sys.executable, "Scripts/sync_domestic_players.py"],
             )
-    if publish and not args.dry_run and not args.no_pgn and complete_ids:
+    if publish and not args.dry_run and not args.no_pgn and pgn_ids:
         command = [sys.executable, "-u", "Scripts/fetch_event_pgn.py", "--workers", "1", "--full-archive"]
         command.extend(["--private-root", str(private_root)])
         if args.overwrite:
             command.append("--overwrite")
         if args.no_rebuild:
             command.append("--defer-status-rebuild")
-        for tid in complete_ids:
+        for tid in pgn_ids:
             command.extend(["--tournament-id", tid])
         # Exit 4 is fetch_event_pgn's documented partial outcome: event pages
         # may be complete while one PGN endpoint is temporarily unavailable.
@@ -1696,7 +1758,7 @@ def main() -> int:
             allowed_returncodes=(0, 4),
         )
         if pgn_returncode == 4:
-            for tid in complete_ids:
+            for tid in pgn_ids:
                 archive = EVENT_PGN_ARCHIVE / f"tnr{tid}.pgn"
                 if archive.is_file() or source_explicitly_omits_pgn(tid):
                     continue
@@ -1705,7 +1767,6 @@ def main() -> int:
                     tid,
                     status="failed",
                     error_code="PGN_COLLECTION_INCOMPLETE",
-                    private_root=private_root,
                 )
                 failures.append({"tournamentID": tid, "errorCode": "PGN_COLLECTION_INCOMPLETE"})
             checkpoint()
