@@ -1580,6 +1580,7 @@ def main() -> int:
         # resume never re-requests a page that already passed hash-checked
         # persistence.
         extra_roots: list[pathlib.Path] = []
+        pgn_retry = entry.get("errorCode") == "PGN_COLLECTION_INCOMPLETE"
         previous_root = entry.get("runPrivateRoot") if entry else None
         if previous_root and not args.force_source:
             extra_roots.append(pathlib.Path(previous_root) / "raw" / "chess-results")
@@ -1609,7 +1610,7 @@ def main() -> int:
                 reusable_output.exists()
                 and not args.overwrite
                 and not parser_replay
-                and (not entry or entry.get("status") == "complete" or args.pgn_only)
+                and (not entry or entry.get("status") == "complete" or args.pgn_only or pgn_retry)
                 and not args.force_source
                 and tid not in queued_ids
                 and not args.replay
@@ -1700,7 +1701,7 @@ def main() -> int:
             standings=len(payload.get("standings", [])), cachedPages=collector.pages_cached,
             preview=str(preview_output) if not args.dry_run else None,
         )
-        if not offline and (collector.pages_fetched or args.pgn_only or not entry):
+        if not offline and (collector.pages_fetched or args.pgn_only or pgn_retry or not entry):
             pgn_targets.append(tid)
         if not args.dry_run:
             checkpoint_root = private_root if collector.pages_fetched or collector.pages_cached else (pathlib.Path(previous_root) if previous_root else None)

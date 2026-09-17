@@ -89,6 +89,19 @@ class CaptureModeTests(unittest.TestCase):
                 code,post=self.invoke(root,lambda *a,**k: self.fail('network'),'two')
             self.assertEqual(code,0); post.assert_not_called()
 
+    def test_pgn_failure_retry_does_not_recapture_event_details(self):
+        with tempfile.TemporaryDirectory() as name:
+            root=pathlib.Path(name)
+            self.invoke(root,FakeFetcher(),'one')
+            state=root/'capture-state.json'
+            payload=json.loads(state.read_text())
+            payload['events']['999001'].update(status='retry-wait',errorCode='PGN_COLLECTION_INCOMPLETE')
+            state.write_text(json.dumps(payload))
+            code,post=self.invoke(root,lambda *a,**k: self.fail('details fetched'),'two')
+            self.assertEqual(code,0)
+            self.assertEqual(post.call_count,1)
+            self.assertIn('Scripts/fetch_event_pgn.py',post.call_args.args[0])
+
     def test_pgn_only_without_results_fails_before_network(self):
         with tempfile.TemporaryDirectory() as name:
             code,post=self.invoke(pathlib.Path(name),lambda *a,**k: self.fail('network'),'one',['--pgn-only'])
