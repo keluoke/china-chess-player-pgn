@@ -79,6 +79,8 @@ MASTER_STATION_TRANSLATIONS = {
     "jian": "吉安站",
     "liaocheng": "聊城站",
     "nanning": "南宁站",
+    "nanjing": "南京站",
+    "shanghai": "上海站",
     "panjin": "盘锦站",
     "qingdao": "青岛站",
     "qinhuangdao": "秦皇岛站",

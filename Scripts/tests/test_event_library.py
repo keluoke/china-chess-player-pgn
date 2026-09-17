@@ -19,13 +19,13 @@ class EventLibraryTests(unittest.TestCase):
     def test_master_station_aliases_survive_library_and_summary(self):
         from build_master_series_summary import build_summary
         events = []
-        for tid, spelling, city in [('1426529', 'Jiaxing', '嘉兴'), ('1458883', 'Huhehaote', '呼和浩特'), ('1449565', 'Danzhou', '儋州')]:
+        for tid, spelling, city in [('1426529', 'Jiaxing', '嘉兴'), ('1458883', 'Huhehaote', '呼和浩特'), ('1449565', 'Danzhou', '儋州'), ('1479778', 'Shanghai', '上海'), ('1488265', 'Nanjing', '南京')]:
             events.append({'id': tid, 'tournamentID': tid, 'name': f'2026 National Amateur Chess Master Tournament - Open ({spelling} Station)',
                            'year': '2026', 'date': '2026-07-01', 'detailStatus': 'published'})
         build_editions(events, {})
         result = build_summary({'events': events}, {'events': []})
         stations = result['years'][0]['stations']
-        self.assertEqual({s['station'] for s in stations}, {'嘉兴站', '呼和浩特站', '儋州站'})
+        self.assertEqual({s['station'] for s in stations}, {'嘉兴站', '呼和浩特站', '儋州站', '上海站', '南京站'})
         self.assertTrue(all(g['groupLabel'] == '公开组' for s in stations for g in s['groups']))
 
     def test_series_are_distinct_and_history_is_inherited(self):
