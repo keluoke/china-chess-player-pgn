@@ -151,11 +151,16 @@ function renderYears() {
   let visibleStations = 0;
   elements.yearSections.innerHTML = payload.years.map((year, yearIndex) => {
     let stationIndex = 0;
+    const pendingStations = [];
     const stations = year.stations.map((station) => {
       const groups = station.groups.filter(groupMatches);
       if (!groups.length) return "";
       visibleGroups += groups.length;
       visibleStations += 1;
+      if (station.station === "站名待核") {
+        pendingStations.push(...groups);
+        return "";
+      }
       stationIndex += 1;
       return `<article class="station-card">
         <header class="station-head">
@@ -172,6 +177,7 @@ function renderYears() {
         <p><strong>${formatNumber(year.stationCount)}</strong> 站 · <strong>${formatNumber(year.groupCount)}</strong> 组${statusFilter === "all" ? "" : ` · 当前显示 ${formatNumber(visibleInYear)} 组`}</p>
       </header>
       <div class="station-grid">${stations || '<div class="year-empty">该年份没有符合当前筛选的组别</div>'}</div>
+      ${pendingStations.length ? `<details class="pending-stations"><summary>其他赛事记录（${formatNumber(pendingStations.length)} 组，站点信息整理中）</summary><ul class="group-list">${pendingStations.map(groupRow).join("")}</ul></details>` : ""}
     </section>`;
   }).join("");
 

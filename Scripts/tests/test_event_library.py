@@ -8,6 +8,26 @@ from build_event_library import build_editions, playable, validate_catalog
 from sync_lichess_broadcast_bulk import compatible_target_broadcast, target_identity_compatible
 
 class EventLibraryTests(unittest.TestCase):
+    def test_master_group_history_and_level_c_are_preserved(self):
+        for year, expected in [(2025, '棋协大师组'), (2026, '公开组')]:
+            for label in ['棋协大师组', '公开组']:
+                info = describe(f'{year}年全国国际象棋棋协大师赛（绍兴站）{label}')
+                self.assertEqual(info['groupLabel'], expected)
+        for city in ['绍兴', '盐城']:
+            self.assertEqual(section(f'2026年全国国际象棋棋协大师赛（{city}站）男子一级棋士C组'), '男子一级棋士C组')
+
+    def test_master_station_aliases_survive_library_and_summary(self):
+        from build_master_series_summary import build_summary
+        events = []
+        for tid, spelling, city in [('1426529', 'Jiaxing', '嘉兴'), ('1458883', 'Huhehaote', '呼和浩特'), ('1449565', 'Danzhou', '儋州')]:
+            events.append({'id': tid, 'tournamentID': tid, 'name': f'2026 National Amateur Chess Master Tournament - Open ({spelling} Station)',
+                           'year': '2026', 'date': '2026-07-01', 'detailStatus': 'published'})
+        build_editions(events, {})
+        result = build_summary({'events': events}, {'events': []})
+        stations = result['years'][0]['stations']
+        self.assertEqual({s['station'] for s in stations}, {'嘉兴站', '呼和浩特站', '儋州站'})
+        self.assertTrue(all(g['groupLabel'] == '公开组' for s in stations for g in s['groups']))
+
     def test_series_are_distinct_and_history_is_inherited(self):
         self.assertEqual(classify('10th Eastern Asia Youth Chess Championships 2026')[0],'eastern-asian-youth')
         self.assertEqual(classify('Asian Youth Chess Championships 2024')[0],'asian-youth')

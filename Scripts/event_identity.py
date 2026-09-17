@@ -35,9 +35,11 @@ def control(name):
 
 def section(name):
     # Specific master groups must win over their shared master suffix.
+    level_group = re.search(r'(?:男子|女子)一级棋士(?:[A-Z])?组', name)
+    if level_group:return level_group[0]
     labels = ['女子候补棋协大师组','男子候补棋协大师组','女子候补大师组','男子候补大师组',
               '女子一级棋士A组','女子一级棋士B组','男子一级棋士A组','男子一级棋士B组',
-              '女子一级棋士组','男子一级棋士组','女子棋协大师组','棋协大师组']
+              '女子一级棋士组','男子一级棋士组','女子棋协大师组','棋协大师组','公开组']
     for label in labels:
         if label in name:
             return label.replace('候补大师', '候补棋协大师')
@@ -73,6 +75,9 @@ def describe(name, date='', canonical=''):
     year_match = re.search(r'(?<!\d)(20\d{2}|19\d{2})(?!\d)',name)
     year = year_match[1] if year_match else str(date)[:4]
     group = section(name)
+    if series == 'chess-association-master':
+        from build_event_catalog import master_group_label
+        group = master_group_label(group, year)
     place = station(name) if series == 'chess-association-master' else ''
     # Master station is essential; never merge all stations in one year.
     safe_series = series if series != 'chess-association-master' or place else ''

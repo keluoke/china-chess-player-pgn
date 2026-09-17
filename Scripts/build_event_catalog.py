@@ -73,6 +73,9 @@ MASTER_STATION_TRANSLATIONS = {
     "hefei": "合肥站",
     "hangzhou": "杭州站",
     "huhhot": "呼和浩特站",
+    "huhehaote": "呼和浩特站",
+    "jiaxing": "嘉兴站",
+    "danzhou": "儋州站",
     "jian": "吉安站",
     "liaocheng": "聊城站",
     "nanning": "南宁站",
@@ -705,6 +708,17 @@ def has_chinese_text(value: Any) -> bool:
     return bool(re.search(r"[\u3400-\u9fff]", clean(value)))
 
 
+def master_group_label(label: str | None, year: Any) -> str | None:
+    """2026 regulations (2026-03-26): OPEN replaces the former master group.
+
+    Keep historical labels and distinct women/candidate/level-one sections.
+    Evidence: docs/MASTER_SERIES_GROUP_RULES.md.
+    """
+    if label in {"棋协大师组", "大师组", "公开组"} and str(year).isdigit():
+        return "公开组" if int(year) >= 2026 else "棋协大师组"
+    return label
+
+
 def parse_master_title_hints(event: dict[str, Any]) -> tuple[str | None, str | None]:
     """Extract only explicit station/group facts from reviewed or source titles.
 
@@ -816,8 +830,8 @@ def public_event(event: dict[str, Any], series: str, master_group: dict[str, str
         title_station, title_group = parse_master_title_hints(event)
         station = station or title_station
         code = clean(master_group.get("group_code"))
-        group_label = MASTER_GROUP_LABELS.get(code) or title_group
-        if not level and group_label == MASTER_GROUP_LABELS["OPEN"]:
+        group_label = master_group_label(MASTER_GROUP_LABELS.get(code) or title_group, year)
+        if not level and group_label in {"棋协大师组", "公开组"}:
             level = "OPEN"
         sex = clean(master_group.get("sex")) or None
     elif series == "lichengzhi-cup":

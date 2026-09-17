@@ -13,7 +13,7 @@ import pathlib
 from collections import Counter, defaultdict
 from typing import Any
 
-from build_event_catalog import parse_master_title_hints
+from build_event_catalog import parse_master_title_hints, master_group_label
 from snapshot_context import stamp
 from stable_json import write_json
 
@@ -103,6 +103,7 @@ def group_row(event: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
     raw_station = str(event.get("station") or parsed_station or "站名待核").strip()
     station = STATION_ALIASES.get(raw_station, raw_station)
     group_label = str(event.get("groupLabel") or parsed_group or "组别待核").strip()
+    group_label = master_group_label(group_label, event.get("year"))
     counts = report.get("counts") or {}
     archived = as_int(counts.get("archivedGames"))
     played = as_int(counts.get("playedGames"))
@@ -211,7 +212,7 @@ def build_summary(public_payload: dict[str, Any], completeness_payload: dict[str
                 "statusCounts": dict(status_counts),
                 "groups": items,
             })
-        stations.sort(key=lambda item: (item.get("latestDate") or "", item["station"]), reverse=True)
+        stations.sort(key=lambda item: (item["station"] != "站名待核", item.get("latestDate") or "", item["station"]), reverse=True)
         years.append({
             "year": year,
             "stationCount": len(stations),

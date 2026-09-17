@@ -108,6 +108,8 @@ def build_editions(events, fingerprints):
                 row['editionID'] = eid
                 row['timeControl'] = info['timeControl']
                 row['groupLabel'] = info['groupLabel'] or row.get('groupLabel')
+                if info.get('station'):
+                    row['station'] = row.get('station') or info['station']
                 if info['series']:
                     row['series'] = info['series']; row['seriesLabel'] = info['seriesLabel']
                     row['displayName'] = row.get('chineseName') or (info['title'] + (' · '+row['groupLabel'] if row.get('groupLabel') and row['groupLabel'] not in info['title'] else ''))

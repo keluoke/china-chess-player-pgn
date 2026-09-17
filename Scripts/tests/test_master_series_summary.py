@@ -35,6 +35,13 @@ def report(tournament_id, status, archived=0, played=100):
 
 
 class MasterSeriesSummaryTests(unittest.TestCase):
+    def test_unresolved_station_follows_known_station_even_when_newer(self):
+        unknown = event(1, 2026, '2026 National CCA Master Tournament Open')
+        unknown['date'] = '2026-09-01'
+        known = event(2, 2026, '2026 全国国际象棋棋协大师赛', station='嘉兴站', group='公开组')
+        result = summary.build_summary({'events': [unknown, known]}, {'events': []})
+        self.assertEqual([s['station'] for s in result['years'][0]['stations']], ['嘉兴站', '站名待核'])
+
     def test_counts_only_published_details_and_keeps_pgn_categories_distinct(self):
         public = {"events": [
             event(1, 2026, "2026 National CCA Master Tournament - Open (Bengbu Station)"),

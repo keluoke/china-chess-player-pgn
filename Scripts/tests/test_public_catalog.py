@@ -67,9 +67,9 @@ class StructuredFieldTests(unittest.TestCase):
         }
         row = bec.public_event(event, "chess-association-master", {})
         self.assertEqual(row["station"], "盐城站")
-        self.assertEqual(row["groupLabel"], "棋协大师组")
+        self.assertEqual(row["groupLabel"], "公开组")
         self.assertEqual(row["level"], "OPEN")
-        self.assertEqual(row["displayName"], "2026年全国国际象棋棋协大师赛（盐城站）棋协大师组")
+        self.assertEqual(row["displayName"], "2026年全国国际象棋棋协大师赛（盐城站）公开组")
 
     def test_candidate_group_is_not_reduced_to_its_master_suffix(self) -> None:
         for sex in ("男子", "女子"):
