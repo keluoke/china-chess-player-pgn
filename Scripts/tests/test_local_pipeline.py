@@ -56,6 +56,18 @@ def git(repo: pathlib.Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
+class PanelDependencyTests(unittest.TestCase):
+    def test_panel_import_without_site_packages(self) -> None:
+        # Match the launcher on a machine without python-chess installed.
+        result = subprocess.run(
+            [sys.executable, "-S", "-c",
+             "import sys; sys.path[:0] = " + repr([str(LOCAL), str(SCRIPTS)])
+             + "; import panel"],
+            cwd=SCRIPTS.parent, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 class CiCommitPushTests(unittest.TestCase):
     def test_force_add_publishes_an_explicit_ignored_manifest_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

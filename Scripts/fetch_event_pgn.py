@@ -38,7 +38,7 @@ from typing import Any
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from build_static_player_pgn import clean  # noqa: E402
+from text_normalization import clean  # noqa: E402
 from sync_static_pgn import (  # noqa: E402
     REPO_ROOT,
     STATIC_PGN_ROOT,
