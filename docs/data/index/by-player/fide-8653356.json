@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260916T121909Z-7a2d1aed",
-  "generatedAt": "2026-09-16T12:29:54+00:00",
+  "snapshotId": "20260917T020241Z-85f4186f",
+  "generatedAt": "2026-09-17T02:10:46+00:00",
   "player": {
     "fideID": "8653356",
     "id": "fide-8653356",
@@ -20,17 +20,18 @@
     ]
   },
   "totals": {
-    "games": 33,
-    "archivedGames": 33,
-    "playableGames": 33,
+    "games": 38,
+    "archivedGames": 38,
+    "playableGames": 38,
     "excludedGames": 0,
-    "events": 7,
-    "pgnEvents": 7,
-    "participationEvents": 11,
-    "packages": 2,
-    "bytes": 118918,
+    "events": 8,
+    "pgnEvents": 8,
+    "participationEvents": 12,
+    "packages": 3,
+    "bytes": 126445,
     "stages": {
-      "U14": 33
+      "U14": 33,
+      "U16": 5
     }
   },
   "packages": [
@@ -38,13 +39,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8653356/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/37/37e28fd8fa6265527ed6e4e4bf1c9c81cf21d4782e677d1e7ef604418f0f1c0b.pgn",
-      "objectPath": "data/pgn/objects/sha256/37/37e28fd8fa6265527ed6e4e4bf1c9c81cf21d4782e677d1e7ef604418f0f1c0b.pgn",
-      "gameCount": 33,
-      "pgnBytes": 59459,
-      "sha256": "37e28fd8fa6265527ed6e4e4bf1c9c81cf21d4782e677d1e7ef604418f0f1c0b",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/d6/d6f6382d0a57b9ee28229204947950f3a57decc337877abdf4f8838b32ba16cf.pgn",
+      "objectPath": "data/pgn/objects/sha256/d6/d6f6382d0a57b9ee28229204947950f3a57decc337877abdf4f8838b32ba16cf.pgn",
+      "gameCount": 38,
+      "pgnBytes": 63176,
+      "sha256": "d6f6382d0a57b9ee28229204947950f3a57decc337877abdf4f8838b32ba16cf",
       "stages": {
-        "U14": 33
+        "U14": 33,
+        "U16": 5
       },
       "sources": [
         "Lichess Broadcasts"
@@ -65,9 +67,41 @@
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8653356/U16.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/8d/8d916ab02c82306fded1f51ff1916dd2229689df8c051c8385cc4edce525df75.pgn",
+      "objectPath": "data/pgn/objects/sha256/8d/8d916ab02c82306fded1f51ff1916dd2229689df8c051c8385cc4edce525df75.pgn",
+      "gameCount": 5,
+      "pgnBytes": 3810,
+      "sha256": "8d916ab02c82306fded1f51ff1916dd2229689df8c051c8385cc4edce525df75",
+      "stages": {
+        "U16": 5
+      },
+      "sources": []
     }
   ],
   "events": [
+    {
+      "id": "chess-results:1488265",
+      "source": "",
+      "name": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "tournamentID": "1488265",
+      "canonicalEventID": null,
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "",
+      "gameCount": 5,
+      "results": {
+        "0-1": 2,
+        "1-0": 2,
+        "1/2-1/2": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "chess-results:1111367",
       "source": "",
@@ -191,6 +225,141 @@
     }
   ],
   "games": [
+    {
+      "id": "0a21f67dce39943bacced0bb0ab4d472221aedc2e5ec10c88560892022e72e64",
+      "event": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "white": "Zhou, Shujun",
+      "black": "Jin, Muze",
+      "result": "0-1",
+      "round": "8",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "rank": "13",
+      "tournamentID": "1488265",
+      "sourcePgnPath": "api/event-pgn?tnr=1488265&sha=3e46985b6fac8311",
+      "sha256": "0a21f67dce39943bacced0bb0ab4d472221aedc2e5ec10c88560892022e72e64",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 90,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "069f3ce2e297286f27b0e3881bfb532f2cd1e0a6f8bd581f0a35cb4ca08ec831",
+      "event": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "white": "Wu, Siqi(Sh)",
+      "black": "Jin, Muze",
+      "result": "1-0",
+      "round": "4",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "rank": "13",
+      "tournamentID": "1488265",
+      "sourcePgnPath": "api/event-pgn?tnr=1488265&sha=3e46985b6fac8311",
+      "sha256": "069f3ce2e297286f27b0e3881bfb532f2cd1e0a6f8bd581f0a35cb4ca08ec831",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 83,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "99fb1460e02a361fb53caf3acf08d00930b0c5fbb5c3364744c697086c9e2482",
+      "event": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "white": "Jin, Muze",
+      "black": "Yang, Bokai",
+      "result": "1/2-1/2",
+      "round": "6",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "rank": "13",
+      "tournamentID": "1488265",
+      "sourcePgnPath": "api/event-pgn?tnr=1488265&sha=3e46985b6fac8311",
+      "sha256": "99fb1460e02a361fb53caf3acf08d00930b0c5fbb5c3364744c697086c9e2482",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 47,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "40e67528a3b38e9a0916f3b2bc3dbdcf795f379edace7e0e058837713cb1b058",
+      "event": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "white": "Jin, Muze",
+      "black": "Huang, Zhi",
+      "result": "0-1",
+      "round": "9",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "rank": "13",
+      "tournamentID": "1488265",
+      "sourcePgnPath": "api/event-pgn?tnr=1488265&sha=3e46985b6fac8311",
+      "sha256": "40e67528a3b38e9a0916f3b2bc3dbdcf795f379edace7e0e058837713cb1b058",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 79,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "66829bbb4e21ba71a444ec4d3452ce35f163a53cda581865523d9936eeb511fe",
+      "event": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "white": "Cai, Lin",
+      "black": "Jin, Muze",
+      "result": "1-0",
+      "round": "2",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "rank": "13",
+      "tournamentID": "1488265",
+      "sourcePgnPath": "api/event-pgn?tnr=1488265&sha=3e46985b6fac8311",
+      "sha256": "66829bbb4e21ba71a444ec4d3452ce35f163a53cda581865523d9936eeb511fe",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 47,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
     {
       "id": "dd6d713dc7b201d853906b0f1ec49f4228d09acd6ccba048c07558044e8fd10b",
       "event": "Chinese National Youth Chess Championship 2025(B14)",

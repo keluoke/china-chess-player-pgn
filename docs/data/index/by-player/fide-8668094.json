@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260916T121909Z-7a2d1aed",
-  "generatedAt": "2026-09-16T12:29:54+00:00",
+  "snapshotId": "20260917T020241Z-85f4186f",
+  "generatedAt": "2026-09-17T02:10:46+00:00",
   "player": {
     "fideID": "8668094",
     "id": "fide-8668094",
@@ -20,17 +20,18 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "archivedGames": 1,
-    "playableGames": 1,
+    "games": 3,
+    "archivedGames": 3,
+    "playableGames": 3,
     "excludedGames": 0,
-    "events": 1,
-    "pgnEvents": 1,
-    "participationEvents": 3,
-    "packages": 2,
-    "bytes": 2256,
+    "events": 2,
+    "pgnEvents": 2,
+    "participationEvents": 4,
+    "packages": 3,
+    "bytes": 6177,
     "stages": {
-      "U14": 1
+      "U14": 1,
+      "U16": 2
     }
   },
   "packages": [
@@ -38,13 +39,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8668094/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/8b/8b91084f48329785f1427b67985c11375e93625c01453d6bc66e8486a0e7f6d6.pgn",
-      "objectPath": "data/pgn/objects/sha256/8b/8b91084f48329785f1427b67985c11375e93625c01453d6bc66e8486a0e7f6d6.pgn",
-      "gameCount": 1,
-      "pgnBytes": 1128,
-      "sha256": "8b91084f48329785f1427b67985c11375e93625c01453d6bc66e8486a0e7f6d6",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/01/014ecf5073d0c5ba3a9fb981ba7c3df8fd52637645643d7715e0ed2c34ee2a11.pgn",
+      "objectPath": "data/pgn/objects/sha256/01/014ecf5073d0c5ba3a9fb981ba7c3df8fd52637645643d7715e0ed2c34ee2a11.pgn",
+      "gameCount": 3,
+      "pgnBytes": 3042,
+      "sha256": "014ecf5073d0c5ba3a9fb981ba7c3df8fd52637645643d7715e0ed2c34ee2a11",
       "stages": {
-        "U14": 1
+        "U14": 1,
+        "U16": 2
       },
       "sources": []
     },
@@ -61,9 +63,40 @@
         "U14": 1
       },
       "sources": []
+    },
+    {
+      "id": "U16",
+      "label": "U16 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8668094/U16.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/5a/5ab073216bac79906dffc56ada62257f8b11d98bc1a922791c0efeac107bcba6.pgn",
+      "objectPath": "data/pgn/objects/sha256/5a/5ab073216bac79906dffc56ada62257f8b11d98bc1a922791c0efeac107bcba6.pgn",
+      "gameCount": 2,
+      "pgnBytes": 2007,
+      "sha256": "5ab073216bac79906dffc56ada62257f8b11d98bc1a922791c0efeac107bcba6",
+      "stages": {
+        "U16": 2
+      },
+      "sources": []
     }
   ],
   "events": [
+    {
+      "id": "chess-results:1488265",
+      "source": "",
+      "name": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "tournamentID": "1488265",
+      "canonicalEventID": null,
+      "stage": "U16",
+      "naturalStage": "U16",
+      "eventStage": "",
+      "gameCount": 2,
+      "results": {
+        "1/2-1/2": 1,
+        "0-1": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "chess-results:1111367",
       "source": "",
@@ -82,6 +115,60 @@
     }
   ],
   "games": [
+    {
+      "id": "bce27c04ac6a79a7cbfb0e643119d6ad51d80f7bbb08ef62b13e4b40ebafa307",
+      "event": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "white": "Wu, Haoyan",
+      "black": "Li, Mingze(Js)",
+      "result": "1/2-1/2",
+      "round": "1",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "black",
+      "rank": "47",
+      "tournamentID": "1488265",
+      "sourcePgnPath": "api/event-pgn?tnr=1488265&sha=3e46985b6fac8311",
+      "sha256": "bce27c04ac6a79a7cbfb0e643119d6ad51d80f7bbb08ef62b13e4b40ebafa307",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 56,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "1336988b5669116d5949bf340d6ec87fa19d66b9ba1adc3188624a7f38dcdaea",
+      "event": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "white": "Li, Mingze(Js)",
+      "black": "Bai, Moxuan",
+      "result": "0-1",
+      "round": "6",
+      "stage": "U16",
+      "naturalStage": "U16",
+      "role": "white",
+      "rank": "47",
+      "tournamentID": "1488265",
+      "sourcePgnPath": "api/event-pgn?tnr=1488265&sha=3e46985b6fac8311",
+      "sha256": "1336988b5669116d5949bf340d6ec87fa19d66b9ba1adc3188624a7f38dcdaea",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 150,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
     {
       "id": "9ed6a58cb3208c031060dbfa8dd97431e4638c02216615a48634c58d26d2abdd",
       "event": "Chinese National Youth Chess Championship 2025(B14)",

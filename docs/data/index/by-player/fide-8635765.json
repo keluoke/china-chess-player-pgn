@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20260916T121909Z-7a2d1aed",
-  "generatedAt": "2026-09-16T12:29:54+00:00",
+  "snapshotId": "20260917T020241Z-85f4186f",
+  "generatedAt": "2026-09-17T02:10:46+00:00",
   "player": {
     "fideID": "8635765",
     "id": "fide-8635765",
@@ -20,15 +20,15 @@
     ]
   },
   "totals": {
-    "games": 11,
-    "archivedGames": 11,
-    "playableGames": 11,
+    "games": 12,
+    "archivedGames": 12,
+    "playableGames": 12,
     "excludedGames": 0,
-    "events": 3,
-    "pgnEvents": 3,
-    "participationEvents": 5,
-    "packages": 6,
-    "bytes": 95456,
+    "events": 4,
+    "pgnEvents": 4,
+    "participationEvents": 6,
+    "packages": 7,
+    "bytes": 97169,
     "stages": {
       "U8": 1,
       "U10": 1,
@@ -42,11 +42,11 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8635765/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/f5/f545e6655d3903064b106c119c9f49b6b9e7532798854713ee5589c1e098c6bb.pgn",
-      "objectPath": "data/pgn/objects/sha256/f5/f545e6655d3903064b106c119c9f49b6b9e7532798854713ee5589c1e098c6bb.pgn",
-      "gameCount": 11,
-      "pgnBytes": 47543,
-      "sha256": "f545e6655d3903064b106c119c9f49b6b9e7532798854713ee5589c1e098c6bb",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/26/261ba755d8a65dbebfc7a1f0670f32ff6b237ebda90986fcd4c8528ecb274bd9.pgn",
+      "objectPath": "data/pgn/objects/sha256/26/261ba755d8a65dbebfc7a1f0670f32ff6b237ebda90986fcd4c8528ecb274bd9.pgn",
+      "gameCount": 12,
+      "pgnBytes": 48352,
+      "sha256": "261ba755d8a65dbebfc7a1f0670f32ff6b237ebda90986fcd4c8528ecb274bd9",
       "stages": {
         "U8": 1,
         "U10": 1,
@@ -137,9 +137,37 @@
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8635765/adult.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/2c/2c19c85c6ddc23766b1c7db571e219a767361e48e6fcb164551f1f3eebfad8f0.pgn",
+      "objectPath": "data/pgn/objects/sha256/2c/2c19c85c6ddc23766b1c7db571e219a767361e48e6fcb164551f1f3eebfad8f0.pgn",
+      "gameCount": 1,
+      "pgnBytes": 904,
+      "sha256": "2c19c85c6ddc23766b1c7db571e219a767361e48e6fcb164551f1f3eebfad8f0",
+      "stages": {},
+      "sources": []
     }
   ],
   "events": [
+    {
+      "id": "chess-results:1488265",
+      "source": "",
+      "name": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "tournamentID": "1488265",
+      "canonicalEventID": null,
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "ev-93c81fc7b3ccbbfc",
       "source": "Lichess Broadcasts",
@@ -192,6 +220,33 @@
     }
   ],
   "games": [
+    {
+      "id": "53aa4c3f4f2a95a00dedf61236ab711f4324152cf149fadb00402022a717b572",
+      "event": "2026 National CCA Master Tournament - Open (Nanjing Station)",
+      "date": "2026-09-04",
+      "white": "Yan, Yuyang",
+      "black": "Liu, Haoling",
+      "result": "0-1",
+      "round": "1",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "rank": "36",
+      "tournamentID": "1488265",
+      "sourcePgnPath": "api/event-pgn?tnr=1488265&sha=3e46985b6fac8311",
+      "sha256": "53aa4c3f4f2a95a00dedf61236ab711f4324152cf149fadb00402022a717b572",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 80,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
     {
       "id": "b62cad99ed952dbdfb69b9ff9e4ca1fee68b51ac8593d27b4a8c86c4bdbd96d0",
       "event": "2025 China National Chess Open (Liaocheng)",
