@@ -258,6 +258,12 @@ class PanelPipelineTests(unittest.TestCase):
             self.assertEqual(captures["999001"]["status"], "retry-wait")
             self.assertEqual(captures["999002"]["status"], "quarantined")
 
+    def test_every_check_updates_button_requests_source_refresh(self) -> None:
+        buttons = re.findall(r'<button[^>]*onclick="([^"]*)"[^>]*>检查更新</button>', local_panel.PAGE)
+        self.assertEqual(len(buttons), 3)
+        for handler in buttons:
+            self.assertIn("--check-updates", handler)
+
     def test_pasted_duplicates_show_existing_capture_and_real_publication(self) -> None:
         with (mock.patch.object(local_panel, "load_captures", return_value={"100001": {"status": "complete", "capturedAt": "2026-09-01", "parserVersion": local_panel.PARSER_VERSION}}),
               mock.patch.object(local_panel, "events_payload", return_value={"entries": [{"tournamentID": "100001", "publication": {"status": "online-verified"}}]}),

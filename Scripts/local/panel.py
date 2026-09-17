@@ -1106,7 +1106,7 @@ async function renderBatchResult(){
   const err=t.errorCode?` · <span class="chip ${cls}">${esc(t.errorCode)}${t.failedPage?' @ '+esc(t.failedPage):''}</span>`:'';
   const change=t.releaseFiles?`<span class="chip ok">更新 ${esc(t.releaseFiles)} 文件 · ${formatBytes(t.releaseBytes||0)}</span>`:pub.status==='failed-before-release'?'<span class="chip bad">未形成发布清单</span>':'<span class=small>无直接赛事文件变化</span>';
   const btns=(t.status==='complete'||t.status==='partial')?`<button onclick="showPreview('${tid}')">本地预览</button>`:'';
-  return `<div class=resultRow><span class="chip ${cls}">${esc((r.statusLabels||{})[t.status]||t.status)}</span><b>tnr${esc(tid)}</b><span>${esc(t.title||'')}${stats}${err}</span>${change}${btns}<button onclick="runCmd('event-queue',['${tid}'],false)">检查更新</button></div>`
+  return `<div class=resultRow><span class="chip ${cls}">${esc((r.statusLabels||{})[t.status]||t.status)}</span><b>tnr${esc(tid)}</b><span>${esc(t.title||'')}${stats}${err}</span>${change}${btns}<button onclick="runCmd('event-queue',['${tid}','--check-updates'],false)">检查更新</button></div>`
  }).join('');
  const successRows=rows.filter(([,t])=>t.status==='complete');
  const attentionRows=rows.filter(([,t])=>t.status!=='complete');
