@@ -17,9 +17,6 @@
 
 .master-report-shell { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 26px 0 72px; }
 .report-nav { gap: 18px; }
-.report-nav-links { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.report-nav-links a { padding: 7px 10px; color: var(--muted); border-radius: 8px; font-size: 0.8rem; font-weight: 650; }
-.report-nav-links a:hover { color: var(--accent-strong); background: var(--accent-soft); }
 
 .master-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 310px); gap: 32px; align-items: end; padding: 54px 0 38px; }
 .master-hero h1 { max-width: 850px; margin: 0.42rem 0 1rem; font-size: clamp(2.6rem, 7vw, 5.9rem); line-height: 0.96; letter-spacing: -0.065em; }
@@ -118,7 +115,6 @@
 @media (max-width: 700px) {
   .master-report-shell { width: min(100% - 24px, 1180px); padding-top: 14px; }
   .report-nav { flex-wrap: wrap; }
-  .report-nav-links { order: 3; width: 100%; margin-left: 0; }
   .report-nav .theme-switcher { margin-left: auto; }
   .master-hero { grid-template-columns: 1fr; gap: 24px; padding: 38px 0 28px; }
   .master-hero h1 { font-size: clamp(2.8rem, 15vw, 4.8rem); }
