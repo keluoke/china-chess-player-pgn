@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="./assets/chessdb-favicon-light.png" type="image/png" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="./assets/chessdb-favicon-dark.png" type="image/png" media="(prefers-color-scheme: dark)">
+    <script src="theme.js?v=20260727-1"></script>
+    <link rel="stylesheet" href="styles.css?v=20260916-quality">
+  <title>中国国际象棋棋手数据库 · ChessDB</title>
+<meta name="description" content="社区共建的中国国际象棋棋手数据库:全年龄组 FIDE 排行榜、棋手查询与对局 PGN。">
+<link rel="canonical" href="https://chessdb.aigclabs.cc/">
+<meta property="og:type" content="website"><meta property="og:locale" content="zh_CN">
+<meta property="og:site_name" content="ChessDB 中国国际象棋棋手数据库">
+<meta property="og:title" content="中国国际象棋棋手数据库"><meta property="og:description" content="社区共建的中国国际象棋棋手数据库:全年龄组 FIDE 排行榜、棋手查询与对局 PGN。">
+<meta property="og:url" content="https://chessdb.aigclabs.cc/"><meta property="og:image" content="https://chessdb.aigclabs.cc/assets/chessdb-logo-light.png">
+<meta name="twitter:card" content="summary"><meta name="twitter:title" content="中国国际象棋棋手数据库">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://chessdb.aigclabs.cc/","url":"https://chessdb.aigclabs.cc/","name":"中国国际象棋棋手数据库"}]}</script><meta name="chessdb-snapshot" content="20260918T134105Z-b6e7ec0f"><link rel="stylesheet" href="/seo.css?v=20260918-1"><script src="/seo.js?v=20260918-1" defer></script></head>
+  <body class="landing">
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="./" aria-label="4CHESS 中国国际象棋棋手数据库首页">
+          <span class="theme-logo brand-logo" aria-hidden="true">
+            <img class="logo-on-light" src="assets/chessdb-logo-light.png" width="726" height="157" alt="">
+            <img class="logo-on-dark" src="assets/chessdb-logo-dark.png" width="726" height="157" alt="">
+          </span>
+        </a>
+
+        <div class="top-actions">
+          <nav class="topnav" aria-label="主要页面">
+            <a href="./events">查棋谱</a>
+            <a href="./leaderboards.html">棋手排行榜</a>
+            <a href="./master-series.html">棋协大师赛</a>
+          </nav>
+          <div class="theme-switcher" role="group" aria-label="外观主题">
+            <button type="button" data-theme-choice="auto" aria-label="跟随系统主题" title="跟随系统主题">自动</button>
+            <button type="button" data-theme-choice="light" aria-label="使用浅色主题" title="浅色主题">☀</button>
+            <button type="button" data-theme-choice="dark" aria-label="使用深色主题" title="深色主题">☾</button>
+          </div>
+        </div>
+
+      </header>
+
+      <main class="workspace search-workspace">
+        <section class="main-pane search-main-pane" id="mainPane">
+          <section class="search-command" id="searchCommand" data-mode="hero">
+            <h1 class="visually-hidden">中国国际象棋棋手与赛事搜索</h1>
+            <span class="theme-logo hero-logo" role="img" aria-label="chessdb">
+              <img class="logo-on-light" src="assets/chessdb-logo-light.png" width="726" height="157" alt="">
+              <img class="logo-on-dark" src="assets/chessdb-logo-dark.png" width="726" height="157" alt="">
+            </span>
+            <form id="searchForm" class="hero-search-form" action="./" method="get" role="search">
+              <label class="search-box hero-search-box">
+                <span aria-hidden="true">⌕</span>
+                <input id="searchInput" name="q" type="search" autocomplete="off"
+                  role="combobox" aria-autocomplete="list" aria-expanded="false"
+                  aria-controls="searchResults" aria-label="搜索棋手或赛事"
+                  placeholder="输入中文名、拼音、FIDE ID，或赛事名称">
+              </label>
+              <button type="submit">搜索</button>
+            </form>
+            <div class="search-suggestions" id="searchSuggestions"></div>
+          </section>
+          <section class="search-home" id="searchHome">
+            <a class="scroll-cue" href="#desert-story" aria-label="往下看，我们为什么做这件事">
+              <span>往下看，我们为什么做这件事</span>
+              <span aria-hidden="true">↓</span>
+            </a>
+          </section>
+          <section class="search-results" id="searchResultsSection" aria-live="polite" hidden>
+            <div class="section-heading">
+              <h2>搜索结果</h2>
+              <span id="searchCount">0 名</span>
+            </div>
+            <div class="result-list" id="searchResults"></div>
+          </section>
+
+          <aside class="detail-pane" id="detailPane" aria-label="棋手看板" hidden></aside>
+          <aside class="event-pane" id="eventPane" aria-label="赛事看板" hidden></aside>
+        </section>
+      </main>
+      <footer class="site-footer">
+        <span>数据展示遵循最小必要原则。</span>
+        <a href="./contribute.html?type=privacy-request">删除或匿名化请求</a>
+      </footer>
+    </div>
+
+    <div class="brand-story" aria-label="数据库介绍">
+      <section class="story-panel story-desert" id="desert-story">
+        <div class="story-copy" data-reveal>
+          <span class="story-kicker">01</span>
+          <h2>中国有世界冠军，<br>却没有一个像样的棋手数据库。</h2>
+          <p>棋手信息散落在不同角落；一个人有三种拼法、两个 ID；一场全国赛打完，棋谱两周后就无处可寻。我们把这叫作中国国际象棋的数据荒漠——并且决定终结它。</p>
+        </div>
+        <div class="fragment-field" aria-hidden="true" data-reveal>
+          <span class="fragment-card fragment-a">姓名残缺</span>
+          <span class="fragment-card fragment-b">拼音不一致</span>
+          <span class="fragment-card fragment-c">ID：???</span>
+          <span class="fragment-card fragment-d">404</span>
+          <span class="fragment-card fragment-e">棋谱未公开</span>
+          <span class="fragment-card fragment-f">同名待核</span>
+        </div>
+      </section>
+
+      <section class="story-panel story-identity">
+        <div class="story-copy" data-reveal>
+          <span class="story-kicker">02</span>
+          <h2>一名棋手，<br>只有一个身份。</h2>
+          <p>同一个人，中文名、拼音、曾用名、FIDE ID，全部归到唯一档案；每一条勘误都进机制、进断言，错误不会再回来。<strong data-player-total>11,646</strong> 名注册棋手，每个人都值得被准确记住。</p>
+          <a class="story-cta" href="#searchInput" data-focus-search>搜索一名棋手 <span aria-hidden="true">↑</span></a>
+        </div>
+        <div class="identity-stack" aria-hidden="true" data-reveal>
+          <span>中文名</span>
+          <span>拼音</span>
+          <span>曾用名</span>
+          <span>FIDE ID</span>
+          <article>
+            <small>唯一棋手档案</small>
+            <strong>身份已归一</strong>
+            <span>中文名 · 拼音 · FIDE ID</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="story-panel story-events">
+        <div class="story-copy" data-reveal>
+          <span class="story-kicker">03</span>
+          <h2>每一场比赛，<br>从名单到终局。</h2>
+          <p>报名名单、逐轮对阵、每一局的结果、最终排名——一场赛事的完整生命周期，收进同一条时间线。完整度逐场标注，缺什么、补到哪，公开可查。</p>
+          <a class="story-cta" href="#searchInput" data-focus-search>搜索一场赛事 <span aria-hidden="true">↑</span></a>
+        </div>
+        <div class="event-timeline" aria-hidden="true" data-reveal>
+          <div class="timeline-track"></div>
+          <span style="--step:0">名单</span>
+          <span style="--step:1">R1</span>
+          <span style="--step:2">R3</span>
+          <span style="--step:3">R5</span>
+          <span style="--step:4">R7</span>
+          <span style="--step:5">R9</span>
+          <span style="--step:6">终榜</span>
+          <strong>完整度 · 逐项可查</strong>
+        </div>
+      </section>
+
+      <section class="story-panel story-games">
+        <div class="story-copy" data-reveal>
+          <span class="story-kicker">04</span>
+          <h2>棋谱不该在两周后消失。</h2>
+          <p>已公开的对局，逐局归档成 PGN，永久可回放；打开就是棋盘，一步一步重演国家队与少年组的每一次交锋。</p>
+          <a class="story-cta" href="#searchInput" data-focus-search>打开一局棋 <span aria-hidden="true">↑</span></a>
+        </div>
+        <svg class="story-board" viewBox="0 0 320 320" aria-label="四步开局走子示意" role="img" data-reveal>
+          <defs>
+            <pattern id="board-pattern" width="80" height="80" patternUnits="userSpaceOnUse">
+              <rect width="40" height="40" fill="#f2eadb"/>
+              <rect x="40" width="40" height="40" fill="#7890a8"/>
+              <rect y="40" width="40" height="40" fill="#7890a8"/>
+              <rect x="40" y="40" width="40" height="40" fill="#f2eadb"/>
+            </pattern>
+          </defs>
+          <rect width="320" height="320" rx="18" fill="url(#board-pattern)"/>
+          <g class="board-piece board-dark" aria-hidden="true">
+            <text class="move-origin origin-4" x="60" y="36">♞</text><text class="move-origin origin-2" x="180" y="76">♟</text>
+          </g>
+          <g class="board-piece board-light" aria-hidden="true">
+            <text class="move-origin origin-1" x="180" y="276">♙</text><text class="move-origin origin-3" x="260" y="316">♘</text>
+          </g>
+          <g class="board-piece board-dark board-moved" aria-hidden="true">
+            <text class="move move-2" x="180" y="76">♟</text>
+            <text class="move move-4" x="60" y="36">♞</text>
+          </g>
+          <g class="board-piece board-light board-moved" aria-hidden="true">
+            <text class="move move-1" x="180" y="276">♙</text>
+            <text class="move move-3" x="260" y="316">♘</text>
+          </g>
+        </svg>
+      </section>
+
+      <section class="story-panel story-open" id="open-story">
+        <div class="story-copy" data-reveal>
+          <span class="story-kicker">05</span>
+          <h2>我们建了它，<br>然后把钥匙给你。</h2>
+          <p>数据库、排行榜、棋手档案和已归档 PGN，通过免费的只读静态 API 对外开放，无需注册或鉴权。因为公共的数据，理应属于公众。</p>
+          <pre class="api-example" tabindex="0"><code>GET /api/v1/manifest.json
+→ { "apiVersion": "1",
+    "endpoints": { "players": "/api/v1/players.json", … } }</code></pre>
+          <div class="story-actions">
+            <a class="story-cta story-cta-primary" href="./API.md">API 文档 <span aria-hidden="true">↗</span></a>
+            <a class="story-cta" href="./contribute.html">贡献数据 <span aria-hidden="true">↗</span></a>
+            <a class="story-cta" href="https://github.com/keluoke/china-chess-player-pgn">GitHub <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+        <footer class="story-footer">
+          <span class="story-full-logo" role="img" aria-label="chessdb">
+            <img src="assets/chessdb-logo-dark.png" width="726" height="157" alt="">
+          </span>
+          <span>代码 MIT · 数据按字段与清单分别许可</span>
+        </footer>
+      </section>
+    </div>
+
+    <script type="module" src="app.js?v=20260916-quality"></script>
+  <div class="seo-home-directory"><noscript><style>#eventsStatus,#reportLoading,.events-toolbar,#timeTabs,.leaderboard-filters,#refreshButton{display:none!important}</style></noscript><section id="seo-content" class="seo-content"><h2>查找棋手与比赛</h2><p>已收录 3133 名有棋谱棋手，公共目录提供 74705 局独立可复盘棋谱。</p><div class="seo-links"><a href="/players/fide-8603405">韦奕</a><a href="/players/fide-8603677">丁立人</a><a href="/players/fide-8603820">余泱漪</a><a href="/players/fide-8602883">王皓</a><a href="/players/fide-8601445">卜祥志</a><a href="/players/fide-8601160">倪华</a><a href="/players/fide-8603332">卢尚磊</a><a href="/players/fide-8608288">许翔宇</a></div></section><footer class="seo-footer"><p>包含 Lichess 广播棋谱的部分保留 <a href="https://lichess.org/broadcast">Lichess</a> 署名与 <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> 许可。</p><a href="/about">关于本站</a> · <a href="/methodology">数据与更新方法</a> · <a href="/developers">数据接口</a> · <a href="/contribute?type=privacy-request">勘误与隐私请求</a></footer></div></body>
+</html>
