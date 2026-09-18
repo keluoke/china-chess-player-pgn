@@ -7,7 +7,10 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from urllib.parse import urlparse
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+import verify_seo_online as online
 import build_seo_pages as builder
 import validate_seo_pages as gate
 from notify_search_engines import changed_urls
@@ -49,6 +52,26 @@ class SeoReleaseTests(unittest.TestCase):
     def test_changed_rating_changes_player_page_and_notification(self):
         first=self.build();self.player['standard']=2600;self.write('data/registry/players.json',[self.player]);second=self.build(now='2026-09-19T00:00:00+00:00')
         self.assertIn(builder.ORIGIN+'/players/fide-8602980',changed_urls(first,second))
+    def test_online_canary_parses_http_body_and_rejects_wrong_sitemap(self):
+        manifest=self.build()
+        output=self.docs/'data/seo/output'
+        def fetch(url,follow=True):
+            u=urlparse(url);path=u.path;headers='';status=200;mime='text/html';body=b'home'
+            if u.netloc!='chessdb.aigclabs.cc':
+                return {'http_code':308,'content_type':'text/html'},b'', 'location: '+builder.ORIGIN+'/'
+            if not follow and u.query:
+                key='players' if 'fideID=' in u.query else 'events'
+                return {'http_code':308,'content_type':'text/html'},b'', 'location: '+builder.ORIGIN+next(iter(manifest['routes'][key].values()))
+            if path=='/__seo_missing_page_probe__':status=404
+            elif path in ['/robots.txt','/llms.txt']:mime='text/plain'
+            elif path=='/sitemap.xml':mime='application/xml';body=(output/'sitemap.xml').read_bytes()
+            elif not u.query:body=(output/builder.route_file(path)).read_bytes()
+            if u.query:headers='x-robots-tag: noindex, follow'
+            return {'http_code':status,'content_type':mime},body,headers
+        with patch.object(online,'fetch',side_effect=fetch):
+            self.assertEqual(online.verify(self.root)['pages'],len(manifest['pages']))
+            (output/'sitemap.xml').write_text('<urlset/>')
+            with self.assertRaisesRegex(ValueError,'SITEMAP_MISMATCH'):online.verify(self.root)
     def test_tampered_html_and_changed_templates_fail_deploy(self):
         self.build();p=self.docs/'data/seo/output/index.html';p.write_text(p.read_text()+'tampered')
         with self.assertRaisesRegex(ValueError,'HASH_MISMATCH'):gate.validate(self.root,expected_snapshot=self.sid,check_snapshot=False)

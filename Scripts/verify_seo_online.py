@@ -24,7 +24,7 @@ def verify(root=ROOT,site=ORIGIN):
         checks.append({'path':path,'status':status,'ok':True});return b,h
     for path,mime in [('/robots.txt','text/plain'),('/sitemap.xml','xml'),('/llms.txt','text/plain')]:check(path,mime=mime)
     check('/__seo_missing_page_probe__',404)
-    sitemap=ET.fromstring(check('/sitemap.xml'));urls={e.text for e in sitemap.findall('.//{*}loc')}
+    sitemap_body,_=check('/sitemap.xml');sitemap=ET.fromstring(sitemap_body);urls={e.text for e in sitemap.findall('.//{*}loc')}
     if urls!={ORIGIN+p['route'] for p in manifest['pages']}:raise ValueError('SEO_ONLINE_SITEMAP_MISMATCH')
     chosen=[]
     for prefix in ['/','/events','/leaderboards','/master-series','/about','/methodology','/developers']:
