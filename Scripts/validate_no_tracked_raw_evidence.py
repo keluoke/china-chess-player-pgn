@@ -11,6 +11,7 @@ from collections.abc import Iterable
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PUBLIC_SITE_HTML = frozenset({
+    "docs/404.html",
     "docs/contribute.html",
     "docs/coverage.html",
     "docs/events.html",
@@ -54,12 +55,20 @@ def tracked_evidence_files(repo_root: pathlib.Path = REPO_ROOT) -> tuple[str, ..
 
 def violations(repo_root: pathlib.Path, tracked: Iterable[str]) -> list[str]:
     failures: list[str] = []
+    generated = set()
+    if (repo_root / "docs/data/seo/manifest.json").is_file():
+        from validate_seo_pages import validate
+        try:
+            manifest = validate(repo_root, check_inputs=False)
+            generated = {"docs/data/seo/output/" + row["file"] for row in manifest["pages"]}
+        except (ValueError, OSError, KeyError) as error:
+            failures.append(f"generated HTML is not certified: {error}")
     for relative in sorted(set(tracked)):
         lowered = relative.casefold()
         if lowered.endswith((".warc", ".warc.gz", ".warc.zst")):
             failures.append(f"{relative}: tracked WARC capture is forbidden")
             continue
-        if relative in PUBLIC_SITE_HTML:
+        if relative in PUBLIC_SITE_HTML or relative in generated:
             continue
         if relative not in SYNTHETIC_FIXTURE_HTML:
             failures.append(f"{relative}: HTML is not an approved product page or synthetic fixture")

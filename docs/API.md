@@ -6,7 +6,7 @@
 Base URL:
 
 ```
-https://china-chess-player-pgn.pages.dev
+https://chessdb.aigclabs.cc
 ```
 
 ## 稳定性承诺

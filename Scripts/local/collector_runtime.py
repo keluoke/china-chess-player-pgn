@@ -26,6 +26,10 @@ from typing import Any
 SPEC_RELATIVE_PATH = pathlib.PurePosixPath("Scripts/local/collector-runtime-files.json")
 INSTALLED_MANIFEST_NAME = "collector-runtime-manifest.json"
 CONTRACT_PATHS = {"AGENTS.md", "Scripts/local/README.md", "docs/LICHESS_MONTHLY_MAINTENANCE.md"}
+PUBLIC_TEMPLATE_PATHS = {
+    "docs/index.html", "docs/events.html", "docs/leaderboards.html",
+    "docs/master-series.html", "docs/404.html", "docs/seo.css", "docs/seo.js",
+}
 ALLOWED_INSTALL_PREFIXES = (
     "Scripts/",
     "data/community/",
@@ -65,7 +69,7 @@ def safe_relative_path(value: Any) -> pathlib.PurePosixPath:
         raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"unsafe path: {text!r}")
     if path.as_posix() != text:
         raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"non-canonical path: {text!r}")
-    if text not in CONTRACT_PATHS and not text.startswith(ALLOWED_INSTALL_PREFIXES):
+    if text not in CONTRACT_PATHS and text not in PUBLIC_TEMPLATE_PATHS and not text.startswith(ALLOWED_INSTALL_PREFIXES):
         raise CollectorRuntimeError("COLLECTOR_RUNTIME_SPEC_INVALID", f"path outside runtime roots: {text!r}")
     return path
 

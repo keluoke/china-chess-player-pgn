@@ -42,7 +42,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.seo.outputs.ready }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_sha || github.sha }}
+      - name: Require matching generated public pages
+        id: seo
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if python3 Scripts/validate_seo_pages.py; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "push" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Public page inputs changed; the unified rebuild will dispatch the matching deployment." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "SEO_REBUILD_REQUIRED: refusing a mixed public page snapshot" >&2
+            exit 1
+          fi
   cloudflare-pages:
+    needs: readiness
+    if: needs.readiness.outputs.ready == 'true'
     runs-on: ubuntu-latest
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -114,6 +138,20 @@ jobs:
           output-dir: .cloudflare-pages-site
           max-file-mib: "25"
 
+      - name: Read previous public discovery baseline
+        run: |
+          curl -sSL --compressed --max-time 30 https://chessdb.aigclabs.cc/data/seo-public.json -o /tmp/seo-previous.json || true
+          python3 - <<'PYCODE'
+          import json
+          from pathlib import Path
+          p = Path('/tmp/seo-previous.json')
+          try:
+              value = json.loads(p.read_text())
+              assert isinstance(value.get('pages'), list)
+          except (OSError, ValueError, AssertionError, AttributeError):
+              p.write_text('{}')
+          PYCODE
+
       - name: Deploy
         id: deploy
         if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
@@ -148,6 +186,32 @@ jobs:
         with:
           name: product-canary
           path: /tmp/product-canary.json
+          if-no-files-found: ignore
+
+      - name: Verify SEO routes and readable HTML
+        run: |
+          for attempt in 1 2 3; do
+            python3 Scripts/verify_seo_online.py --output /tmp/seo-canary.json && exit 0
+            if [ "$attempt" -lt 3 ]; then sleep 30; fi
+          done
+          exit 1
+
+      - name: Notify search engines of verified content changes
+        run: python3 Scripts/notify_search_engines.py --previous /tmp/seo-previous.json --submit --output /tmp/indexnow-receipt.json
+
+      - name: Record search observation baseline
+        run: python3 Scripts/seo_observation_report.py --output /tmp/seo-observation.json
+
+      - name: Save SEO verification and discovery receipts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-verification
+          path: |
+            /tmp/seo-canary.json
+            /tmp/indexnow-receipt.json
+            /tmp/seo-observation.json
+            /tmp/seo-previous.json
           if-no-files-found: ignore
 
       - name: Record exact deployment receipt

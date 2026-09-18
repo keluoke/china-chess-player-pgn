@@ -26,6 +26,7 @@ DOCS = ROOT / "docs"
 # Derived public manifests that must share one snapshot id. Registry
 # manifests are collector inputs, not derived outputs, and are excluded.
 MANIFEST_GLOBS = (
+    "data/seo/manifest.json",
     "data/index/manifest.json",
     "data/index/by-player/manifest.json",
     "data/index/event-details/manifest.json",

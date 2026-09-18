@@ -38,6 +38,7 @@ runs:
         rsync -a --delete \
           --exclude '*.md' \
           --exclude '*.html' \
+          --exclude 'data/seo/' \
           --exclude 'data/bulk/lichess-broadcast/shards/*.pgn.zst' \
           --exclude 'data/bulk/youth/' \
           --exclude 'data/pgn/' \

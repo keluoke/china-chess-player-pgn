@@ -37,6 +37,8 @@ jobs:
 
       - name: Validate frontend modules
         run: |
+          node --check docs/seo.js
+          node Scripts/tests/test_seo_middleware.mjs
           node --check docs/data-status.js
           node --check docs/coverage.js
           node --test Scripts/tests/frontend_game_quality_test.mjs

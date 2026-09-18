@@ -32,6 +32,8 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SNAPSHOT_JSON = ROOT / "docs" / "data" / "snapshot.json"
 REQUIRED_BUILDERS = (
+    'Scripts/build_seo_pages.py',
+    'Scripts/validate_seo_pages.py',
     'Scripts/event_pgn_objects.py',
     'Scripts/apply_aliases_to_registry.py',
     'Scripts/build_player_facts.py',
@@ -100,6 +102,7 @@ def file_fact(path: pathlib.Path) -> dict:
 
 def output_facts() -> list[dict]:
     paths = [
+        ROOT / "docs/data/seo/manifest.json",
         ROOT / "data/generated/local-release-manifest.json",
         ROOT / "docs/data/registry/players.json",
         ROOT / "docs/data/registry/manifest.json",
@@ -130,7 +133,8 @@ def input_facts() -> list[dict]:
             for fact in output_facts()
             if pathlib.Path(fact["path"]).name not in derived
             and "player-event-facts/" not in fact["path"]
-            and "player-game-facts/" not in fact["path"]]
+            and "player-game-facts/" not in fact["path"]
+            and "docs/data/seo/" not in fact["path"]]
 
 
 def snapshot_document(
@@ -286,6 +290,7 @@ def main() -> int:
     steps.append(step([py, "Scripts/build_api.py"]))
     steps.append(step([py, "Scripts/build_changelog.py"]))
     steps.append(step([py, "Scripts/build_dashboard.py"]))
+    steps.append(step([py, "Scripts/build_seo_pages.py"]))
 
     # --- gates ----------------------------------------------------------
     steps.append(step([py, "Scripts/validate_registry_authority.py"]))
@@ -304,6 +309,7 @@ def main() -> int:
     previous_snapshot = SNAPSHOT_JSON.read_bytes() if SNAPSHOT_JSON.is_file() else None
     try:
         write_snapshot(snapshot_document(sid, generated_at, input_commit, facts, steps, outputs))
+        steps.append(step([py, "Scripts/validate_seo_pages.py"]))
         steps.append(step([py, "Scripts/validate_snapshot_consistency.py"]))
         write_snapshot(snapshot_document(sid, generated_at, input_commit, facts, steps, outputs))
     except BaseException:
