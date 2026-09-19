@@ -17,7 +17,7 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 ROOT = Path(__file__).resolve().parents[1]
 ORIGIN = 'https://chessdb.aigclabs.cc'
 MAX_PAGES = 14500
-EVENT_PAGE_LIMIT = 1100
+EVENT_PAGE_LIMIT = 1150
 NAME_PAGE_LIMIT = 1000
 CONTROLS = {'standard': '标准棋', 'rapid': '快棋', 'blitz': '超快棋'}
 TEMPLATES = ('index.html', 'events.html', 'leaderboards.html', 'master-series.html')
@@ -71,6 +71,7 @@ def render_page(route, title, description, body, sid, graph=None):
 def build(root: Path, sid: str, now=None):
     now = now or dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     docs = root/'docs'; target = docs/'data/seo'
+    previous=read(target/'manifest.json') if (target/'manifest.json').is_file() else {}
     players = {str(p['fideID']): p for p in read(docs/'data/registry/players.json')}
     registry = read(docs/'data/registry/manifest.json'); month = registry.get('listDate','')
     if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',month): raise ValueError('SEO_REGISTRY_MONTH_MISSING')
@@ -97,9 +98,11 @@ def build(root: Path, sid: str, now=None):
     legacy = [e for e in events if e.get('series')=='chess-association-master'][:60]
     ids = {event_key(e) for e in legacy}
     legacy += [e for e in events if e.get('pgnPath') and event_key(e) not in ids][:100]
-    ordered = legacy + [e for e in events if e.get('detailStatus')=='published'] + events
-    unique_events = {event_key(e):e for e in reversed(ordered)}
-    selected_events = list(reversed(list(unique_events.values())))[:EVENT_PAGE_LIMIT]
+    published_ids=set(previous.get('routes',{}).get('events',{}))
+    ordered = [e for e in events if event_key(e) in published_ids] + legacy + [e for e in events if e.get('detailStatus')=='published'] + events
+    # dict retains the FIRST occurrence order; reversing before dedup loses priority.
+    unique_events = {event_key(e):e for e in ordered}
+    selected_events = list(unique_events.values())[:EVENT_PAGE_LIMIT]
     event_routes = {event_key(e):'/events/'+event_slug(event_key(e)) for e in selected_events}
     def event_link(e):
         key=event_key(e);return anchor(event_routes.get(key,'/?event='+quote(key)),e.get('displayName') or e.get('name') or key)
@@ -253,8 +256,7 @@ def build(root: Path, sid: str, now=None):
             raw=raw.replace('</main>',fragment+'</main>',1)
         outputs[template]=raw;page_specs[route]={'title':title}
     if len(page_specs)>MAX_PAGES:raise ValueError('SEO_PAGE_BUDGET_EXCEEDED')
-    # Previous metadata is used ONLY to preserve semantic modification dates, never facts.
-    previous=read(target/'manifest.json') if (target/'manifest.json').is_file() else {}
+    # Previous metadata preserves published URL allocation and semantic dates, never facts.
     old={p['route']:p for p in previous.get('pages',[])};pages=[]
     for route, spec in page_specs.items():
         path=route_file(route);raw=outputs[path].encode();semantic=re.sub(r'<meta name="chessdb-snapshot"[^>]*>','',outputs[path])

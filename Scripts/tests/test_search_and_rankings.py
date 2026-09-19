@@ -104,7 +104,7 @@ class PublicNavigationTests(unittest.TestCase):
         self.assertIn("find \"$out/api/v1/players\"", action)
         self.assertIn("Scripts/public_markdown_allowlist.txt", action)
         self.assertIn("validate_public_privacy.py --site-root", action)
-        self.assertIn('default: "16000"', action)
+        self.assertIn('default: "17000"', action)
         self.assertIn('default: "19000"', action)
         allowlist = public_privacy.public_markdown_allowlist()
         self.assertEqual(allowlist, ("API.md", "PUBLIC_METRICS.md"))

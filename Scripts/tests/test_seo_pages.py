@@ -110,6 +110,17 @@ class SeoReleaseTests(unittest.TestCase):
             return subprocess.CompletedProcess(args,0,stdout='202' if len(sizes)==1 else '500')
         with patch('notify_search_engines.subprocess.run',side_effect=send):result=submit_urls(urls,'fixturekey')
         self.assertEqual(sizes,[10000,1]);self.assertEqual(result['pendingURLs'],urls[-1:]);self.assertEqual(result['status'],'retry-needed')
+    def test_dedup_retains_first_release_event_priority(self):
+        original=json.loads((self.docs/'data/index/public-events.json').read_text())['events'][0]
+        newer={**original,'id':'chess-results:7654321','tournamentID':'7654321','series':'other','date':'2027-01-01'}
+        self.write('data/index/public-events.json',{'snapshotId':self.sid,'events':[newer,original]})
+        with patch.object(builder,'EVENT_PAGE_LIMIT',1):m=self.build()
+        self.assertIn('1234567',m['routes']['events'])
+        self.assertNotIn('7654321',m['routes']['events'])
+        original['series']='other';newer['series']='chess-association-master'
+        self.write('data/index/public-events.json',{'snapshotId':self.sid,'events':[newer,original]})
+        with patch.object(builder,'EVENT_PAGE_LIMIT',1):again=self.build()
+        self.assertIn('1234567',again['routes']['events'])
     def test_notifications_include_removals(self):
         self.assertEqual(changed_urls({'pages':[{'route':'/gone','contentSha256':'x'}]},{'pages':[]}),[builder.ORIGIN+'/gone'])
 if __name__=='__main__':unittest.main()
