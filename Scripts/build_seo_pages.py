@@ -16,7 +16,9 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 
 ROOT = Path(__file__).resolve().parents[1]
 ORIGIN = 'https://chessdb.aigclabs.cc'
-MAX_PAGES = 500
+MAX_PAGES = 14500
+EVENT_PAGE_LIMIT = 1100
+NAME_PAGE_LIMIT = 1000
 CONTROLS = {'standard': '标准棋', 'rapid': '快棋', 'blitz': '超快棋'}
 TEMPLATES = ('index.html', 'events.html', 'leaderboards.html', 'master-series.html')
 
@@ -53,7 +55,7 @@ def metadata(route, title, description, graph):
 <script type="application/ld+json">{dump({'@context':'https://schema.org','@graph':graph})}</script>'''
 
 def footer():
-    return '<footer class="seo-footer"><p>包含 Lichess 广播棋谱的部分保留 <a href="https://lichess.org/broadcast">Lichess</a> 署名与 <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> 许可。</p>' + ' · '.join(anchor(p,t) for p,t in [('/about','关于本站'),('/methodology','数据与更新方法'),('/developers','数据接口'),('/contribute?type=privacy-request','勘误与隐私请求')]) + '</footer>'
+    return '<footer class="seo-footer"><p>包含 Lichess 广播棋谱的部分保留 <a href="https://lichess.org/broadcast">Lichess</a> 署名与 <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a> 许可。</p>' + ' · '.join(anchor(p,t) for p,t in [('/players','FIDE 棋手目录'),('/names','中文姓名目录'),('/about','关于本站'),('/methodology','数据与更新方法'),('/developers','数据接口'),('/contribute?type=privacy-request','勘误与隐私请求')]) + '</footer>'
 
 def render_page(route, title, description, body, sid, graph=None):
     graph = list(graph or [])
@@ -82,19 +84,22 @@ def build(root: Path, sid: str, now=None):
         if data.get('snapshotId') != sid: raise ValueError('SEO_API_SNAPSHOT_MISMATCH')
         apis.update(data.get('players',{}))
     if not apis: raise ValueError('SEO_PLAYER_BUCKETS_MISSING')
-    selected = [p for p in players.values() if apis.get(str(p['fideID']),{}).get('playableGameCount',0)>0]
+    selected = list(players.values())
+    if any(not re.fullmatch(r'[0-9]+', ident) for ident in players): raise ValueError('SEO_INVALID_FIDE_ID')
     selected.sort(key=lambda p:(-int(p.get('standard') or 0),str(p['fideID'])))
-    selected = selected[:180]
     player_routes = {str(p['fideID']):'/players/fide-'+str(p['fideID']) for p in selected}
     def player_link(p):
         ident = str(p.get('fideID','')); authoritative = players.get(ident,p)
         return anchor(player_routes.get(ident,'/?fideID='+quote(ident)),authoritative.get('displayName') or authoritative.get('name') or ident)
     events = [e for e in catalog['events'] if e.get('detailStatus')=='published' or (e.get('pgnPath') and e.get('gameCount',0)>0)]
     events.sort(key=lambda e:(str(e.get('date') or ''),str(e.get('id') or '')),reverse=True)
-    # Recent complete master results and playable events form a bounded first release.
-    selected_events = [e for e in events if e.get('series')=='chess-association-master'][:60]
-    ids = {event_key(e) for e in selected_events}
-    selected_events += [e for e in events if e.get('pgnPath') and event_key(e) not in ids][:100]
+    # Complete results first; retain the first-release eligible routes, then expand.
+    legacy = [e for e in events if e.get('series')=='chess-association-master'][:60]
+    ids = {event_key(e) for e in legacy}
+    legacy += [e for e in events if e.get('pgnPath') and event_key(e) not in ids][:100]
+    ordered = legacy + [e for e in events if e.get('detailStatus')=='published'] + events
+    unique_events = {event_key(e):e for e in reversed(ordered)}
+    selected_events = list(reversed(list(unique_events.values())))[:EVENT_PAGE_LIMIT]
     event_routes = {event_key(e):'/events/'+event_slug(event_key(e)) for e in selected_events}
     def event_link(e):
         key=event_key(e);return anchor(event_routes.get(key,'/?event='+quote(key)),e.get('displayName') or e.get('name') or key)
@@ -111,20 +116,60 @@ def build(root: Path, sid: str, now=None):
       '/developers':('数据接口与 PGN 使用','公开只读 API、棋谱下载与版本说明。','<h2>开始使用</h2><p>先读取 '+anchor('/api/v1/manifest.json','API manifest')+'，再按棋手详情中的 packages 选择下载。优先使用内容寻址的 publicURL，保留许可和署名。</p><p>'+anchor('/API.md','API 字段与兼容性文档')+' · '+anchor('/data/public-metrics.json','机器可读指标')+'</p><h2>避免误读</h2><p>playableUniqueGames 是独立可复盘棋局；games 保留棋手关联次数口径。榜单生效月不能用文件生成时间替代。请利用缓存，勿因下载失败重新采集赛事来源。</p><h2>PGN 如何使用</h2><p>打开棋手或赛事页面，选择下载棋谱，将 PGN 导入支持国际象棋复盘的软件。可在本站交互式棋盘中先确认所需赛事与对局。</p>')}
     for route,(title,description,body) in info.items(): add(route,title,description,body)
     for p in selected:
-        ident=str(p['fideID']); api=apis[ident]; name=p.get('displayName') or p.get('name') or ident
-        count=api['playableGameCount']; desc=f'{name}（FIDE ID {ident}）的官方等级分与本站可复盘棋谱。榜单生效月 {month[:7]}。'
+        ident=str(p['fideID']); api=apis.get(ident,{}); name=p.get('displayName') or p.get('name') or ident
+        count=api.get('playableGameCount',0); desc=f'{name}（FIDE ID {ident}）的官方等级分与本站可复盘棋谱。榜单生效月 {month[:7]}。'
         body=f'<p>已收录可复盘棋谱 <strong>{count}</strong> 局。联邦：{esc(p.get("federation") or "未提供")}。</p>'
         body+=table(['棋种','官方等级分'],[[esc(label),esc(p.get(control) if p.get(control) is not None else '未提供')] for control,label in CONTROLS.items()])
         if p.get('name') and p['name']!=name: body+=f'<p>注册表姓名：{esc(p["name"])}。</p>'
-        body+='<p>'+anchor('/?fideID='+ident+'&view=interactive','打开交互式棋手看板与棋盘')+'</p><h2>棋谱下载</h2><ul>'
+        body+='<p>'+anchor('/?fideID='+ident+'&view=interactive','打开交互式棋手看板与棋盘')+'</p><h2>棋谱下载</h2>'
+        body+=('<p>本站暂未收录可复盘棋谱；这不代表该棋手没有参加比赛。</p>' if not count else '')+'<ul>'
         for pkg in api.get('packages',[]):
             url=external_url(pkg.get('publicURL')) or external_url(pkg.get('pgnPath'))
             if url and pkg.get('gameCount',0)>0: body+='<li>'+anchor(url,('全部棋谱' if pkg.get('id')=='all' else ('成年期' if pkg.get('id')=='adult' else str(pkg.get('id'))))+f' · {pkg["gameCount"]} 局 PGN')+'</li>'
         body+='</ul><h2>已收录参赛记录</h2>'
         historical=api.get('events',[])[:15]
-        body+=event_table(historical) if historical else '<p>此页暂未提供结构化参赛记录，已收录棋谱仍可下载。</p>'
-        body+='<p>'+anchor('/methodology','了解统计范围与棋谱许可')+'</p>'
+        body+=event_table(historical) if historical else '<p>本站暂未提供该棋手的结构化参赛记录。</p>'
+        body+='<p>'+anchor('/players','浏览全部 FIDE 棋手')+' · '+anchor('/methodology','了解统计范围与棋谱许可')+'</p>'
         add(player_routes[ident],name+'棋谱与 FIDE 等级分',desc,body,[{'@type':'ProfilePage','mainEntity':{'@type':'Person','@id':ORIGIN+player_routes[ident]+'#person','name':name,'identifier':ident}}])
+    def directory_pages(base, title, entries, description):
+        chunks=[entries[i:i+100] for i in range(0,len(entries),100)] or [[]]
+        routes=[base if i==0 else f'{base}/page/{i+1}' for i in range(len(chunks))]
+        for i,chunk in enumerate(chunks):
+            # Adjacent pagination makes every entry reachable without giant nav blocks.
+            nav=' · '.join(anchor(routes[j],label) for j,label in [(0,'首页'),(i-1,'上一页'),(i+1,'下一页'),(len(chunks)-1,'末页')] if 0<=j<len(routes) and j!=i)
+            body=f'<p>第 {i+1} / {len(chunks)} 页，共 {len(entries)} 项。</p><ul>'+''.join('<li>'+item+'</li>' for item in chunk)+'</ul><nav aria-label="目录分页">'+nav+'</nav>'
+            add(routes[i],title+(f' · 第 {i+1} 页' if i else ''),description,body)
+    directory_pages('/players','FIDE 棋手目录',[player_link(p)+' · FIDE ID '+esc(p['fideID']) for p in sorted(selected,key=lambda p:int(p['fideID']))],'本站注册表内的全部 FIDE 棋手；有无棋谱均提供身份与官方榜单资料。')
+
+    # A name directory is a collection of observations, never an inferred Person.
+    domestic_manifest=docs/'data/registry/domestic/manifest.json'
+    name_rows={}
+    if domestic_manifest.is_file():
+        if read(domestic_manifest).get('snapshotId')!=sid: raise ValueError('SEO_DOMESTIC_SNAPSHOT_MISMATCH')
+        public_events={event_key(e):e for e in catalog['events'] if e.get('detailStatus')=='published'}
+        for shard in sorted((docs/'data/registry/domestic/shards').glob('*.json')):
+            for person in read(shard):
+                name=person.get('chineseName') or person.get('displayName','')
+                if not re.fullmatch(r'[\u4e00-\u9fff]{2,6}',name): continue
+                for sighting in person.get('sightings',[]):
+                    key=event_key(sighting);event=public_events.get(key)
+                    number=str(sighting.get('playerNo') or '')
+                    if not event or not number.isdigit():continue
+                    # A public event roster row is a fact, not cross-event identity proof.
+                    name_rows.setdefault(name,{})[(key,number)]={'event':event,'playerNo':number,'rank':sighting.get('rank'),'score':sighting.get('score')}
+    name_limit=min(NAME_PAGE_LIMIT,max(0,MAX_PAGES-len(players)-len(selected_events)-(len(players)+99)//100-200))
+    eligible_names=sorted(((name,list(rows.values())) for name,rows in name_rows.items() if len(rows)>=2),key=lambda item:(-len(item[1]),item[0]))[:name_limit]
+    name_routes={name:'/names/name-'+digest(name.encode())[:20] for name,_ in eligible_names}
+    for name,rows in eligible_names:
+        rows.sort(key=lambda r:(str(r['event'].get('date') or ''),event_key(r['event']),r['playerNo']),reverse=True)
+        body=f'<p>已收录 {len(rows)} 条同名参赛记录。姓名相同不代表同一人；以下记录不合并为个人履历，也不推断 FIDE 身份。</p>'
+        # Exact registry names only, no presentation suggestions promoted to authority.
+        matches=[p for p in selected if name in (p.get('chineseName'),p.get('displayName'))]
+        if matches:body+='<h2>注册表中的同名棋手</h2><p>'+ ' · '.join(player_link(p)+'（'+esc(p['fideID'])+'）' for p in matches)+'</p><p>同名参赛记录不自动归属于以上棋手。</p>'
+        body+='<h2>同名参赛记录</h2>'+table(['日期','赛事 / 组别','名单编号','名次','积分'],[[esc(r['event'].get('date') or '日期未记录'),event_link(r['event']),esc(r['playerNo']),esc(r['rank'] or '—'),esc(r['score'] if r['score'] is not None else '—')] for r in rows])
+        body+='<p>'+anchor('/?q='+quote(name),'在站内继续检索此姓名')+' · '+anchor('/names','中文姓名目录')+'</p>'
+        add(name_routes[name],name+' · 国际象棋同名参赛记录','按公开赛事与名单编号区分记录；此页为姓名目录，不是已确认的个人档案。',body,[{'@type':'CollectionPage','name':name+'同名参赛记录'}])
+    directory_pages('/names','中文姓名目录',[anchor(name_routes[name],name)+f' · {len(rows)} 条参赛记录' for name,rows in sorted(eligible_names)],'有公开赛事记录的中文姓名索引；同名不代表同一棋手。')
     for e in selected_events:
         key=event_key(e); title=e.get('displayName') or e.get('name') or key
         desc=f'{title}的已收录赛事信息与棋谱。{coverage(e)}。'
@@ -178,13 +223,18 @@ def build(root: Path, sid: str, now=None):
             station_rows.append([anchor(sr,label),esc(station['groupCount']),esc(station.get('latestDate') or '日期未记录')])
         body=table(['赛站','已收录组别','最近比赛日期'],station_rows)+'<p>'+anchor('/master-series','全部年份与交互筛选')+'</p>'
         add(route,yr+' 棋协大师赛','按赛站查看已收录组别、赛事成绩与棋谱覆盖。',body)
-    catalog_rows=[e for e in selected_events if e.get('pgnPath')];chunks=[catalog_rows[i:i+25] for i in range(0,len(catalog_rows),25)] or [[]]
-    paging='<nav class="seo-links" aria-label="精选赛事分页">'+''.join(anchor('/events' if i==0 else f'/events/page/{i+1}',str(i+1)) for i in range(len(chunks)))+'</nav>'
-    for i,chunk in enumerate(chunks[1:],2):add(f'/events/page/{i}',f'精选可复盘赛事 · 第 {i} 页','按赛事查找可下载 PGN，完整目录可在查棋谱页面筛选。',event_table(chunk)+paging)
+    catalog_rows=selected_events;chunks=[catalog_rows[i:i+25] for i in range(0,len(catalog_rows),25)] or [[]]
+    def event_paging(index):
+        links=[]
+        for i,label in [(0,'首页'),(index-1,'上一页'),(index+1,'下一页'),(len(chunks)-1,'末页')]:
+            if 0<=i<len(chunks) and i!=index:links.append(anchor('/events' if i==0 else f'/events/page/{i+1}',label))
+        return '<nav class="seo-links" aria-label="精选赛事分页">'+f'第 {index+1} / {len(chunks)} 页 · '+' · '.join(links)+'</nav>'
+    paging=event_paging(0)
+    for i,chunk in enumerate(chunks[1:],2):add(f'/events/page/{i}',f'精选赛事目录 · 第 {i} 页','按赛事查找已收录成绩与可用棋谱；完整目录可在查棋谱页面筛选。',event_table(chunk)+event_paging(i-1))
     totals=metrics['totals']
     blocks={
-      'index.html':('<h2>查找棋手与比赛</h2><p>已收录 '+esc(totals['playersWithGames'])+' 名有棋谱棋手，公共目录提供 '+esc(totals['playableUniqueGames'])+' 局独立可复盘棋谱。</p><div class="seo-links">'+''.join(player_link(p) for p in selected[:8])+'</div>'),
-      'events.html':'<h2>精选可复盘赛事</h2>'+event_table(chunks[0])+paging,
+      'index.html':('<h2>查找棋手与比赛</h2><p>已收录 '+esc(totals['playersWithGames'])+' 名有棋谱棋手，公共目录提供 '+esc(totals['playableUniqueGames'])+' 局独立可复盘棋谱。</p><div class="seo-links">'+''.join(player_link(p) for p in selected[:8])+'</div><p>'+anchor('/players','全部 FIDE 棋手目录')+' · '+anchor('/names','中文姓名目录')+'</p>'),
+      'events.html':'<h2>精选赛事目录</h2>'+event_table(chunks[0])+paging,
       'leaderboards.html':'<h2>标准棋 · 成年组</h2>'+table(['排序','棋手','等级分'],[[str(i),player_link(p),esc(players[str(p['fideID'])].get('standard'))] for i,p in enumerate(next(g for g in ranks['groups'] if g['id']=='OPEN')['rankings']['standard']['all']['players'][:20],1)])+f'<p>官方榜单生效月：{month[:7]}。自然年龄、非赛事名次；含注册表覆盖的转出棋手。</p>',
       'master-series.html':'<h2>按年份查看赛站</h2><div class="seo-links">'+''.join(anchor(p,l) for p,l in year_links)+'</div>'+''.join('<h3>'+esc(y['year'])+' 年</h3><ul>'+''.join('<li>'+anchor(station_links[(str(y['year']),s['station'])],s['station'])+' · '+esc(s['groupCount'])+' 个已收录组别</li>' for s in y['stations'] if (str(y['year']),s['station']) in station_links)+'</ul>' for y in master['years'])}
     for template in TEMPLATES:
@@ -216,10 +266,10 @@ def build(root: Path, sid: str, now=None):
     for p in sorted(pages,key=lambda p:p['route']):
         u=SubElement(urlset,'url');SubElement(u,'loc').text=ORIGIN+p['route'];SubElement(u,'lastmod').text=p['lastmod']
     outputs['sitemap.xml']=tostring(urlset,encoding='unicode',xml_declaration=True)
-    outputs['llms.txt']='# ChessDB 中国国际象棋棋手数据库\n\n公开棋手、FIDE 等级分、赛事成绩与棋谱；完整性以各页标注为准。\n\n'+''.join(f'- [{label}]({ORIGIN}{route})\n' for route,label in [('/events','查棋谱'),('/leaderboards','棋手排行榜'),('/master-series','棋协大师赛'),('/methodology','口径与许可'),('/developers','API 与 PGN')])
+    outputs['llms.txt']='# ChessDB 中国国际象棋棋手数据库\n\n公开棋手、FIDE 等级分、赛事成绩与棋谱；完整性以各页标注为准。\n\n'+''.join(f'- [{label}]({ORIGIN}{route})\n' for route,label in [('/players','全部 FIDE 棋手'),('/names','中文姓名目录'),('/events','查棋谱'),('/leaderboards','棋手排行榜'),('/master-series','棋协大师赛'),('/methodology','口径与许可'),('/developers','API 与 PGN')])
     templates={name:digest((docs/name).read_bytes()) for name in TEMPLATES}
     assets={name:digest((docs/name).read_bytes()) for name in ('seo.css','seo.js')}
-    manifest={'schemaVersion':1,'snapshotId':sid,'origin':ORIGIN,'generatedAt':now,'registryListDate':month,'templates':templates,'assets':assets,'builderSha256':digest(Path(__file__).read_bytes()),'pages':sorted(pages,key=lambda p:p['route']),'routes':{'players':player_routes,'events':event_routes},'files':[{'file':name,'sha256':digest(body.encode()),'bytes':len(body.encode())} for name,body in sorted(outputs.items())]}
+    manifest={'schemaVersion':1,'snapshotId':sid,'origin':ORIGIN,'generatedAt':now,'registryListDate':month,'templates':templates,'assets':assets,'builderSha256':digest(Path(__file__).read_bytes()),'pages':sorted(pages,key=lambda p:p['route']),'routes':{'players':player_routes,'events':event_routes,'names':name_routes},'coverage':{'registryPlayers':len(players),'playerPages':len(player_routes),'eventPages':len(event_routes),'namePages':len(name_routes),'maxPages':MAX_PAGES},'files':[{'file':name,'sha256':digest(body.encode()),'bytes':len(body.encode())} for name,body in sorted(outputs.items())]}
     target.parent.mkdir(parents=True,exist_ok=True)
     staging=Path(tempfile.mkdtemp(prefix='.seo-',dir=target.parent))
     try:

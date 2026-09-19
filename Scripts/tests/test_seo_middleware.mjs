@@ -11,3 +11,6 @@ r=await run('https://preview.china-chess-player-pgn.pages.dev/');assert.equal(r.
 r=await run('https://chessdb.aigclabs.cc/');assert.equal(r.headers.get('x-robots-tag'),null);
 r=await run('https://chessdb.aigclabs.cc/?event=1234567&round=2');assert.equal(r.status,200);assert.equal(await r.text(),'original');
 console.log('SEO middleware: redirects, preview, query exclusion and API compatibility passed');
+
+r=await run('https://4chess.cc/names/name-abc');assert.equal(r.status,308);assert.equal(r.headers.get('location'),'https://chessdb.aigclabs.cc/names/name-abc');
+r=await run('https://preview.china-chess-player-pgn.pages.dev/players');assert.match(r.headers.get('x-robots-tag'),/noindex/);

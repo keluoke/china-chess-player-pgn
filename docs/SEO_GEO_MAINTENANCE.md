@@ -6,10 +6,11 @@
 
 - 主域：`https://chessdb.aigclabs.cc`；4chess / 正式 Pages 域名的 HTML 入口永久跳转，API/PGN 兼容保留。
 - 核心内容生成到 `docs/data/seo/output/`，精确 manifest 将允许的内容复制到公开路径；内部生成目录不部署。
-- 第一期 500 页硬预算：180 名有可复盘棋谱的棋手、160 场赛事，以及年度/站点/榜单/说明页。实际数量以 manifest 为准。
+- 全量覆盖本站 FIDE 注册表，不按等级分或是否有棋谱筛选；无棋谱时明确说明。扩展至最多 1,100 个有公开成绩或棋谱的赛事、1,000 个有至少两条公开赛事记录的中文姓名目录。姓名目录不合并身份，不把展示聚合或同名记录认定为某个棋手。
+- HTML 生成上限 14,500 页；实际装配的整个部署包超过 17,000 文件预警、超过 19,000 文件拒绝发布，保留免费版 20,000 上限前的增长缓冲。预算不足时必须先调整分配，禁止静默漏掉 FIDE 棋手。棋手/姓名/赛事均有可直接访问的分页目录。
 - robots 与真实 404；首页和内容页 canonical / JSON-LD / 社交元信息；有内容的 sitemap。
 - 旧棋手和赛事链接仅对已生成实体跳转，轮次定位与显式交互模式保持原路由。任意站内查询 noindex；静态规范页可收录。
-- `lastmod` 只随语义正文变化。IndexNow 在部署及普通网址验证完成后通知差异 URL，保存接收或待重试回执；它不代表搜索引擎收录。
+- `lastmod` 只随语义正文变化。IndexNow 在部署及普通网址验证完成后通知差异 URL，按每批最多 10,000 URL 通知，保存接收或待重试回执；它不代表搜索引擎收录。
 - 每次部署保存 `seo-verification` artifact：SEO 线上检查、IndexNow 回执、技术基线及 30 条固定评估查询。
 
 ## 常用验证
@@ -22,7 +23,7 @@ python3 Scripts/seo_observation_report.py --output /tmp/seo-observation.json
 
 以上命令从完整发布 checkout 读取对应快照。精简代码工作区缺少派生数据时，在云端构建或隔离导出的同版本数据上验证；不要把采集工作区拉取成最新 main。
 
-`notify_search_engines.py` 默认只形成待通知差异，`--submit` 才通知 IndexNow。失败回执中的 `changedURLs` 是精确重试集合，不要为通知失败重新采集或全量重建。可在对应发布版本运行 `--retry-receipt <indexnow-receipt.json> --submit --output <new-receipt.json>` 精确重试；不会重新抓来源或重建。
+`notify_search_engines.py` 默认只形成待通知差异，`--submit` 才通知 IndexNow。失败回执中的 `pendingURLs` 是失败批次的精确重试集合（旧回执兼容 `changedURLs`），不要为通知失败重新采集或全量重建。可在对应发布版本运行 `--retry-receipt <indexnow-receipt.json> --submit --output <new-receipt.json>` 精确重试；不会重新抓来源或重建。
 
 ## 外部平台接入
 

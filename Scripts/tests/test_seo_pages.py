@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
+import subprocess
 import unittest
 from unittest.mock import patch
 from urllib.parse import urlparse
@@ -13,7 +14,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import verify_seo_online as online
 import build_seo_pages as builder
 import validate_seo_pages as gate
-from notify_search_engines import changed_urls
+from notify_search_engines import changed_urls, submit_urls
 
 class SeoReleaseTests(unittest.TestCase):
     def setUp(self):
@@ -84,6 +85,31 @@ class SeoReleaseTests(unittest.TestCase):
         self.player['displayName']='合成</script><script>alert(1)</script>';self.write('data/registry/players.json',[self.player]);self.build()
         text=(self.docs/'data/seo/output/players/fide-8602980.html').read_text();self.assertNotIn('<script>alert(1)',text)
         d=gate.Document();d.feed(text);self.assertIn('合成',json.dumps(d.ld,ensure_ascii=False))
+    def test_all_registry_players_have_pages_without_api_or_games(self):
+        extra={'fideID':'999999','displayName':'合成棋手','name':'Fixture Player','federation':'CHN','standard':None}
+        self.write('data/registry/players.json',[self.player,extra]);m=self.build()
+        self.assertEqual(len(m['routes']['players']),2)
+        text=(self.docs/'data/seo/output/players/fide-999999.html').read_text()
+        self.assertIn('本站暂未收录可复盘棋谱',text);self.assertIn('未提供',text)
+        directory=(self.docs/'data/seo/output/players.html').read_text();self.assertIn('/players/fide-999999',directory)
+        self.write('data/registry/players.json',[self.player])
+        with self.assertRaisesRegex(ValueError,'REGISTRY_COVERAGE'):gate.validate(self.root,expected_snapshot=self.sid,check_snapshot=False)
+    def test_name_directory_keeps_roster_rows_separate_and_rejects_unpublished(self):
+        self.write('data/registry/domestic/manifest.json',{'snapshotId':self.sid})
+        sightings=[{'eventID':'chess-results-tnr1234567','playerNo':'1','rank':2,'score':'7'}, {'eventID':'chess-results-tnr1234567','playerNo':'2','rank':3,'score':'6'}, {'eventID':'chess-results-tnr9999','playerNo':'3'}]
+        self.write('data/registry/domestic/shards/00.json',[{'displayName':'合成姓名','sightings':sightings},{'displayName':'合成姓名','sightings':sightings[:1]}])
+        m=self.build();route=m['routes']['names']['合成姓名'];text=(self.docs/'data/seo/output'/builder.route_file(route)).read_text()
+        self.assertIn('2 条同名参赛记录',text);self.assertIn('不合并为个人履历',text);self.assertNotIn('9999',text)
+        doc=gate.Document();doc.feed(text);self.assertNotIn('"Person"',json.dumps(doc.ld))
+        self.write('data/registry/domestic/manifest.json',{'snapshotId':'wrong'})
+        with self.assertRaisesRegex(ValueError,'DOMESTIC_SNAPSHOT'):self.build()
+    def test_large_indexnow_submission_batches_and_retries_failed_urls_only(self):
+        urls=[builder.ORIGIN+'/players/fide-'+str(i) for i in range(10001)];sizes=[]
+        def send(args,**kwargs):
+            payload=json.loads(Path(args[args.index('--data-binary')+1][1:]).read_text());sizes.append(len(payload['urlList']))
+            return subprocess.CompletedProcess(args,0,stdout='202' if len(sizes)==1 else '500')
+        with patch('notify_search_engines.subprocess.run',side_effect=send):result=submit_urls(urls,'fixturekey')
+        self.assertEqual(sizes,[10000,1]);self.assertEqual(result['pendingURLs'],urls[-1:]);self.assertEqual(result['status'],'retry-needed')
     def test_notifications_include_removals(self):
         self.assertEqual(changed_urls({'pages':[{'route':'/gone','contentSha256':'x'}]},{'pages':[]}),[builder.ORIGIN+'/gone'])
 if __name__=='__main__':unittest.main()

@@ -1,6 +1,6 @@
 const ORIGIN = 'https://chessdb.aigclabs.cc';
 const ALIASES = new Set(['4chess.cc','www.4chess.cc','china-chess-player-pgn.pages.dev']);
-const htmlPath = path => path === '/' || /^\/(?:index|events|leaderboards|master-series|players|about|methodology|developers|coverage|contribute)(?:\.html|\/.*)?$/.test(path);
+const htmlPath = path => path === '/' || /^\/(?:index|events|leaderboards|master-series|players|names|about|methodology|developers|coverage|contribute)(?:\.html|\/.*)?$/.test(path);
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   if (!['GET','HEAD'].includes(context.request.method) || !htmlPath(url.pathname)) return context.next();

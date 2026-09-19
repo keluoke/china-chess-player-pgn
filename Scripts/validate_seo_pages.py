@@ -13,7 +13,7 @@ def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 def safe_file(value):
     p=PurePosixPath(value)
     if p.is_absolute() or '..' in p.parts or not re.fullmatch(r'[a-zA-Z0-9_./-]+',value):raise ValueError('SEO_UNSAFE_PATH')
-    if not (value in {'sitemap.xml','llms.txt','index.html','events.html','master-series.html','leaderboards.html','about.html','methodology.html','developers.html'} or re.fullmatch(r'(?:players|events|leaderboards|master-series)/[a-zA-Z0-9_/-]+\.html',value)):raise ValueError('SEO_UNEXPECTED_OUTPUT')
+    if not (value in {'sitemap.xml','llms.txt','index.html','events.html','master-series.html','leaderboards.html','about.html','methodology.html','developers.html','players.html','names.html'} or re.fullmatch(r'(?:players|names|events|leaderboards|master-series)/[a-zA-Z0-9_/-]+\.html',value)):raise ValueError('SEO_UNEXPECTED_OUTPUT')
     return p
 
 class Document(HTMLParser):
@@ -41,7 +41,7 @@ def validate(root=ROOT,seo_root=None,expected_snapshot=None,check_snapshot=True,
         for name,expected in manifest[group].items():
             if '/' in name or sha(docs/name)!=expected:raise ValueError('SEO_TEMPLATE_REBUILD_REQUIRED: '+name)
     files=manifest['files'];pages=manifest['pages'];paths=[f['file'] for f in files]
-    if len(paths)!=len(set(paths)) or len(pages)>500:raise ValueError('SEO_OUTPUT_BUDGET_OR_DUPLICATE')
+    if len(paths)!=len(set(paths)) or len(pages)>14500:raise ValueError('SEO_OUTPUT_BUDGET_OR_DUPLICATE')
     actual={p.relative_to(seo/'output').as_posix() for p in (seo/'output').rglob('*') if p.is_file()}
     if actual!=set(paths):raise ValueError('SEO_OUTPUT_INVENTORY_MISMATCH')
     for f in files:
@@ -59,11 +59,17 @@ def validate(root=ROOT,seo_root=None,expected_snapshot=None,check_snapshot=True,
         for link in doc.links:
             if link.startswith(('javascript:','data:','//')):raise ValueError('SEO_UNSAFE_LINK')
             clean=link.split('?')[0].split('#')[0]
-            if clean.startswith(('/players/','/events/','/master-series/','/leaderboards/')) and clean not in routes:raise ValueError('SEO_DANGLING_ENTITY_LINK: '+clean)
+            if clean.startswith(('/players/','/names/','/events/','/master-series/','/leaderboards/')) and clean not in routes:raise ValueError('SEO_DANGLING_ENTITY_LINK: '+clean)
     sitemap=ET.parse(seo/'output/sitemap.xml'); locs=[e.text for e in sitemap.findall('.//{*}loc')]
     if len(locs)!=len(routes) or set(locs)!={ORIGIN+r for r in routes}:raise ValueError('SEO_SITEMAP_MISMATCH')
     for mapping in manifest['routes'].values():
         if any(v not in routes for v in mapping.values()):raise ValueError('SEO_ROUTE_MAP_MISMATCH')
+    coverage=manifest.get('coverage')
+    if coverage and (coverage['registryPlayers']!=len(manifest['routes']['players']) or coverage['playerPages']!=len(manifest['routes']['players'])):raise ValueError('SEO_REGISTRY_COVERAGE_MISMATCH')
+    if check_inputs and coverage:
+        registry=json.loads((docs/'data/registry/players.json').read_text())
+        expected={str(p['fideID']):'/players/fide-'+str(p['fideID']) for p in registry}
+        if manifest['routes']['players']!=expected:raise ValueError('SEO_REGISTRY_COVERAGE_MISMATCH')
     if check_snapshot:
         snapshot=json.loads((docs/'data/snapshot.json').read_text());refs=[r for r in snapshot.get('outputs',[]) if r['path']=='docs/data/seo/manifest.json']
         if len(refs)!=1 or refs[0].get('sha256')!=sha(seo/'manifest.json'):raise ValueError('SEO_MANIFEST_NOT_CERTIFIED')

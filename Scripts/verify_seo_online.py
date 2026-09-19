@@ -27,10 +27,13 @@ def verify(root=ROOT,site=ORIGIN):
     sitemap_body,_=check('/sitemap.xml');sitemap=ET.fromstring(sitemap_body);urls={e.text for e in sitemap.findall('.//{*}loc')}
     if urls!={ORIGIN+p['route'] for p in manifest['pages']}:raise ValueError('SEO_ONLINE_SITEMAP_MISMATCH')
     chosen=[]
-    for prefix in ['/','/events','/leaderboards','/master-series','/about','/methodology','/developers']:
+    for prefix in ['/','/events','/leaderboards','/master-series','/about','/methodology','/developers','/players','/names']:
         chosen.extend(p for p in manifest['pages'] if p['route']==prefix)
-    for prefix in ['/players/','/events/','/master-series/','/leaderboards/']:
+    for prefix in ['/players/','/events/','/master-series/','/leaderboards/','/names/']:
         chosen.extend([p for p in manifest['pages'] if p['route'].startswith(prefix)][:2])
+    for prefix in ['/players/page/','/events/page/','/names/page/']:
+        extra=[p for p in manifest['pages'] if p['route'].startswith(prefix)]
+        if extra:chosen.append(extra[-1])
     for p in chosen:check(p['route'],mime='text/html',expected=p['sha256'])
     for kind,param in [('players','fideID'),('events','event')]:
         ident,route=next(iter(manifest['routes'][kind].items()))
