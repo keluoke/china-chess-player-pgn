@@ -101,7 +101,7 @@ class R2Store:
         # Reserve both shards' maximum size, so concurrent writers cannot spend
         # the same free space. Other applications/account buckets are independent.
         if own > PREFIX_BUDGET or total - own + PREFIX_BUDGET > BUCKET_BUDGET:
-            raise ValueError('QUEUE_STORAGE_BUDGET_EXCEEDED')
+            raise ValueError(f'QUEUE_STORAGE_BUDGET_EXCEEDED: bucketBytes={total}, queueBytes={own}')
 
     def load(self):
         self.charge('B')
@@ -176,33 +176,54 @@ def certified_files(root):
     return sorted(set(files)), json.loads((base / 'snapshot.json').read_text())
 
 
-def catalog(files, db, shard, known=()):
-    """Temporary local PGNs; only identities/results survive in R2 checkpoints."""
+def catalog(files, db, shard, known=(), cache=None):
+    """Cache authenticated package offsets, never duplicate PGN bodies in R2."""
     known = set(known)
-    db.execute('CREATE TABLE games (id TEXT PRIMARY KEY, pgn TEXT NOT NULL, priority INTEGER NOT NULL)')
-    occurrences = rejected = 0
+    cache = cache if cache is not None else {}
+    db.execute('CREATE TABLE games (id TEXT PRIMARY KEY, pgn TEXT, priority INTEGER NOT NULL, path TEXT, offset INTEGER)')
+    occurrences = rejected = reused = parsed = 0
+    cache_version = hashlib.sha256((chess.__version__ +
+        hashlib.sha256(Path(analyzer.pgn_helper.__file__).read_bytes()).hexdigest() +
+        '|offset-catalog-v1').encode()).hexdigest()
     for path in files:
-        with path.open(encoding='utf-8') as handle:
-            while True:
-                game = chess.pgn.read_game(handle)
-                if game is None:
-                    break
-                occurrences += 1
-                board = game.board()
-                if (game.errors or not board.is_valid() or board.chess960
-                        or type(board) is not chess.Board or game.end().ply() == game.ply()):
-                    rejected += 1
-                    continue
-                text = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
-                fp = analyzer.pgn_helper.game_fingerprint(text)
-                # Include initial position: identical moves from different FENs
-                # are not the same game. Provider cosmetics are ignored by fp.
-                identity = hashlib.sha256((board.fen() + '|' + fp).encode()).hexdigest()
-                if int(identity[:8], 16) % SHARDS != shard:
-                    continue
-                db.execute('INSERT OR IGNORE INTO games VALUES (?,?,?)', (identity, text, int(identity in known)))
+        # Certification has already established package membership and contents;
+        # this digest additionally binds text offsets to exactly those bytes.
+        digest = archive_gate.file_sha256(path)
+        cache_key = path.parent.name + '/' + path.name
+        previous = cache.get(cache_key, {})
+        if previous.get('sha256') == digest and previous.get('version') == cache_version:
+            entry = previous
+            reused += 1
+        else:
+            entry = {'sha256': digest, 'version': cache_version, 'games': [],
+                     'occurrences': 0, 'excluded': 0}
+            parsed += 1
+            with path.open(encoding='utf-8') as handle:
+                while True:
+                    offset = handle.tell()
+                    game = chess.pgn.read_game(handle)
+                    if game is None:
+                        break
+                    entry['occurrences'] += 1
+                    board = game.board()
+                    if (game.errors or not board.is_valid() or board.chess960
+                            or type(board) is not chess.Board or game.end().ply() == game.ply()):
+                        entry['excluded'] += 1
+                        continue
+                    text = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
+                    fp = analyzer.pgn_helper.game_fingerprint(text)
+                    identity = hashlib.sha256((board.fen() + '|' + fp).encode()).hexdigest()
+                    if int(identity[:8], 16) % SHARDS == shard:
+                        entry['games'].append([identity, offset])
+            cache[cache_key] = entry
+        occurrences += entry['occurrences']
+        rejected += entry['excluded']
+        for identity, offset in entry['games']:
+            db.execute('INSERT OR IGNORE INTO games VALUES (?,NULL,?,?,?)',
+                       (identity, int(identity in known), str(path), offset))
     db.commit()
     return {'archiveOccurrences': occurrences, 'excludedOccurrences': rejected,
+            'reusedPackages': reused, 'parsedPackages': parsed,
             'eligibleGames': db.execute('SELECT count(*) FROM games').fetchone()[0]}
 
 
@@ -235,7 +256,7 @@ def run_queue(db, state, version, engine, save, *, seconds, max_games,
     processed = errors = dirty = 0
     last_saved = time.monotonic()
     # Deterministic ordering and one ledger serve both old and newly added games.
-    for identity, text in db.execute('SELECT id,pgn FROM games ORDER BY priority,id'):
+    for identity, text, path, offset in db.execute('SELECT id,pgn,path,offset FROM games ORDER BY priority,id'):
         if processed >= max_games or time.monotonic() >= deadline:
             break
         previous = state['records'].get(identity, {})
@@ -243,7 +264,14 @@ def run_queue(db, state, version, engine, save, *, seconds, max_games,
             if previous.get('status') == 'complete' or previous.get('nextRetryAt', 0) > time.time():
                 continue
         try:
-            game = chess.pgn.read_game(io.StringIO(text))
+            if text is not None:
+                game = chess.pgn.read_game(io.StringIO(text))
+            else:
+                with open(path, encoding='utf-8') as handle:
+                    handle.seek(offset)
+                    game = chess.pgn.read_game(handle)
+            if game is None or game.errors:
+                raise ValueError('QUEUE_ARCHIVE_GAME_INVALID')
             # Reset cross-game hash state for reproducible per-game budgets.
             if 'Clear Hash' in getattr(engine, 'options', {}):
                 engine.configure({'Clear Hash': None})
@@ -299,7 +327,7 @@ def main():
     client = boto3.client('s3', endpoint_url=os.environ['R2_ENDPOINT'], region_name='auto',
         aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
         aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
-        config=Config(connect_timeout=15, read_timeout=60, retries={'max_attempts': 3}))
+        config=Config(connect_timeout=15, read_timeout=60, retries={'total_max_attempts': 1}))
     store = R2Store(client, os.environ['R2_BUCKET'], args.shard, os.environ['BRILLIANCY_QUEUE_KEY'])
     state = store.load()
     if args.export_candidates:
@@ -317,7 +345,8 @@ def main():
     print(json.dumps({'phase': 'catalog', 'files': len(files), 'shard': args.shard}), flush=True)
     with tempfile.TemporaryDirectory(prefix='brilliancy-queue-') as temporary:
         db = sqlite3.connect(Path(temporary) / 'catalog.sqlite')
-        counts = catalog(files, db, args.shard, state.get('knownGames', []))
+        catalog_cache = state.setdefault('catalogFiles', {})
+        counts = catalog(files, db, args.shard, state.get('knownGames', []), catalog_cache)
         print(json.dumps({'phase': 'analysis', **counts}), flush=True)
         engine = chess.engine.SimpleEngine.popen_uci(args.engine, timeout=120)
         try:
@@ -329,7 +358,7 @@ def main():
             state['knownGames'] = known
             state['lastInputSnapshot'] = snapshot['snapshotId']
             state['lastEngine'] = engine.id['name']
-            if changed_catalog:
+            if changed_catalog or counts['parsedPackages']:
                 store.save(state)
             result = run_queue(db, state, version, engine, store.save,
                                seconds=args.seconds, max_games=args.max_games)

@@ -57,7 +57,7 @@ class FakeS3:
 class QueueTests(unittest.TestCase):
     def setUp(self):
         self.db = sqlite3.connect(':memory:')
-        self.db.execute('CREATE TABLE games (id TEXT PRIMARY KEY, pgn TEXT NOT NULL, priority INTEGER NOT NULL)')
+        self.db.execute('CREATE TABLE games (id TEXT PRIMARY KEY, pgn TEXT, priority INTEGER NOT NULL, path TEXT, offset INTEGER)')
         self.add('a')
         self.state = q.new_state(0)
         self.saved = []
@@ -66,7 +66,7 @@ class QueueTests(unittest.TestCase):
         self.db.close()
 
     def add(self, key):
-        self.db.execute('INSERT INTO games VALUES (?,?,0)', (key * 64, '[Result "*"]\n\n1. e4 e5 *'))
+        self.db.execute('INSERT INTO games VALUES (?,?,0,NULL,NULL)', (key * 64, '[Result "*"]\n\n1. e4 e5 *'))
 
     def save(self, state):
         self.saved.append(json.loads(json.dumps(state)))
@@ -153,6 +153,41 @@ class QueueTests(unittest.TestCase):
         candidate = q.analyzer.detect_sacrifice_moves(game)[0]
         self.assertEqual(candidate['ply'], 0)
         self.assertEqual(candidate['fullmoveNumber'], 28)
+
+    def test_unchanged_packages_reuse_offsets_and_changed_package_invalidates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'all.pgn'
+            path.write_text('[White "A"]\n[Black "B"]\n[Result "*"]\n\n1. e4 e5 *\n')
+            cache = {}
+            with sqlite3.connect(':memory:') as db:
+                first = q.catalog([path], db, 0, cache=cache)
+                self.assertEqual(first['parsedPackages'], 1)
+            with sqlite3.connect(':memory:') as db:
+                with patch.object(q.chess.pgn, 'read_game', side_effect=AssertionError('must not parse unchanged file')):
+                    second = q.catalog([path], db, 0, cache=cache)
+                self.assertEqual(second['reusedPackages'], 1)
+                self.assertEqual(second['eligibleGames'], first['eligibleGames'])
+            path.write_text(path.read_text().replace('e4 e5', 'd4 d5'))
+            with sqlite3.connect(':memory:') as db:
+                third = q.catalog([path], db, 0, cache=cache)
+                self.assertEqual(third['parsedPackages'], 1)
+
+    def test_offset_queue_reads_original_game(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'all.pgn'
+            path.write_text('[White "A"]\n[Black "B"]\n[Result "*"]\n\n1. e4 e5 *\n')
+            seen = 0
+            for shard in range(q.SHARDS):
+                with sqlite3.connect(':memory:') as db:
+                    q.catalog([path], db, shard)
+                    def check(game, *args):
+                        self.assertEqual(game.headers['White'], 'A')
+                        return []
+                    with patch.object(q.analyzer, 'analyze_game', side_effect=check):
+                        result = q.run_queue(db, q.new_state(shard), 'v1', FakeEngine(), lambda state: None,
+                                             seconds=10, max_games=100)
+                        seen += result['completedGames']
+            self.assertEqual(seen, 1)
 
     def test_profile_tracks_engine_and_detector(self):
         first = q.profile(FakeEngine(), 200000, 1500000)
