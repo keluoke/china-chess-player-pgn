@@ -37,8 +37,10 @@ MAX_STATE_RAW = 500_000_000
 
 
 def packed(value):
-    return gzip.compress(json.dumps(value, ensure_ascii=False, sort_keys=True,
-                                    separators=(',', ':')).encode(), mtime=0)
+    raw = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
+    if len(raw) > MAX_STATE_RAW:
+        raise ValueError('QUEUE_STATE_TOO_LARGE')
+    return gzip.compress(raw, mtime=0)
 
 
 def unpacked(data):

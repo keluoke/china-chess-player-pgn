@@ -297,6 +297,12 @@ class StorageTests(unittest.TestCase):
                     self.store.load()
         self.assertEqual(self.store.class_b, 3)
 
+    def test_raw_size_gate_prevents_writing_an_unloadable_checkpoint(self):
+        with patch.object(q, 'MAX_STATE_RAW', 1):
+            with self.assertRaisesRegex(ValueError, 'STATE_TOO_LARGE'):
+                self.store.save(q.new_state(0))
+        self.assertEqual(self.s3.puts, 0)
+
     def test_permission_failure_not_missing_state(self):
         with patch.object(self.s3, 'get_object', side_effect=PermissionError):
             with self.assertRaises(PermissionError):
