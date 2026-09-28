@@ -255,6 +255,20 @@ class BrillianciesBuildAndValidationTests(unittest.TestCase):
             # Must have license header
             self.assertIn("License", game.headers)
 
+    def test_rebinds_unique_original_after_header_only_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._setup_mock_environment(root)
+            curated = json.loads(self.curated_path.read_text())
+            target = curated["items"][0]
+            fid = target["white"]["playerId"].removeprefix("fide-")
+            archive = root / f"docs/data/pgn/by-player/fide-{fid}/all.pgn"
+            archive.write_text(archive.read_text().replace('[Site "', '[Site "Updated '))
+            builder.build(root, sid="test-snap")
+            shard = json.loads((root / f"docs/data/brilliancies/shards/{target['id'][3]}.json").read_text())
+            self.assertNotEqual(shard["items"][target["id"]]["game"]["id"], target["game"]["id"])
+            validator.validate_brilliancies(root)
+
     def test_root_isolation(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_root = pathlib.Path(tmp_dir)

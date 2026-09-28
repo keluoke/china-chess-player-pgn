@@ -20,6 +20,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import io
 import os
 import pathlib
 import sys
@@ -33,6 +34,7 @@ sys.path.insert(0, str(ROOT / "Scripts"))
 
 from snapshot_context import snapshot_id
 from stable_json import write_json
+import build_static_player_pgn as pgn_helper
 
 CURATED_PATH = ROOT / "data/manual/brilliancies/curated.json"
 REGISTRY_PLAYERS = ROOT / "docs/data/registry/players.json"
@@ -330,6 +332,7 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
     scan_coverage = {"status": "not-measured", "published": 0}
 
 
+    archive_cache = {}
     published_items = []
     published_ids = set()
     shards: Dict[str, Dict[str, Any]] = {hex(i)[2:]: {} for i in range(16)}
@@ -374,6 +377,27 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
                     )
                     player_info["displayName"] = authoritative_name
                     player_info["playerId"] = f"fide-{clean_fide}"
+
+        # A rebuild can choose a different provider copy of the same played game.
+        # Rebind only through an exact, unique move fingerprint, never list order.
+        white_id = str(item.get("white", {}).get("playerId", "")).removeprefix("fide-")
+        archive_path = root / f"docs/data/pgn/by-player/fide-{white_id}/all.pgn"
+        if archive_path.is_file():
+            if white_id not in archive_cache:
+                by_fingerprint = {}
+                for raw in pgn_helper.split_pgn_games(archive_path.read_text(encoding="utf-8")):
+                    game = chess.pgn.read_game(io.StringIO(raw))
+                    if not game or game.errors:
+                        continue
+                    clean = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
+                    fp = pgn_helper.game_fingerprint(clean)
+                    by_fingerprint.setdefault(fp, set()).add(pgn_helper.stable_game_hash(raw))
+                archive_cache[white_id] = by_fingerprint
+            matches = archive_cache[white_id].get(item["game"]["fingerprint"], set())
+            if item["game"]["id"] not in matches:
+                if len(matches) != 1:
+                    raise ValueError(f"ORIGINAL_GAME_MATCH_NOT_UNIQUE: {b_id}")
+                item["game"]["id"] = next(iter(matches))
 
         # Standardize links
         item["snapshotId"] = sid
