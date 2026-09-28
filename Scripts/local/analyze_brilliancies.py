@@ -58,7 +58,7 @@ def detect_sacrifice_moves(game: chess.pgn.Game) -> List[Dict[str, Any]]:
     prev_captured_type: Optional[int] = None
     prev_captured_square: Optional[int] = None
 
-    ply = (board.fullmove_number - 1) * 2 + (1 if board.turn == chess.BLACK else 0)
+    ply = 0  # Index within this PGN, including games with a custom starting FEN.
     for node in game.mainline():
         move = node.move
         mover = board.turn
@@ -86,7 +86,7 @@ def detect_sacrifice_moves(game: chess.pgn.Game) -> List[Dict[str, Any]]:
                 is_direct_recapture = True
 
         # Tactical brilliancies rarely occur before move 8 (ply 15) in master play
-        if ply >= 15 and not is_direct_recapture:
+        if (board.fullmove_number - 1) * 2 + int(not board.turn) >= 15 and not is_direct_recapture:
             # Check piece sacrifices: Q, R, B, N
             val_moved = PIECE_VALUES.get(piece_type, 0)
             val_captured = PIECE_VALUES.get(captured_type, 0) if captured_type else 0
@@ -320,6 +320,139 @@ def evaluate_candidate(
     }
 
 
+def analyze_game(game, engine, nodes_screen=200000, nodes_verify=1500000):
+    """Analyze one parsed legal game; callers own durable completion tracking."""
+    results = []
+    if game.errors:
+        raise ValueError("INVALID_PGN")
+    # Get raw text for fingerprint
+    exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=False)
+    game_text = game.accept(exporter)
+    fingerprint = pgn_helper.game_fingerprint(game_text)
+    game_id = fingerprint.removeprefix("fp:")
+
+    headers = game.headers
+    white_name = headers.get("White", "未知棋手")
+    black_name = headers.get("Black", "未知棋手")
+    event_name = headers.get("Event", "公开赛事")
+    event_date = headers.get("Date", "")
+    result = headers.get("Result", "*")
+
+    # Collect sacrifice candidates
+    sacs = detect_sacrifice_moves(game)
+    if not sacs:
+        return []
+
+    # Extract actual continuation moves
+    all_moves = list(game.mainline_moves())
+    replay = game.board()
+    all_san = []
+    for move in all_moves:
+        all_san.append(replay.san(move))
+        replay.push(move)
+
+    for sac in sacs:
+        ply = sac["ply"]
+        ver = evaluate_candidate(
+            engine,
+            sac["fenBefore"],
+            sac["moveUci"],
+            nodes_screen=nodes_screen,
+            nodes_verify=nodes_verify,
+        )
+        if not ver:
+            continue
+
+        # Actual continuation from this move onward (next 6 moves)
+        actual_uci = [m.uci() for m in all_moves[ply + 1 : ply + 9]]
+        actual_san = []
+        temp_b = chess.Board(sac["fenBefore"])
+        temp_b.push(chess.Move.from_uci(sac["moveUci"]))
+        for uci_str in actual_uci:
+            m = chess.Move.from_uci(uci_str)
+            if m in temp_b.legal_moves:
+                actual_san.append(temp_b.san(m))
+                temp_b.push(m)
+            else:
+                break
+
+        b_id = compute_brilliancy_id(fingerprint, ply, sac["moveUci"])
+
+        # Determine mover name and player ID
+        mover_side = sac["sideToMove"]
+        mover_name = white_name if mover_side == "white" else black_name
+        opp_name = black_name if mover_side == "white" else white_name
+
+        rights = [
+            {
+                "type": "database-selection",
+                "license": "CC BY 4.0",
+                "attribution": "ChessDB 引擎筛选候选",
+            }
+        ]
+        if headers.get("BroadcastURL") or "lichess.org" in (headers.get("Site") or ""):
+            rights.append({
+                "type": "game-broadcast",
+                "license": "CC BY-SA 4.0",
+                "attribution": "Lichess Broadcast (CC BY-SA 4.0)",
+            })
+
+        candidate = {
+            "id": b_id,
+            "schemaVersion": 1,
+            "status": "candidate",
+            "game": {
+                "id": game_id,
+                "fingerprint": fingerprint,
+                "result": result,
+                "initialFen": game.board().fen(),
+                "movesUci": [move.uci() for move in all_moves],
+                "movesSan": all_san,
+                "totalMoves": len(all_moves),
+            },
+            "event": {
+                "id": headers.get("TournamentID") or headers.get("EventID") or "event-unknown",
+                "name": event_name,
+                "date": event_date,
+            },
+            "white": {
+                "displayName": white_name,
+                "playerId": headers.get("WhiteFideId") or None,
+            },
+            "black": {
+                "displayName": black_name,
+                "playerId": headers.get("BlackFideId") or None,
+            },
+            "position": {
+                "fenBefore": sac["fenBefore"],
+                "ply": ply,
+                "fullmoveNumber": sac["fullmoveNumber"],
+                "sideToMove": mover_side,
+            },
+            "move": {
+                "uci": sac["moveUci"],
+                "san": sac["moveSan"],
+            },
+            "classification": {
+                "symbol": "!!",
+                "ruleVersion": "2026-09-v1",
+            },
+            "themes": [sac["theme"]],
+            "verification": {
+                "engine": ver["engine"],
+                "nodes": ver["nodes"],
+                "depth": ver["depth"],
+                "evaluation": ver["evaluation"],
+            },
+            "rights": rights,
+            "actualContinuationUci": actual_uci,
+            "actualContinuationSan": actual_san,
+            "analysisLines": ver["analysisLines"],
+        }
+        results.append(candidate)
+    return results
+
+
 def analyze_pgn_games(
     pgn_path: pathlib.Path,
     engine: chess.engine.SimpleEngine,
@@ -340,131 +473,7 @@ def analyze_pgn_games(
             if game.errors:
                 continue
 
-            # Get raw text for fingerprint
-            exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=False)
-            game_text = game.accept(exporter)
-            fingerprint = pgn_helper.game_fingerprint(game_text)
-            game_id = fingerprint.removeprefix("fp:")
-
-            headers = game.headers
-            white_name = headers.get("White", "未知棋手")
-            black_name = headers.get("Black", "未知棋手")
-            event_name = headers.get("Event", "公开赛事")
-            event_date = headers.get("Date", "")
-            result = headers.get("Result", "*")
-
-            # Collect sacrifice candidates
-            sacs = detect_sacrifice_moves(game)
-            if not sacs:
-                continue
-
-            # Extract actual continuation moves
-            all_moves = list(game.mainline_moves())
-            replay = game.board()
-            all_san = []
-            for move in all_moves:
-                all_san.append(replay.san(move))
-                replay.push(move)
-
-            for sac in sacs:
-                ply = sac["ply"]
-                ver = evaluate_candidate(
-                    engine,
-                    sac["fenBefore"],
-                    sac["moveUci"],
-                    nodes_screen=nodes_screen,
-                    nodes_verify=nodes_verify,
-                )
-                if not ver:
-                    continue
-
-                # Actual continuation from this move onward (next 6 moves)
-                actual_uci = [m.uci() for m in all_moves[ply + 1 : ply + 9]]
-                actual_san = []
-                temp_b = chess.Board(sac["fenBefore"])
-                temp_b.push(chess.Move.from_uci(sac["moveUci"]))
-                for uci_str in actual_uci:
-                    m = chess.Move.from_uci(uci_str)
-                    if m in temp_b.legal_moves:
-                        actual_san.append(temp_b.san(m))
-                        temp_b.push(m)
-                    else:
-                        break
-
-                b_id = compute_brilliancy_id(fingerprint, ply, sac["moveUci"])
-
-                # Determine mover name and player ID
-                mover_side = sac["sideToMove"]
-                mover_name = white_name if mover_side == "white" else black_name
-                opp_name = black_name if mover_side == "white" else white_name
-
-                rights = [
-                    {
-                        "type": "database-selection",
-                        "license": "CC BY 4.0",
-                        "attribution": "ChessDB 社区审核精选",
-                    }
-                ]
-                if headers.get("BroadcastURL") or "lichess.org" in (headers.get("Site") or ""):
-                    rights.append({
-                        "type": "game-broadcast",
-                        "license": "CC BY-SA 4.0",
-                        "attribution": "Lichess Broadcast (CC BY-SA 4.0)",
-                    })
-
-                candidate = {
-                    "id": b_id,
-                    "schemaVersion": 1,
-                    "status": "candidate",
-                    "game": {
-                        "id": game_id,
-                        "fingerprint": fingerprint,
-                        "result": result,
-                        "initialFen": game.board().fen(),
-                        "movesUci": [move.uci() for move in all_moves],
-                        "movesSan": all_san,
-                        "totalMoves": len(all_moves),
-                    },
-                    "event": {
-                        "id": headers.get("TournamentID") or headers.get("EventID") or "event-unknown",
-                        "name": event_name,
-                        "date": event_date,
-                    },
-                    "white": {
-                        "displayName": white_name,
-                        "playerId": headers.get("WhiteFideId") or None,
-                    },
-                    "black": {
-                        "displayName": black_name,
-                        "playerId": headers.get("BlackFideId") or None,
-                    },
-                    "position": {
-                        "fenBefore": sac["fenBefore"],
-                        "ply": ply,
-                        "fullmoveNumber": sac["fullmoveNumber"],
-                        "sideToMove": mover_side,
-                    },
-                    "move": {
-                        "uci": sac["moveUci"],
-                        "san": sac["moveSan"],
-                    },
-                    "classification": {
-                        "symbol": "!!",
-                        "ruleVersion": "2026-09-v1",
-                    },
-                    "themes": [sac["theme"]],
-                    "verification": {
-                        "engine": ver["engine"],
-                        "nodes": ver["nodes"],
-                        "depth": ver["depth"],
-                        "evaluation": ver["evaluation"],
-                    },
-                    "rights": rights,
-                    "actualContinuationUci": actual_uci,
-                    "actualContinuationSan": actual_san,
-                    "analysisLines": ver["analysisLines"],
-                }
-                results.append(candidate)
+            results.extend(analyze_game(game, engine, nodes_screen, nodes_verify))
 
     return results, scanned_games
 

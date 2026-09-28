@@ -1,0 +1,84 @@
+name: Analyze archived brilliancies
+run-name: Brilliancy queue (${{ github.event_name }})
+
+on:
+  schedule:
+    - cron: '23 */4 * * *'
+  workflow_run:
+    workflows: ['Rebuild indexes and deploy']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      max_games:
+        description: Maximum games per shard (1–10000)
+        type: string
+        default: '5000'
+      seconds:
+        description: Analysis time per shard (1–3300 seconds)
+        type: string
+        default: '3000'
+
+permissions:
+  contents: read
+
+# A single writer per fixed shard, including manual/scheduled/rebuild triggers.
+concurrency:
+  group: brilliancy-queue-v1
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - uses: ./.github/actions/setup-python-deps
+        with:
+          python-version: '3.13'
+          packages: chess==1.11.2 boto3==1.43.51 'cryptography>=46,<47'
+      - name: Install Stockfish
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y stockfish
+      - name: Analyze certified archived PGNs and checkpoint to R2
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          BRILLIANCY_QUEUE_KEY: ${{ secrets.BRILLIANCY_QUEUE_KEY }}
+          QUEUE_SHARD: ${{ matrix.shard }}
+          QUEUE_SECONDS: ${{ inputs.seconds || '3000' }}
+          QUEUE_MAX_GAMES: ${{ inputs.max_games || '5000' }}
+        run: |
+          set -euo pipefail
+          python3 Scripts/brilliancy_queue.py \
+            --shard "$QUEUE_SHARD" --seconds "$QUEUE_SECONDS" \
+            --max-games "$QUEUE_MAX_GAMES" \
+            --summary "$RUNNER_TEMP/brilliancy-summary-$QUEUE_SHARD.json"
+      - name: Report durable queue progress
+        if: always()
+        env:
+          QUEUE_SHARD: ${{ matrix.shard }}
+        run: |
+          if [ -f "$RUNNER_TEMP/brilliancy-summary-$QUEUE_SHARD.json" ]; then
+            cat "$RUNNER_TEMP/brilliancy-summary-$QUEUE_SHARD.json" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Queue run failed before completion; inspect logs. Previously verified checkpoints are retained.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: brilliancy-progress-${{ matrix.shard }}
+          path: ${{ runner.temp }}/brilliancy-summary-${{ matrix.shard }}.json
+          retention-days: 14
+          if-no-files-found: ignore
