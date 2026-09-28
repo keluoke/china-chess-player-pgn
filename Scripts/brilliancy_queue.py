@@ -227,6 +227,22 @@ def catalog(files, db, shard, known=(), cache=None):
             'eligibleGames': db.execute('SELECT count(*) FROM games').fetchone()[0]}
 
 
+def prepare_catalog_state(state, db, version):
+    """New arrivals retain priority across slices until successfully completed."""
+    known = [row[0] for row in db.execute('SELECT id FROM games ORDER BY id')]
+    old_known = set(state.get('knownGames', []))
+    arrivals = set(known) - old_known if old_known else set()
+    priority = (set(state.get('priorityGames', [])) | arrivals) & set(known)
+    priority = {key for key in priority if not (
+        state['records'].get(key, {}).get('version') == version and
+        state['records'].get(key, {}).get('status') == 'complete')}
+    changed = (known != state.get('knownGames') or version != state.get('activeVersion')
+               or sorted(priority) != state.get('priorityGames', []))
+    state.update(knownGames=known, priorityGames=sorted(priority), activeVersion=version)
+    db.executemany('UPDATE games SET priority=0 WHERE id=?', ((key,) for key in priority))
+    return changed
+
+
 class DeadlineEngine:
     def __init__(self, engine, deadline):
         self.engine, self.deadline, self.id = engine, deadline, engine.id
@@ -352,10 +368,7 @@ def main():
         try:
             engine.configure({'Threads': 1, 'Hash': 64})
             version = profile(engine, 200000, 1500000)
-            known = [row[0] for row in db.execute('SELECT id FROM games ORDER BY id')]
-            changed_catalog = known != state.get('knownGames') or version != state.get('activeVersion')
-            state['activeVersion'] = version
-            state['knownGames'] = known
+            changed_catalog = prepare_catalog_state(state, db, version)
             state['lastInputSnapshot'] = snapshot['snapshotId']
             state['lastEngine'] = engine.id['name']
             if changed_catalog or counts['parsedPackages']:

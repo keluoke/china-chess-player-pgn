@@ -189,6 +189,21 @@ class QueueTests(unittest.TestCase):
                         seen += result['completedGames']
             self.assertEqual(seen, 1)
 
+    def test_arrival_priority_survives_checkpoint_and_next_slice(self):
+        self.state['knownGames'] = ['a' * 64]
+        self.add('b')
+        self.assertTrue(q.prepare_catalog_state(self.state, self.db, 'v1'))
+        self.assertEqual(self.state['priorityGames'], ['b' * 64])
+        # A fresh catalog sees both games as already known, but the durable
+        # priority marker must still place the unfinished arrival first.
+        restored = q.unpacked(q.packed(self.state))
+        self.db.execute('UPDATE games SET priority=1')
+        q.prepare_catalog_state(restored, self.db, 'v1')
+        self.assertEqual(self.db.execute('SELECT id FROM games ORDER BY priority,id LIMIT 1').fetchone()[0], 'b' * 64)
+        restored['records']['b' * 64] = {'status': 'complete', 'version': 'v1', 'candidates': []}
+        q.prepare_catalog_state(restored, self.db, 'v1')
+        self.assertEqual(restored['priorityGames'], [])
+
     def test_profile_tracks_engine_and_detector(self):
         first = q.profile(FakeEngine(), 200000, 1500000)
         self.assertNotEqual(first, q.profile(FakeEngine(), 200001, 1500000))
