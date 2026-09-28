@@ -307,10 +307,12 @@ def evaluate_candidate(
     else:
         return None
 
+    if not all(key in verify_info[0] for key in ("nodes", "depth")):
+        return None
     return {
-        "engine": "Stockfish 17.1",
-        "nodes": verify_info[0].get("nodes", nodes_verify),
-        "depth": verify_info[0].get("depth", 20),
+        "engine": getattr(engine, "id", {}).get("name", "unknown"),
+        "nodes": verify_info[0]["nodes"],
+        "depth": verify_info[0]["depth"],
         "evaluation": eval_dict,
         "analysisLines": analysis_lines,
         "isTopMove": v_is_top,
@@ -335,6 +337,8 @@ def analyze_pgn_games(
             if not game:
                 break
             scanned_games += 1
+            if game.errors:
+                continue
 
             # Get raw text for fingerprint
             exporter = chess.pgn.StringExporter(headers=True, variations=False, comments=False)
@@ -356,6 +360,11 @@ def analyze_pgn_games(
 
             # Extract actual continuation moves
             all_moves = list(game.mainline_moves())
+            replay = game.board()
+            all_san = []
+            for move in all_moves:
+                all_san.append(replay.san(move))
+                replay.push(move)
 
             for sac in sacs:
                 ply = sac["ply"]
@@ -406,11 +415,15 @@ def analyze_pgn_games(
                 candidate = {
                     "id": b_id,
                     "schemaVersion": 1,
-                    "status": "published",
+                    "status": "candidate",
                     "game": {
                         "id": game_id,
                         "fingerprint": fingerprint,
                         "result": result,
+                        "initialFen": game.board().fen(),
+                        "movesUci": [move.uci() for move in all_moves],
+                        "movesSan": all_san,
+                        "totalMoves": len(all_moves),
                     },
                     "event": {
                         "id": headers.get("TournamentID") or headers.get("EventID") or "event-unknown",
@@ -465,6 +478,8 @@ def main() -> int:
     parser.add_argument("--nodes-verify", type=int, default=1500000, help="Verify nodes budget")
     parser.add_argument("--output", type=pathlib.Path, default=pathlib.Path.home() / "Library/Application Support/ChinaChessPlayerPGN/brilliancies/candidates.json")
     args = parser.parse_args()
+    if args.output.resolve().is_relative_to(ROOT):
+        parser.error("Candidate output must be outside the repository; review before publishing")
 
     engine = chess.engine.SimpleEngine.popen_uci(args.engine)
     print(f"Stockfish initialized at {args.engine}")
