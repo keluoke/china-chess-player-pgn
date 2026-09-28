@@ -62,6 +62,15 @@ def new_state(shard):
     return {'schemaVersion': 1, 'shard': shard, 'shards': SHARDS, 'records': {}}
 
 
+def transient(error):
+    response = getattr(error, 'response', {})
+    return (isinstance(error, (TimeoutError, ConnectionError))
+            or type(error).__name__ in {'ReadTimeoutError', 'ConnectTimeoutError',
+                'EndpointConnectionError', 'ConnectionClosedError', 'IncompleteReadError'}
+            or response.get('ResponseMetadata', {}).get('HTTPStatusCode') in {429, 500, 502, 503, 504}
+            or response.get('Error', {}).get('Code') in {'SlowDown', 'RequestTimeout', 'InternalError', 'ServiceUnavailable'})
+
+
 class R2Store:
     def __init__(self, client, bucket, shard, encryption_key):
         if bucket != 'chess-data' or shard not in range(SHARDS):
@@ -84,19 +93,50 @@ class R2Store:
             raise ValueError('QUEUE_REQUEST_BUDGET_EXCEEDED')
         setattr(self, field, used)
 
+    def request(self, kind, action):
+        for attempt in range(3):
+            self.charge(kind)
+            try:
+                return action()
+            except Exception as error:
+                if not transient(error) or attempt == 2:
+                    raise
+                time.sleep(2 ** attempt)
+
+    def get_bytes(self):
+        def read():
+            obj = self.client.get_object(Bucket=self.bucket, Key=self.key)
+            body = obj['Body']
+            try:
+                data = body.read(SHARD_BUDGET + 1)
+            finally:
+                body.close()
+            if len(data) > SHARD_BUDGET:
+                raise ValueError('QUEUE_STATE_TOO_LARGE')
+            return data, obj['ETag']
+        return self.request('B', read)
+
     def inventory(self):
         total = own = pages = 0
-        self.charge('A')
-        for page in self.client.get_paginator('list_objects_v2').paginate(Bucket=self.bucket):
-            if page.get('IsTruncated'):
-                self.charge('A')
+        token = None
+        while True:
             pages += 1
             if pages > 1000:
                 raise ValueError('QUEUE_INVENTORY_REQUEST_BUDGET')
+            kwargs = {'Bucket': self.bucket}
+            if token:
+                kwargs['ContinuationToken'] = token
+            page = self.request('A', lambda: self.client.list_objects_v2(**kwargs))
             for row in page.get('Contents', []):
                 total += row['Size']
                 if row['Key'].startswith(PREFIX):
                     own += row['Size']
+            if not page.get('IsTruncated'):
+                break
+            next_token = page.get('NextContinuationToken')
+            if not next_token or next_token == token:
+                raise ValueError('QUEUE_INVENTORY_CURSOR_INVALID')
+            token = next_token
         self.total_bytes, self.prefix_bytes = total, own
         # Reserve both shards' maximum size, so concurrent writers cannot spend
         # the same free space. Other applications/account buckets are independent.
@@ -104,20 +144,12 @@ class R2Store:
             raise ValueError(f'QUEUE_STORAGE_BUDGET_EXCEEDED: bucketBytes={total}, queueBytes={own}')
 
     def load(self):
-        self.charge('B')
         try:
-            obj = self.client.get_object(Bucket=self.bucket, Key=self.key)
+            data, etag = self.get_bytes()
         except Exception as error:
             if getattr(error, 'response', {}).get('Error', {}).get('Code') in {'NoSuchKey', '404'}:
                 return new_state(self.shard)
             raise
-        body = obj['Body']
-        try:
-            data = body.read(SHARD_BUDGET + 1)
-        finally:
-            body.close()
-        if len(data) > SHARD_BUDGET:
-            raise ValueError('QUEUE_STATE_TOO_LARGE')
         if data[:4] != b'BRQ1':
             raise ValueError('QUEUE_CIPHERTEXT_INVALID')
         state = unpacked(self.cipher.decrypt(data[4:16], data[16:], self.key.encode()))
@@ -131,7 +163,7 @@ class R2Store:
                     or not isinstance(row.get('version'), str)
                     or not isinstance(row.get('candidates', []), list)):
                 raise ValueError('QUEUE_RECORD_INVALID')
-        self.etag, self.previous_bytes = obj['ETag'], len(data)
+        self.etag, self.previous_bytes = etag, len(data)
         return state
 
     def save(self, state):
@@ -143,18 +175,24 @@ class R2Store:
         self.inventory()
         condition = {'IfMatch': self.etag} if self.etag else {'IfNoneMatch': '*'}
         self.charge('A')
-        self.charge('B')
-        response = self.client.put_object(Bucket=self.bucket, Key=self.key, Body=data,
-            ContentType='application/octet-stream', **condition)
-        proof = self.client.get_object(Bucket=self.bucket, Key=self.key)
-        body = proof['Body']
+        if self.class_b >= 5000:
+            raise ValueError('QUEUE_REQUEST_BUDGET_EXCEEDED')
         try:
-            actual = body.read(SHARD_BUDGET + 1)
-        finally:
-            body.close()
-        if actual != data or proof['ETag'] != response['ETag']:
-            raise ValueError('QUEUE_CHECKPOINT_BODY_MISMATCH')
-        self.etag, self.previous_bytes = proof['ETag'], len(data)
+            response = self.client.put_object(Bucket=self.bucket, Key=self.key, Body=data,
+                ContentType='application/octet-stream', **condition)
+        except Exception as error:
+            if not transient(error):
+                raise
+            # A timed-out PUT may already have committed. Never blindly retry
+            # with a stale ETag: accept only an exact authenticated body proof.
+            actual, etag = self.get_bytes()
+            if actual != data:
+                raise error
+        else:
+            actual, etag = self.get_bytes()
+            if actual != data or etag != response['ETag']:
+                raise ValueError('QUEUE_CHECKPOINT_BODY_MISMATCH')
+        self.etag, self.previous_bytes = etag, len(data)
 
 
 def certified_files(root):

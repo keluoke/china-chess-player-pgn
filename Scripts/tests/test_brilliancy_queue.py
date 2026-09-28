@@ -36,6 +36,10 @@ class FakeS3:
         yield {'Contents': [{'Key': key, 'Size': len(value[0])}
                             for key, value in self.objects.items()]}
 
+    def list_objects_v2(self, **kwargs):
+        return {'Contents': [{'Key': key, 'Size': len(value[0])}
+                             for key, value in self.objects.items()]}
+
     def get_object(self, Bucket, Key):
         if Key not in self.objects:
             raise Missing()
@@ -268,6 +272,30 @@ class StorageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'REQUEST_BUDGET'):
             self.store.save(q.new_state(0))
         self.assertEqual(self.s3.puts, 0)
+
+    def test_transient_inventory_retry_is_charged(self):
+        with patch.object(self.s3, 'list_objects_v2', side_effect=[TimeoutError(), {'Contents': []}]):
+            with patch.object(q.time, 'sleep'):
+                self.store.inventory()
+        self.assertEqual(self.store.class_a, 2)
+
+    def test_committed_put_timeout_recovered_by_exact_body(self):
+        put = self.s3.put_object
+        def uncertain(**kwargs):
+            put(**kwargs)
+            raise TimeoutError('response lost')
+        with patch.object(self.s3, 'put_object', side_effect=uncertain):
+            self.store.save(q.new_state(0))
+        self.assertEqual(self.s3.puts, 1)
+        self.assertEqual(self.store.etag, '1')
+        self.assertEqual(self.store.load(), q.new_state(0))
+
+    def test_transient_reads_exhaust_budget_without_empty_reset(self):
+        with patch.object(self.s3, 'get_object', side_effect=TimeoutError()):
+            with patch.object(q.time, 'sleep'):
+                with self.assertRaises(TimeoutError):
+                    self.store.load()
+        self.assertEqual(self.store.class_b, 3)
 
     def test_permission_failure_not_missing_state(self):
         with patch.object(self.s3, 'get_object', side_effect=PermissionError):
