@@ -12,6 +12,7 @@ from collections.abc import Iterable
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 PUBLIC_SITE_HTML = frozenset({
     "docs/404.html",
+    "docs/brilliancies.html",
     "docs/contribute.html",
     "docs/coverage.html",
     "docs/events.html",

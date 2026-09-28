@@ -23,6 +23,7 @@ const state = {
   selectedEventID: null,
   selectedEventRound: null,
   eventFocus: null,
+  gameFocus: null,
   downloadStatus: "",
   query: "",
   viewer: {
@@ -35,6 +36,8 @@ const state = {
     focusRound: "",
     focusBoard: "",
     focusApplied: false,
+    targetGameId: "",
+    targetPly: null,
     visible: false,
     status: "idle",
     gameIndex: 0,
@@ -346,6 +349,7 @@ function initialize() {
   const routedFideID = initialSelectedPlayerID();
   const routedEventID = initialSelectedEventID();
   state.eventFocus = initialEventFocus();
+  state.gameFocus = initialGameFocus();
   state.selectedFideID = players.some(player => playerKey(player) === routedFideID)
     ? routedFideID
     : null;
@@ -773,7 +777,10 @@ function renderDetail() {
   const stage = stageForPlayer(player);
   const note = stage ? liChengzhiNote(player, stage.id) : null;
   const staticInfo = staticPlayerInfo(player);
-  if (staticInfo) ensureFocusedEventViewer(player, staticInfo);
+  if (staticInfo) {
+    ensureFocusedEventViewer(player, staticInfo);
+    ensureFocusedGameViewer(player, staticInfo);
+  }
   if (state.viewer.visible && state.viewer.fideID === String(player.fideID) && state.viewer.pgnPath) {
     requestPGNViewer(player, state.viewer);
   }
@@ -1518,10 +1525,41 @@ function requestPGNViewer(player, info) {
 
   const cached = getCachedPGNViewerPackage(pgnPath);
   if (cached) {
-    state.viewer.status = "loaded";
-    if (state.viewer.focusRound && !state.viewer.focusApplied) {
+    if (state.viewer.targetGameId) {
+      const targetId = state.viewer.targetGameId.toLowerCase().replace(/^fp:/, "");
+      if (!staticPlayerCache.has(fideID)) {
+        requestStaticPlayerDetail(player).then(() => {
+          if (state.viewer.fideID === fideID && state.viewer.pgnPath === pgnPath) {
+            const idx = findTargetGameIndex(fideID, cached.games, targetId);
+            if (idx >= 0) {
+              state.viewer.gameIndex = idx;
+              state.viewer.status = "loaded";
+            } else {
+              console.error(`Target game ID ${state.viewer.targetGameId} not matched in player archive.`);
+              state.viewer.status = "error";
+              state.viewer.error = `未能找到指定棋局 (${state.viewer.targetGameId})`;
+            }
+            renderViewerTarget(fideID);
+          }
+        });
+        return;
+      }
+      const idx = findTargetGameIndex(fideID, cached.games, targetId);
+      if (idx >= 0) {
+        state.viewer.gameIndex = idx;
+        state.viewer.status = "loaded";
+      } else {
+        console.error(`Target game ID ${state.viewer.targetGameId} not matched in player archive.`);
+        state.viewer.status = "error";
+        state.viewer.error = `未能找到指定棋局 (${state.viewer.targetGameId})`;
+        return;
+      }
+    } else if (state.viewer.focusRound && !state.viewer.focusApplied) {
       state.viewer.gameIndex = focusedGameIndex(cached.games, state.viewer.focusRound, state.viewer.focusBoard);
       state.viewer.focusApplied = true;
+      state.viewer.status = "loaded";
+    } else {
+      state.viewer.status = "loaded";
     }
     state.viewer.gameIndex = clampInt(state.viewer.gameIndex, 0, Math.max(cached.games.length - 1, 0));
     const game = cached.games[state.viewer.gameIndex];
@@ -1542,16 +1580,17 @@ function requestPGNViewer(player, info) {
     .catch(primaryError => fallbackPgnPath && fallbackPgnPath !== pgnPath
       ? fetchText(fallbackPgnPath)
       : Promise.reject(primaryError))
-    .then(text => {
-      const games = splitPGNGames(text).map((rawPGN, index) => {
+    .then(async text => {
+      const games = await Promise.all(splitPGNGames(text).map(async (rawPGN, index) => {
         const pgn = repairPGNText(rawPGN);
         return {
           index,
+          contentHash: Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawPGN.replace(/\s+/g, " ").trim()))), b => b.toString(16).padStart(2, "0")).join(""),
           pgn,
           headers: parsePGNHeaders(pgn),
           parsed: null
         };
-      });
+      }));
       if (!games.length) throw new Error("PGN 中没有可解析对局");
       setCachedPGNViewerPackage(pgnPath, {
         pgnPath,
@@ -1560,8 +1599,32 @@ function requestPGNViewer(player, info) {
         bytes: text.length
       });
       if (state.viewer.fideID === fideID && state.viewer.pgnPath === pgnPath) {
+        if (state.viewer.targetGameId) {
+          const targetId = state.viewer.targetGameId.toLowerCase().replace(/^fp:/, "");
+          return requestStaticPlayerDetail(player).then(() => {
+            if (state.viewer.fideID !== fideID || state.viewer.pgnPath !== pgnPath) return;
+            const idx = findTargetGameIndex(fideID, games, targetId);
+            if (idx >= 0) {
+              state.viewer.gameIndex = idx;
+              state.viewer.status = "loaded";
+            } else {
+              console.error(`Target game ID ${state.viewer.targetGameId} not matched in player archive.`);
+              state.viewer.status = "error";
+              state.viewer.error = `未能找到指定棋局 (${state.viewer.targetGameId})`;
+              renderViewerTarget(fideID);
+              return;
+            }
+            state.viewer.focusApplied = true;
+            state.viewer.orientation = preferredBoardOrientation(player, games[state.viewer.gameIndex]);
+            renderViewerTarget(fideID);
+          });
+        }
+        if (state.viewer.focusRound) {
+          state.viewer.gameIndex = focusedGameIndex(games, state.viewer.focusRound, state.viewer.focusBoard);
+        } else {
+          state.viewer.gameIndex = clampInt(state.viewer.gameIndex, 0, Math.max(0, games.length - 1));
+        }
         state.viewer.status = "loaded";
-        state.viewer.gameIndex = state.viewer.focusRound ? focusedGameIndex(games, state.viewer.focusRound, state.viewer.focusBoard) : 0;
         state.viewer.focusApplied = true;
         state.viewer.orientation = preferredBoardOrientation(player, games[state.viewer.gameIndex]);
         renderViewerTarget(fideID);
@@ -1579,6 +1642,11 @@ function requestPGNViewer(player, info) {
     });
 
   pgnViewerRequests.set(pgnPath, request);
+}
+
+function findTargetGameIndex(fideID, games, targetGameId) {
+  const id = String(targetGameId || "").toLowerCase();
+  return games.findIndex(game => game.contentHash === id);
 }
 
 function focusedGameIndex(games, round, board = "") {
@@ -1622,6 +1690,52 @@ function ensureFocusedEventViewer(player, info) {
     error: "",
     autoplay: false
   };
+}
+
+function ensureFocusedGameViewer(player, info) {
+  const focus = state.gameFocus;
+  if (!focus || focus.applied || !info) return;
+  const packages = pgnPackages(info);
+  if (!packages.length) return;
+  const pkg = packages.find(p => p.id === "all") || packages[0];
+  let targetIndex = -1;
+  if (focus.gameId) {
+    if (Array.isArray(info.games) && info.games.length > 0) {
+      const targetId = focus.gameId.toLowerCase().replace(/^fp:/, "");
+      const found = info.games.findIndex(g => {
+        const gid = String(g.id || g.sha256 || "").toLowerCase().replace(/^fp:/, "");
+        const gfp = String(g.fingerprint || "").toLowerCase().replace(/^fp:/, "");
+        return gid === targetId || gfp === targetId || (gfp && targetId.includes(gfp));
+      });
+      if (found >= 0) {
+        targetIndex = found;
+      }
+    }
+  } else {
+    targetIndex = 0;
+  }
+  state.viewer = {
+    fideID: String(player.fideID),
+    pgnPath: packagePgnPath(pkg),
+    fallbackPgnPath: pkg.publicURL ? pkg.pgnPath : "",
+    packageId: pkg.id ?? "",
+    packageLabel: packageCollectionLabel(pkg),
+    packageGameCount: Number(pkg.gameCount ?? 0),
+    focusRound: "",
+    focusBoard: "",
+    focusApplied: targetIndex >= 0,
+    targetGameId: focus.gameId,
+    targetPly: focus.ply,
+    visible: true,
+    status: getCachedPGNViewerPackage(packagePgnPath(pkg)) ? "loaded" : "idle",
+    gameIndex: targetIndex,
+    orientation: "",
+    error: "",
+    autoplay: false
+  };
+  focus.applied = true;
+  requestPGNViewer(player, state.viewer);
+  scrollPGNViewerIntoView();
 }
 
 function getCachedPGNViewerPackage(pgnPath) {
@@ -1805,6 +1919,8 @@ function wirePGNViewerActions(player) {
     stopViewerAutoplay();
     const gameIndex = clampInt(Number(event.target.value), 0, cached.games.length - 1);
     state.viewer.gameIndex = gameIndex;
+    state.viewer.targetGameId = "";
+    state.viewer.targetPly = 0;
     state.viewer.orientation = preferredBoardOrientation(player, cached.games[gameIndex]);
     renderViewerTarget(player.fideID);
   });
@@ -1834,7 +1950,7 @@ async function loadLichessViewer() {
 async function mountLichessViewer(player) {
   const host = document.querySelector("#lichessPgnViewer");
   const cached = getCachedPGNViewerPackage(state.viewer.pgnPath);
-  if (!host || !cached?.games?.length) return;
+  if (!host || !cached?.games?.length || state.viewer.status !== "loaded" || state.viewer.gameIndex < 0) return;
 
   const gameIndex = clampInt(state.viewer.gameIndex, 0, cached.games.length - 1);
   const game = cached.games[gameIndex];
@@ -1844,9 +1960,11 @@ async function mountLichessViewer(player) {
   try {
     const LichessPgnViewer = await loadLichessViewer();
     if (!host.isConnected || host !== document.querySelector("#lichessPgnViewer")) return;
+    const targetPly = typeof state.viewer.targetPly === "number" ? state.viewer.targetPly : 0;
     activeLichessViewer = LichessPgnViewer(host, {
       pgn: game.pgn,
       orientation,
+      initialPly: targetPly,
       showPlayers: true,
       showMoves: "auto",
       showControls: true,
@@ -2112,6 +2230,18 @@ function initialEventFocus() {
     eventID: tournamentID,
     tournamentID,
     round: String(params.get("round") || "").replace(/[^0-9.]/g, "")
+  };
+}
+
+function initialGameFocus() {
+  const params = new URLSearchParams(window.location.search);
+  const rawGame = String(params.get("game") || params.get("gameId") || "").trim();
+  const rawPly = params.get("ply");
+  if (!rawGame && rawPly === null) return null;
+  return {
+    gameId: rawGame.replace(/^fp:/, "").toLowerCase(),
+    ply: rawPly !== null && !isNaN(parseInt(rawPly, 10)) ? parseInt(rawPly, 10) : 0,
+    applied: false
   };
 }
 

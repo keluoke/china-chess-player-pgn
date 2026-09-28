@@ -13,7 +13,7 @@ def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 def safe_file(value):
     p=PurePosixPath(value)
     if p.is_absolute() or '..' in p.parts or not re.fullmatch(r'[a-zA-Z0-9_./-]+',value):raise ValueError('SEO_UNSAFE_PATH')
-    if not (value in {'sitemap.xml','llms.txt','index.html','events.html','master-series.html','leaderboards.html','about.html','methodology.html','developers.html','players.html','names.html'} or re.fullmatch(r'(?:players|names|events|leaderboards|master-series)/[a-zA-Z0-9_/-]+\.html',value)):raise ValueError('SEO_UNEXPECTED_OUTPUT')
+    if not (value in {'sitemap.xml','llms.txt','brilliancies.html','index.html','events.html','master-series.html','leaderboards.html','about.html','methodology.html','developers.html','players.html','names.html'} or re.fullmatch(r'(?:players|names|events|leaderboards|master-series)/[a-zA-Z0-9_/-]+\.html',value)):raise ValueError('SEO_UNEXPECTED_OUTPUT')
     return p
 
 class Document(HTMLParser):

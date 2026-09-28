@@ -61,6 +61,30 @@ https://chessdb.aigclabs.cc
 每个包附 `sha256`。`publicURL` 是 R2 主读取地址，`pgnPath` 是过渡期 Pages
 回退地址；客户端应优先 `publicURL`，失败时回退 `pgnPath`。
 
+## 实战妙手 API
+
+精选中国棋手及经典比赛中经引擎复核成立的实战妙手（`!!`），纯只读、支持跨域与快照校验。
+
+### `GET /api/v1/brilliancies/manifest.json`
+
+妙手元信息：条目总量、快照 ID、战术主题集合、Stockfish 引擎复核版本、规则版本及分片下载清单。
+
+### `GET /api/v1/brilliancies?player={fideID}&theme={theme}&limit=20&cursor={cursor}`
+
+分页与筛选列表：支持按棋手（如 `fide-8603677` 或 `8603677`）、战术主题（如 `queen-sacrifice`, `rook-sacrifice`）、赛事筛选；返回紧凑摘要与详情链接。快照变化时返回 409。
+
+### `GET /api/v1/brilliancies/{id}.json`
+
+单条妙手完整详情：包含局面 FEN、实战走法、一句话总结与中文讲解、实战后续着法、Stockfish 验证变化及厘兵/将杀评价。条目若被撤回返回 410。
+
+### `GET /api/v1/brilliancies/{id}.pgn`
+
+带注释的独立妙手片段 PGN：从妙手前局面（`SetUp "1"`, `FEN`）开始，带有 NAG $3（`!!`）与实战/分析变例。
+
+### `GET /api/v1/brilliancies/openapi.json`
+
+OpenAPI 3.1.0 规范文件，包含参数描述与 Schema 定义。
+
 ## API v2（预览）
 
 v2 按资源分片，所有响应带 `schemaVersion` / `snapshotId`（同一次发布的全部

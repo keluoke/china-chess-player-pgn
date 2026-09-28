@@ -54,12 +54,14 @@ REQUIRED_BUILDERS = (
     'Scripts/build_search_bootstrap.py',
     'Scripts/build_public_metrics.py',
     'Scripts/build_leaderboards.py',
+    'Scripts/build_brilliancies.py',
     'Scripts/build_api.py',
     'Scripts/build_changelog.py',
     'Scripts/build_dashboard.py',
     'Scripts/build_event_library.py',
     'Scripts/validate_registry_authority.py',
     'Scripts/validate_public_metrics.py',
+    'Scripts/validate_brilliancies.py',
     'Scripts/validate_game_quality.py',
     'Scripts/validate_public_privacy.py',
     'Scripts/validate_snapshot_consistency.py',
@@ -117,11 +119,13 @@ def output_facts() -> list[dict]:
         ROOT / "docs/data/index/event-pgn-objects.json",
         ROOT / "docs/data/index/catalog-pgn-packages.json",
         ROOT / "docs/data/index/public-events.json",
+        ROOT / "docs/data/brilliancies/manifest.json",
         ROOT / "data/generated/player-event-facts/manifest.json",
         ROOT / "data/generated/player-game-facts/manifest.json",
         ROOT / "data/manual/domestic-player-sightings.csv",
         ROOT / "data/manual/player-identity-links.csv",
         ROOT / "data/manual/presentation-disputes.csv",
+        ROOT / "data/manual/brilliancies/curated.json",
     ]
     return [file_fact(path) for path in paths]
 
@@ -134,7 +138,8 @@ def input_facts() -> list[dict]:
             if pathlib.Path(fact["path"]).name not in derived
             and "player-event-facts/" not in fact["path"]
             and "player-game-facts/" not in fact["path"]
-            and "docs/data/seo/" not in fact["path"]]
+            and "docs/data/seo/" not in fact["path"]
+            and "docs/data/brilliancies/" not in fact["path"]]
 
 
 def snapshot_document(
@@ -287,6 +292,7 @@ def main() -> int:
     steps.append(step([py, "Scripts/build_search_bootstrap.py"]))
     steps.append(step([py, "Scripts/build_public_metrics.py"]))
     steps.append(step([py, "Scripts/build_leaderboards.py"]))
+    steps.append(step([py, "Scripts/build_brilliancies.py"]))
     steps.append(step([py, "Scripts/build_api.py"]))
     steps.append(step([py, "Scripts/build_changelog.py"]))
     steps.append(step([py, "Scripts/build_dashboard.py"]))
@@ -295,6 +301,7 @@ def main() -> int:
     # --- gates ----------------------------------------------------------
     steps.append(step([py, "Scripts/validate_registry_authority.py"]))
     steps.append(step([py, "Scripts/validate_public_metrics.py"]))
+    steps.append(step([py, "Scripts/validate_brilliancies.py"]))
     steps.append(step([py, "Scripts/validate_game_quality.py"]))
     steps.append(step([py, "Scripts/validate_public_privacy.py"]))
 

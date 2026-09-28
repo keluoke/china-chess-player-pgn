@@ -328,10 +328,20 @@ def main() -> int:
             "playerBucket": "/api/v1/player-buckets/{bucket}.json",
             "playerBucketRule": "integer FIDE ID modulo 256, lower-case hex",
             "pgn": "/data/pgn/by-player/fide-{fideID}/{all|U8..U18|adult}.pgn (paths listed per player in packages[])",
+            "brillianciesManifest": "/api/v1/brilliancies/manifest.json",
+            "brilliancies": "/api/v1/brilliancies",
+            "brilliancy": "/api/v1/brilliancies/{id}.json",
+            "brilliancyPgn": "/api/v1/brilliancies/{id}.pgn",
+            "brilliancyOpenApi": "/api/v1/brilliancies/openapi.json",
         },
         "license": LICENSE_BLOCK,
         "docs": "https://github.com/keluoke/china-chess-player-pgn/blob/main/docs/API.md",
     })
+
+    if (API_ROOT / "brilliancies").exists():
+        for p in (API_ROOT / "brilliancies").rglob("*"):
+            if p.is_file():
+                expected_files.add(p)
 
     prune_stale_api_files(API_ROOT, expected_files)
     prune_stale_api_files(v2_root, expected_files)

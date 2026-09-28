@@ -1,12 +1,12 @@
 const ORIGIN = 'https://chessdb.aigclabs.cc';
 const ALIASES = new Set(['4chess.cc','www.4chess.cc','china-chess-player-pgn.pages.dev']);
-const htmlPath = path => path === '/' || /^\/(?:index|events|leaderboards|master-series|players|names|about|methodology|developers|coverage|contribute)(?:\.html|\/.*)?$/.test(path);
+const htmlPath = path => path === '/' || /^\/(?:index|brilliancies|events|leaderboards|master-series|players|names|about|methodology|developers|coverage|contribute)(?:\.html|\/.*)?$/.test(path);
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   if (!['GET','HEAD'].includes(context.request.method) || !htmlPath(url.pathname)) return context.next();
   const preview = url.hostname.endsWith('.pages.dev') && !ALIASES.has(url.hostname);
   const params = url.searchParams;
-  if (!preview && ['/', '/index.html'].includes(url.pathname) && params.get('view') !== 'interactive' && !params.has('q') && !params.has('eventFocus') && !params.has('round') && !params.has('player')) {
+  if (!preview && ['/', '/index.html'].includes(url.pathname) && params.get('view') !== 'interactive' && !params.has('q') && !params.has('eventFocus') && !params.has('round') && !params.has('player') && !params.has('game') && !params.has('gameId') && !params.has('ply')) {
     const player = params.get('fideID'); const event = params.get('event');
     if (player || event) {
       // Only certified generated entities may replace old links.
