@@ -40,7 +40,8 @@ def verify(root=ROOT,site=ORIGIN):
         m,b,h=fetch(site+'/?'+param+'='+ident,False)
         if m['http_code'] not in (301,308) or (ORIGIN+route) not in h:raise ValueError('SEO_LEGACY_REDIRECT_MISMATCH')
         check('/?'+param+'='+ident+'&view=interactive',mime='text/html')
-    for host in ['4chess.cc','china-chess-player-pgn.pages.dev']:
+    # 4chess.cc now serves a separate product and is not a ChessDB alias.
+    for host in ['china-chess-player-pgn.pages.dev']:
         m,b,h=fetch('https://'+host+'/',False)
         if m['http_code'] not in (301,308) or ORIGIN+'/' not in h:raise ValueError('SEO_ALIAS_REDIRECT_MISMATCH '+host)
         checks.append({'alias':host,'status':m['http_code'],'ok':True})
