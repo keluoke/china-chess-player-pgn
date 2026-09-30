@@ -214,6 +214,18 @@ class QueueTests(unittest.TestCase):
         with patch.object(q.chess, '__version__', 'new'):
             self.assertNotEqual(first, q.profile(FakeEngine(), 200000, 1500000))
 
+    def test_frozen_history_and_incremental_catalogs_are_disjoint(self):
+        self.add('b')
+        baseline = ['a' * 64]
+        with sqlite3.connect(':memory:') as other:
+            other.execute('CREATE TABLE games (id TEXT PRIMARY KEY, pgn TEXT, priority INTEGER NOT NULL, path TEXT, offset INTEGER)')
+            other.executemany('INSERT INTO games VALUES (?,NULL,1,NULL,NULL)',
+                              ((key * 64,) for key in ('a', 'b')))
+            self.assertEqual(q.restrict_catalog(self.db, baseline, 'history'), 1)
+            self.assertEqual(q.restrict_catalog(other, baseline, 'incremental'), 1)
+            self.assertEqual(self.db.execute('SELECT id FROM games').fetchone()[0], 'a' * 64)
+            self.assertEqual(other.execute('SELECT id FROM games').fetchone()[0], 'b' * 64)
+
 
 class StorageTests(unittest.TestCase):
     def setUp(self):
@@ -231,6 +243,13 @@ class StorageTests(unittest.TestCase):
         self.store.save(state)
         with self.assertRaisesRegex(ValueError, 'PRECONDITION_FAILED'):
             other.save(state)
+
+    def test_history_and_incremental_checkpoints_have_separate_keys(self):
+        incremental = q.R2Store(self.s3, 'chess-data', 0, base64.b64encode(b'x' * 32), 'incremental')
+        self.assertNotEqual(self.store.key, incremental.key)
+        self.store.save(dict(q.new_state(0), baselineGames=['a' * 64]))
+        incremental.save(dict(q.new_state(0), baselineGames=['a' * 64]))
+        self.assertEqual(len(self.s3.objects), 2)
 
     def test_corrupt_checkpoint_never_treated_as_empty(self):
         self.store.save(q.new_state(0))

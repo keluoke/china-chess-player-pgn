@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One resumable queue for archived-game backfill and incremental sacrifice mining.
+"""Resumable, separately owned history and incremental sacrifice queues.
 
 Only the certified local snapshot and a private R2 checkpoint are read. No source
 sites, public API mutation, manual data writes, or per-position R2 requests.
@@ -74,16 +74,18 @@ def transient(error):
 
 
 class R2Store:
-    def __init__(self, client, bucket, shard, encryption_key):
+    def __init__(self, client, bucket, shard, encryption_key, lane='history'):
         if bucket != 'chess-data' or shard not in range(SHARDS):
             raise ValueError('QUEUE_STORAGE_CONFIG_INVALID')
+        if lane not in {'history', 'incremental'}:
+            raise ValueError('QUEUE_LANE_INVALID')
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
         key = base64.b64decode(encryption_key, validate=True)
         if len(key) != 32:
             raise ValueError('QUEUE_ENCRYPTION_KEY_INVALID')
         self.cipher = AESGCM(key)
         self.client, self.bucket, self.shard = client, bucket, shard
-        self.key = f'{PREFIX}shard-{shard}.bin'
+        self.key = f'{PREFIX}{"incremental-" if lane == "incremental" else ""}shard-{shard}.bin'
         self.class_a = self.class_b = 0
         self.etag = None
         self.total_bytes = self.prefix_bytes = self.previous_bytes = 0
@@ -267,6 +269,20 @@ def catalog(files, db, shard, known=(), cache=None):
             'eligibleGames': db.execute('SELECT count(*) FROM games').fetchone()[0]}
 
 
+def restrict_catalog(db, baseline, lane):
+    """The frozen cutover set belongs to history; every later ID belongs to cloud."""
+    if lane not in {'history', 'incremental'} or not isinstance(baseline, list):
+        raise ValueError('QUEUE_BASELINE_INVALID')
+    db.execute('CREATE TEMP TABLE baseline (id TEXT PRIMARY KEY)')
+    db.executemany('INSERT OR IGNORE INTO baseline VALUES (?)', ((key,) for key in baseline))
+    if lane == 'history':
+        db.execute('DELETE FROM games WHERE id NOT IN (SELECT id FROM baseline)')
+    else:
+        db.execute('DELETE FROM games WHERE id IN (SELECT id FROM baseline)')
+    db.commit()
+    return db.execute('SELECT count(*) FROM games').fetchone()[0]
+
+
 def prepare_catalog_state(state, db, version):
     """New arrivals retain priority across slices until successfully completed."""
     known = [row[0] for row in db.execute('SELECT id FROM games ORDER BY id')]
@@ -362,6 +378,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=ROOT)
     parser.add_argument('--shard', type=int, required=True, choices=range(SHARDS))
+    parser.add_argument('--lane', choices=('history', 'incremental'), default='history')
+    parser.add_argument('--freeze-history', action='store_true', help='Freeze the old queue scope at cutover')
+    parser.add_argument('--initialize-incremental', action='store_true', help='Create incremental state from frozen history')
     parser.add_argument('--engine', default='/usr/games/stockfish')
     parser.add_argument('--seconds', type=int, default=3000)
     parser.add_argument('--max-games', type=int, default=5000)
@@ -370,8 +389,10 @@ def main():
     args = parser.parse_args()
     if not 1 <= args.seconds <= 3300 or not 1 <= args.max_games <= 10000:
         parser.error('seconds must be 1..3300; max-games must be 1..10000')
-    if not args.summary and not args.export_candidates:
-        parser.error('--summary or --export-candidates is required')
+    if not (args.summary or args.export_candidates or args.freeze_history or args.initialize_incremental):
+        parser.error('an output or cutover operation is required')
+    if (args.freeze_history or args.initialize_incremental) and (args.summary or args.export_candidates):
+        parser.error('cutover operations cannot run analysis or export')
     for output in (args.summary, args.export_candidates):
         if output and output.resolve().is_relative_to(args.root.resolve()):
             parser.error('outputs must be outside repository')
@@ -384,8 +405,37 @@ def main():
         aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
         aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
         config=Config(connect_timeout=15, read_timeout=60, retries={'total_max_attempts': 1}))
-    store = R2Store(client, os.environ['R2_BUCKET'], args.shard, os.environ['BRILLIANCY_QUEUE_KEY'])
+    store = R2Store(client, os.environ['R2_BUCKET'], args.shard, os.environ['BRILLIANCY_QUEUE_KEY'], args.lane)
+    if args.freeze_history:
+        if args.lane != 'history':
+            parser.error('--freeze-history requires history lane')
+        state = store.load()
+        if not state.get('knownGames'):
+            raise ValueError('HISTORY_CUTOVER_EMPTY')
+        if state.get('baselineGames') and state['baselineGames'] != state['knownGames']:
+            raise ValueError('HISTORY_ALREADY_FROZEN')
+        if not state.get('baselineGames'):
+            store.save(dict(state, baselineGames=list(state['knownGames'])))
+        print(json.dumps({'shard': args.shard, 'frozenGames': len(state['knownGames'])}))
+        return
+    if args.initialize_incremental:
+        if args.lane != 'incremental':
+            parser.error('--initialize-incremental requires incremental lane')
+        old = R2Store(client, os.environ['R2_BUCKET'], args.shard, os.environ['BRILLIANCY_QUEUE_KEY']).load()
+        baseline = old.get('baselineGames')
+        if not baseline:
+            raise ValueError('HISTORY_NOT_FROZEN')
+        state = store.load()
+        if state.get('baselineGames') and state['baselineGames'] != baseline:
+            raise ValueError('INCREMENTAL_BASELINE_CONFLICT')
+        if not state.get('baselineGames'):
+            store.save(dict(state, baselineGames=list(baseline)))
+        print(json.dumps({'shard': args.shard, 'excludedHistoryGames': len(baseline)}))
+        return
     state = store.load()
+    baseline = state.get('baselineGames')
+    if not baseline:
+        raise ValueError('QUEUE_CUTOVER_NOT_INITIALIZED')
     if args.export_candidates:
         known = set(state.get('knownGames', []))
         candidates = [candidate for key, row in state['records'].items()
@@ -403,6 +453,7 @@ def main():
         db = sqlite3.connect(Path(temporary) / 'catalog.sqlite')
         catalog_cache = state.setdefault('catalogFiles', {})
         counts = catalog(files, db, args.shard, state.get('knownGames', []), catalog_cache)
+        counts['eligibleGames'] = restrict_catalog(db, baseline, args.lane)
         print(json.dumps({'phase': 'analysis', **counts}), flush=True)
         engine = chess.engine.SimpleEngine.popen_uci(args.engine, timeout=120)
         try:
@@ -421,7 +472,7 @@ def main():
                 'checkpointBytes': store.previous_bytes, 'bucketBytes': store.total_bytes,
                 'classARequests': store.class_a, 'classBRequests': store.class_b,
                 'status': 'complete' if result['pendingGames'] == 0 else 'in-progress',
-                'scope': 'archived-standard-games-sacrifice-candidates',
+                'scope': f'{args.lane}-standard-games-sacrifice-candidates',
                 'publicAutoPublish': False})
             args.summary.parent.mkdir(parents=True, exist_ok=True)
             args.summary.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
