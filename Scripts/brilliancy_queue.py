@@ -89,6 +89,7 @@ class R2Store:
         self.class_a = self.class_b = 0
         self.etag = None
         self.total_bytes = self.prefix_bytes = self.previous_bytes = 0
+        self.inventory_at = 0.0
 
     def charge(self, kind):
         field = 'class_a' if kind == 'A' else 'class_b'
@@ -146,6 +147,7 @@ class R2Store:
         # the same free space. Other applications/account buckets are independent.
         if own > PREFIX_BUDGET or total - own + PREFIX_BUDGET > BUCKET_BUDGET:
             raise ValueError(f'QUEUE_STORAGE_BUDGET_EXCEEDED: bucketBytes={total}, queueBytes={own}')
+        self.inventory_at = time.monotonic()
 
     def load(self):
         try:
@@ -175,8 +177,13 @@ class R2Store:
         data = b'BRQ1' + nonce + self.cipher.encrypt(nonce, packed(state), self.key.encode())
         if len(data) > SHARD_BUDGET:
             raise ValueError('QUEUE_SHARD_BUDGET_EXCEEDED')
-        # Recheck the bucket at each checkpoint, not just at task startup.
-        self.inventory()
+        # A full bucket listing is costly. Refresh it at least every ten
+        # minutes; the queue's own writes remain bounded between inventories.
+        if not self.inventory_at or time.monotonic() - self.inventory_at >= 600:
+            self.inventory()
+        projected_own = self.prefix_bytes - self.previous_bytes + len(data)
+        if projected_own > PREFIX_BUDGET or self.total_bytes - self.prefix_bytes + PREFIX_BUDGET > BUCKET_BUDGET:
+            raise ValueError('QUEUE_STORAGE_BUDGET_EXCEEDED')
         condition = {'IfMatch': self.etag} if self.etag else {'IfNoneMatch': '*'}
         self.charge('A')
         if self.class_b >= 5000:
@@ -196,6 +203,9 @@ class R2Store:
             actual, etag = self.get_bytes()
             if actual != data or etag != response['ETag']:
                 raise ValueError('QUEUE_CHECKPOINT_BODY_MISMATCH')
+        delta = len(data) - self.previous_bytes
+        self.total_bytes += delta
+        self.prefix_bytes += delta
         self.etag, self.previous_bytes = etag, len(data)
 
 

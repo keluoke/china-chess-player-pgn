@@ -27,6 +27,7 @@ class FakeS3:
     def __init__(self):
         self.objects = {}
         self.puts = 0
+        self.lists = 0
         self.corrupt = False
 
     def get_paginator(self, name):
@@ -37,6 +38,7 @@ class FakeS3:
                             for key, value in self.objects.items()]}
 
     def list_objects_v2(self, **kwargs):
+        self.lists += 1
         return {'Contents': [{'Key': key, 'Size': len(value[0])}
                              for key, value in self.objects.items()]}
 
@@ -250,6 +252,17 @@ class StorageTests(unittest.TestCase):
         self.store.save(dict(q.new_state(0), baselineGames=['a' * 64]))
         incremental.save(dict(q.new_state(0), baselineGames=['a' * 64]))
         self.assertEqual(len(self.s3.objects), 2)
+
+    def test_repeated_checkpoints_reuse_recent_inventory_and_account_own_bytes(self):
+        self.store.save(q.new_state(0))
+        first_lists = self.s3.lists
+        first_bytes = self.store.total_bytes
+        self.store.save(dict(q.new_state(0), extra='more state'))
+        self.assertEqual(self.s3.lists, first_lists)
+        self.assertGreater(self.store.total_bytes, first_bytes)
+        with patch.object(q.time, 'monotonic', return_value=self.store.inventory_at + 601):
+            self.store.save(dict(q.new_state(0), extra='third state'))
+        self.assertGreater(self.s3.lists, first_lists)
 
     def test_corrupt_checkpoint_never_treated_as_empty(self):
         self.store.save(q.new_state(0))

@@ -39,7 +39,7 @@ python3 Scripts/local/analyze_brilliancies.py --input /absolute/path/to/archive.
 
 历史检查点仍在 `private/brilliancies/queue-v1/shard-{0,1}.bin`；云端新增检查点在同目录 `incremental-shard-{0,1}.bin`。**生产桶有公开域名，因此检查点使用 AES-256-GCM 加密，而非依靠路径保密**。每次写入以 ETag 条件更新防并发覆盖，并 GET 回读比对正文。专用 GitHub secret 为 `BRILLIANCY_QUEUE_KEY`（Base64 编码的 32 字节密钥）；丢失密钥无法恢复检查点，禁止随意替换。对象只保留当前状态，不累积每次全量历史副本。
 
-队列合计最多 500 MB，每分片 250 MB。写入前列举生产桶，要求“桶内其他对象 + 500 MB 预留”不超过 8 GB；每分片每次限制 10,000 次 A 类、5,000 次 B 类请求。达到预算直接停止，保留先前检查点。**这是当前桶的保守容量保护，不是全账号账单硬上限**；其他桶、并发写入和其他业务的当月请求仍须合并核对。
+队列合计最多 500 MB，每分片 250 MB。每轮开始及运行中至少每十分钟列举生产桶，要求“桶内其他对象 + 500 MB 预留”不超过 8 GB；两次全桶核对之间逐次计入本队列写入的大小。每分片每次限制 10,000 次 A 类、5,000 次 B 类请求。达到预算直接停止，保留先前检查点。**这是当前桶的保守容量保护，不是全账号账单硬上限**；其他桶、并发写入和其他业务的当月请求仍须合并核对。
 
 Actions summary 与保留 14 天的 `brilliancy-progress-0/1` artifact 只统计云端新增；本机 `~/Library/Application Support/ChinaChessPlayerPGN/brilliancies/history-shard-{0,1}.json` 统计历史。全库进度须把两种分片的局数和候选数相加；`archiveOccurrences` 是各 worker 读取的同一全库关联条目数，不可相加。候选正文不进入公开日志或 artifact，也不自动冒充人工精选。公开页面/API 仍只发布经审核记录；其“未计量”覆盖语义保留到正式接入可验证扫描统计为止。
 
