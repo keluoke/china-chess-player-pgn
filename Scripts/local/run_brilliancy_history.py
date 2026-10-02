@@ -81,7 +81,10 @@ def main():
             print(json.dumps({'historyError': codes, 'attempt': failures}), flush=True)
             if args.once:
                 raise SystemExit(1)
-            time.sleep(min(3600, 60 * 2 ** min(failures, 6)))
+            # Transient R2 disconnects can happen after a checkpoint PUT.
+            # Each child resumes from the last authenticated R2 state, so a
+            # long retry delay only strands the historical scan.
+            time.sleep(min(300, 60 * 2 ** min(failures, 3)))
             continue
         failures = 0
         rows = [json.loads((PRIVATE / f'history-shard-{shard}.json').read_text()) for shard in range(2)]
