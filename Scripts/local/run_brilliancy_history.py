@@ -71,7 +71,7 @@ def main():
                 sys.executable, str(CODE_ROOT / 'Scripts/brilliancy_queue.py'),
                 '--lane', 'history', '--root', str(args.root), '--shard', str(shard),
                 '--engine', str(args.engine), '--seconds', '3300', '--max-games', '10000',
-                '--summary', str(output),
+                '--summary', str(output), '--local-checkpoint-dir', str(PRIVATE),
             ], env=env, stdout=log, stderr=subprocess.STDOUT))
         codes = [child.wait() for child in CHILDREN]
         for log in logs:

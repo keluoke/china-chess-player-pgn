@@ -156,6 +156,11 @@ class R2Store:
             if getattr(error, 'response', {}).get('Error', {}).get('Code') in {'NoSuchKey', '404'}:
                 return new_state(self.shard)
             raise
+        state = self.decode(data)
+        self.etag, self.previous_bytes = etag, len(data)
+        return state
+
+    def decode(self, data):
         if data[:4] != b'BRQ1':
             raise ValueError('QUEUE_CIPHERTEXT_INVALID')
         state = unpacked(self.cipher.decrypt(data[4:16], data[16:], self.key.encode()))
@@ -169,7 +174,6 @@ class R2Store:
                     or not isinstance(row.get('version'), str)
                     or not isinstance(row.get('candidates', []), list)):
                 raise ValueError('QUEUE_RECORD_INVALID')
-        self.etag, self.previous_bytes = etag, len(data)
         return state
 
     def save(self, state):
@@ -207,6 +211,110 @@ class R2Store:
         self.total_bytes += delta
         self.prefix_bytes += delta
         self.etag, self.previous_bytes = etag, len(data)
+
+
+class LocalHistoryCheckpoint:
+    """Durable encrypted local progress while a large R2 PUT is unavailable.
+
+    The history lane has one local writer. R2 remains the certified checkpoint:
+    a remote change since the local base is never overwritten without proof.
+    """
+
+    def __init__(self, remote, directory):
+        if remote.key.startswith(f'{PREFIX}incremental-'):
+            raise ValueError('LOCAL_CHECKPOINT_HISTORY_ONLY')
+        self.remote = remote
+        self.directory = Path(directory)
+        self.path = self.directory / f'history-shard-{remote.shard}.checkpoint'
+        self.base_etag = None
+        self.base_bytes = 0
+
+    def __getattr__(self, name):
+        return getattr(self.remote, name)
+
+    def _read_local(self):
+        body = self.path.read_bytes()
+        if body[:4] != b'BRL1' or len(body) < 8:
+            raise ValueError('LOCAL_CHECKPOINT_INVALID')
+        size = int.from_bytes(body[4:8], 'big')
+        if not 0 < size < 1000:
+            raise ValueError('LOCAL_CHECKPOINT_INVALID')
+        meta = json.loads(body[8:8 + size])
+        if (meta.get('key') != self.remote.key
+                or not isinstance(meta.get('baseEtag'), str)
+                or not isinstance(meta.get('baseBytes'), int)
+                or meta['baseBytes'] <= 0):
+            raise ValueError('LOCAL_CHECKPOINT_INVALID')
+        data = body[8 + size:]
+        return meta, self.remote.decode(data)
+
+    def load(self):
+        local = self.path.is_file()
+        try:
+            remote_state = self.remote.load()
+        except Exception as error:
+            if not local or not transient(error):
+                raise
+            remote_state = None
+        if not local:
+            self.base_etag = self.remote.etag
+            self.base_bytes = self.remote.previous_bytes
+            return remote_state
+        meta, local_state = self._read_local()
+        if remote_state is not None:
+            if remote_state == local_state:
+                self.path.unlink()
+                self.base_etag = self.remote.etag
+                self.base_bytes = self.remote.previous_bytes
+                return remote_state
+            if self.remote.etag != meta['baseEtag']:
+                raise ValueError('LOCAL_CHECKPOINT_REMOTE_CONFLICT')
+        self.base_etag = meta['baseEtag']
+        self.base_bytes = meta['baseBytes']
+        self.remote.etag = self.base_etag
+        self.remote.previous_bytes = self.base_bytes
+        return local_state
+
+    def inventory(self):
+        # The full bucket check is required when the local state reaches R2.
+        pass
+
+    def save(self, state):
+        nonce = os.urandom(12)
+        data = b'BRQ1' + nonce + self.remote.cipher.encrypt(
+            nonce, packed(state), self.remote.key.encode())
+        if len(data) > SHARD_BUDGET:
+            raise ValueError('QUEUE_SHARD_BUDGET_EXCEEDED')
+        meta = json.dumps({'key': self.remote.key, 'baseEtag': self.base_etag,
+                           'baseBytes': self.base_bytes}, separators=(',', ':')).encode()
+        body = b'BRL1' + len(meta).to_bytes(4, 'big') + meta + data
+        self.directory.mkdir(parents=True, exist_ok=True)
+        temp = self.path.with_name(self.path.name + f'.{os.getpid()}.tmp')
+        fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, 'wb') as output:
+                output.write(body)
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(temp, self.path)
+            dir_fd = os.open(self.directory, os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        finally:
+            temp.unlink(missing_ok=True)
+
+    def sync(self, state):
+        if not self.path.exists():
+            return
+        _, saved = self._read_local()
+        if saved != state:
+            raise ValueError('LOCAL_CHECKPOINT_UNSAVED_PROGRESS')
+        self.remote.save(state)
+        self.path.unlink()
+        self.base_etag = self.remote.etag
+        self.base_bytes = self.remote.previous_bytes
 
 
 def certified_files(root):
@@ -396,6 +504,8 @@ def main():
     parser.add_argument('--max-games', type=int, default=5000)
     parser.add_argument('--summary', type=Path)
     parser.add_argument('--export-candidates', type=Path, help='Read-only export of current candidates outside repository')
+    parser.add_argument('--local-checkpoint-dir', type=Path,
+                        help='Encrypted local recovery for the history lane only')
     args = parser.parse_args()
     if not 1 <= args.seconds <= 3300 or not 1 <= args.max_games <= 10000:
         parser.error('seconds must be 1..3300; max-games must be 1..10000')
@@ -403,6 +513,8 @@ def main():
         parser.error('an output or cutover operation is required')
     if (args.freeze_history or args.initialize_incremental) and (args.summary or args.export_candidates):
         parser.error('cutover operations cannot run analysis or export')
+    if args.local_checkpoint_dir and args.lane != 'history':
+        parser.error('local checkpoints are history-only')
     for output in (args.summary, args.export_candidates):
         if output and output.resolve().is_relative_to(args.root.resolve()):
             parser.error('outputs must be outside repository')
@@ -416,6 +528,10 @@ def main():
         aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
         config=Config(connect_timeout=15, read_timeout=60, retries={'total_max_attempts': 1}))
     store = R2Store(client, os.environ['R2_BUCKET'], args.shard, os.environ['BRILLIANCY_QUEUE_KEY'], args.lane)
+    if args.local_checkpoint_dir:
+        if args.local_checkpoint_dir.resolve().is_relative_to(args.root.resolve()):
+            parser.error('local checkpoints must be outside repository')
+        store = LocalHistoryCheckpoint(store, args.local_checkpoint_dir)
     if args.freeze_history:
         if args.lane != 'history':
             parser.error('--freeze-history requires history lane')
@@ -476,6 +592,8 @@ def main():
                 store.save(state)
             result = run_queue(db, state, version, engine, store.save,
                                seconds=args.seconds, max_games=args.max_games)
+            if isinstance(store, LocalHistoryCheckpoint):
+                store.sync(state)
             result.update(counts)
             result.update({'shard': args.shard, 'shards': SHARDS, 'version': version,
                 'engine': engine.id['name'], 'inputSnapshot': snapshot['snapshotId'],

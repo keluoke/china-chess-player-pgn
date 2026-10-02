@@ -246,6 +246,40 @@ class StorageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'PRECONDITION_FAILED'):
             other.save(state)
 
+    def test_local_history_progress_survives_failed_r2_put_and_restart(self):
+        self.store.save(dict(q.new_state(0), baselineGames=['a' * 64]))
+        with tempfile.TemporaryDirectory() as tmp:
+            local = q.LocalHistoryCheckpoint(self.store, tmp)
+            state = local.load()
+            state['records']['a' * 64] = {
+                'status': 'complete', 'version': 'v1', 'candidates': []}
+            local.save(state)
+            self.assertNotIn(b'"records"', local.path.read_bytes())
+            with patch.object(self.s3, 'put_object', side_effect=ConnectionError):
+                with self.assertRaises(ConnectionError):
+                    local.sync(state)
+            restarted = q.LocalHistoryCheckpoint(
+                q.R2Store(self.s3, 'chess-data', 0, base64.b64encode(b'x' * 32)), tmp)
+            self.assertEqual(restarted.load(), state)
+            restarted.sync(state)
+            self.assertFalse(restarted.path.exists())
+            self.assertEqual(self.store.load(), state)
+
+    def test_local_history_never_overwrites_changed_remote_checkpoint(self):
+        self.store.save(q.new_state(0))
+        with tempfile.TemporaryDirectory() as tmp:
+            local = q.LocalHistoryCheckpoint(self.store, tmp)
+            state = local.load()
+            state['marker'] = 'locally completed'
+            local.save(state)
+            other = q.R2Store(self.s3, 'chess-data', 0, base64.b64encode(b'x' * 32))
+            other.load()
+            other.save(dict(q.new_state(0), marker='other writer'))
+            restarted = q.LocalHistoryCheckpoint(
+                q.R2Store(self.s3, 'chess-data', 0, base64.b64encode(b'x' * 32)), tmp)
+            with self.assertRaisesRegex(ValueError, 'REMOTE_CONFLICT'):
+                restarted.load()
+
     def test_history_and_incremental_checkpoints_have_separate_keys(self):
         incremental = q.R2Store(self.s3, 'chess-data', 0, base64.b64encode(b'x' * 32), 'incremental')
         self.assertNotEqual(self.store.key, incremental.key)
