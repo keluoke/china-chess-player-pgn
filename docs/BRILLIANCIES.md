@@ -54,4 +54,4 @@ python3 Scripts/brilliancy_queue.py --lane incremental --shard 1 --export-candid
 
 审核候选仍走人工维护记录 → 统一重建 → 部署。队列只持久保存机器分析结果，永不自动写 `data/manual`。
 
-本地历史 worker 在独立、只读的完整 Git 快照运行，先用 `validate_player_pgn_r2_receipt.py` 对 3,133 个棋手包及当前快照的 SHA-256/回执做验证；不从采集工作区的旧文件拼凑全库。Stockfish 16 的 UCI 名称和分析版本须与切换前一致，否则会按新版本重新分析。`Scripts/local/run_brilliancy_history.py` 同时运行两个分片，按局存加密检查点到生产 R2，掉电后从上次确认的记录继续，两个分片全部 `pendingGames=0` 才退出。`Scripts/local/install_brilliancy_history_agent.py` 将其安装为当前用户的 launchd 任务；电脑关机或休眠期间不能运行，恢复后继续。每个分片最近一轮日志与摘要留在上述私有目录；生产候选仍需人工审核才能进入网站。
+本地历史 worker 在独立、只读的完整 Git 快照运行，先用 `validate_player_pgn_r2_receipt.py` 对 3,133 个棋手包及当前快照的 SHA-256/回执做验证；不从采集工作区的旧文件拼凑全库。Stockfish 16 的 UCI 名称和分析版本须与切换前一致，否则会按新版本重新分析。`Scripts/local/run_brilliancy_history.py` 同时运行两个分片，按局在本机私有目录原子保存加密检查点，并在每轮结束时向生产 R2 同步。R2 上传暂时中断时继续从本机密文续跑；恢复上传时必须核对远端基线 ETag、回读正文，冲突即停止，不覆盖其他写入。两个分片全部 `pendingGames=0` 且 R2 检查点同步成功才退出。`Scripts/local/install_brilliancy_history_agent.py` 将其安装为当前用户的 launchd 任务；电脑关机或休眠期间不能运行，恢复后继续。每个分片最近一轮日志与摘要留在上述私有目录；生产候选仍需人工审核才能进入网站。
