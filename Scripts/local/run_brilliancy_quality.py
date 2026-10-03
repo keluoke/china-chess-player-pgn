@@ -20,8 +20,6 @@ import sqlite3
 import sys
 import time
 
-import boto3
-from botocore.config import Config
 import chess.engine
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -80,6 +78,8 @@ def stratified_sample(items: list[dict], count: int) -> list[dict]:
 
 
 def load_candidates(shard: int, key: str) -> tuple[list[dict], str]:
+    import boto3
+    from botocore.config import Config
     values = load_secrets(SECRETS)
     client = boto3.client(
         "s3", endpoint_url=values["R2_ENDPOINT"], region_name="auto",
