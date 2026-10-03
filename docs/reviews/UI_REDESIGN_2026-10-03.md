@@ -14,6 +14,6 @@
 
 ## 双工作区交付边界
 
-代码只在 `kimi-code/main` 修改。面板部署到采集工作区须使用 `collector-runtime-plan` 与 `collector-runtime-sync`；不得复制单文件或绕过清单校验。`ui.css` 已加入 core profile 的 control-input 白名单与安装器精确路径许可。已完成受控安装，panel profile 的 98 个文件验证通过；实际面板在 127.0.0.1:8763 启动，首页和 ping/state/queue/events/outbox/automation 均返回 HTTP 200。
+代码只在 `kimi-code/main` 修改。面板部署到采集工作区须使用 `collector-runtime-plan` 与 `collector-runtime-sync`；不得复制单文件或绕过清单校验。`ui.css` 已加入 core profile 的 control-input 白名单与安装器精确路径许可。已完成受控安装，panel profile 的 98 个文件验证通过；最终安装来源为 `ac8e77f240`；重启后实际面板在 127.0.0.1:8764 启动（入口按端口文件发现当前服务），首页和 ping/state/queue/events/outbox/automation 均返回 HTTP 200。
 
 本次不修改人工数据、赛事采集产物或 outbox；受控安装同步运行时和白名单内控制输入（包含公共赛事目录），并未访问采集来源。生产网站仍需后续通过既有 CI → 统一 rebuild → R2 回执认证 → deploy 流程发布；本地浏览器验证不等于线上验证。移动端检查是浏览器视口验证，不代表 iOS/Android 真机验收。
