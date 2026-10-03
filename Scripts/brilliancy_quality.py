@@ -13,7 +13,7 @@ from typing import Any
 import chess
 import chess.engine
 
-RULE_VERSION = "sacrifice-qc-pilot-1"
+RULE_VERSION = "sacrifice-qc-pilot-2"
 MATERIAL = {chess.PAWN: 100, chess.KNIGHT: 320, chess.BISHOP: 330,
             chess.ROOK: 500, chess.QUEEN: 900}
 
@@ -157,6 +157,10 @@ def grade(evidence: list[dict]) -> tuple[str, list[str]]:
 
 def review(candidate: dict, engines: list[chess.engine.SimpleEngine], nodes: int) -> dict:
     board, target = replay(candidate)
+    if board.legal_moves.count() == 1:
+        return {"candidateId": candidate["id"], "positionKey": position_key(candidate),
+                "qualityRuleVersion": RULE_VERSION, "grade": "C",
+                "reasons": ["only_legal_move"], "engines": []}
     evidence = [evaluate_engine(engine, board, target, nodes) for engine in engines]
     quality, reasons = grade(evidence)
     return {"candidateId": candidate["id"], "positionKey": position_key(candidate),

@@ -17,6 +17,7 @@ import math
 import os
 from pathlib import Path
 import sqlite3
+import stat
 import sys
 import time
 
@@ -26,7 +27,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "Scripts"))
 import brilliancy_quality as qc
-from brilliancy_queue import R2Store
+from brilliancy_queue import R2Store, SHARD_BUDGET, transient
 from upload_bulk_to_r2 import load_secrets
 
 PRIVATE = Path.home() / "Library/Application Support/ChinaChessPlayerPGN/brilliancies"
@@ -77,7 +78,7 @@ def stratified_sample(items: list[dict], count: int) -> list[dict]:
     return sorted(selected, key=lambda x: x["id"])
 
 
-def load_candidates(shard: int, key: str) -> tuple[list[dict], str]:
+def r2_client():
     import boto3
     from botocore.config import Config
     values = load_secrets(SECRETS)
@@ -85,10 +86,27 @@ def load_candidates(shard: int, key: str) -> tuple[list[dict], str]:
         "s3", endpoint_url=values["R2_ENDPOINT"], region_name="auto",
         aws_access_key_id=values["R2_ACCESS_KEY_ID"],
         aws_secret_access_key=values["R2_SECRET_ACCESS_KEY"],
-        config=Config(connect_timeout=15, read_timeout=120,
+        config=Config(connect_timeout=15, read_timeout=120, proxies={},
                       retries={"total_max_attempts": 2}),
     )
-    state = R2Store(client, values["R2_BUCKET"], shard, key).load()
+    return client, values["R2_BUCKET"]
+
+
+def load_candidates(shard: int, key: str, refresh: bool = False) -> tuple[list[dict], str]:
+    client, bucket = r2_client()
+    store = R2Store(client, bucket, shard, key)
+    cache = PRIVATE / f"quality-source-history-shard-{shard}.bin"
+    if cache.is_symlink():
+        raise ValueError("QC_PRIVATE_SYMLINK_FORBIDDEN:quality-source-history")
+    if cache.exists() and not refresh:
+        private_file(cache)
+        ciphertext = cache.read_bytes()
+        if len(ciphertext) > SHARD_BUDGET:
+            raise ValueError("QC_SOURCE_CACHE_TOO_LARGE")
+        state = store.decode(ciphertext)
+    else:
+        ciphertext, _ = store.get_bytes()
+        state = store.decode(ciphertext)
     baseline = state.get("baselineGames")
     version = state.get("activeVersion")
     if not baseline or not version:
@@ -97,14 +115,30 @@ def load_candidates(shard: int, key: str) -> tuple[list[dict], str]:
                   or state["records"][gid].get("version") != version]
     if incomplete:
         raise ValueError(f"QC_HISTORY_INCOMPLETE:{len(incomplete)}")
+    if not cache.exists() or refresh:
+        PRIVATE.mkdir(parents=True, exist_ok=True)
+        temp = cache.with_name(cache.name + f".{os.getpid()}.tmp")
+        descriptor = os.open(temp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        try:
+            with os.fdopen(descriptor, "wb") as output:
+                output.write(ciphertext)
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(temp, cache)
+        finally:
+            temp.unlink(missing_ok=True)
     return [item for gid in baseline for item in state["records"][gid]["candidates"]], version
 
 
 def private_file(path: Path) -> None:
+    if path.is_symlink():
+        raise ValueError(f"QC_PRIVATE_SYMLINK_FORBIDDEN:{path.name}")
     if not path.exists():
         descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         os.close(descriptor)
-    if path.stat().st_mode & 0o077:
+    metadata = path.stat()
+    if (not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.getuid()
+            or metadata.st_mode & 0o077):
         raise ValueError(f"QC_PRIVATE_MODE_REQUIRED:{path.name}")
 
 
@@ -113,9 +147,25 @@ def database(path: Path) -> sqlite3.Connection:
     db = sqlite3.connect(path)
     db.execute("PRAGMA journal_mode=DELETE")
     db.execute("PRAGMA synchronous=FULL")
-    db.execute("CREATE TABLE IF NOT EXISTS results ("
-               "candidate_id TEXT PRIMARY KEY, input_hash TEXT NOT NULL, "
-               "profile TEXT NOT NULL, grade TEXT NOT NULL, encrypted BLOB NOT NULL)")
+    existing = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='results'").fetchone()
+    if existing:
+        primary = [row[1] for row in db.execute("PRAGMA table_info(results)") if row[5]]
+        if primary == ["candidate_id"]:
+            with db:
+                db.execute("ALTER TABLE results RENAME TO results_legacy")
+                db.execute("CREATE TABLE results (candidate_id TEXT NOT NULL, "
+                           "input_hash TEXT NOT NULL, profile TEXT NOT NULL, "
+                           "grade TEXT NOT NULL, encrypted BLOB NOT NULL, "
+                           "PRIMARY KEY (candidate_id,profile))")
+                db.execute("INSERT INTO results SELECT * FROM results_legacy")
+                db.execute("DROP TABLE results_legacy")
+        elif primary != ["candidate_id", "profile"]:
+            raise ValueError("QC_CHECKPOINT_SCHEMA_INVALID")
+    else:
+        db.execute("CREATE TABLE results (candidate_id TEXT NOT NULL, "
+                   "input_hash TEXT NOT NULL, profile TEXT NOT NULL, "
+                   "grade TEXT NOT NULL, encrypted BLOB NOT NULL, "
+                   "PRIMARY KEY (candidate_id,profile))")
     db.commit()
     return db
 
@@ -134,8 +184,8 @@ def save_result(db: sqlite3.Connection, cipher: AESGCM, item: dict,
 
 def cached_result(db: sqlite3.Connection, cipher: AESGCM,
                   item: dict, profile: str) -> dict | None:
-    row = db.execute("SELECT input_hash,profile,grade,encrypted FROM results WHERE candidate_id=?",
-                     (item["id"],)).fetchone()
+    row = db.execute("SELECT input_hash,profile,grade,encrypted FROM results "
+                     "WHERE candidate_id=? AND profile=?", (item["id"], profile)).fetchone()
     if not row or (row[0], row[1]) != (qc.digest(item), profile):
         return None
     blob = row[3]
@@ -149,7 +199,8 @@ def cached_result(db: sqlite3.Connection, cipher: AESGCM,
 def run(args) -> dict:
     PRIVATE.mkdir(parents=True, exist_ok=True)
     key_path = PRIVATE / "queue-encryption.key"
-    if not key_path.is_file() or key_path.stat().st_mode & 0o077:
+    if (key_path.is_symlink() or not key_path.is_file()
+            or key_path.stat().st_uid != os.getuid() or key_path.stat().st_mode & 0o077):
         raise ValueError("QC_KEY_MISSING_OR_EXPOSED")
     key_text = key_path.read_text().strip()
     key = base64.b64decode(key_text, validate=True)
@@ -166,11 +217,26 @@ def run(args) -> dict:
     private_file(lock)
     with lock.open("r+") as lock_handle:
         fcntl.flock(lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        items, source_version = load_candidates(args.shard, key_text)
+        items, source_version = load_candidates(args.shard, key_text, args.refresh_source)
         selected = stratified_sample(items, args.sample_size)
         db_path = PRIVATE / f"quality-shard-{args.shard}.sqlite3"
         with closing(database(db_path)) as db:
             cipher = AESGCM(key)
+            backup = None
+            if args.backup_every:
+                from brilliancy_quality_backup import QualityBackup
+                client, bucket = r2_client()
+                backup = QualityBackup(client, bucket, args.shard, key_text)
+                try:
+                    restored = backup.reconcile(db)
+                except Exception as error:
+                    if not transient(error):
+                        raise
+                    print(json.dumps({"shard": args.shard,
+                                      "backupRestoreDeferred": type(error).__name__}), flush=True)
+                else:
+                    if restored:
+                        print(json.dumps({"shard": args.shard, "restoredFromR2": restored}), flush=True)
             engines = [chess.engine.SimpleEngine.popen_uci(str(p)) for p in args.engines]
             try:
                 for engine in engines:
@@ -193,6 +259,14 @@ def run(args) -> dict:
                                    "grade": "D", "reasons": [str(exc)], "engines": []}
                     save_result(db, cipher, item, profile, outcome)
                     completed += 1
+                    if backup and completed % args.backup_every == 0:
+                        try:
+                            backup.sync(db)
+                        except Exception as error:
+                            if not transient(error):
+                                raise
+                            print(json.dumps({"shard": args.shard, "backupDeferred": type(error).__name__}),
+                                  flush=True)
                     if completed % 10 == 0:
                         print(json.dumps({"shard": args.shard, "processedThisRun": completed,
                                           "sampleSize": len(selected), "sourceVersion": source_version}),
@@ -200,6 +274,8 @@ def run(args) -> dict:
             finally:
                 for engine in engines:
                     engine.quit()
+            if backup:
+                backup.sync(db)
             grades = Counter()
             for item in selected:
                 result = cached_result(db, cipher, item, profile)
@@ -209,6 +285,7 @@ def run(args) -> dict:
                        "sourceVersion": source_version, "profile": profile,
                        "processedThisRun": completed, "reused": skipped,
                        "graded": sum(grades.values()), "grades": dict(sorted(grades.items())),
+                       "r2Backup": "synced" if backup else "not-requested",
                        "publicAutoPublish": False}
             print(json.dumps(summary, ensure_ascii=False), flush=True)
             return summary
@@ -220,10 +297,17 @@ def main() -> int:
     parser.add_argument("--sample-size", type=int, default=300)
     parser.add_argument("--nodes", type=int, default=1_000_000)
     parser.add_argument("--max-new", type=int, default=0)
+    parser.add_argument("--backup-every", type=int, default=0,
+                        help="Sync encrypted R2 quality checkpoint after this many new results")
+    parser.add_argument("--refresh-source", action="store_true",
+                        help="Explicitly replace the authenticated frozen history cache from R2")
     parser.add_argument("--engines", nargs=2, type=Path, default=[STOCKFISH_16, STOCKFISH_17])
     args = parser.parse_args()
-    if args.sample_size < 0 or args.nodes < 100_000 or args.max_new < 0:
+    if (args.sample_size < 0 or args.nodes < 100_000 or args.max_new < 0
+            or args.backup_every < 0):
         parser.error("invalid pilot budget")
+    if args.sample_size == 0 and args.backup_every == 0:
+        parser.error("full quality scan requires encrypted R2 backup")
     run(args)
     return 0
 

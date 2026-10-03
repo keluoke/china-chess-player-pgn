@@ -68,3 +68,9 @@ python3 Scripts/local/run_brilliancy_quality.py --shard 1 --sample-size 300 --no
 ```
 
 `--sample-size 0` 才代表全量。结果文件位于私有运行目录，不能加入 Git 或发布 artifact；上线仍需完成质量校准、发布投影和公开验证门禁。
+
+全量时可加 `--backup-every 1000`：每千条把当前本机断点同步到 R2 的独立加密质量对象，使用条件 ETag 写入、正文回读和配额门禁；恢复时先比对两端记录，冲突停止而不覆盖。试跑不写 R2 质量对象。
+
+抽样规则确定后，用 `python3 Scripts/local/install_brilliancy_quality_agent.py` 安装本机 launchd 全量任务；它分批运行两个分片，结果可从私有目录的 `quality-full.json` 和 `quality-agent.out.log` 查看。任务只形成内部质控证据，不会因 S/A 达到数量目标而停扫，也不会自动绕过公开发布门禁。
+
+抽样进行中或完成后可用 `python3 Scripts/local/report_brilliancy_quality.py` 查看仅含聚合数量的进度与分层投影。投影标为试验规则结果，不等于已审核可上线数量；调整分层阈值时先复用已保存的引擎证据，不能为凑比例重跑全库。

@@ -1,10 +1,12 @@
 """Quality-review invariants independent of player and tournament identifiers."""
+import base64
 import copy
 import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
 
 import chess
 
@@ -14,6 +16,8 @@ import brilliancy_quality as qc
 sys.path.insert(0, str(ROOT / "Scripts/local"))
 import run_brilliancy_quality as runner
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from brilliancy_queue import R2Store, new_state
+from Scripts.tests.test_brilliancy_queue import FakeS3
 
 
 class QualityTests(unittest.TestCase):
@@ -58,6 +62,15 @@ class QualityTests(unittest.TestCase):
         grade, _ = qc.grade([engine(-260), engine(-300)])
         self.assertEqual(grade, "D")
 
+    def test_only_legal_move_is_recorded_without_engine_search(self):
+        board = MagicMock()
+        board.legal_moves.count.return_value = 1
+        with patch.object(qc, "replay", return_value=(board, None)):
+            with patch.object(qc, "position_key", return_value="position"):
+                result = qc.review(self.candidate, [], 100_000)
+        self.assertEqual(result["grade"], "C")
+        self.assertEqual(result["reasons"], ["only_legal_move"])
+
     def test_private_checkpoint_authenticates_cached_grade(self):
         with tempfile.TemporaryDirectory() as folder:
             db_path = Path(folder) / "quality.sqlite3"
@@ -74,6 +87,55 @@ class QualityTests(unittest.TestCase):
                     runner.cached_result(db, cipher, self.candidate, "profile")
             finally:
                 db.close()
+
+    def test_private_checkpoint_rejects_symlink(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "target"
+            target.write_text("keep")
+            link = Path(folder) / "quality.sqlite3"
+            link.symlink_to(target)
+            with self.assertRaisesRegex(ValueError, "QC_PRIVATE_SYMLINK_FORBIDDEN"):
+                runner.database(link)
+            self.assertEqual(target.read_text(), "keep")
+
+    def test_quality_sample_does_not_use_identity_or_internal_event_id(self):
+        items = []
+        for index in range(40):
+            item = copy.deepcopy(self.candidate)
+            item["id"] = "br-" + f"{index:064x}"
+            item["themes"] = ["queen-sacrifice" if index % 2 else "rook-sacrifice"]
+            items.append(item)
+        selected = {x["id"] for x in runner.stratified_sample(items, 20)}
+        for item in items:
+            item["white"]["playerId"] = None
+            item["black"]["playerId"] = None
+            item["event"]["id"] = "event-unknown"
+        self.assertEqual(selected, {x["id"] for x in runner.stratified_sample(items, 20)})
+
+    def test_authenticated_history_source_is_cached_privately(self):
+        key = base64.b64encode(bytes(range(32))).decode()
+        client = FakeS3()
+        state = new_state(0)
+        state["baselineGames"] = ["a" * 64]
+        state["activeVersion"] = "v1"
+        state["records"]["a" * 64] = {
+            "status": "complete", "version": "v1", "candidates": [self.candidate],
+        }
+        store = R2Store(client, "chess-data", 0, key)
+        store.save(state)
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.object(runner, "PRIVATE", Path(folder)), patch.object(
+                    runner, "r2_client", return_value=(client, "chess-data")):
+                items, version = runner.load_candidates(0, key)
+                self.assertEqual((len(items), version), (1, "v1"))
+                cached = Path(folder) / "quality-source-history-shard-0.bin"
+                self.assertEqual(cached.stat().st_mode & 0o077, 0)
+                client.objects.clear()
+                self.assertEqual(runner.load_candidates(0, key)[0], items)
+                cached.unlink()
+                cached.symlink_to(Path(folder) / "missing")
+                with self.assertRaisesRegex(ValueError, "QC_PRIVATE_SYMLINK_FORBIDDEN"):
+                    runner.load_candidates(0, key)
 
 
 if __name__ == "__main__":
