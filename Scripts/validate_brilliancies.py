@@ -31,6 +31,7 @@ import chess.pgn
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 import logging
 import build_static_player_pgn as pgn_helper
+import brilliancy_archive
 from snapshot_context import snapshot_id
 
 logging.getLogger("chess.pgn").setLevel(logging.CRITICAL)
@@ -124,6 +125,9 @@ def validate_brilliancies(
 
     published_ids = set()
     player_games_cache: Dict[str, set] = {}
+    global_archive_cache = None
+    wanted_fingerprints = {row.get("game", {}).get("fingerprint") for row in items}
+    wanted_fingerprints.discard(None)
 
     for idx, item in enumerate(items):
         b_id = item.get("id", "")
@@ -194,7 +198,7 @@ def validate_brilliancies(
 
         fide_candidates = []
         for side in ("white", "black"):
-            side_fid = str(full_item.get(side, {}).get("playerId", "")).replace("fide-", "")
+            side_fid = str(full_item.get(side, {}).get("playerId") or "").removeprefix("fide-")
             if side_fid and side_fid not in fide_candidates:
                 fide_candidates.append(side_fid)
 
@@ -220,7 +224,16 @@ def validate_brilliancies(
                     found_game = player_games_cache[fid][gid]
                     break
 
-        if archive_checked == 0:
+        if found_game is None:
+            if global_archive_cache is None:
+                global_archive_cache = brilliancy_archive.matching_games(root, wanted_fingerprints)
+            raw = global_archive_cache.get(fp, {}).get(gid)
+            if raw:
+                found_game = chess.pgn.read_game(io.StringIO(raw))
+                if not found_game or found_game.errors:
+                    raise ValueError(f"ORIGINAL_GAME_PARSE_INVALID in {b_id}")
+
+        if archive_checked == 0 and found_game is None:
             raise ValueError(
                 f"ORIGINAL_GAME_ARCHIVE_MISSING in {b_id}: "
                 f"no archive found for players {fide_candidates}"

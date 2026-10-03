@@ -269,6 +269,25 @@ class BrillianciesBuildAndValidationTests(unittest.TestCase):
             self.assertNotEqual(shard["items"][target["id"]]["game"]["id"], target["game"]["id"])
             validator.validate_brilliancies(root)
 
+    def test_original_game_provenance_does_not_require_player_fide_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._setup_mock_environment(root)
+            curated_path = root / "data/manual/brilliancies/curated.json"
+            curated = json.loads(curated_path.read_text())
+            item = curated["items"][0]
+            item["white"]["playerId"] = None
+            item["black"]["playerId"] = None
+            item["event"]["id"] = "event-unknown"
+            curated_path.write_text(json.dumps(curated), encoding="utf-8")
+            builder.build(root, sid="test-snap")
+            shard = json.loads((root / f"docs/data/brilliancies/shards/{item['id'][3]}.json").read_text())
+            public_item = shard["items"][item["id"]]
+            self.assertIsNone(public_item["links"]["player"])
+            self.assertIsNone(public_item["links"]["game"])
+            self.assertIsNone(public_item["links"]["event"])
+            self.assertEqual(validator.validate_brilliancies(root)["validItems"], 10)
+
     def test_root_isolation(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_root = pathlib.Path(tmp_dir)

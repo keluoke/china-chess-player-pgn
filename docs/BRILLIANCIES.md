@@ -74,3 +74,5 @@ python3 Scripts/local/run_brilliancy_quality.py --shard 1 --sample-size 300 --no
 抽样规则确定后，用 `python3 Scripts/local/install_brilliancy_quality_agent.py` 安装本机 launchd 全量任务；它分批运行两个分片，结果可从私有目录的 `quality-full.json` 和 `quality-agent.out.log` 查看。任务只形成内部质控证据，不会因 S/A 达到数量目标而停扫，也不会自动绕过公开发布门禁。
 
 抽样进行中或完成后可用 `python3 Scripts/local/report_brilliancy_quality.py` 查看仅含聚合数量的进度与分层投影。投影标为试验规则结果，不等于已审核可上线数量；调整分层阈值时先复用已保存的引擎证据，不能为凑比例重跑全库。
+
+公开原局验证按棋局指纹查已归档 PGN；双方没有 FIDE ID 时仍核对原局哈希、完整走法和指定局面，若同指纹对应多个不同原档则隔离。缺失棋手 ID 和内部赛事 ID 时对应站内链接留空，不伪造身份或赛事。

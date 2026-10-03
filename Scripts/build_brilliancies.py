@@ -35,6 +35,7 @@ sys.path.insert(0, str(ROOT / "Scripts"))
 from snapshot_context import snapshot_id
 from stable_json import write_json
 import build_static_player_pgn as pgn_helper
+import brilliancy_archive
 
 CURATED_PATH = ROOT / "data/manual/brilliancies/curated.json"
 REGISTRY_PLAYERS = ROOT / "docs/data/registry/players.json"
@@ -333,6 +334,8 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
 
 
     archive_cache = {}
+    global_archive_cache = None
+    wanted_fingerprints = {row["game"]["fingerprint"] for row in raw_items}
     published_items = []
     published_ids = set()
     shards: Dict[str, Dict[str, Any]] = {hex(i)[2:]: {} for i in range(16)}
@@ -380,8 +383,9 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
 
         # A rebuild can choose a different provider copy of the same played game.
         # Rebind only through an exact, unique move fingerprint, never list order.
-        white_id = str(item.get("white", {}).get("playerId", "")).removeprefix("fide-")
+        white_id = str(item.get("white", {}).get("playerId") or "").removeprefix("fide-")
         archive_path = root / f"docs/data/pgn/by-player/fide-{white_id}/all.pgn"
+        matches = set()
         if archive_path.is_file():
             if white_id not in archive_cache:
                 by_fingerprint = {}
@@ -394,10 +398,16 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
                     by_fingerprint.setdefault(fp, set()).add(pgn_helper.stable_game_hash(raw))
                 archive_cache[white_id] = by_fingerprint
             matches = archive_cache[white_id].get(item["game"]["fingerprint"], set())
-            if item["game"]["id"] not in matches:
-                if len(matches) != 1:
-                    raise ValueError(f"ORIGINAL_GAME_MATCH_NOT_UNIQUE: {b_id}")
-                item["game"]["id"] = next(iter(matches))
+        if not matches and (not white_id or archive_path.is_file()):
+            if global_archive_cache is None:
+                global_archive_cache = brilliancy_archive.matching_games(root, wanted_fingerprints)
+            matches = set(global_archive_cache.get(item["game"]["fingerprint"], {}))
+        if matches and item["game"]["id"] not in matches:
+            if len(matches) != 1:
+                raise ValueError(f"ORIGINAL_GAME_MATCH_NOT_UNIQUE: {b_id}")
+            item["game"]["id"] = next(iter(matches))
+        if not matches and not white_id:
+            raise ValueError(f"ORIGINAL_GAME_MATCH_NOT_UNIQUE: {b_id}")
 
         # Standardize links
         item["snapshotId"] = sid
@@ -414,7 +424,7 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
             }
         ]
 
-        white_fide = str(item.get("white", {}).get("playerId", "")).replace("fide-", "")
+        white_fide = str(item.get("white", {}).get("playerId") or "").removeprefix("fide-")
         gid = item.get("game", {}).get("id", "")
         ply = item.get("position", {}).get("ply", 0)
 
