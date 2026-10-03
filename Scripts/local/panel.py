@@ -1023,8 +1023,8 @@ PAGE = r"""<!doctype html>
 </details>
 <div class="summary" id="publishInfo"></div>
 <div class="grid">
- <div class="card"><div class="head"><b>FIDE 注册表</b><span class="badge">可发布</span></div><div class="desc">临时下载、ZIP/语义/人数/分片/勘误校验，通过后才原子晋升。姓名和等级分唯一权威。</div><div class="actions"><button class="primary" onclick="runCmd('registry',[],false)">开始</button><span class="small" id="fideDue"></span></div></div>
- <div class="card"><div class="head"><b>Lichess Broadcast</b><span class="badge">CC BY-SA 4.0</span></div><div class="desc">在暂存区验证分片并重建数据包，manifest 保留许可证和署名链接。</div><div class="actions"><button class="primary" onclick="runCmd('bulk',[],false)">开始</button><button onclick="runCmd('bulk-full',[],true)">全量刷新</button><span class="small" id="lichessDue"></span></div></div>
+ <div class="card"><div class="head"><b>FIDE 注册表</b><span class="badge">本机补救</span></div><div class="desc">日常由云端按月自动更新。本机补救仍需通过下载与完整性校验；注册表是姓名和等级分唯一权威。</div><div class="actions"><button class="primary" onclick="runCmd('registry',[],false)">本机补救</button><span class="small" id="fideDue"></span></div></div>
+ <div class="card"><div class="head"><b>Lichess Broadcast</b><span class="badge">CC BY-SA 4.0</span></div><div class="desc">日常由云端按月自动补齐。本机补救会验证分片、重建数据包，并保留许可证与署名。</div><div class="actions"><button class="primary" onclick="runCmd('bulk',[],false)">本机补救</button><button onclick="runCmd('bulk-full',[],true)">全量刷新</button><span class="small" id="lichessDue"></span></div></div>
  <div class="card"><div class="head"><b>推进发布</b><span class="badge">不抓取</span></div><div class="desc">推进 GitHub 生产投递与上线验证；失败只重试对应阶段，不回抓来源。</div><div class="actions"><button class="primary" onclick="runCmd('publish',[],false)">立即推进</button></div></div>
  <div class="card"><div class="head"><b>同步云端回执</b><span class="badge">只读</span></div><div class="desc">查询 GitHub ingest/rebuild/deploy 结论并校验线上文件哈希；pushed 不等于已发布。</div><div class="actions"><button class="primary" onclick="runCmd('receipts',[],false)">同步回执</button></div></div>
 </div>
@@ -1054,7 +1054,7 @@ function selectPanelView(view,focus=false){
  if(focus){const heading=$('#view-'+key+' h2');heading.tabIndex=-1;heading.focus()}
 }
 document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{location.hash=button.dataset.view;selectPanelView(button.dataset.view,true)}));
-window.addEventListener('hashchange',()=>selectPanelView(location.hash.slice(1)));
+window.addEventListener('hashchange',()=>{const view=location.hash.slice(1);if(Object.hasOwn(PANEL_VIEWS,view))selectPanelView(view)});
 selectPanelView(location.hash.slice(1));
 const queue=$('#queue'), stop=$('#stop'), dot=$('#dot');
 const statusText=$('#statusText'), statusMeta=$('#statusMeta');
@@ -1223,9 +1223,9 @@ function renderEvents(){
 // ---- publish center ----
 async function loadOutbox(){
  const o=await(await fetch('/api/outbox')).json();
- $('#fideDue').textContent=o.fideAgeDays==null?'（本地无 registry manifest）':o.fideDue?`已 ${o.fideAgeDays} 天未更新，到期`:`${o.fideAgeDays} 天前已更新`;
- $('#lichessDue').textContent=o.lichessAgeDays==null?'':o.lichessDue?`已 ${o.lichessAgeDays} 天未更新，到期`:`${o.lichessAgeDays} 天前已更新`;
- $('#publishInfo').innerHTML=`<span class=pill>FIDE ${o.fideDue?'<b style="color:var(--warn)">到期</b>':'未到期'}</span><span class=pill>Lichess ${o.lichessDue?'<b style="color:var(--warn)">到期</b>':'未到期'}</span><a class=pill href="${SITE}/" target="_blank">打开线上站点 ↗</a>`;
+ $('#fideDue').textContent=o.fideAgeDays==null?'本机未保存注册表快照':`本机缓存 ${o.fideAgeDays} 天前更新`;
+ $('#lichessDue').textContent=o.lichessAgeDays==null?'本机未保存广播快照':`本机缓存 ${o.lichessAgeDays} 天前更新`;
+ $('#publishInfo').innerHTML=`<span class=pill>本机 FIDE 缓存 ${o.fideDue?'<b style="color:var(--warn)">较旧</b>':'近期更新'}</span><span class=pill>本机广播缓存 ${o.lichessDue?'<b style="color:var(--warn)">较旧</b>':'近期更新'}</span><a class=pill href="${SITE}/" target="_blank">打开线上站点 ↗</a>`;
  $('#publishNavCount').textContent=(o.entries||[]).filter(e=>e.status!=='online-verified').length;
  outboxBody.innerHTML=(o.entries||[]).map(e=>{
   const cls=e.status==='online-verified'?'ok':e.status==='pending'?'warn':'';
