@@ -19,7 +19,7 @@ from notify_search_engines import changed_urls, submit_urls
 class SeoReleaseTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name);self.docs=self.root/'docs';self.docs.mkdir()
-        for name in builder.TEMPLATES+('seo.css','seo.js'):shutil.copy2(builder.ROOT/'docs'/name,self.docs/name)
+        for name in builder.TEMPLATES+('seo.css','seo.js','ui.css'):shutil.copy2(builder.ROOT/'docs'/name,self.docs/name)
         self.sid='fixture-one'; self.player={'fideID':'8602980','displayName':'侯逸凡','name':'Hou, Yifan','standard':2596,'rapid':None,'blitz':2521,'federation':'CHN'}
         self.write('data/registry/players.json',[self.player]);self.write('data/registry/manifest.json',{'listDate':'2026-09-01'})
         self.write('data/public-metrics.json',{'snapshotId':self.sid,'totals':{'playersWithGames':1,'playableUniqueGames':2}})

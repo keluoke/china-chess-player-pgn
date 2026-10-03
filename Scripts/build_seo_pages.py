@@ -64,7 +64,7 @@ def render_page(route, title, description, body, sid, graph=None):
     return f'''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 {metadata(route,title,description,graph)}<meta name="chessdb-snapshot" content="{esc(sid)}">
 <link rel="icon" href="/assets/chessdb-favicon-light.png"><script src="/theme.js?v=20260727-1"></script>
-<link rel="stylesheet" href="/styles.css?v=20260916-quality"><link rel="stylesheet" href="/seo.css?v=20260918-1"></head>
+<link rel="stylesheet" href="/styles.css?v=20260916-quality"><link rel="stylesheet" href="/seo.css?v=20260918-1"><link rel="stylesheet" href="/ui.css?v=20261003-1"></head>
 <body class="coverage-page"><main class="seo-shell"><nav class="page-nav" aria-label="页面导航">{anchor('/','ChessDB')}<div class="seo-nav">{anchor('/events','查棋谱')}{anchor('/leaderboards','棋手排行榜')}{anchor('/master-series','棋协大师赛')}{anchor('/brilliancies','实战妙手')}</div></nav>
 <header><h1>{esc(title)}</h1><p>{esc(description)}</p></header>{body}{footer()}</main></body></html>'''
 
@@ -304,7 +304,7 @@ def build(root: Path, sid: str, now=None):
     outputs['sitemap.xml']=tostring(urlset,encoding='unicode',xml_declaration=True)
     outputs['llms.txt']='# ChessDB 中国国际象棋棋手数据库\n\n公开棋手、FIDE 等级分、赛事成绩与棋谱；完整性以各页标注为准。\n\n'+''.join(f'- [{label}]({ORIGIN}{route})\n' for route,label in [('/players','全部 FIDE 棋手'),('/names','中文姓名目录'),('/events','查棋谱'),('/leaderboards','棋手排行榜'),('/master-series','棋协大师赛'),('/brilliancies','实战妙手'),('/methodology','口径与许可'),('/developers','API 与 PGN')])
     templates={name:digest((docs/name).read_bytes()) for name in TEMPLATES}
-    assets={name:digest((docs/name).read_bytes()) for name in ('seo.css','seo.js')}
+    assets={name:digest((docs/name).read_bytes()) for name in ('seo.css','seo.js','ui.css')}
     manifest={'schemaVersion':1,'snapshotId':sid,'origin':ORIGIN,'generatedAt':now,'registryListDate':month,'templates':templates,'assets':assets,'builderSha256':digest(Path(__file__).read_bytes()),'pages':sorted(pages,key=lambda p:p['route']),'routes':{'players':player_routes,'events':event_routes,'names':name_routes},'coverage':{'registryPlayers':len(players),'playerPages':len(player_routes),'eventPages':len(event_routes),'namePages':len(name_routes),'maxPages':MAX_PAGES},'files':[{'file':name,'sha256':digest(body.encode()),'bytes':len(body.encode())} for name,body in sorted(outputs.items())]}
     target.parent.mkdir(parents=True,exist_ok=True)
     staging=Path(tempfile.mkdtemp(prefix='.seo-',dir=target.parent))

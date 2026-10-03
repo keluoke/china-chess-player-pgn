@@ -9,8 +9,10 @@
     <link rel="icon" href="./assets/chessdb-favicon-dark.png" type="image/png" media="(prefers-color-scheme: dark)">
     <script src="theme.js?v=20260727-1"></script>
     <link rel="stylesheet" href="styles.css?v=20260916-quality">
+    <link rel="stylesheet" href="ui.css?v=20261003-1">
   </head>
   <body class="landing">
+    <a class="skip-link" href="#mainPane">跳到主要内容</a>
     <div class="app-shell">
       <header class="topbar">
         <a class="brand" href="./" aria-label="4CHESS 中国国际象棋棋手数据库首页">
@@ -22,8 +24,9 @@
 
         <div class="top-actions">
           <nav class="topnav" aria-label="主要页面">
-            <a href="./events">查棋谱</a>
-            <a href="./leaderboards.html">棋手排行榜</a>
+            <a href="./" aria-current="page">查棋手</a>
+            <a href="./events">赛事与棋谱</a>
+            <a href="./leaderboards.html">排行榜</a>
             <a href="./master-series.html">棋协大师赛</a>
             <a href="./brilliancies">实战妙手</a>
           </nav>
@@ -39,11 +42,9 @@
       <main class="workspace search-workspace">
         <section class="main-pane search-main-pane" id="mainPane">
           <section class="search-command" id="searchCommand" data-mode="hero">
-            <h1 class="visually-hidden">中国国际象棋棋手与赛事搜索</h1>
-            <span class="theme-logo hero-logo" role="img" aria-label="chessdb">
-              <img class="logo-on-light" src="assets/chessdb-logo-light.png" width="726" height="157" alt="">
-              <img class="logo-on-dark" src="assets/chessdb-logo-dark.png" width="726" height="157" alt="">
-            </span>
+            <span class="eyebrow hero-eyebrow">CHINA · CHESS · ARCHIVE</span>
+            <h1>每一位棋手，<br>每一场对局。</h1>
+            <p class="hero-description">查找中国国际象棋棋手，探索赛事，重温棋盘上的精彩。</p>
             <form id="searchForm" class="hero-search-form" action="./" method="get" role="search">
               <label class="search-box hero-search-box">
                 <span aria-hidden="true">⌕</span>
@@ -55,12 +56,15 @@
               <button type="submit">搜索</button>
             </form>
             <div class="search-suggestions" id="searchSuggestions"></div>
+            <p class="search-guidance">支持中文名、拼音、FIDE ID 和赛事名称</p>
           </section>
           <section class="search-home" id="searchHome">
-            <a class="scroll-cue" href="#desert-story" aria-label="往下看，我们为什么做这件事">
-              <span>往下看，我们为什么做这件事</span>
-              <span aria-hidden="true">↓</span>
-            </a>
+            <div class="home-shortcuts" aria-label="探索数据库">
+              <a href="./events"><span class="shortcut-number">01 / ARCHIVE</span><strong>赛事与棋谱 <span aria-hidden="true">↗</span></strong><p>按年份与组别，找到一场比赛。</p></a>
+              <a href="./leaderboards.html"><span class="shortcut-number">02 / PLAYERS</span><strong>棋手排行榜 <span aria-hidden="true">↗</span></strong><p>查看各年龄组的官方 FIDE 积分。</p></a>
+              <a href="./brilliancies"><span class="shortcut-number">03 / EXPLORE</span><strong>实战妙手 <span aria-hidden="true">↗</span></strong><p>走进真实对局，寻找精彩的一步。</p></a>
+            </div>
+            <div class="home-meta"><span>一人一档 · 逐场归档</span><a href="./coverage.html">查看数据覆盖与更新 ↗</a></div>
           </section>
           <section class="search-results" id="searchResultsSection" aria-live="polite" hidden>
             <div class="section-heading">
@@ -84,8 +88,8 @@
       <section class="story-panel story-desert" id="desert-story">
         <div class="story-copy" data-reveal>
           <span class="story-kicker">01</span>
-          <h2>中国有世界冠军，<br>却没有一个像样的棋手数据库。</h2>
-          <p>棋手信息散落在不同角落；一个人有三种拼法、两个 ID；一场全国赛打完，棋谱两周后就无处可寻。我们把这叫作中国国际象棋的数据荒漠——并且决定终结它。</p>
+          <h2>让分散的记录，<br>成为可查的棋手档案。</h2>
+          <p>从姓名与身份，到赛事成绩与公开棋谱，我们持续整理中国国际象棋的参赛记录，让每次查询都有清楚的来处与边界。</p>
         </div>
         <div class="fragment-field" aria-hidden="true" data-reveal>
           <span class="fragment-card fragment-a">姓名残缺</span>
@@ -101,7 +105,7 @@
         <div class="story-copy" data-reveal>
           <span class="story-kicker">02</span>
           <h2>一名棋手，<br>只有一个身份。</h2>
-          <p>同一个人，中文名、拼音、曾用名、FIDE ID，全部归到唯一档案；每一条勘误都进机制、进断言，错误不会再回来。<strong data-player-total>11,646</strong> 名注册棋手，每个人都值得被准确记住。</p>
+          <p>同一个人，中文名、拼音、曾用名、FIDE ID，核对后归入档案；确认的勘误会纳入持续校验。<strong data-player-total>11,646</strong> 名注册棋手，每个人都值得被准确记住。</p>
           <a class="story-cta" href="#searchInput" data-focus-search>搜索一名棋手 <span aria-hidden="true">↑</span></a>
         </div>
         <div class="identity-stack" aria-hidden="true" data-reveal>
@@ -141,7 +145,7 @@
         <div class="story-copy" data-reveal>
           <span class="story-kicker">04</span>
           <h2>棋谱不该在两周后消失。</h2>
-          <p>已公开的对局，逐局归档成 PGN，永久可回放；打开就是棋盘，一步一步重演国家队与少年组的每一次交锋。</p>
+          <p>已公开的对局，逐局归档成 PGN，可在线回放；打开就是棋盘，一步一步重演国家队与少年组的每一次交锋。</p>
           <a class="story-cta" href="#searchInput" data-focus-search>打开一局棋 <span aria-hidden="true">↑</span></a>
         </div>
         <svg class="story-board" viewBox="0 0 320 320" aria-label="四步开局走子示意" role="img" data-reveal>

@@ -107,16 +107,18 @@ class FrontendInitializationOrderTest(unittest.TestCase):
             self.assertIn('data-theme-choice="dark"', html)
             self.assertLess(html.index("theme.js?v="), html.index("styles.css?v="))
 
-    def test_brand_and_search_hero_use_theme_appropriate_logos(self) -> None:
+    def test_brand_uses_theme_appropriate_logos_and_hero_exposes_search(self) -> None:
         index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
         styles = (ROOT / "docs" / "styles.css").read_text(encoding="utf-8")
         header = index[index.index('class="topbar"'):index.index("</header>")]
         hero = index[index.index('class="search-command"'):index.index('id="searchResultsSection"')]
-        for section in (header, hero):
-            self.assertIn('src="assets/chessdb-logo-light.png"', section)
-            self.assertIn('src="assets/chessdb-logo-dark.png"', section)
+        self.assertIn('src="assets/chessdb-logo-light.png"', header)
+        self.assertIn('src="assets/chessdb-logo-dark.png"', header)
         self.assertIn('class="theme-logo brand-logo"', header)
-        self.assertIn('class="theme-logo hero-logo"', hero)
+        self.assertIn('<h1>', hero)
+        self.assertIn('role="search"', hero)
+        self.assertIn('aria-label="搜索棋手或赛事"', hero)
+        self.assertIn('type="submit">搜索</button>', hero)
         self.assertIn(':root[data-theme="dark"] .theme-logo .logo-on-light { display: none; }', styles)
         self.assertIn(':root[data-theme="dark"] .theme-logo .logo-on-dark { display: block; }', styles)
         self.assertIn('.search-command[data-mode="compact"] > .hero-logo,', styles)

@@ -954,44 +954,51 @@ class Handler(BaseHTTPRequestHandler):
 PAGE = r"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>本地数据采集与发布面板</title><style>
-:root{--bg:#f5f3ee;--card:#fff;--ink:#20232a;--muted:#68707b;--line:#ddd8ce;--blue:#175bd3;--ok:#177a3d;--bad:#b3261e;--warn:#a25700}
-@media(prefers-color-scheme:dark){:root{--bg:#15171c;--card:#20232a;--ink:#eee;--muted:#a1a6b0;--line:#373b44;--blue:#7aa5f8;--ok:#62d18d;--bad:#ee918b;--warn:#e3a85f}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,"PingFang SC",sans-serif}.wrap{max-width:1120px;margin:auto;padding:28px 20px 70px}h1{margin:0;font-size:1.7rem}h1 small{display:block;color:var(--muted);font-size:.84rem;font-weight:400;margin-top:5px}.notice{margin:18px 0;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--card)}.notice b{color:var(--ok)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:13px}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px}.head{display:flex;justify-content:space-between;gap:8px}.badge{color:var(--blue);font-size:.76rem}.desc,.meta{color:var(--muted);font-size:.84rem}.meta{margin-top:8px}.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center}button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}button.primary{background:var(--blue);border-color:var(--blue);color:white}button.danger{color:var(--bad)}button:disabled{opacity:.45;cursor:not-allowed}.status{display:flex;gap:10px;align-items:flex-start;margin:22px 0;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:12px}.dot{width:11px;height:11px;border-radius:50%;background:var(--muted);margin-top:6px}.dot.running{background:var(--blue);animation:pulse 1.2s infinite}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}@keyframes pulse{50%{opacity:.35}}#statusMeta{color:var(--muted);font-size:.83rem}#log{background:#0d1117;color:#d7e0ea;border-radius:11px;padding:14px;height:320px;overflow:auto;white-space:pre-wrap;font:12px/1.5 ui-monospace,SFMono-Regular,monospace}table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:.83rem}h2{font-size:1.15rem;margin-top:34px;border-bottom:2px solid var(--line);padding-bottom:6px}h3{font-size:.98rem;margin:20px 0 8px}footer{display:flex;justify-content:space-between;color:var(--muted);font-size:.8rem;margin-top:20px}a{color:var(--blue);cursor:pointer;text-decoration:none}
-textarea{width:100%;min-height:74px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);padding:9px;font:13px/1.5 ui-monospace,SFMono-Regular,monospace;resize:vertical}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.chip{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:.78rem;background:var(--bg)}.chip.bad{color:var(--bad);border-color:var(--bad)}.chip.ok{color:var(--ok);border-color:var(--ok)}.chip.warn{color:var(--warn);border-color:var(--warn)}
-.summary{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.pill{border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:.79rem;background:var(--card);cursor:pointer}.pill b{font-weight:600}.pill.active{border-color:var(--blue);color:var(--blue)}
-#progressList{margin-top:10px;display:grid;gap:6px}.prog{border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:.82rem;background:var(--card)}.prog .bar{height:5px;border-radius:3px;background:var(--line);margin-top:6px;overflow:hidden}.prog .bar i{display:block;height:100%;background:var(--blue)}
-#previewBox{display:none;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:14px}
-#batchResult{display:none;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:14px}
-.small{font-size:.78rem;color:var(--muted)}
-input[type=search],select{border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:6px 10px;font-size:.85rem;min-width:160px}
-.pager{display:flex;gap:8px;align-items:center;margin-top:8px;color:var(--muted);font-size:.82rem}
-.resultRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:6px;font-size:.85rem;flex-wrap:wrap}.resultGroup{margin-top:14px;font-size:.86rem}.resultGroup>b{display:block;margin-bottom:5px}.publishLine{margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--bg);font-size:.84rem}
-.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:18px 0}.stage{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}.stage b{display:block}.stage span{font-size:.78rem;color:var(--muted)}@media(max-width:760px){.pipeline{grid-template-columns:1fr 1fr}}
-</style></head><body><div class="wrap">
-<h1>本地数据采集与发布面板<small>唯一维护入口 · 来源只在住宅网络访问 · 原始页面永不离开本机</small></h1>
-<div class="pipeline"><div class="stage"><b>① 本机采集</b><span>抓取、清洗、完整性门禁</span></div><div class="stage"><b>② 不可变 outbox</b><span>manifest、自然键、SHA-256</span></div><div class="stage"><b>③ GitHub 入库</b><span>main、离线重建、部署、线上验证</span></div><div class="stage"><b>④ Cloudflare 网站</b><span>Pages 网站与 R2 棋谱</span></div></div>
-<div class="notice">完整结果优先复用，缺失页面按需补齐。只有线上验证通过，才算发布完成。</div>
-<div class="status"><span id="dot" class="dot"></span><div style="flex:1"><b id="statusText">读取状态…</b><div id="statusMeta"></div><div id="progressList"></div></div><button id="stop" class="danger" onclick="stopJob()">中止任务</button></div>
-<div class="notice"><label><input type="checkbox" id="autoAdvance" onchange="toggleAutomation()"> <b>自动推进 GitHub 生产发布</b></label><span id="automationMeta" class="meta"></span></div>
 
-<h2>① 赛事采集与发布（来源访问仅限本机）</h2>
+:root{color-scheme:light;--bg:#f6f5f1;--card:#fff;--soft:#f1f2f0;--ink:#202b3a;--muted:#646e79;--line:#dedfd9;--blue:#23476e;--ok:#246644;--bad:#af3732;--warn:#9b670b}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#151c24;--card:#1e2833;--soft:#25323f;--ink:#e4eaf0;--muted:#a7b3c0;--line:#354251;--blue:#a5c6e8;--ok:#91d1a9;--bad:#ef9b95;--warn:#e5b369}}
+*{box-sizing:border-box}[hidden]{display:none!important}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.65 -apple-system,"PingFang SC",sans-serif}button,input,textarea,select{font:inherit}button,a,input,select,textarea,summary,[tabindex]:focus-visible{outline-offset:3px}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--blue)}a{color:var(--blue);cursor:pointer;text-decoration:none}a:hover{text-decoration:underline}
+.console{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;background:#1d3047;color:#e5eaf0;padding:30px 18px;display:flex;flex-direction:column;gap:30px}.console-brand{display:grid;gap:5px;padding:0 12px}.console-brand strong{font-size:25px;letter-spacing:-.04em}.console-brand span{font-size:11px;color:#b5c1ce;letter-spacing:.12em}.console-nav{display:grid;gap:7px}.console-nav button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;border:0;background:transparent;color:#c4ced9;border-radius:8px;font-size:14px}.console-nav button:hover{background:#ffffff0c;color:#fff}.console-nav button[aria-current=page]{background:#ffffff16;color:#fff}.console-nav .nav-number{font:11px ui-monospace,monospace;color:#93a7bd}.console-nav .nav-count{margin-left:auto;border-radius:5px;background:#ffffff14;color:#c4d8eb;padding:1px 7px;font-size:11px}.sidebar-note{margin-top:auto;padding:0 12px;font-size:11px;line-height:1.8;color:#b5c1ce}.sidebar-note b{display:block;color:#e5eaf0;font-weight:500}.wrap{min-width:0;max-width:1420px;width:100%;margin:auto;padding:0 38px 40px}.console-topbar{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:22px 0;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted)}.local-badge{display:flex;align-items:center;gap:8px}.local-badge:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}.console-heading{padding:30px 0 22px}.console-kicker{font-size:10px;letter-spacing:.16em;color:var(--muted);font-weight:650}h1{margin:6px 0;font-size:30px;letter-spacing:-.035em;font-weight:650;line-height:1.4}h1 small{display:block;color:var(--muted);font-size:13px;font-weight:400;margin-top:8px;letter-spacing:0}.notice{margin:14px 0;padding:14px 18px;border:1px solid var(--line);border-radius:10px;background:var(--card)}.notice b{color:var(--ok)}.automation-notice{display:flex;gap:15px;align-items:center;flex-wrap:wrap}.automation-notice label{display:flex;align-items:center;gap:8px}.automation-notice input{accent-color:var(--blue)}.automation-notice .meta{margin:0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center}.head>b{font-size:15px;font-weight:600}.badge{color:var(--blue);font-size:11px;background:var(--soft);padding:3px 8px;border-radius:5px;overflow-wrap:anywhere}.desc,.meta{color:var(--muted);font-size:12px}.desc{margin-top:8px;line-height:1.8}.meta{margin-top:8px}.actions{display:flex;gap:8px;margin:14px 0;flex-wrap:wrap;align-items:center}button{min-height:36px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:7px 12px;cursor:pointer}button:hover{border-color:var(--blue);background:var(--soft)}button.primary{background:#23476e;border-color:#23476e;color:#fff;padding:9px 18px}button.primary:hover{background:#305b87}button.danger{color:var(--bad)}button:disabled{opacity:.45;cursor:not-allowed}.status{position:sticky;top:12px;z-index:3;display:flex;gap:12px;align-items:flex-start;margin:0 0 16px;padding:18px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:8px}.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);margin-top:7px;flex:none}.dot.running{background:var(--blue);animation:pulse 1.2s infinite}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}@keyframes pulse{50%{opacity:.35}}#statusMeta{color:var(--muted);font-size:12px;margin-top:3px}#log{background:#152031;color:#d7e0ea;border-radius:10px;padding:20px;height:480px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 ui-monospace,SFMono-Regular,monospace}.table-scroll{width:100%;overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}table{width:100%;border-collapse:collapse;background:var(--card);min-width:680px}th,td{padding:14px 16px;border-bottom:1px solid var(--line);text-align:left;font-size:12px;vertical-align:top;overflow-wrap:anywhere}th{color:var(--muted);background:var(--soft);font-weight:500;white-space:nowrap}tr:last-child td{border:0}tbody tr:hover{background:var(--soft)}td button{font-size:12px;white-space:nowrap}h2{font-size:20px;font-weight:600;margin:28px 0 18px;letter-spacing:-.025em}h3{font-size:15px;font-weight:600;margin:28px 0 12px}.section-intro{margin:-10px 0 20px;color:var(--muted);font-size:13px}footer{display:flex;justify-content:space-between;gap:14px;color:var(--muted);font-size:11px;margin-top:40px;padding-top:18px;border-top:1px solid var(--line)}footer span{overflow-wrap:anywhere}textarea{width:100%;min-height:125px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);padding:14px;font:13px/1.8 ui-monospace,SFMono-Regular,monospace;resize:vertical}label.input-label{display:block;margin-bottom:10px;font-size:13px;font-weight:600}.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.chip{border:1px solid var(--line);border-radius:5px;padding:3px 9px;font-size:11px;background:var(--soft)}.chip.bad{color:var(--bad);border-color:var(--bad)}.chip.ok{color:var(--ok);border-color:var(--ok)}.chip.warn{color:var(--warn);border-color:var(--warn)}.summary{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.pill{border:1px solid var(--line);border-radius:6px;padding:6px 11px;font-size:12px;background:var(--card)}.pill b{font-weight:600;margin-left:5px}.pill.active{border-color:var(--blue);color:var(--blue);background:var(--soft)}#queueTabs{display:flex;flex-wrap:wrap;gap:6px}#progressList{margin-top:10px;display:grid;gap:6px}.prog{border:1px solid var(--line);border-radius:7px;padding:10px 12px;font-size:12px;background:var(--card)}.prog .bar{height:5px;border-radius:3px;background:var(--line);margin-top:6px;overflow:hidden}.prog .bar i{display:block;height:100%;background:var(--blue)}#previewBox,#batchResult{display:none;margin-top:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);padding:22px}.small{font-size:11px;color:var(--muted)}input[type=search],select{min-height:40px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink);padding:8px 12px;font-size:12px;min-width:160px}#fideDiscoveryInput{margin-top:12px;width:100%}.pager{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:12px;color:var(--muted);font-size:12px}.resultRow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:7px;padding:12px;margin-top:8px;font-size:12px;flex-wrap:wrap}.resultGroup{margin-top:18px;font-size:13px}.resultGroup>b{display:block;margin-bottom:8px}.publishLine{margin-top:14px;padding:12px;border-radius:7px;background:var(--soft);font-size:12px}.pipeline-guide{margin:20px 0}.pipeline-guide summary{cursor:pointer;color:var(--muted);font-size:12px}.pipeline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.stage{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px}.stage b{display:block;font-size:12px}.stage span{font-size:11px;color:var(--muted)}.advanced-action{margin-top:20px;border-top:1px solid var(--line);padding-top:16px}.advanced-action summary{cursor:pointer;color:var(--muted);font-size:12px}.skip-link{position:fixed;top:-100px;left:240px;z-index:100;background:var(--card);padding:12px;border:2px solid var(--blue)}.skip-link:focus{top:12px}
+@media(max-width:1100px){.console{grid-template-columns:180px minmax(0,1fr)}.wrap{padding-inline:24px}.sidebar{padding-inline:12px}.grid{grid-template-columns:1fr}.pipeline{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){.console{display:block}.sidebar{position:static;height:auto;padding:18px 16px;gap:18px}.console-brand{padding:0;display:flex;align-items:baseline;gap:12px}.console-brand strong{font-size:21px}.console-brand span{font-size:10px}.console-nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}.console-nav button{width:auto;flex:none;white-space:nowrap;padding:9px 12px;font-size:12px}.nav-number,.sidebar-note{display:none}.wrap{padding:0 16px 30px}.console-heading{padding:22px 0 16px}h1{font-size:25px}.console-topbar{padding:16px 0}.console-topbar>a{font-size:11px}.card{padding:18px}.status{padding:14px;gap:8px}.status>button{font-size:11px;padding:6px 9px}.actions>input[type=search]{width:100%}.actions>label{width:100%}.actions>label select{max-width:100%;width:100%;margin-top:6px}.pipeline{grid-template-columns:1fr 1fr}.pager{justify-content:flex-start}.skip-link{left:16px}footer{flex-wrap:wrap}.head{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+</style></head><body>
+<a class="skip-link" href="#consoleContent">跳到工作区</a>
+<div class="console"><aside class="sidebar" aria-label="维护工作区">
+<div class="console-brand"><strong>ChessDB<span aria-hidden="true"> /</span></strong><span>本机数据工作台</span></div>
+<nav class="console-nav" aria-label="面板导航">
+<button type="button" data-view="capture" aria-controls="view-capture" aria-current="page"><span class="nav-number">01</span>赛事采集</button>
+<button type="button" data-view="queue" aria-controls="view-queue"><span class="nav-number">02</span>目标队列<span class="nav-count" id="queueNavCount">—</span></button>
+<button type="button" data-view="history" aria-controls="view-history"><span class="nav-number">03</span>已抓赛事</button>
+<button type="button" data-view="publish" aria-controls="view-publish"><span class="nav-number">04</span>发布中心<span class="nav-count" id="publishNavCount">—</span></button>
+<button type="button" data-view="maintenance" aria-controls="view-maintenance"><span class="nav-number">05</span>维护与诊断</button>
+<button type="button" data-view="logs" aria-controls="view-logs"><span class="nav-number">06</span>运行日志</button>
+</nav><div class="sidebar-note"><b>仅维护者本机可用</b>原始页面保存在本机。<br>发布完成以线上验证为准。</div>
+</aside><main class="wrap" id="consoleContent">
+<div class="console-topbar"><span class="local-badge">本机工作区 · 127.0.0.1</span><a href="{{SITE}}/" target="_blank" rel="noreferrer">打开公开网站 ↗</a></div>
+<div class="console-heading"><span class="console-kicker">MAINTAINER WORKSPACE</span>
+<h1 id="viewTitle">赛事采集<small id="viewSubtitle">添加赛事，检查已有记录，按需采集或补齐。</small></h1></div>
+<div class="status" role="status" aria-live="polite"><span id="dot" class="dot"></span><div style="flex:1"><b id="statusText">读取状态…</b><div id="statusMeta"></div><div id="progressList"></div></div><button id="stop" class="danger" onclick="stopJob()">中止任务</button></div>
+<div class="notice automation-notice"><label><input type="checkbox" id="autoAdvance" onchange="toggleAutomation()"> <b>自动推进 GitHub 生产发布</b></label><span id="automationMeta" class="meta"></span></div>
+
+<section data-panel-section="capture" id="view-capture" aria-labelledby="captureHeading">
+<h2 id="captureHeading">添加赛事</h2><p class="section-intro">粘贴赛事链接或编号，一行一场，最多 10 场。完整结果优先复用。</p>
 <div class="card">
-<textarea id="tnrInput" placeholder="粘贴 Chess-Results 链接或 TNR，一行一个，例如：&#10;1110333&#10;tnr1213323&#10;https://chess-results.com/tnr1156008.aspx?lan=1"></textarea>
+<label class="input-label" for="tnrInput">赛事链接 / TNR</label><textarea id="tnrInput" placeholder="粘贴 Chess-Results 链接或 TNR，一行一个，例如：&#10;1110333&#10;tnr1213323&#10;https://chess-results.com/tnr1156008.aspx?lan=1"></textarea>
 <div class="chips" id="tnrChips"></div>
 <div id="capturePlan" class="small" aria-live="polite"></div>
 <div class="actions"><label>操作 <select id="captureMode"><option value="auto">采集 / 补缺（复用完整结果）</option><option value="update">检查更新（访问源站）</option><option value="replay">离线重解析（不访问源站）</option><option value="pgn">仅补棋谱（不重抓详情）</option></select></label></div>
 <div class="actions"><button class="primary" id="captureBtn" onclick="startCapture()">开始采集</button><span id="captureMsg" class="small"></span></div>
-<div class="actions"><button onclick="runCmd('recover-events',[],false)">接管中断产物并发布</button><span class="small">只接管通过路径/JSON/PGN 格式校验的机器产物；不会回抓，也不会自动丢弃文件。</span></div>
+<details class="advanced-action"><summary>恢复中断的采集</summary><div class="actions"><button onclick="runCmd('recover-events',[],false)">接管中断产物并发布</button><span class="small">只接管通过路径/JSON/PGN 格式校验的机器产物；不会回抓，也不会自动丢弃文件。</span></div></details>
 </div>
 <div id="batchResult"></div>
 <div id="previewBox"></div>
 
-<h3>目标队列</h3>
+</section><section data-panel-section="queue" id="view-queue" aria-labelledby="queueHeading" hidden><h2 id="queueHeading">目标队列</h2><p class="section-intro">先发现赛事，再从可执行目标中选择下一批。</p>
 <div class="card">
 <div class="head"><b>按棋手发现最近赛事</b><span class="badge">仅本机候选池</span></div>
 <div class="desc">用 FIDE ID 查询棋手最近参加的赛事，把新 TNR 加入待抓池。只发现赛事，不抓详情、不发布；留空会轮询最久未检查的 10 名中国棋手。</div>
-<input type="search" id="fideDiscoveryInput" placeholder="可选：输入 FIDE ID，多个用空格分隔">
+<input type="search" id="fideDiscoveryInput" aria-label="用于发现赛事的 FIDE ID" placeholder="可选：输入 FIDE ID，多个用空格分隔">
 <div class="actions"><button onclick="discoverEvents()">发现赛事</button><span class="small">每名最多取最近 5 场；聚合页、重复页等人工压制目标不会入队。</span></div>
 </div>
 <div class="summary" id="queueSummary"></div>
@@ -999,20 +1006,21 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
 <button onclick="queueTop(1)">采集下一个</button><button onclick="queueTop(3)">采集下 3 个</button><button onclick="queueTop(10)">采集下 10 个</button>
 <span class="small" id="upcomingHint"></span>
 </div>
-<div class="actions"><span class="small">筛选：</span><span id="queueTabs"></span><input type="search" id="queueSearch" placeholder="搜索赛事名 / TNR…" oninput="qPage=0;renderQueue()"></div>
-<table><thead><tr><th>赛事</th><th>tnr</th><th>优先级</th><th>状态</th><th>动作</th></tr></thead><tbody id="queue"></tbody></table>
+<div class="actions"><span class="small">筛选：</span><span id="queueTabs"></span><input type="search" id="queueSearch" aria-label="搜索目标队列" placeholder="搜索赛事名 / TNR…" oninput="qPage=0;renderQueue()"></div>
+<div class="table-scroll" role="region" aria-label="数据表格" tabindex="0"><table><thead><tr><th>赛事</th><th>tnr</th><th>优先级</th><th>状态</th><th>动作</th></tr></thead><tbody id="queue"></tbody></table></div>
 <div class="pager"><button onclick="qPage=Math.max(0,qPage-1);renderQueue()">上一页</button><span id="pageInfo"></span><button onclick="qPage++;renderQueue()">下一页</button></div>
 
-<h3>已抓赛事</h3>
+</section><section data-panel-section="history" id="view-history" aria-labelledby="historyHeading" hidden><h2 id="historyHeading">已抓赛事</h2><p class="section-intro">本机清洗结果、数据完整度与实际发布状态。</p>
 <div class="actions">
-<input type="search" id="eventSearch" placeholder="搜索赛事名 / TNR…" oninput="ePage=0;renderEvents()">
-<select id="eventSort" onchange="ePage=0;renderEvents()"><option value="date">赛事日期倒序</option><option value="captured">抓取时间倒序</option></select>
-<select id="eventPublication" onchange="ePage=0;renderEvents()"><option value="all">全部发布状态</option><option value="online-verified">线上已验证</option><option value="pending">待投递</option><option value="attention">需处理</option></select>
+<input type="search" id="eventSearch" aria-label="搜索已抓赛事" placeholder="搜索赛事名 / TNR…" oninput="ePage=0;renderEvents()">
+<select id="eventSort" aria-label="已抓赛事排序" onchange="ePage=0;renderEvents()"><option value="date">赛事日期倒序</option><option value="captured">抓取时间倒序</option></select>
+<select id="eventPublication" aria-label="筛选发布状态" onchange="ePage=0;renderEvents()"><option value="all">全部发布状态</option><option value="online-verified">线上已验证</option><option value="pending">待投递</option><option value="attention">需处理</option></select>
 </div>
-<table><thead><tr><th>日期 / 赛事</th><th>状态</th><th>完整度</th><th>发布</th><th>抓取时间</th><th>动作</th></tr></thead><tbody id="recent"></tbody></table>
+<div class="table-scroll" role="region" aria-label="数据表格" tabindex="0"><table><thead><tr><th>日期 / 赛事</th><th>状态</th><th>完整度</th><th>发布</th><th>抓取时间</th><th>动作</th></tr></thead><tbody id="recent"></tbody></table></div>
 <div class="pager"><button onclick="ePage=Math.max(0,ePage-1);renderEvents()">上一页</button><span id="eventPageInfo"></span><button onclick="ePage++;renderEvents()">下一页</button></div>
 
-<h2>② 发布中心</h2>
+</section><section data-panel-section="publish" id="view-publish" aria-labelledby="publishHeading" hidden><h2 id="publishHeading">发布中心</h2><p class="section-intro">沿实际回执推进发布；线上验证通过后，才算完成。</p><details class="pipeline-guide"><summary>查看采集到上线的流程</summary><div class="pipeline"><div class="stage"><b>① 本机采集</b><span>抓取、清洗、完整性门禁</span></div><div class="stage"><b>② 不可变 outbox</b><span>manifest、自然键、SHA-256</span></div><div class="stage"><b>③ GitHub 入库</b><span>main、离线重建、部署、线上验证</span></div><div class="stage"><b>④ Cloudflare 网站</b><span>Pages 网站与 R2 棋谱</span></div></div>
+</details>
 <div class="summary" id="publishInfo"></div>
 <div class="grid">
  <div class="card"><div class="head"><b>FIDE 注册表</b><span class="badge">可发布</span></div><div class="desc">临时下载、ZIP/语义/人数/分片/勘误校验，通过后才原子晋升。姓名和等级分唯一权威。</div><div class="actions"><button class="primary" onclick="runCmd('registry',[],false)">开始</button><span class="small" id="fideDue"></span></div></div>
@@ -1022,9 +1030,9 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
 </div>
 <h3>发布进度与回执</h3>
 <div class="small">生产：pending → pushed → ingested-to-main → indexes-rebuilt → deployed → <b>online-verified</b>。</div>
-<table><thead><tr><th>run-id</th><th>GitHub 生产</th><th>commit / snapshot</th><th>回执</th><th>最近错误</th></tr></thead><tbody id="outbox"></tbody></table>
+<div class="table-scroll" role="region" aria-label="数据表格" tabindex="0"><table><thead><tr><th>run-id</th><th>GitHub 生产</th><th>commit / snapshot</th><th>回执</th><th>最近错误</th></tr></thead><tbody id="outbox"></tbody></table></div>
 
-<h2>③ 一键例行维护与诊断</h2>
+</section><section data-panel-section="maintenance" id="view-maintenance" aria-labelledby="maintenanceHeading" hidden><h2 id="maintenanceHeading">维护与诊断</h2><p class="section-intro">检查环境、维护数据或执行离线诊断。</p>
 <div class="grid">
  <div class="card"><div class="head"><b>健康检查</b><span class="badge">只读</span></div><div class="desc">磁盘、FIDE last-good、发布路径、.git 锁、三个来源直连和 GitHub 投递路线。</div><div class="actions"><button class="primary" onclick="runCmd('health',[],false)">检查</button></div></div>
  <div class="card"><div class="head"><b>安全常规刷新</b><span class="badge">独立阶段</span></div><div class="desc">FIDE 满 25 天才更新；另采集队列前 3 个赛事。每个新 outbox 按上方开关推进生产发布。</div><div class="actions"><button class="primary" onclick="runCmd('all',[],false)">开始</button></div></div>
@@ -1032,11 +1040,22 @@ input[type=search],select{border:1px solid var(--line);border-radius:8px;backgro
  <div class="card"><div class="head"><b>本地离线诊断</b><span class="badge">不交付</span></div><div class="desc">本地重建派生索引用于诊断；不会自动暂存、提交或推送。</div><div class="actions"><button class="primary" onclick="runCmd('reindex',[],false)">离线运行</button></div></div>
 </div>
 
-<h2>本次运行日志</h2><div id="log">尚无运行记录。</div>
-<footer><span>仓库：{{REPO}}</span><a onclick="shutdown()">退出面板</a></footer></div>
+</section><section data-panel-section="logs" id="view-logs" aria-labelledby="logsHeading" hidden><h2 id="logsHeading">本次运行日志</h2><p class="section-intro">保留本次任务的执行记录，关闭面板后任务仍可继续。</p><div id="log" role="region" aria-label="运行日志" tabindex="0">尚无运行记录。</div></section>
+<footer><span>仓库：{{REPO}}</span><button type="button" onclick="shutdown()">退出面板</button></footer></main></div>
 <script>
 const TOKEN="{{CSRF}}", SITE="{{SITE}}";
 const $=s=>document.querySelector(s);
+const PANEL_VIEWS={capture:['赛事采集','添加赛事，检查已有记录，按需采集或补齐。'],queue:['目标队列','发现新赛事，按状态筛选，选择下一批目标。'],history:['已抓赛事','查看本机档案，核对完整度与发布状态。'],publish:['发布中心','从发布包到线上验证，查看每一步的实际回执。'],maintenance:['维护与诊断','检查环境、维护数据与离线诊断。'],logs:['运行日志','查看当前或最近一次任务的完整记录。']};
+function selectPanelView(view,focus=false){
+ const key=Object.hasOwn(PANEL_VIEWS,view)?view:'capture';
+ document.querySelectorAll('[data-panel-section]').forEach(el=>el.hidden=el.dataset.panelSection!==key);
+ document.querySelectorAll('[data-view]').forEach(el=>{if(el.dataset.view===key)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current')});
+ $('#viewTitle').firstChild.textContent=PANEL_VIEWS[key][0];$('#viewSubtitle').textContent=PANEL_VIEWS[key][1];
+ if(focus){const heading=$('#view-'+key+' h2');heading.tabIndex=-1;heading.focus()}
+}
+document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{location.hash=button.dataset.view;selectPanelView(button.dataset.view,true)}));
+window.addEventListener('hashchange',()=>selectPanelView(location.hash.slice(1)));
+selectPanelView(location.hash.slice(1));
 const queue=$('#queue'), stop=$('#stop'), dot=$('#dot');
 const statusText=$('#statusText'), statusMeta=$('#statusMeta');
 const log=$('#log'), chips=$('#tnrChips');
@@ -1143,11 +1162,12 @@ function batchPublicationText(r){
 // ---- queue ----
 let qData=null,qTab='schedulable',qPage=0;const PAGE_SIZE=50;
 const TABS=[['schedulable','可立即抓取'],['pending','待抓'],['partial','部分'],['retry-wait','等待重试'],['privately-captured','已完成'],['quarantined','已隔离'],['needs-parser','需解析器'],['all','全部']];
-function renderTabs(){$('#queueTabs').innerHTML=TABS.map(([k,v])=>`<span class="pill${qTab===k?' active':''}" onclick="qTab='${k}';qPage=0;renderQueue()">${v}</span>`).join(' ')}
+function renderTabs(){$('#queueTabs').innerHTML=TABS.map(([k,v])=>`<button type="button" class="pill${qTab===k?' active':''}" aria-pressed="${qTab===k}" onclick="qTab='${k}';qPage=0;renderQueue()">${v}</button>`).join(' ')}
 function renderQueue(){
  if(!qData)return;
  renderTabs();
  const s=qData.summary||{};
+ $('#queueNavCount').textContent=s.schedulable??0;
  queueSummary.innerHTML=[
   ['可立即抓取',s.schedulable],['待抓',s.pending],['部分',s.partial],['等待重试',s.retryWait],
   ['新私有完成',s.privateComplete],['已隔离',s.quarantined],['需解析器',s.needsParser],
@@ -1206,6 +1226,7 @@ async function loadOutbox(){
  $('#fideDue').textContent=o.fideAgeDays==null?'（本地无 registry manifest）':o.fideDue?`已 ${o.fideAgeDays} 天未更新，到期`:`${o.fideAgeDays} 天前已更新`;
  $('#lichessDue').textContent=o.lichessAgeDays==null?'':o.lichessDue?`已 ${o.lichessAgeDays} 天未更新，到期`:`${o.lichessAgeDays} 天前已更新`;
  $('#publishInfo').innerHTML=`<span class=pill>FIDE ${o.fideDue?'<b style="color:var(--warn)">到期</b>':'未到期'}</span><span class=pill>Lichess ${o.lichessDue?'<b style="color:var(--warn)">到期</b>':'未到期'}</span><a class=pill href="${SITE}/" target="_blank">打开线上站点 ↗</a>`;
+ $('#publishNavCount').textContent=(o.entries||[]).filter(e=>e.status!=='online-verified').length;
  outboxBody.innerHTML=(o.entries||[]).map(e=>{
   const cls=e.status==='online-verified'?'ok':e.status==='pending'?'warn':'';
   const rc=Object.entries(e.receipts||{}).map(([k,v])=>v.url?`<a href="${esc(v.url)}" target="_blank">${k}${v.conclusion?':'+esc(v.conclusion):''}</a>`:(k==='online'?`online:${v.ok?'✔':'✘'}`:'')).filter(Boolean).join(' · ');
@@ -1217,10 +1238,11 @@ async function loadOutbox(){
 async function showPreview(tnr){
  const p=await(await fetch('/api/preview?tnr='+encodeURIComponent(tnr))).json();
  if(!p.ok){alert(p.message||'暂无预览');return}
+ selectPanelView('capture');location.hash='capture';
  previewBox.style.display='block';
  previewBox.innerHTML=`<div class=head><b>${esc(p.title||('tnr'+tnr))}</b><span class=badge>${esc(p.notice)}</span></div>
  <div class=meta>格式 ${esc(p.format||'-')} · 状态 ${esc(p.captureStatus||'-')}${p.errorCode?' · '+esc(p.errorCode)+'（'+esc(p.failedPage||'-')+'）':''} · ${esc(p.players)} 人 · ${esc(p.capturedRounds)}/${esc(p.roundCount||'?')} 轮 · ${esc(p.standingsRows)} 行排名</div>
- <table style="margin-top:8px"><thead><tr><th>#</th><th>棋手</th><th>积分</th><th>联邦</th></tr></thead><tbody>${(p.topStandings||[]).map(r=>`<tr><td>${esc(r.rank)}</td><td>${esc(r.name)}</td><td>${esc(r.score)}</td><td>${esc(r.federation)}</td></tr>`).join('')}</tbody></table>
+ <div class="table-scroll" role="region" aria-label="赛事清洗结果" tabindex="0" style="margin-top:8px"><table><thead><tr><th>#</th><th>棋手</th><th>积分</th><th>联邦</th></tr></thead><tbody>${(p.topStandings||[]).map(r=>`<tr><td>${esc(r.rank)}</td><td>${esc(r.name)}</td><td>${esc(r.score)}</td><td>${esc(r.federation)}</td></tr>`).join('')}</tbody></table></div>
  <div class=small style="margin-top:8px">运行目录：${esc(p.privateRoot||'-')}</div>
  <div class=actions><button onclick="previewBox.style.display='none'">关闭预览</button></div>`;
  previewBox.scrollIntoView({behavior:'smooth'});
@@ -1242,15 +1264,17 @@ REMEDY.DIRTY_RELEASE_PATH="本次未访问数据源、未生成发布包；请�
 REMEDY.RELEASE_BASELINE_MISSING="发布预检没有成功，系统已禁止打包；无需投递或重新抓取。";
 REMEDY.RELEASE_BASELINE_INVALID="发布预检基线损坏，系统已禁止打包；无需投递或重新抓取。";
 const WARN_CODES=new Set(["EVENT_EMPTY","PARTIAL_FAILURE","FINAL_STATE_WRITE_FAILED","PAIRINGS_NOT_PUBLISHED","TEAM_FORMAT_UNSUPPORTED","ROUND_COUNT_UNKNOWN"]);
+const COMMAND_LABELS={'event-queue':'赛事采集','discover-events':'发现赛事',registry:'FIDE 注册表',bulk:'广播数据维护','bulk-full':'广播全量维护',publish:'推进发布',deliver:'推进发布',receipts:'同步云端回执',health:'健康检查',all:'例行维护',candidates:'姓名候选',reindex:'离线诊断','recover-events':'恢复中断产物'};
+const RESULT_LABELS={ok:'已完成',failed:'失败',partial:'部分完成',finished:'已结束'};
 let wasRunning=false;
 async function poll(){
  try{
   const s=await(await fetch('/api/state')).json();
-  document.querySelectorAll('button').forEach(b=>{if(b.id!=='stop')b.disabled=!!s.running});
+  document.querySelectorAll('button').forEach(b=>{if(b.id!=='stop'&&!b.hasAttribute('data-view'))b.disabled=!!s.running});
   stop.disabled=!s.running;
   dot.className='dot '+(s.running?'running':s.result==='ok'?'ok':s.result?(WARN_CODES.has(s.errorCode)||s.result==='partial'?'warn':'bad'):'');
   if(s.running){
-   statusText.textContent=`${s.command} · ${s.stage||'running'}`;
+   statusText.textContent=`${COMMAND_LABELS[s.command]||s.command} · ${s.stage||'进行中'}`;
    statusMeta.textContent=`run ${s.runId||''} · ${s.message||''}`;
    loadProgress();if(s.command==='event-queue')renderBatchResult();
   }else if(s.command){
@@ -1260,7 +1284,7 @@ async function poll(){
     const remedy=s.errorCode&&REMEDY[s.errorCode]?' · 处理建议：'+REMEDY[s.errorCode]:'';
     statusMeta.textContent=`run ${s.runId||''} · ${batchPublicationText(r)}${s.errorCode?' · '+s.errorCode:''}${s.message?' · '+s.message:''}${remedy}`;
    }else{
-    statusText.textContent=`${s.command} · ${s.result||'finished'}${s.errorCode?' · '+s.errorCode:''}`;
+    statusText.textContent=`${COMMAND_LABELS[s.command]||s.command} · ${RESULT_LABELS[s.result]||s.result||'已结束'}${s.errorCode?' · '+s.errorCode:''}`;
     statusMeta.textContent=(s.message||'')+(s.errorCode&&REMEDY[s.errorCode]?' 处理建议：'+REMEDY[s.errorCode]:'');
     renderBatchResult();
    }
@@ -1271,7 +1295,7 @@ async function poll(){
   const atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<45;
   if(s.log){log.textContent=s.log;if(atBottom)log.scrollTop=log.scrollHeight}
  }catch(e){
-  document.querySelectorAll('button').forEach(b=>b.disabled=true);stop.disabled=true;dot.className='dot bad';
+  document.querySelectorAll('button').forEach(b=>{if(!b.hasAttribute('data-view'))b.disabled=true});stop.disabled=true;dot.className='dot bad';
   statusText.textContent='面板连接中断';statusMeta.textContent='本机面板服务不可达；这不代表任务仍在运行。请重新打开面板确认。';
   progressList.innerHTML='';wasRunning=false;
  }
