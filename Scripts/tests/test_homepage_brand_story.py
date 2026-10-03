@@ -22,13 +22,13 @@ class HomepageBrandStoryTest(unittest.TestCase):
         self.assertIn('els.searchInput.placeholder = "输入中文名、拼音、FIDE ID，或赛事名称";', app)
         self.assertNotIn('els.searchInput.placeholder = "中文名 / 拼音 / FIDE ID / 赛事名";', app)
         search = html[html.index('class="search-command"'):html.index('id="searchResultsSection"')]
-        for removed in ("hero-brand-mark", 'class="eyebrow"', "search-guidance"):
+        for removed in ("hero-brand-mark", 'class="eyebrow"'):
             self.assertNotIn(removed, search)
-        self.assertIn('class="theme-logo hero-logo"', search)
-        self.assertIn('aria-label="chessdb"', search)
-        self.assertLess(search.index('class="theme-logo hero-logo"'), search.index('id="searchForm"'))
+        self.assertIn('class="search-guidance"', search)
+        self.assertIn('class="theme-logo brand-logo"', html)
+        self.assertLess(html.index('class="theme-logo brand-logo"'), html.index('id="searchForm"'))
         self.assertLess(search.index('id="searchForm"'), search.index('id="searchSuggestions"'))
-        self.assertIn("往下看，我们为什么做这件事", search)
+        self.assertIn('class="home-shortcuts"', search)
 
     def test_theme_appropriate_brand_assets_are_reused_by_all_public_pages(self) -> None:
         for name in ("index.html", "coverage.html", "leaderboards.html", "events.html", "contribute.html"):

@@ -83,7 +83,7 @@ class PublicNavigationTests(unittest.TestCase):
         index = (ROOT / "docs" / "index.html").read_text(encoding="utf-8")
         self.assertIn("contribute.html?type=privacy-request", index)
         self.assertNotIn('href="./events.html"', index)
-        self.assertNotIn('href="./coverage.html"', index)
+        self.assertIn('href="./coverage.html"', index)
         for name in ("events.html", "coverage.html", "contribute.html"):
             text = (ROOT / "docs" / name).read_text(encoding="utf-8")
             self.assertIn('name="robots" content="noindex,nofollow"', text)
