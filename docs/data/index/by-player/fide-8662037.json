@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20261003T044253Z-02060e86",
-  "generatedAt": "2026-10-03T04:52:03+00:00",
+  "snapshotId": "20261003T121607Z-5b321de1",
+  "generatedAt": "2026-10-03T12:27:04+00:00",
   "player": {
     "fideID": "8662037",
     "id": "fide-8662037",
@@ -16,17 +16,18 @@
     ]
   },
   "totals": {
-    "games": 2,
-    "archivedGames": 2,
-    "playableGames": 2,
+    "games": 3,
+    "archivedGames": 3,
+    "playableGames": 3,
     "excludedGames": 0,
-    "events": 1,
-    "pgnEvents": 1,
-    "participationEvents": 0,
-    "packages": 2,
-    "bytes": 2662,
+    "events": 2,
+    "pgnEvents": 2,
+    "participationEvents": 1,
+    "packages": 3,
+    "bytes": 4461,
     "stages": {
-      "U10": 2
+      "U10": 2,
+      "U12": 1
     }
   },
   "packages": [
@@ -34,13 +35,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8662037/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/8c/8cea38cd41181e4ac6a8844d82d5e6be7385efd40b993516392a240b701f7da5.pgn",
-      "objectPath": "data/pgn/objects/sha256/8c/8cea38cd41181e4ac6a8844d82d5e6be7385efd40b993516392a240b701f7da5.pgn",
-      "gameCount": 2,
-      "pgnBytes": 1331,
-      "sha256": "8cea38cd41181e4ac6a8844d82d5e6be7385efd40b993516392a240b701f7da5",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/5d/5de4374e4204b5d62de01b623e7aa9d9019aa4676cb533681fe63dc4ac740055.pgn",
+      "objectPath": "data/pgn/objects/sha256/5d/5de4374e4204b5d62de01b623e7aa9d9019aa4676cb533681fe63dc4ac740055.pgn",
+      "gameCount": 3,
+      "pgnBytes": 2184,
+      "sha256": "5de4374e4204b5d62de01b623e7aa9d9019aa4676cb533681fe63dc4ac740055",
       "stages": {
-        "U10": 2
+        "U10": 2,
+        "U12": 1
       },
       "sources": [
         "Static PGN"
@@ -61,9 +63,39 @@
       "sources": [
         "Static PGN"
       ]
+    },
+    {
+      "id": "U12",
+      "label": "U12 PGN",
+      "pgnPath": "data/pgn/by-player/fide-8662037/U12.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/cd/cd15a7c53def3d775d33c84e86ea997f00cd5be6f5bb29e592b245e47ac49f36.pgn",
+      "objectPath": "data/pgn/objects/sha256/cd/cd15a7c53def3d775d33c84e86ea997f00cd5be6f5bb29e592b245e47ac49f36.pgn",
+      "gameCount": 1,
+      "pgnBytes": 946,
+      "sha256": "cd15a7c53def3d775d33c84e86ea997f00cd5be6f5bb29e592b245e47ac49f36",
+      "stages": {
+        "U12": 1
+      },
+      "sources": []
     }
   ],
   "events": [
+    {
+      "id": "chess-results:1504144",
+      "source": "",
+      "name": "2026 National CCA Master Tournament - Open (Turpan Station)",
+      "date": "2026-09-26",
+      "tournamentID": "1504144",
+      "canonicalEventID": null,
+      "stage": "U12",
+      "naturalStage": "U12",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "1-0": 1
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "static-pgn:1030481",
       "source": "Static PGN",
@@ -82,6 +114,33 @@
     }
   ],
   "games": [
+    {
+      "id": "ce5212750dda64c0b0e001e4c4196d1add26d35485642c713818ff57ff56a04b",
+      "event": "2026 National CCA Master Tournament - Open (Turpan Station)",
+      "date": "2026-09-26",
+      "white": "Aierken, Dawuti",
+      "black": "Kudereti, Yusufu",
+      "result": "1-0",
+      "round": "1",
+      "stage": "U12",
+      "naturalStage": "U12",
+      "role": "black",
+      "rank": "57",
+      "tournamentID": "1504144",
+      "sourcePgnPath": "api/event-pgn?tnr=1504144&sha=bc56972317230189",
+      "sha256": "ce5212750dda64c0b0e001e4c4196d1add26d35485642c713818ff57ff56a04b",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 89,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
     {
       "id": "9ab560a2aa910faf2b7a9220200643dd7ce6b96a2ed6ddc02e64a85478453ee0",
       "event": "赛事 1030481",

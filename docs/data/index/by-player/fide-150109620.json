@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20261003T044253Z-02060e86",
-  "generatedAt": "2026-10-03T04:52:03+00:00",
+  "snapshotId": "20261003T121607Z-5b321de1",
+  "generatedAt": "2026-10-03T12:27:04+00:00",
   "player": {
     "fideID": "150109620",
     "id": "fide-150109620",
@@ -21,18 +21,18 @@
     ]
   },
   "totals": {
-    "games": 25,
-    "archivedGames": 25,
-    "playableGames": 25,
-    "excludedGames": 0,
-    "events": 7,
-    "pgnEvents": 7,
-    "participationEvents": 6,
+    "games": 31,
+    "archivedGames": 31,
+    "playableGames": 30,
+    "excludedGames": 1,
+    "events": 8,
+    "pgnEvents": 8,
+    "participationEvents": 7,
     "packages": 3,
-    "bytes": 45265,
+    "bytes": 54295,
     "stages": {
       "U16": 22,
-      "U18": 3
+      "U18": 9
     }
   },
   "packages": [
@@ -40,14 +40,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-150109620/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/60/60e847996cf810e7abcd7a658e980643a1dcaf0d17ad9f1b34b6978ac49b8931.pgn",
-      "objectPath": "data/pgn/objects/sha256/60/60e847996cf810e7abcd7a658e980643a1dcaf0d17ad9f1b34b6978ac49b8931.pgn",
-      "gameCount": 25,
-      "pgnBytes": 22585,
-      "sha256": "60e847996cf810e7abcd7a658e980643a1dcaf0d17ad9f1b34b6978ac49b8931",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/41/41b09a88ec9778a59b52ab92c6efea1c76757a607c3fd825f6d6172a95903ae0.pgn",
+      "objectPath": "data/pgn/objects/sha256/41/41b09a88ec9778a59b52ab92c6efea1c76757a607c3fd825f6d6172a95903ae0.pgn",
+      "gameCount": 30,
+      "pgnBytes": 27100,
+      "sha256": "41b09a88ec9778a59b52ab92c6efea1c76757a607c3fd825f6d6172a95903ae0",
       "stages": {
         "U16": 22,
-        "U18": 3
+        "U18": 8
       },
       "sources": [
         "Lichess Broadcasts",
@@ -75,13 +75,13 @@
       "id": "U18",
       "label": "U18 PGN",
       "pgnPath": "data/pgn/by-player/fide-150109620/U18.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/bd/bdc99993a064b7cfe0f3b95887f954b6b48f1b6076a9ce01c321a8c017723696.pgn",
-      "objectPath": "data/pgn/objects/sha256/bd/bdc99993a064b7cfe0f3b95887f954b6b48f1b6076a9ce01c321a8c017723696.pgn",
-      "gameCount": 3,
-      "pgnBytes": 3196,
-      "sha256": "bdc99993a064b7cfe0f3b95887f954b6b48f1b6076a9ce01c321a8c017723696",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e2/e2660df8b1850a719cc45138766c0052eeae46d38c83372d6ac987c557646885.pgn",
+      "objectPath": "data/pgn/objects/sha256/e2/e2660df8b1850a719cc45138766c0052eeae46d38c83372d6ac987c557646885.pgn",
+      "gameCount": 8,
+      "pgnBytes": 7711,
+      "sha256": "e2660df8b1850a719cc45138766c0052eeae46d38c83372d6ac987c557646885",
       "stages": {
-        "U18": 3
+        "U18": 8
       },
       "sources": [
         "Lichess Broadcasts"
@@ -89,6 +89,24 @@
     }
   ],
   "events": [
+    {
+      "id": "chess-results:1503819",
+      "source": "",
+      "name": "2026 National CCA Master Tournament - Open (Jian Station)",
+      "date": "2026-09-28",
+      "tournamentID": "1503819",
+      "canonicalEventID": null,
+      "stage": "U18",
+      "naturalStage": "U18",
+      "eventStage": "",
+      "gameCount": 6,
+      "results": {
+        "1-0": 1,
+        "1/2-1/2": 3,
+        "0-1": 2
+      },
+      "nameTranslationPending": true
+    },
     {
       "id": "chess-results:1426529",
       "source": "",
@@ -210,6 +228,170 @@
     }
   ],
   "games": [
+    {
+      "id": "f521e39faed7d0c190b18963434da3f29fbb45fee99edbb21cbc260a8cdad387",
+      "event": "2026 National CCA Master Tournament - Open (Jian Station)",
+      "date": "2026-09-28",
+      "white": "Ye, Shuhan",
+      "black": "Weiye, Cheng",
+      "result": "1-0",
+      "round": "3",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "black",
+      "rank": "21",
+      "tournamentID": "1503819",
+      "sourcePgnPath": "api/event-pgn?tnr=1503819&sha=f5227a13cf907f7a",
+      "sha256": "f521e39faed7d0c190b18963434da3f29fbb45fee99edbb21cbc260a8cdad387",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 87,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "d34ab082ed0e5a684688f60d58acd69c603507a73f60690f384a546e7741da4d",
+      "event": "2026 National CCA Master Tournament - Open (Jian Station)",
+      "date": "2026-09-28",
+      "white": "Yao, Xiang",
+      "black": "Weiye, Cheng",
+      "result": "1/2-1/2",
+      "round": "5",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "black",
+      "rank": "21",
+      "tournamentID": "1503819",
+      "sourcePgnPath": "api/event-pgn?tnr=1503819&sha=f5227a13cf907f7a",
+      "sha256": "d34ab082ed0e5a684688f60d58acd69c603507a73f60690f384a546e7741da4d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 128,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "8dc40edb40348ea546718918d0d0ea790ce4f6deb8c3f0051bcd347aca71bf7d",
+      "event": "2026 National CCA Master Tournament - Open (Jian Station)",
+      "date": "2026-09-28",
+      "white": "Weiye, Cheng",
+      "black": "Xu, Ziyuan",
+      "result": "0-1",
+      "round": "2",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "white",
+      "rank": "21",
+      "tournamentID": "1503819",
+      "sourcePgnPath": "api/event-pgn?tnr=1503819&sha=f5227a13cf907f7a",
+      "sha256": "8dc40edb40348ea546718918d0d0ea790ce4f6deb8c3f0051bcd347aca71bf7d",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 100,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "237aa12a6938f639fc9a212c37f3244b07e7cdfa8e3dda04873f4d107940a060",
+      "event": "2026 National CCA Master Tournament - Open (Jian Station)",
+      "date": "2026-09-28",
+      "white": "Weiye, Cheng",
+      "black": "Wen, Gehua",
+      "result": "0-1",
+      "round": "9",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "white",
+      "rank": "21",
+      "tournamentID": "1503819",
+      "sourcePgnPath": "api/event-pgn?tnr=1503819&sha=f5227a13cf907f7a",
+      "sha256": "237aa12a6938f639fc9a212c37f3244b07e7cdfa8e3dda04873f4d107940a060",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "invalid",
+        "legalPlies": 162,
+        "replayable": false,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": false,
+        "errors": [
+          "illegal san: 'Kxd4' in 8/8/1pB5/2b1k3/P2r4/2K5/8/8 w - - 7 82"
+        ]
+      }
+    },
+    {
+      "id": "bbf08e9458e20ff30d3033afffff0c8a71397977a74cde9c6ecb5de35b4b0d40",
+      "event": "2026 National CCA Master Tournament - Open (Jian Station)",
+      "date": "2026-09-28",
+      "white": "Weiye, Cheng",
+      "black": "Li, Xiangyang",
+      "result": "1/2-1/2",
+      "round": "7",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "white",
+      "rank": "21",
+      "tournamentID": "1503819",
+      "sourcePgnPath": "api/event-pgn?tnr=1503819&sha=f5227a13cf907f7a",
+      "sha256": "bbf08e9458e20ff30d3033afffff0c8a71397977a74cde9c6ecb5de35b4b0d40",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 97,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
+    {
+      "id": "5054fe1c9f790cf0986bdcd779f1f14b2dd5d789bbaa92891b3a9d72645b5790",
+      "event": "2026 National CCA Master Tournament - Open (Jian Station)",
+      "date": "2026-09-28",
+      "white": "Chen, Baize",
+      "black": "Weiye, Cheng",
+      "result": "1/2-1/2",
+      "round": "8",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "black",
+      "rank": "21",
+      "tournamentID": "1503819",
+      "sourcePgnPath": "api/event-pgn?tnr=1503819&sha=f5227a13cf907f7a",
+      "sha256": "5054fe1c9f790cf0986bdcd779f1f14b2dd5d789bbaa92891b3a9d72645b5790",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 62,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
     {
       "id": "8dd4e5daf965694661b529d6d882851afb7a877f19b94003d64ede2bf63cfb0b",
       "event": "2026 National Amateur Chess Master Tournament - Open (Jiaxing Station)",
