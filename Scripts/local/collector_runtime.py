@@ -29,6 +29,7 @@ CONTRACT_PATHS = {"AGENTS.md", "Scripts/local/README.md", "docs/LICHESS_MONTHLY_
 PUBLIC_TEMPLATE_PATHS = {
     "docs/index.html", "docs/events.html", "docs/leaderboards.html",
     "docs/master-series.html", "docs/brilliancies.html", "docs/404.html", "docs/seo.css", "docs/seo.js",
+    "docs/ui.css",
 }
 ALLOWED_INSTALL_PREFIXES = (
     "Scripts/",
