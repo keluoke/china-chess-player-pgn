@@ -55,3 +55,16 @@ python3 Scripts/brilliancy_queue.py --lane incremental --shard 1 --export-candid
 审核候选仍走人工维护记录 → 统一重建 → 部署。队列只持久保存机器分析结果，永不自动写 `data/manual`。
 
 本地历史 worker 在独立、只读的完整 Git 快照运行，先用 `validate_player_pgn_r2_receipt.py` 对 3,133 个棋手包及当前快照的 SHA-256/回执做验证；不从采集工作区的旧文件拼凑全库。Stockfish 16 的 UCI 名称和分析版本须与切换前一致，否则会按新版本重新分析。`Scripts/local/run_brilliancy_history.py` 同时运行两个分片，按局在本机私有目录原子保存加密检查点，并在每轮结束时向生产 R2 同步。R2 上传暂时中断时继续从本机密文续跑；恢复上传时必须核对远端基线 ETag、回读正文，冲突即停止，不覆盖其他写入。两个分片全部 `pendingGames=0` 且 R2 检查点同步成功才退出。`Scripts/local/install_brilliancy_history_agent.py` 将其安装为当前用户的 launchd 任务；电脑关机或休眠期间不能运行，恢复后继续。每个分片最近一轮日志与摘要留在上述私有目录；生产候选仍需人工审核才能进入网站。
+
+## 自动质控试跑（尚不公开）
+
+`Scripts/local/run_brilliancy_quality.py` 只读已完成的加密历史分片，在本机用 Stockfish 16 与 17.1 分别复核局面、着法、对手接受/拒吃变化及补偿。断点 SQLite 文件为 mode 0600，证据正文逐条经 AES-GCM 加密。缺 FIDE ID 或内部赛事 ID 不影响质控。`S/A/B/C/D` 当前仅是待校准的试验等级，`classification.symbol=!!` 仍不可直接当成已审核结果；程序没有公开发布能力。断点按候选正文、规则代码、引擎二进制和节点预算核对，匹配则续跑，变化则重算。
+
+先按棋艺特征对两个分片各取 300 个候选，确认通过率和误判后再定全库规则：
+
+```bash
+python3 Scripts/local/run_brilliancy_quality.py --shard 0 --sample-size 300 --nodes 1000000
+python3 Scripts/local/run_brilliancy_quality.py --shard 1 --sample-size 300 --nodes 1000000
+```
+
+`--sample-size 0` 才代表全量。结果文件位于私有运行目录，不能加入 Git 或发布 artifact；上线仍需完成质量校准、发布投影和公开验证门禁。
