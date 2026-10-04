@@ -11,6 +11,7 @@ import chess
 import brilliancy_quality as quality
 import brilliancy_quality_gate as gate
 
+RULE_VERSION = gate.RULE_VERSION
 ENGINE_NAMES = frozenset(("Stockfish 16", "Stockfish 17.1"))
 SEARCHES = ("chosen", "alternative", "acceptance", "refusal")
 
