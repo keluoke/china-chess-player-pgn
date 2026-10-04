@@ -74,6 +74,18 @@ def certify(candidate: dict, first: dict | None, deep: dict | None) -> dict:
             accepted = roots["acceptance"]
             if not after.is_capture(accepted) or accepted.to_square != target.to_square:
                 raise ValueError("QC_RELEASE_ACCEPTANCE_MISMATCH")
+            capture_count = sum(after.is_capture(move) and move.to_square == target.to_square
+                                for move in after.legal_moves)
+            if engine.get("captureCount") != capture_count:
+                raise ValueError("QC_RELEASE_CAPTURE_COUNT_MISMATCH")
+            line = after.copy()
+            baseline = quality.material(board, board.turn)
+            material_deltas = []
+            for uci in engine["acceptance"]["pv"][:5]:
+                line.push(chess.Move.from_uci(uci))
+                material_deltas.append(quality.material(line, board.turn) - baseline)
+            if engine.get("materialDeltas") != material_deltas:
+                raise ValueError("QC_RELEASE_MATERIAL_MISMATCH")
             refused = roots.get("refusal")
             if refused is not None and after.is_capture(refused) and refused.to_square == target.to_square:
                 raise ValueError("QC_RELEASE_REFUSAL_MISMATCH")

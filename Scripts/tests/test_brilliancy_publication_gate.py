@@ -19,16 +19,38 @@ def proof(candidate, nodes):
     acceptance = next(move for move in after.legal_moves
                       if after.is_capture(move) and move.to_square == target.to_square)
     refusal = next(move for move in after.legal_moves if move != acceptance)
+    accepted_board = after.copy()
+    accepted_board.push(acceptance)
+    baseline = quality.material(board, board.turn)
+    reply = None
+    for move in accepted_board.legal_moves:
+        position = accepted_board.copy()
+        position.push(move)
+        if quality.material(position, board.turn) - baseline >= 150:
+            reply = move
+            break
+    if reply is None:
+        raise AssertionError("fixture lacks a tactical recapture")
 
-    def search(cp, move):
+    def deltas(moves):
+        position = after.copy()
+        result = []
+        for move in moves:
+            position.push(move)
+            result.append(quality.material(position, board.turn) - baseline)
+        return result
+
+    def search(cp, *moves):
         return {"cp": cp, "depth": 20, "nodes": nodes,
-                "pv": [move.uci()]}
+                "pv": [move.uci() for move in moves]}
 
     engines = [{"engine": name, "chosen": search(180, target),
                 "alternative": search(10, alternative),
-                "acceptance": search(180, acceptance),
+                "acceptance": search(180, acceptance, reply),
                 "refusal": search(180, refusal),
-                "materialDeltas": [-320, 500, 500, 500]}
+                "captureCount": sum(after.is_capture(move) and move.to_square == target.to_square
+                                    for move in after.legal_moves),
+                "materialDeltas": deltas((acceptance, reply))}
                for name in ("Stockfish 16", "Stockfish 17.1")]
     return {"candidateId": candidate["id"], "positionKey": quality.position_key(candidate),
             "qualityRuleVersion": quality.RULE_VERSION, "engines": engines}
@@ -37,7 +59,7 @@ def proof(candidate, nodes):
 class PublicationGateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.candidate = json.loads((ROOT / "data/manual/brilliancies/curated.json").read_text())["items"][0]
+        cls.candidate = json.loads((ROOT / "data/manual/brilliancies/curated.json").read_text())["items"][1]
 
     def test_valid_tactical_proof_ignores_player_and_event_ids(self):
         item = copy.deepcopy(self.candidate)
@@ -71,6 +93,12 @@ class PublicationGateTests(unittest.TestCase):
         deep = proof(self.candidate, 5_000_000)
         deep["positionKey"] = "another-position"
         with self.assertRaisesRegex(ValueError, "QC_RELEASE_RECORD_MISMATCH"):
+            release.certify(self.candidate, proof(self.candidate, 1_000_000), deep)
+
+    def test_material_claim_must_match_legal_acceptance_line(self):
+        deep = proof(self.candidate, 5_000_000)
+        deep["engines"][0]["materialDeltas"][1] += 100
+        with self.assertRaisesRegex(ValueError, "QC_RELEASE_MATERIAL_MISMATCH"):
             release.certify(self.candidate, proof(self.candidate, 1_000_000), deep)
 
 
