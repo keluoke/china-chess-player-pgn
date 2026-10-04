@@ -53,6 +53,8 @@ def source_candidates(state: dict, lane: str) -> tuple[dict[str, dict], int]:
         incomplete = sum(records.get(game_id, {}).get("status") != "complete"
                          or records.get(game_id, {}).get("version") != version
                          for game_id in baseline)
+        if set(records) != set(baseline):
+            raise ValueError("QC_PREVIEW_HISTORY_SCOPE_DRIFT")
         if incomplete:
             raise ValueError(f"QC_PREVIEW_HISTORY_INCOMPLETE:{incomplete}")
     else:
@@ -127,8 +129,8 @@ def inspect(client, bucket: str, encryption_key: str) -> dict:
             incomplete_count += incomplete
             for candidate_id, item in items.items():
                 body_hash = quality.digest(item)
-                if candidate_id in combined and combined[candidate_id] != body_hash:
-                    raise ValueError("QC_PREVIEW_CROSS_LANE_CONFLICT")
+                if candidate_id in combined:
+                    raise ValueError("QC_PREVIEW_CROSS_LANE_DUPLICATE")
                 combined[candidate_id] = body_hash
             first = checked_quality_rows(QualityBackup(client, bucket, shard,
                                         encryption_key, "first" if lane == "history"

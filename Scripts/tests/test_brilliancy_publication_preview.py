@@ -50,6 +50,7 @@ class PublicationPreviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "QC_PREVIEW_HISTORY_INCOMPLETE"):
             preview.source_candidates(state, "history")
         state["records"]["game"]["status"] = "complete"
+        state["baselineGames"].append("another")
         state["records"]["another"] = {"status": "complete", "version": "v",
                                          "candidates": [self.item]}
         items, pending = preview.source_candidates(state, "history")
@@ -108,6 +109,22 @@ class PublicationPreviewTests(unittest.TestCase):
         backup.store.load()
         backup.store.save(state)
         with self.assertRaisesRegex(ValueError, "QC_PREVIEW_PROFILE_DRIFT"):
+            preview.inspect(client, "chess-data", key)
+
+    def test_same_candidate_in_history_and_incremental_is_not_double_counted(self):
+        client = FakeS3()
+        key = base64.b64encode(bytes(range(32))).decode()
+        for lane in ("history", "incremental"):
+            for shard in (0, 1):
+                state = new_state(shard)
+                state["activeVersion"] = "v"
+                state["baselineGames"] = ["a" * 64] if lane == "history" else []
+                if lane == "history" or shard == 0:
+                    state["records"]["a" * 64] = {
+                        "status": "complete", "version": "v",
+                        "candidates": [self.item] if shard == 0 else []}
+                R2Store(client, "chess-data", shard, key, lane).save(state)
+        with self.assertRaisesRegex(ValueError, "QC_PREVIEW_CROSS_LANE_DUPLICATE"):
             preview.inspect(client, "chess-data", key)
 
 
