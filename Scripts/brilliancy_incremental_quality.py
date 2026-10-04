@@ -89,19 +89,6 @@ def review_or_reject(item: dict, engines: list[chess.engine.SimpleEngine], nodes
                 "grade": "D", "reasons": [str(error)], "engines": []}
 
 
-def deep_priority(first: dict | None) -> tuple[int, int]:
-    """Review promising chess positions first; still revisit every other item."""
-    if not first:
-        return (2, 0)
-    try:
-        features = gate._engine_features(first)
-    except ValueError:
-        return (1, 0)
-    promising = (features["offer"] and features["soundCp"] >= -100
-                 and (features["marginCp"] >= 70 or features["persistentSacrifice"]))
-    return (0 if promising else 1, -features["marginCp"])
-
-
 def run(args) -> dict:
     key_text = os.environ.get("BRILLIANCY_QUEUE_KEY", "")
     try:
@@ -141,8 +128,8 @@ def run(args) -> dict:
                     db = databases[lane]
                     if lane == "deep":
                         order = sorted(items, key=lambda item: (
-                            deep_priority(runner.cached_result(first_db, cipher, item,
-                                                                profiles["first"])), item["id"]))
+                            gate.deep_priority(runner.cached_result(first_db, cipher, item,
+                                                                     profiles["first"])), item["id"]))
                     else:
                         order = items
                     unsynced = 0

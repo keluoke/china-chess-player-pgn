@@ -91,3 +91,16 @@ def assess(first: dict[str, Any] | None, deep: dict[str, Any] | None) -> dict[st
     return {"ruleVersion": RULE_VERSION, "tier": tier, "reason": reason,
             "firstMarginCp": one["marginCp"], "deepMarginCp": five["marginCp"],
             "deepSoundCp": five["soundCp"]}
+
+
+def deep_priority(first: dict[str, Any] | None) -> tuple[int, int]:
+    """Schedule stronger chess evidence first, without excluding other candidates."""
+    if not first:
+        return (2, 0)
+    try:
+        features = _engine_features(first)
+    except ValueError:
+        return (1, 0)
+    promising = (features["offer"] and features["soundCp"] >= -100
+                 and (features["marginCp"] >= 70 or features["persistentSacrifice"]))
+    return (0 if promising else 1, -features["marginCp"])

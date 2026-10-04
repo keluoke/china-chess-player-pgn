@@ -18,6 +18,7 @@ import run_brilliancy_quality as runner
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from brilliancy_queue import R2Store, new_state
 from Scripts.tests.test_brilliancy_queue import FakeS3
+from Scripts.tests.test_brilliancy_quality_gate import record as engine_record
 
 
 class QualityTests(unittest.TestCase):
@@ -119,6 +120,28 @@ class QualityTests(unittest.TestCase):
                          "quality-deep-shard-0.sqlite3")
         with self.assertRaisesRegex(ValueError, "QC_LANE_INVALID"):
             runner.checkpoint_name(0, "unknown", "sqlite3")
+
+    def test_full_deep_scan_prioritizes_chess_quality_without_dropping_rows(self):
+        with tempfile.TemporaryDirectory() as folder:
+            db = runner.database(Path(folder) / "first.sqlite3")
+            try:
+                cipher = AESGCM(bytes(range(32)))
+                low = copy.deepcopy(self.candidate)
+                low["id"] = "br-" + "a" * 64
+                high = copy.deepcopy(self.candidate)
+                high["id"] = "br-" + "b" * 64
+                for item, margin in ((low, 0), (high, 120)):
+                    outcome = engine_record(margin=margin)
+                    outcome["candidateId"] = item["id"]
+                    runner.save_result(db, cipher, item, "first-profile", outcome)
+                ordered = runner.prioritized_deep_items([low, high], db, cipher,
+                                                        "first-profile")
+                self.assertEqual([row["id"] for row in ordered], [high["id"], low["id"]])
+                with self.assertRaisesRegex(ValueError, "QC_FIRST_INCOMPLETE"):
+                    runner.prioritized_deep_items([self.candidate], db, cipher,
+                                                  "first-profile")
+            finally:
+                db.close()
 
     def test_authenticated_history_source_is_cached_privately(self):
         key = base64.b64encode(bytes(range(32))).decode()

@@ -58,9 +58,9 @@ class IncrementalQualityTests(unittest.TestCase):
             quality.candidates_from_state(new_state(0))
 
     def test_chess_priority_does_not_permanently_exclude_other_candidates(self):
-        self.assertLess(quality.deep_priority(record(margin=120)),
-                        quality.deep_priority(record(margin=0)))
-        self.assertEqual(quality.deep_priority(None)[0], 2)
+        self.assertLess(quality.gate.deep_priority(record(margin=120)),
+                        quality.gate.deep_priority(record(margin=0)))
+        self.assertEqual(quality.gate.deep_priority(None)[0], 2)
 
     def test_invalid_replay_is_recorded_without_hiding_engine_errors(self):
         with patch.object(quality.qc, "review", side_effect=ValueError("QC_GAME_MOVE_ILLEGAL")):

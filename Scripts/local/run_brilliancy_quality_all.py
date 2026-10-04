@@ -2,6 +2,7 @@
 """Keep two local quality shards running until all candidates are reviewed."""
 from __future__ import annotations
 
+import argparse
 import fcntl
 import json
 import os
@@ -18,7 +19,8 @@ CHILDREN: list[subprocess.Popen] = []
 HARD_ERRORS = ("QC_BACKUP_REMOTE_CONFLICT", "QC_CHECKPOINT_SCHEMA_INVALID",
                "QC_PRIVATE_MODE_REQUIRED", "QC_PRIVATE_SYMLINK_FORBIDDEN",
                "QUEUE_STORAGE_BUDGET_EXCEEDED", "QC_HISTORY_INCOMPLETE",
-               "QC_ENGINE_EVIDENCE_INCOMPLETE", "QC_ENGINE_PV_ILLEGAL")
+               "QC_ENGINE_EVIDENCE_INCOMPLETE", "QC_ENGINE_PV_ILLEGAL",
+               "QC_FIRST_INCOMPLETE", "QC_DEEP_PRIORITY_MODE_INVALID")
 TRANSIENT_ERRORS = ("ReadTimeoutError", "ConnectTimeoutError", "EndpointConnectionError",
                     "ConnectionClosedError", "IncompleteReadError", "SlowDown",
                     "ServiceUnavailable", "ConnectionError", "TimeoutError")
@@ -32,8 +34,8 @@ def stop_children(signum, frame):
     raise SystemExit(128 + signum)
 
 
-def write_status(value: dict) -> None:
-    path = PRIVATE / "quality-full.json"
+def write_status(value: dict, lane: str = "first") -> None:
+    path = PRIVATE / ("quality-full.json" if lane == "first" else "quality-deep-full.json")
     temp = path.with_name(path.name + f".{os.getpid()}.tmp")
     handle = os.open(temp, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
@@ -56,20 +58,25 @@ def private_log(path: Path):
     return os.fdopen(descriptor, "w", encoding="utf-8")
 
 
-def run_batch() -> tuple[list[int], list[dict], list[str]]:
+def run_batch(lane: str = "first") -> tuple[list[int], list[dict], list[str]]:
     CHILDREN.clear()
     logs = []
     paths = []
     for shard in (0, 1):
-        path = PRIVATE / f"quality-full-shard-{shard}.log"
+        label = "quality-full" if lane == "first" else "quality-deep-full"
+        path = PRIVATE / f"{label}-shard-{shard}.log"
         output = private_log(path)
         paths.append(path)
         logs.append(output)
-        CHILDREN.append(subprocess.Popen([
-            sys.executable, str(WORKER), "--shard", str(shard),
-            "--sample-size", "0", "--nodes", "1000000",
-            "--max-new", "1000", "--backup-every", "1000",
-        ], cwd=ROOT, stdout=output, stderr=subprocess.STDOUT))
+        command = [sys.executable, str(WORKER), "--shard", str(shard),
+                   "--sample-size", "0", "--nodes",
+                   "1000000" if lane == "first" else "5000000",
+                   "--max-new", "1000" if lane == "first" else "100",
+                   "--backup-every", "1000" if lane == "first" else "25"]
+        if lane == "deep":
+            command += ["--lane", "deep", "--prioritize-from-first"]
+        CHILDREN.append(subprocess.Popen(command, cwd=ROOT, stdout=output,
+                                         stderr=subprocess.STDOUT))
     codes = [child.wait() for child in CHILDREN]
     for output in logs:
         output.close()
@@ -90,9 +97,12 @@ def run_batch() -> tuple[list[int], list[dict], list[str]]:
     return codes, summaries, tails
 
 
-def main() -> int:
+def main(lane: str = "first") -> int:
+    if lane not in {"first", "deep"}:
+        raise ValueError("QC_FULL_LANE_INVALID")
     PRIVATE.mkdir(parents=True, exist_ok=True)
-    lock_path = PRIVATE / "quality-full.lock"
+    lock_path = PRIVATE / ("quality-full.lock" if lane == "first"
+                           else "quality-deep-full.lock")
     if lock_path.is_symlink():
         raise ValueError("QC_FULL_LOCK_SYMLINK")
     descriptor = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
@@ -105,37 +115,41 @@ def main() -> int:
         signal.signal(signal.SIGINT, stop_children)
         failures = 0
         while True:
-            codes, summaries, tails = run_batch()
+            codes, summaries, tails = run_batch(lane)
             if any(code != 0 or summary is None for code, summary in zip(codes, summaries)):
                 reason = "hard-error" if any(token in tail for tail in tails for token in HARD_ERRORS) else "retryable-error"
                 if reason == "retryable-error" and not any(
                         token in tail for tail in tails for token in TRANSIENT_ERRORS):
                     reason = "unknown-error"
                 if reason != "retryable-error":
-                    write_status({"status": "halted", "reason": reason, "exitCodes": codes})
-                    print(json.dumps({"qualityFull": "halted", "reason": reason}), flush=True)
+                    write_status({"status": "halted", "reason": reason, "exitCodes": codes}, lane)
+                    print(json.dumps({"qualityFull": "halted", "lane": lane,
+                                      "reason": reason}), flush=True)
                     return 0  # Launchd must not loop on a deterministic conflict.
                 failures += 1
-                write_status({"status": "retrying", "attempt": failures, "exitCodes": codes})
+                write_status({"status": "retrying", "attempt": failures,
+                              "exitCodes": codes}, lane)
                 time.sleep(min(600, 60 * 2 ** min(failures, 3)))
                 continue
             failures = 0
             total = sum(row["sampleSize"] for row in summaries)
             graded = sum(row["graded"] for row in summaries)
             if any(row["r2Backup"] != "synced" for row in summaries):
-                write_status({"status": "halted", "reason": "r2-backup-not-synced"})
+                write_status({"status": "halted", "reason": "r2-backup-not-synced"}, lane)
                 return 0
             value = {"status": "complete" if graded == total else "running",
                      "candidatePositions": total, "graded": graded,
                      "byShard": [{"shard": row["shard"], "graded": row["graded"],
                                   "total": row["sampleSize"]} for row in summaries],
                      "publicAutoPublish": False}
-            write_status(value)
-            print(json.dumps({"qualityFull": value}, ensure_ascii=False), flush=True)
+            write_status(value, lane)
+            print(json.dumps({"qualityFull": value, "lane": lane}, ensure_ascii=False), flush=True)
             if graded == total:
                 return 0
             time.sleep(5)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--lane", choices=("first", "deep"), default="first")
+    raise SystemExit(main(parser.parse_args().lane))

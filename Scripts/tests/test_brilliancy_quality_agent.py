@@ -35,6 +35,21 @@ class AgentTests(unittest.TestCase):
             status = json.loads((Path(folder) / "quality-full.json").read_text())
             self.assertEqual((status["status"], status["graded"]), ("complete", 25))
 
+    def test_deep_full_uses_independent_progress_and_does_not_restart_first(self):
+        summaries = [{"shard": 0, "sampleSize": 12, "graded": 5, "r2Backup": "synced"},
+                     {"shard": 1, "sampleSize": 13, "graded": 6, "r2Backup": "synced"}]
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.object(agent, "PRIVATE", Path(folder)), patch.object(
+                    agent.signal, "signal"), patch.object(
+                    agent, "run_batch", return_value=([0, 0], summaries, ["", ""])) as run, patch.object(
+                    agent.time, "sleep", side_effect=StopIteration):
+                with self.assertRaises(StopIteration):
+                    agent.main("deep")
+            run.assert_called_once_with("deep")
+            status = json.loads((Path(folder) / "quality-deep-full.json").read_text())
+            self.assertEqual((status["status"], status["graded"]), ("running", 11))
+            self.assertFalse((Path(folder) / "quality-full.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

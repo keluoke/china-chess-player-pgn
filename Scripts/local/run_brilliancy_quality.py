@@ -27,6 +27,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "Scripts"))
 import brilliancy_quality as qc
+import brilliancy_quality_gate as gate
 from brilliancy_queue import R2Store, SHARD_BUDGET, transient
 from upload_bulk_to_r2 import load_secrets
 
@@ -203,6 +204,18 @@ def checkpoint_name(shard: int, lane: str, suffix: str) -> str:
     return f"{label}-shard-{shard}.{suffix}"
 
 
+def prioritized_deep_items(items: list[dict], db: sqlite3.Connection,
+                           cipher: AESGCM, first_profile: str) -> list[dict]:
+    """Quality-only ordering; all candidates remain in the deep queue."""
+    ranked = []
+    for item in items:
+        first = cached_result(db, cipher, item, first_profile)
+        if first is None:
+            raise ValueError("QC_FIRST_INCOMPLETE")
+        ranked.append((gate.deep_priority(first), item["id"], item))
+    return [item for _, _, item in sorted(ranked, key=lambda row: (row[0], row[1]))]
+
+
 def run(args) -> dict:
     PRIVATE.mkdir(parents=True, exist_ok=True)
     key_path = PRIVATE / "queue-encryption.key"
@@ -226,6 +239,19 @@ def run(args) -> dict:
         fcntl.flock(lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         items, source_version = load_candidates(args.shard, key_text, args.refresh_source)
         selected = stratified_sample(items, args.sample_size)
+        if getattr(args, "prioritize_from_first", False):
+            if args.lane != "deep" or args.sample_size != 0:
+                raise ValueError("QC_DEEP_PRIORITY_MODE_INVALID")
+            first_profile = qc.digest({"rule": qc.RULE_VERSION, "nodes": 1_000_000,
+                                       "engines": [sha256_file(p) for p in args.engines],
+                                       "reviewCode": sha256_file(Path(qc.__file__)),
+                                       "chess": chess.__version__})
+            first_path = PRIVATE / checkpoint_name(args.shard, "first", "sqlite3")
+            if not first_path.is_file():
+                raise ValueError("QC_FIRST_INCOMPLETE")
+            private_file(first_path)
+            with closing(sqlite3.connect(f"file:{first_path}?mode=ro", uri=True)) as first_db:
+                selected = prioritized_deep_items(selected, first_db, AESGCM(key), first_profile)
         db_path = PRIVATE / checkpoint_name(args.shard, args.lane, "sqlite3")
         with closing(database(db_path)) as db:
             cipher = AESGCM(key)
@@ -310,6 +336,8 @@ def main() -> int:
                         help="Sync encrypted R2 quality checkpoint after this many new results")
     parser.add_argument("--refresh-source", action="store_true",
                         help="Explicitly replace the authenticated frozen history cache from R2")
+    parser.add_argument("--prioritize-from-first", action="store_true",
+                        help="Deep full scan: put strong chess evidence first without excluding any position")
     parser.add_argument("--engines", nargs=2, type=Path, default=[STOCKFISH_16, STOCKFISH_17])
     args = parser.parse_args()
     if (args.sample_size < 0 or args.nodes < 100_000 or args.max_new < 0
