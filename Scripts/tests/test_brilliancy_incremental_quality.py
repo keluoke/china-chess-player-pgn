@@ -102,6 +102,8 @@ class IncrementalQualityTests(unittest.TestCase):
                 second = quality.run(args)
                 self.assertEqual(second["processedThisRun"], {"deep": 1})
                 self.assertEqual(second["qualityTiers"], {"A": 1})
+                self.assertEqual(second["certifiedEvidenceTiers"],
+                                 {"isolated-invalid-evidence": 1})
                 self.assertEqual(review.call_count, 2)
                 third = quality.run(args)
                 self.assertEqual(third["processedThisRun"], {})

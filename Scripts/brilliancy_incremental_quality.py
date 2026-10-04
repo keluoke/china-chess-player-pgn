@@ -28,6 +28,7 @@ sys.path.insert(0, str(ROOT / "Scripts/local"))
 import run_brilliancy_quality as runner
 import brilliancy_quality as qc
 import brilliancy_quality_gate as gate
+import brilliancy_publication_gate as publication_gate
 from brilliancy_quality_backup import QualityBackup
 from brilliancy_queue import R2Store
 
@@ -156,13 +157,19 @@ def run(args) -> dict:
                 for engine in engines:
                     engine.quit()
             tiers = Counter()
+            certified = Counter()
             for item in items:
                 first = runner.cached_result(first_db, cipher, item, profiles["first"])
                 deep = runner.cached_result(deep_db, cipher, item, profiles["deep"])
                 tiers[gate.assess(first, deep)["tier"]] += 1
+                try:
+                    certified[publication_gate.certify(item, first, deep)["tier"]] += 1
+                except ValueError:
+                    certified["isolated-invalid-evidence"] += 1
             return {"schemaVersion": 1, "shard": args.shard,
                     "sourceVersion": source["activeVersion"], "candidateCount": len(items),
                     "processedThisRun": dict(processed), "qualityTiers": dict(tiers),
+                    "certifiedEvidenceTiers": dict(certified),
                     "qualityRuleVersion": gate.RULE_VERSION,
                     "r2Checkpoint": "authenticated", "publicAutoPublish": False}
 
