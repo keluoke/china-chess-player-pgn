@@ -75,4 +75,12 @@ python3 Scripts/local/run_brilliancy_quality.py --shard 1 --sample-size 300 --no
 
 抽样进行中或完成后可用 `python3 Scripts/local/report_brilliancy_quality.py` 查看仅含聚合数量的进度与分层投影。投影标为试验规则结果，不等于已审核可上线数量；调整分层阈值时先复用已保存的引擎证据，不能为凑比例重跑全库。
 
+深度校准仍取同一 600 个分层样本，使用独立的 `--lane deep` 断点和 R2 加密对象；首轮全库继续运行时可并行验证。它把每次搜索预算提高到 500 万节点，仍只产生证据，不能直接把试验等级发布为 `!!`：
+
+```bash
+python3 Scripts/local/run_brilliancy_quality.py --lane deep --shard 0 --sample-size 300 --nodes 5000000 --backup-every 50
+python3 Scripts/local/run_brilliancy_quality.py --lane deep --shard 1 --sample-size 300 --nodes 5000000 --backup-every 50
+python3 Scripts/local/report_brilliancy_quality.py --lane deep --nodes 5000000
+```
+
 公开原局验证按棋局指纹查已归档 PGN；双方没有 FIDE ID 时仍核对原局哈希、完整走法和指定局面，若同指纹对应多个不同原档则隔离。缺失棋手 ID 和内部赛事 ID 时对应站内链接留空，不伪造身份或赛事。

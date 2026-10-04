@@ -196,6 +196,13 @@ def cached_result(db: sqlite3.Connection, cipher: AESGCM,
     return result
 
 
+def checkpoint_name(shard: int, lane: str, suffix: str) -> str:
+    if lane not in {"first", "deep"}:
+        raise ValueError("QC_LANE_INVALID")
+    label = "quality" if lane == "first" else "quality-deep"
+    return f"{label}-shard-{shard}.{suffix}"
+
+
 def run(args) -> dict:
     PRIVATE.mkdir(parents=True, exist_ok=True)
     key_path = PRIVATE / "queue-encryption.key"
@@ -213,20 +220,20 @@ def run(args) -> dict:
                          "engines": [sha256_file(p) for p in args.engines],
                          "reviewCode": sha256_file(Path(qc.__file__)),
                          "chess": chess.__version__})
-    lock = PRIVATE / f"quality-shard-{args.shard}.lock"
+    lock = PRIVATE / checkpoint_name(args.shard, args.lane, "lock")
     private_file(lock)
     with lock.open("r+") as lock_handle:
         fcntl.flock(lock_handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
         items, source_version = load_candidates(args.shard, key_text, args.refresh_source)
         selected = stratified_sample(items, args.sample_size)
-        db_path = PRIVATE / f"quality-shard-{args.shard}.sqlite3"
+        db_path = PRIVATE / checkpoint_name(args.shard, args.lane, "sqlite3")
         with closing(database(db_path)) as db:
             cipher = AESGCM(key)
             backup = None
             if args.backup_every:
                 from brilliancy_quality_backup import QualityBackup
                 client, bucket = r2_client()
-                backup = QualityBackup(client, bucket, args.shard, key_text)
+                backup = QualityBackup(client, bucket, args.shard, key_text, args.lane)
                 try:
                     restored = backup.reconcile(db)
                 except Exception as error:
@@ -281,7 +288,8 @@ def run(args) -> dict:
                 result = cached_result(db, cipher, item, profile)
                 if result:
                     grades[result["grade"]] += 1
-            summary = {"shard": args.shard, "sampleSize": len(selected), "selectedCandidates": len(items),
+            summary = {"shard": args.shard, "lane": args.lane,
+                       "sampleSize": len(selected), "selectedCandidates": len(items),
                        "sourceVersion": source_version, "profile": profile,
                        "processedThisRun": completed, "reused": skipped,
                        "graded": sum(grades.values()), "grades": dict(sorted(grades.items())),
@@ -294,6 +302,7 @@ def run(args) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shard", type=int, choices=(0, 1), required=True)
+    parser.add_argument("--lane", choices=("first", "deep"), default="first")
     parser.add_argument("--sample-size", type=int, default=300)
     parser.add_argument("--nodes", type=int, default=1_000_000)
     parser.add_argument("--max-new", type=int, default=0)

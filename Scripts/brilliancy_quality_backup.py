@@ -50,9 +50,13 @@ def check_remote_record(key: str, row: dict) -> tuple:
 
 
 class QualityBackup:
-    def __init__(self, client, bucket: str, shard: int, encryption_key: str):
+    def __init__(self, client, bucket: str, shard: int, encryption_key: str,
+                 lane: str = "first"):
+        if lane not in {"first", "deep"}:
+            raise ValueError("QC_BACKUP_LANE_INVALID")
         self.store = R2Store(client, bucket, shard, encryption_key)
-        self.store.key = f"{PREFIX}quality-shard-{shard}.bin"
+        label = "quality" if lane == "first" else "quality-deep"
+        self.store.key = f"{PREFIX}{label}-shard-{shard}.bin"
         self.remote = None
 
     def checked_records(self, records: dict) -> None:

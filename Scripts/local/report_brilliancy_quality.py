@@ -18,7 +18,7 @@ import run_brilliancy_quality as runner
 import brilliancy_quality as qc
 
 
-def report(sample_size: int, nodes: int, engines: list[Path]) -> dict:
+def report(sample_size: int, nodes: int, engines: list[Path], lane: str = "first") -> dict:
     key_path = runner.PRIVATE / "queue-encryption.key"
     if (key_path.is_symlink() or not key_path.is_file()
             or key_path.stat().st_uid != os.getuid()
@@ -42,7 +42,7 @@ def report(sample_size: int, nodes: int, engines: list[Path]) -> dict:
         selected = runner.stratified_sample(items, sample_size)
         for item in items:
             population[runner.stratum(item)] += 1
-        db_path = runner.PRIVATE / f"quality-shard-{shard}.sqlite3"
+        db_path = runner.PRIVATE / runner.checkpoint_name(shard, lane, "sqlite3")
         with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)) as db:
             for item in selected:
                 total += 1
@@ -80,7 +80,7 @@ def report(sample_size: int, nodes: int, engines: list[Path]) -> dict:
     raw_grades = Counter()
     for counts in observed.values():
         raw_grades.update(counts)
-    output = {"schemaVersion": 1, "qualityRuleVersion": qc.RULE_VERSION,
+    output = {"schemaVersion": 1, "qualityRuleVersion": qc.RULE_VERSION, "lane": lane,
               "profile": profile, "sourceVersions": sorted(source_versions),
               "populationCandidates": sum(population.values()),
               "sampleSelected": total, "sampleGraded": complete,
@@ -120,10 +120,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sample-size", type=int, default=300)
     parser.add_argument("--nodes", type=int, default=1_000_000)
+    parser.add_argument("--lane", choices=("first", "deep"), default="first")
     parser.add_argument("--engines", nargs=2, type=Path,
                         default=[runner.STOCKFISH_16, runner.STOCKFISH_17])
     args = parser.parse_args()
-    print(json.dumps(report(args.sample_size, args.nodes, args.engines), ensure_ascii=False))
+    print(json.dumps(report(args.sample_size, args.nodes, args.engines, args.lane), ensure_ascii=False))
     return 0
 
 

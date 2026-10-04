@@ -112,6 +112,14 @@ class QualityTests(unittest.TestCase):
             item["event"]["id"] = "event-unknown"
         self.assertEqual(selected, {x["id"] for x in runner.stratified_sample(items, 20)})
 
+    def test_deep_checkpoint_is_separate_from_running_full_scan(self):
+        self.assertEqual(runner.checkpoint_name(0, "first", "sqlite3"),
+                         "quality-shard-0.sqlite3")
+        self.assertEqual(runner.checkpoint_name(0, "deep", "sqlite3"),
+                         "quality-deep-shard-0.sqlite3")
+        with self.assertRaisesRegex(ValueError, "QC_LANE_INVALID"):
+            runner.checkpoint_name(0, "unknown", "sqlite3")
+
     def test_authenticated_history_source_is_cached_privately(self):
         key = base64.b64encode(bytes(range(32))).decode()
         client = FakeS3()

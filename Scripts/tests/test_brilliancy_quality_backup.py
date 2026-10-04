@@ -16,6 +16,16 @@ from Scripts.tests.test_brilliancy_queue import FakeS3
 
 
 class BackupTests(unittest.TestCase):
+    def test_deep_backup_key_is_isolated_from_first_pass(self):
+        encoded = base64.b64encode(bytes(range(32))).decode()
+        client = FakeS3()
+        first = backup.QualityBackup(client, "chess-data", 0, encoded)
+        deep = backup.QualityBackup(client, "chess-data", 0, encoded, "deep")
+        self.assertNotEqual(first.store.key, deep.store.key)
+        self.assertTrue(deep.store.key.endswith("quality-deep-shard-0.bin"))
+        with self.assertRaisesRegex(ValueError, "QC_BACKUP_LANE_INVALID"):
+            backup.QualityBackup(client, "chess-data", 0, encoded, "unknown")
+
     def test_roundtrip_restore_and_refuse_conflicting_local_row(self):
         key = bytes(range(32))
         encoded = base64.b64encode(key).decode()
