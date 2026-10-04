@@ -85,4 +85,6 @@ python3 Scripts/local/report_brilliancy_quality.py --lane deep --nodes 5000000
 
 长时间校准可运行 `python3 Scripts/local/install_brilliancy_quality_deep_agent.py`。两个用户级 launchd 任务各处理 300 个样本，退出后不会循环重算；重启机器后同一断点可续跑。深度断点、日志与 R2 对象均与首轮全库分开。
 
+`python3 Scripts/local/report_brilliancy_quality.py --lane deep --nodes 5000000 --gate-preview` 会把同一候选的 100 万、500 万节点加密证据配对，按双方独立引擎的最佳替代着法差距、接受/拒吃后的安全性、持续少子或强制战术获利给出仅供校准的 S/A/未证明分层。规则只读取棋局位置及引擎证据，不读取 FIDE ID、内部赛事 ID 或棋手姓名；试验等级和分层投影均不构成公开许可。对照样本揭示，只认持续少子会漏掉先弃后取的真实战术；当前机器发布门禁因此仍关闭，正式放行还需要复核规则、生成可审计的发布包并完成生产验收。
+
 公开原局验证按棋局指纹查已归档 PGN；双方没有 FIDE ID 时仍核对原局哈希、完整走法和指定局面，若同指纹对应多个不同原档则隔离。缺失棋手 ID 和内部赛事 ID 时对应站内链接留空，不伪造身份或赛事。
