@@ -83,4 +83,6 @@ python3 Scripts/local/run_brilliancy_quality.py --lane deep --shard 1 --sample-s
 python3 Scripts/local/report_brilliancy_quality.py --lane deep --nodes 5000000
 ```
 
+长时间校准可运行 `python3 Scripts/local/install_brilliancy_quality_deep_agent.py`。两个用户级 launchd 任务各处理 300 个样本，退出后不会循环重算；重启机器后同一断点可续跑。深度断点、日志与 R2 对象均与首轮全库分开。
+
 公开原局验证按棋局指纹查已归档 PGN；双方没有 FIDE ID 时仍核对原局哈希、完整走法和指定局面，若同指纹对应多个不同原档则隔离。缺失棋手 ID 和内部赛事 ID 时对应站内链接留空，不伪造身份或赛事。
