@@ -21,8 +21,14 @@ class BackupTests(unittest.TestCase):
         client = FakeS3()
         first = backup.QualityBackup(client, "chess-data", 0, encoded)
         deep = backup.QualityBackup(client, "chess-data", 0, encoded, "deep")
-        self.assertNotEqual(first.store.key, deep.store.key)
+        incremental_first = backup.QualityBackup(client, "chess-data", 0, encoded,
+                                                  "incremental-first")
+        incremental_deep = backup.QualityBackup(client, "chess-data", 0, encoded,
+                                                 "incremental-deep")
+        self.assertEqual(len({first.store.key, deep.store.key,
+                              incremental_first.store.key, incremental_deep.store.key}), 4)
         self.assertTrue(deep.store.key.endswith("quality-deep-shard-0.bin"))
+        self.assertTrue(incremental_deep.store.key.endswith("quality-incremental-deep-shard-0.bin"))
         with self.assertRaisesRegex(ValueError, "QC_BACKUP_LANE_INVALID"):
             backup.QualityBackup(client, "chess-data", 0, encoded, "unknown")
 

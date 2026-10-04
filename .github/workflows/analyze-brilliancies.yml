@@ -83,3 +83,87 @@ jobs:
           path: ${{ runner.temp }}/brilliancy-summary-${{ matrix.shard }}.json
           retention-days: 14
           if-no-files-found: ignore
+
+  quality:
+    # Only the newly archived queue is read here. Historical candidates remain
+    # with the maintainer's separately owned local first/deep checkpoints.
+    needs: analyze
+    if: needs.analyze.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 85
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - uses: ./.github/actions/setup-python-deps
+        with:
+          python-version: '3.13'
+          packages: chess==1.11.2 boto3==1.43.51 'cryptography>=46,<47'
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/stockfish-engines
+          key: brilliancy-sf16-sf171-linux-avx2-v1
+      - name: Verify pinned official Stockfish binaries
+        env:
+          ENGINE_DIR: ${{ runner.temp }}/stockfish-engines
+        run: |
+          set -euo pipefail
+          mkdir -p "$ENGINE_DIR"
+          for version in sf_16 sf_17.1; do
+            target="$ENGINE_DIR/stockfish-$version"
+            if [ ! -f "$target" ]; then
+              archive="$RUNNER_TEMP/stockfish-$version.tar"
+              curl --fail --location --silent --show-error --retry 2 \
+                "https://github.com/official-stockfish/Stockfish/releases/download/$version/stockfish-ubuntu-x86-64-avx2.tar" \
+                -o "$archive"
+              if [ "$version" = sf_16 ]; then
+                echo "9a461f249ccf64689706782b12e0d00e47cb9474b67ea77f2ba1a66b1e793b17  $archive" | sha256sum -c -
+              else
+                echo "09e953222dbe80aaea5c33dab265413b295cb8376418445c877708c61e31987d  $archive" | sha256sum -c -
+              fi
+              tar -xOf "$archive" stockfish/stockfish-ubuntu-x86-64-avx2 > "$target.tmp"
+              chmod 755 "$target.tmp"
+              mv "$target.tmp" "$target"
+            fi
+          done
+          echo "8f60a016dc767e0d648a8665b8ede3e6e4d28c086ad90517ad26f55b9960bd84  $ENGINE_DIR/stockfish-sf_16" | sha256sum -c -
+          echo "7fecbc0b26454b62be5e3b237b58dc5666401b56e520aeb1b0bf8f53fa8f2ef3  $ENGINE_DIR/stockfish-sf_17.1" | sha256sum -c -
+          chmod 755 "$ENGINE_DIR/stockfish-sf_16" "$ENGINE_DIR/stockfish-sf_17.1"
+      - name: Independently review new candidate positions and checkpoint encrypted evidence
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          BRILLIANCY_QUEUE_KEY: ${{ secrets.BRILLIANCY_QUEUE_KEY }}
+          QUALITY_SHARD: ${{ matrix.shard }}
+          ENGINE_DIR: ${{ runner.temp }}/stockfish-engines
+        run: |
+          set -euo pipefail
+          python3 Scripts/brilliancy_incremental_quality.py \
+            --shard "$QUALITY_SHARD" \
+            --engines "$ENGINE_DIR/stockfish-sf_16" "$ENGINE_DIR/stockfish-sf_17.1" \
+            --seconds 3000 --max-new 100 --backup-every 5 \
+            --summary "$RUNNER_TEMP/brilliancy-quality-$QUALITY_SHARD.json"
+      - name: Report private quality progress
+        if: always()
+        env:
+          QUALITY_SHARD: ${{ matrix.shard }}
+        run: |
+          if [ -f "$RUNNER_TEMP/brilliancy-quality-$QUALITY_SHARD.json" ]; then
+            cat "$RUNNER_TEMP/brilliancy-quality-$QUALITY_SHARD.json" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Quality run did not finish; authenticated R2 checkpoints retain prior batches.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: brilliancy-quality-${{ matrix.shard }}
+          path: ${{ runner.temp }}/brilliancy-quality-${{ matrix.shard }}.json
+          retention-days: 14
+          if-no-files-found: ignore
