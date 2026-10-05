@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20261005T061638Z-5ef00303",
-  "generatedAt": "2026-10-05T06:27:39+00:00",
+  "snapshotId": "20261005T103442Z-f9d5c86e",
+  "generatedAt": "2026-10-05T10:45:53+00:00",
   "player": {
     "fideID": "8661324",
     "id": "fide-8661324",
@@ -17,15 +17,15 @@
     ]
   },
   "totals": {
-    "games": 9,
-    "archivedGames": 9,
-    "playableGames": 8,
+    "games": 10,
+    "archivedGames": 10,
+    "playableGames": 9,
     "excludedGames": 1,
-    "events": 2,
-    "pgnEvents": 2,
+    "events": 3,
+    "pgnEvents": 3,
     "participationEvents": 1,
     "packages": 2,
-    "bytes": 16010,
+    "bytes": 25008,
     "stages": {}
   },
   "packages": [
@@ -33,13 +33,14 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8661324/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/16/1643d035197794d87e8040f46eb450ddbd4225fc6d1f3728cdcf3a378b4a15ba.pgn",
-      "objectPath": "data/pgn/objects/sha256/16/1643d035197794d87e8040f46eb450ddbd4225fc6d1f3728cdcf3a378b4a15ba.pgn",
-      "gameCount": 8,
-      "pgnBytes": 8004,
-      "sha256": "1643d035197794d87e8040f46eb450ddbd4225fc6d1f3728cdcf3a378b4a15ba",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/b8/b8e51be066a6a1f4699c5bfb958a41907640e2b6503de7378ebc57a2c3df5441.pgn",
+      "objectPath": "data/pgn/objects/sha256/b8/b8e51be066a6a1f4699c5bfb958a41907640e2b6503de7378ebc57a2c3df5441.pgn",
+      "gameCount": 9,
+      "pgnBytes": 12503,
+      "sha256": "b8e51be066a6a1f4699c5bfb958a41907640e2b6503de7378ebc57a2c3df5441",
       "stages": {},
       "sources": [
+        "Lichess Broadcasts",
         "Static PGN"
       ]
     },
@@ -47,18 +48,35 @@
       "id": "adult",
       "label": "adult PGN",
       "pgnPath": "data/pgn/by-player/fide-8661324/adult.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/a4/a43f81f416262e8632a8f67b0046bf8d27b4dea4389fca562235c4371f950a92.pgn",
-      "objectPath": "data/pgn/objects/sha256/a4/a43f81f416262e8632a8f67b0046bf8d27b4dea4389fca562235c4371f950a92.pgn",
-      "gameCount": 8,
-      "pgnBytes": 8006,
-      "sha256": "a43f81f416262e8632a8f67b0046bf8d27b4dea4389fca562235c4371f950a92",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/d1/d1d2e9085ae1fd41cdc42be2cbb9194bd068d0c42f5d498a3869c879524af031.pgn",
+      "objectPath": "data/pgn/objects/sha256/d1/d1d2e9085ae1fd41cdc42be2cbb9194bd068d0c42f5d498a3869c879524af031.pgn",
+      "gameCount": 9,
+      "pgnBytes": 12505,
+      "sha256": "d1d2e9085ae1fd41cdc42be2cbb9194bd068d0c42f5d498a3869c879524af031",
       "stages": {},
       "sources": [
+        "Lichess Broadcasts",
         "Static PGN"
       ]
     }
   ],
   "events": [
+    {
+      "id": "ev-b4062ef40361bdc3",
+      "source": "Lichess Broadcasts",
+      "name": "2026年全国国际象棋棋协大师赛 (吐鲁番站) 公开组",
+      "date": "2026-09-28",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": false
+    },
     {
       "id": "chess-results:1504144",
       "source": "",
@@ -96,6 +114,33 @@
     }
   ],
   "games": [
+    {
+      "id": "0563e486062d178ddedf985e80c59c40c83615a907e13085369d41872cff1f02",
+      "event": "2026年全国国际象棋棋协大师赛 (吐鲁番站) 公开组",
+      "date": "2026-09-28",
+      "white": "Yilihamu Aji",
+      "black": "Xu, Yiming",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "9",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sha256": "0563e486062d178ddedf985e80c59c40c83615a907e13085369d41872cff1f02",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 86,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
     {
       "id": "c318318b7613410a2c4033542abec3d8f8f384a60634af088224f01948207290",
       "event": "2026 National CCA Master Tournament - Open (Turpan Station)",

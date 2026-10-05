@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20261005T061638Z-5ef00303",
-  "generatedAt": "2026-10-05T06:27:39+00:00",
+  "snapshotId": "20261005T103442Z-f9d5c86e",
+  "generatedAt": "2026-10-05T10:45:53+00:00",
   "player": {
     "fideID": "8626880",
     "id": "fide-8626880",
@@ -20,15 +20,15 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "archivedGames": 1,
-    "playableGames": 1,
+    "games": 2,
+    "archivedGames": 2,
+    "playableGames": 2,
     "excludedGames": 0,
-    "events": 1,
-    "pgnEvents": 1,
+    "events": 2,
+    "pgnEvents": 2,
     "participationEvents": 1,
-    "packages": 2,
-    "bytes": 7490,
+    "packages": 3,
+    "bytes": 19115,
     "stages": {
       "U18": 1
     }
@@ -38,11 +38,11 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8626880/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/ea/eac2e2310ba8d2081ac64b61c175df8fad8c0665860ce5caccc7d7056bb1ae57.pgn",
-      "objectPath": "data/pgn/objects/sha256/ea/eac2e2310ba8d2081ac64b61c175df8fad8c0665860ce5caccc7d7056bb1ae57.pgn",
-      "gameCount": 1,
-      "pgnBytes": 3745,
-      "sha256": "eac2e2310ba8d2081ac64b61c175df8fad8c0665860ce5caccc7d7056bb1ae57",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/6a/6a95e6cdb2a3e720170890f273044ba9d3db4bebc1c23fd4b4a94cfb278ebd12.pgn",
+      "objectPath": "data/pgn/objects/sha256/6a/6a95e6cdb2a3e720170890f273044ba9d3db4bebc1c23fd4b4a94cfb278ebd12.pgn",
+      "gameCount": 2,
+      "pgnBytes": 9510,
+      "sha256": "6a95e6cdb2a3e720170890f273044ba9d3db4bebc1c23fd4b4a94cfb278ebd12",
       "stages": {
         "U18": 1
       },
@@ -65,9 +65,39 @@
       "sources": [
         "Lichess Broadcasts"
       ]
+    },
+    {
+      "id": "adult",
+      "label": "adult PGN",
+      "pgnPath": "data/pgn/by-player/fide-8626880/adult.pgn",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/9f/9f45aa1f83c325da355eb170f493243e0d2f24431bb8a71953d3705b72bf049c.pgn",
+      "objectPath": "data/pgn/objects/sha256/9f/9f45aa1f83c325da355eb170f493243e0d2f24431bb8a71953d3705b72bf049c.pgn",
+      "gameCount": 1,
+      "pgnBytes": 5860,
+      "sha256": "9f45aa1f83c325da355eb170f493243e0d2f24431bb8a71953d3705b72bf049c",
+      "stages": {},
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
+    {
+      "id": "ev-0ac95ecbf836a6eb",
+      "source": "Lichess Broadcasts",
+      "name": "2026年全国国际象棋成人业余棋王挑战赛",
+      "date": "2026-09-12",
+      "tournamentID": "",
+      "canonicalEventID": null,
+      "stage": "adult",
+      "naturalStage": "adult",
+      "eventStage": "",
+      "gameCount": 1,
+      "results": {
+        "0-1": 1
+      },
+      "nameTranslationPending": false
+    },
     {
       "id": "ev-d0ebc064047ebf58",
       "source": "Lichess Broadcasts",
@@ -86,6 +116,33 @@
     }
   ],
   "games": [
+    {
+      "id": "fb95e94dc88d90fd41fd48d490b77475fae0ea1fab95e2d392868e0c65163544",
+      "event": "2026年全国国际象棋成人业余棋王挑战赛",
+      "date": "2026-09-12",
+      "white": "Yang, Zixiao",
+      "black": "Zhang, Haoxu",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "4",
+      "stage": "adult",
+      "naturalStage": "adult",
+      "role": "white",
+      "sourcePgnPath": "data/bulk/youth/pgn/adult/lichess-broadcast-adult.pgn",
+      "sourceIndexPath": "data/bulk/youth/index/adult/games.json",
+      "sha256": "fb95e94dc88d90fd41fd48d490b77475fae0ea1fab95e2d392868e0c65163544",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 112,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
     {
       "id": "6cb68abcb9738216f7322d360ed179194d7a69255feb5fb4841a4852ffb114bb",
       "event": "Chinese Youth Championship 2024 | B20",

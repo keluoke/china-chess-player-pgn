@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "snapshotId": "20261005T061638Z-5ef00303",
-  "generatedAt": "2026-10-05T06:27:39+00:00",
+  "snapshotId": "20261005T103442Z-f9d5c86e",
+  "generatedAt": "2026-10-05T10:45:53+00:00",
   "player": {
     "fideID": "8626952",
     "id": "fide-8626952",
@@ -18,17 +18,17 @@
     ]
   },
   "totals": {
-    "games": 1,
-    "archivedGames": 1,
-    "playableGames": 1,
+    "games": 2,
+    "archivedGames": 2,
+    "playableGames": 2,
     "excludedGames": 0,
     "events": 1,
     "pgnEvents": 1,
     "participationEvents": 1,
     "packages": 2,
-    "bytes": 1900,
+    "bytes": 8560,
     "stages": {
-      "U18": 1
+      "U18": 2
     }
   },
   "packages": [
@@ -36,50 +36,82 @@
       "id": "all",
       "label": "全部 PGN",
       "pgnPath": "data/pgn/by-player/fide-8626952/all.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/55/559daba5922a1d1f6012c9c69137a51b7352993b6d7dcbdb2002ae50623d2e0f.pgn",
-      "objectPath": "data/pgn/objects/sha256/55/559daba5922a1d1f6012c9c69137a51b7352993b6d7dcbdb2002ae50623d2e0f.pgn",
-      "gameCount": 1,
-      "pgnBytes": 950,
-      "sha256": "559daba5922a1d1f6012c9c69137a51b7352993b6d7dcbdb2002ae50623d2e0f",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/8d/8d5da09ebe7a11ea717f2b28d153c95ad2d53bf7bdbe8ea28c92073b79732446.pgn",
+      "objectPath": "data/pgn/objects/sha256/8d/8d5da09ebe7a11ea717f2b28d153c95ad2d53bf7bdbe8ea28c92073b79732446.pgn",
+      "gameCount": 2,
+      "pgnBytes": 4280,
+      "sha256": "8d5da09ebe7a11ea717f2b28d153c95ad2d53bf7bdbe8ea28c92073b79732446",
       "stages": {
-        "U18": 1
+        "U18": 2
       },
-      "sources": []
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     },
     {
       "id": "U18",
       "label": "U18 PGN",
       "pgnPath": "data/pgn/by-player/fide-8626952/U18.pgn",
-      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/cd/cdbe0d329879ecc81738ca7b4edd08e1ada1cc0fbd7ef46b0a8b86a748b10a6a.pgn",
-      "objectPath": "data/pgn/objects/sha256/cd/cdbe0d329879ecc81738ca7b4edd08e1ada1cc0fbd7ef46b0a8b86a748b10a6a.pgn",
-      "gameCount": 1,
-      "pgnBytes": 950,
-      "sha256": "cdbe0d329879ecc81738ca7b4edd08e1ada1cc0fbd7ef46b0a8b86a748b10a6a",
+      "publicURL": "https://data.chessdb.aigclabs.cc/data/pgn/objects/sha256/e5/e5217962ce8c57650bc7d31cd5cc64077220860f596a600ba78cd3a5c4ed7b65.pgn",
+      "objectPath": "data/pgn/objects/sha256/e5/e5217962ce8c57650bc7d31cd5cc64077220860f596a600ba78cd3a5c4ed7b65.pgn",
+      "gameCount": 2,
+      "pgnBytes": 4280,
+      "sha256": "e5217962ce8c57650bc7d31cd5cc64077220860f596a600ba78cd3a5c4ed7b65",
       "stages": {
-        "U18": 1
+        "U18": 2
       },
-      "sources": []
+      "sources": [
+        "Lichess Broadcasts"
+      ]
     }
   ],
   "events": [
     {
-      "id": "chess-results:1503819",
-      "source": "",
-      "name": "2026 National CCA Master Tournament - Open (Jian Station)",
+      "id": "lichess-broadcasts:1503819",
+      "source": "Lichess Broadcasts",
+      "name": "2026年全国国际象棋棋协大师赛 (吉安站)",
       "date": "2026-09-28",
       "tournamentID": "1503819",
       "canonicalEventID": null,
       "stage": "U18",
       "naturalStage": "U18",
       "eventStage": "",
-      "gameCount": 1,
+      "gameCount": 2,
       "results": {
-        "0-1": 1
+        "0-1": 2
       },
-      "nameTranslationPending": true
+      "nameTranslationPending": false
     }
   ],
   "games": [
+    {
+      "id": "c7a83d9198496abbd1188562b5c849ce479ffdb9d6894266c01c143177b03728",
+      "event": "2026年全国国际象棋棋协大师赛 (吉安站)",
+      "date": "2026-09-28",
+      "white": "Wang, Zhaoxu",
+      "black": "Jiang, Liu",
+      "result": "0-1",
+      "source": "Lichess Broadcasts",
+      "round": "2",
+      "stage": "U18",
+      "naturalStage": "U18",
+      "role": "white",
+      "rank": "34",
+      "tournamentID": "1503819",
+      "sourcePgnPath": "data/bulk/lichess-events/pgn/tnr1503819.pgn",
+      "sha256": "c7a83d9198496abbd1188562b5c849ce479ffdb9d6894266c01c143177b03728",
+      "quality": {
+        "version": 1,
+        "parser": "python-chess/1.11.2",
+        "parseStatus": "legal",
+        "legalPlies": 90,
+        "replayable": true,
+        "finished": true,
+        "resultStatus": "unverified",
+        "resultStatsEligible": true,
+        "errors": []
+      }
+    },
     {
       "id": "d6fc6097b861b255dc632975bd092b132f6717dbe3af0d9313642485085fd804",
       "event": "2026 National CCA Master Tournament - Open (Jian Station)",
