@@ -228,6 +228,25 @@ class BrillianciesBuildAndValidationTests(unittest.TestCase):
             shard = json.loads((self.shards_dir / f"{item['id'][3]}.json").read_text())
             self.assertTrue(shard["items"][item["id"]]["game"]["movesUci"])
 
+    def test_packed_layout_replaces_legacy_files_and_validates_pgn(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._setup_mock_environment(root)
+            builder.build(root, sid="packed-snap", shard_prefix_length=2)
+            manifest = json.loads((root / "docs/data/brilliancies/manifest.json").read_text())
+            self.assertEqual(manifest["shardPrefixLength"], 2)
+            self.assertEqual(manifest["pgnLayout"], "shards")
+            self.assertEqual(len(manifest["shards"]), 256)
+            self.assertEqual(list((root / "docs/data/brilliancies/pgn").glob("*.pgn")), [])
+            self.assertEqual(validator.validate_brilliancies(root)["shardsChecked"], 256)
+            item_id = json.loads((root / "docs/data/brilliancies/items.json").read_text())[0]["id"]
+            shard_path = root / f"docs/data/brilliancies/shards/{item_id[3:5]}.json"
+            shard = json.loads(shard_path.read_text())
+            del shard["pgn"][item_id]
+            shard_path.write_text(json.dumps(shard), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "PGN_SNIPPET_MISSING"):
+                validator.validate_brilliancies(root)
+
     def test_shards_are_partitioned_by_hash_hex_char(self):
         for i in range(16):
             shard_key = hex(i)[2:]

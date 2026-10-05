@@ -9,7 +9,7 @@ and outputs docs/data/brilliancies/manifest.json.
 
 Design Constraints:
 - Registry is authoritative for player display names and ratings.
-- Deterministic sharding by ID hash prefix (16 buckets '0' to 'f').
+- Deterministic sharding by one or two ID hash digits as the catalogue grows.
 - File size budget: manifest < 1 MiB, each shard bucket < 2 MiB.
 - No source links or private capture paths in public projections.
 """
@@ -250,6 +250,8 @@ def build_openapi_spec() -> Dict[str, Any]:
                         "engineVersion": {"type": "string"},
                         "ruleVersion": {"type": "string"},
                         "shards": {"type": "array", "items": {"type": "string"}},
+                        "shardPrefixLength": {"type": "integer", "enum": [1, 2]},
+                        "pgnLayout": {"type": "string", "enum": ["files", "shards"]},
                         "scanCoverage": {"type": "object"},
                     },
                 },
@@ -310,7 +312,8 @@ def build_openapi_spec() -> Dict[str, Any]:
     }
 
 
-def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any]:
+def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
+          shard_prefix_length: Optional[int] = None) -> Dict[str, Any]:
     root = pathlib.Path(root).resolve()
     sid = sid or snapshot_id()
     now_iso = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
@@ -331,6 +334,11 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
     curated_data = json.loads(curated_path.read_text(encoding="utf-8"))
     raw_items = curated_data.get("items", [])
     scan_coverage = {"status": "not-measured", "published": 0}
+    if shard_prefix_length is None:
+        shard_prefix_length = 2 if len(raw_items) > 255 else 1
+    if shard_prefix_length not in (1, 2):
+        raise ValueError("BRILLIANCY_SHARD_PREFIX_INVALID")
+    packed_pgn = shard_prefix_length == 2
 
 
     archive_cache = {}
@@ -338,7 +346,10 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
     wanted_fingerprints = {row["game"]["fingerprint"] for row in raw_items}
     published_items = []
     published_ids = set()
-    shards: Dict[str, Dict[str, Any]] = {hex(i)[2:]: {} for i in range(16)}
+    seen_ids = set()
+    shard_keys = [f"{i:0{shard_prefix_length}x}" for i in range(16 ** shard_prefix_length)]
+    shards: Dict[str, Dict[str, Any]] = {key: {} for key in shard_keys}
+    shard_pgn: Dict[str, Dict[str, str]] = {key: {} for key in shard_keys}
 
     # Ensure directories exist
     target_shards_dir.mkdir(parents=True, exist_ok=True)
@@ -353,8 +364,9 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
 
         if status not in ("published", "withdrawn"):
             raise ValueError(f"INVALID_STATUS: {status}")
-        if any(b_id in bucket for bucket in shards.values()):
+        if b_id in seen_ids:
             raise ValueError(f"DUPLICATE_BRILLIANCY_ID: {b_id}")
+        seen_ids.add(b_id)
 
         # Verify ID formula
         expected_id = compute_brilliancy_id(
@@ -439,14 +451,17 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
         }
 
         # Shard bucket assignment
-        hex_char = b_id.removeprefix("br-")[0].lower()
-        shards[hex_char][b_id] = item
+        bucket = b_id.removeprefix("br-")[:shard_prefix_length].lower()
+        shards[bucket][b_id] = item
 
         # Generate PGN snippet: only published items get a public PGN file
         pgn_path = target_pgn_dir / f"{b_id}.pgn"
         if status == "published":
             pgn_text = generate_annotated_pgn(item)
-            pgn_path.write_text(pgn_text, encoding="utf-8")
+            if packed_pgn:
+                shard_pgn[bucket][b_id] = pgn_text
+            else:
+                pgn_path.write_text(pgn_text, encoding="utf-8")
             published_ids.add(b_id)
 
             summary = {
@@ -483,9 +498,9 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
             if pgn_path.is_file():
                 pgn_path.unlink()
 
-    # Clean up any stale PGN files in target_pgn_dir not in published_ids
+    # A packed snapshot must not retain thousands of old individual PGN files.
     for existing_pgn in target_pgn_dir.glob("*.pgn"):
-        if existing_pgn.stem not in published_ids:
+        if packed_pgn or existing_pgn.stem not in published_ids:
             existing_pgn.unlink()
 
     # Sort published items (featured order as in curated)
@@ -500,11 +515,16 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
             "total": len(bucket_items),
             "items": bucket_items,
         }
+        if packed_pgn:
+            shard_payload["pgn"] = shard_pgn[bucket_char]
         shard_path = target_shards_dir / f"{bucket_char}.json"
         write_json(shard_path, shard_payload)
         # Check size limit: 2 MiB
         if shard_path.stat().st_size > 2 * 1024 * 1024:
             raise ValueError(f"SHARD_SIZE_LIMIT_EXCEEDED: {shard_path} > 2MB")
+    for old_shard in target_shards_dir.glob("*.json"):
+        if old_shard.stem not in shards:
+            old_shard.unlink()
 
     # Write manifest
     scan_coverage["published"] = len(published_items)
@@ -516,6 +536,8 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
         "engineVersion": "Stockfish 17.1",
         "ruleVersion": "2026-09-v1",
         "shards": sorted(list(shards.keys())),
+        "shardPrefixLength": shard_prefix_length,
+        "pgnLayout": "shards" if packed_pgn else "files",
         "scanCoverage": scan_coverage,
         "generatedAt": now_iso,
     }

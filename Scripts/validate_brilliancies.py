@@ -109,10 +109,23 @@ def validate_brilliancies(
             if fide_id:
                 registry[str(fide_id)] = p
 
-    # Verify shards
+    # Verify the exact declared layout; stale shards must not be served by ID.
+    prefix_length = manifest.get("shardPrefixLength", 1)
+    pgn_layout = manifest.get("pgnLayout", "files")
+    if prefix_length not in (1, 2) or pgn_layout not in ("files", "shards"):
+        raise ValueError("BRILLIANCIES_SHARD_LAYOUT_INVALID")
+    if (prefix_length == 2) != (pgn_layout == "shards"):
+        raise ValueError("BRILLIANCIES_SHARD_LAYOUT_INVALID")
+    expected_keys = {f"{i:0{prefix_length}x}" for i in range(16 ** prefix_length)}
+    declared_shards = manifest.get("shards", [])
+    if (not isinstance(declared_shards, list) or len(declared_shards) != len(expected_keys)
+            or set(declared_shards) != expected_keys):
+        raise ValueError("BRILLIANCIES_SHARD_MANIFEST_INVALID")
+    if {path.stem for path in shards_dir.glob("*.json")} != expected_keys:
+        raise ValueError("BRILLIANCIES_SHARD_FILES_INVALID")
     shards: Dict[str, Dict[str, Any]] = {}
-    for i in range(16):
-        hex_char = hex(i)[2:]
+    packed_pgns: Dict[str, Dict[str, str]] = {}
+    for hex_char in sorted(expected_keys):
         shard_path = shards_dir / f"{hex_char}.json"
         if not shard_path.is_file():
             raise RuntimeError(f"BRILLIANCIES_SHARD_MISSING: {hex_char}.json")
@@ -121,7 +134,17 @@ def validate_brilliancies(
         shard_data = json.loads(shard_path.read_text(encoding="utf-8"))
         if shard_data.get("snapshotId") != sid:
             raise ValueError(f"SHARD_SNAPSHOT_MISMATCH: {hex_char}.json")
-        shards[hex_char] = shard_data.get("items", {})
+        if shard_data.get("bucket") != hex_char:
+            raise ValueError(f"SHARD_BUCKET_MISMATCH: {hex_char}.json")
+        bucket_items = shard_data.get("items", {})
+        if not isinstance(bucket_items, dict) or shard_data.get("total") != len(bucket_items):
+            raise ValueError(f"SHARD_TOTAL_MISMATCH: {hex_char}.json")
+        shards[hex_char] = bucket_items
+        packed_pgns[hex_char] = shard_data.get("pgn", {})
+        if not isinstance(packed_pgns[hex_char], dict):
+            raise ValueError(f"SHARD_PGN_INVALID: {hex_char}.json")
+        if pgn_layout == "files" and packed_pgns[hex_char]:
+            raise ValueError(f"SHARD_PGN_LAYOUT_MISMATCH: {hex_char}.json")
 
     published_ids = set()
     player_games_cache: Dict[str, set] = {}
@@ -134,7 +157,7 @@ def validate_brilliancies(
         if not b_id.startswith("br-"):
             raise ValueError(f"INVALID_BRILLIANCY_ID_FORMAT: {b_id}")
 
-        hex_char = b_id.removeprefix("br-")[0].lower()
+        hex_char = b_id.removeprefix("br-")[:prefix_length].lower()
         if b_id not in shards[hex_char]:
             raise ValueError(f"ITEM_MISSING_FROM_SHARD: {b_id} not in shard {hex_char}")
 
@@ -424,9 +447,14 @@ def validate_brilliancies(
 
         # Check PGN snippet
         pgn_file = pgn_dir / f"{b_id}.pgn"
-        if not pgn_file.is_file():
-            raise RuntimeError(f"PGN_SNIPPET_MISSING: {b_id}.pgn")
-        pgn_text = pgn_file.read_text(encoding="utf-8")
+        if pgn_layout == "shards":
+            pgn_text = packed_pgns[hex_char].get(b_id)
+            if not isinstance(pgn_text, str):
+                raise RuntimeError(f"PGN_SNIPPET_MISSING: {b_id}.pgn")
+        else:
+            if not pgn_file.is_file():
+                raise RuntimeError(f"PGN_SNIPPET_MISSING: {b_id}.pgn")
+            pgn_text = pgn_file.read_text(encoding="utf-8")
         validate_privacy(pgn_text, f"pgn {b_id}")
         parsed_game = chess.pgn.read_game(io.StringIO(pgn_text))
         if not parsed_game or parsed_game.errors:
@@ -452,12 +480,25 @@ def validate_brilliancies(
     # Check that withdrawn items in shards are NOT in items.json and have NO pgn file
     for hex_char, bucket in shards.items():
         for item_id, item in bucket.items():
+            if not item_id.removeprefix("br-").startswith(hex_char):
+                raise ValueError(f"SHARD_ID_MISPLACED: {item_id}")
+            if item.get("status") == "published" and item_id not in published_ids:
+                raise ValueError(f"PUBLISHED_ITEM_MISSING_FROM_LIST: {item_id}")
             if item.get("status") == "withdrawn":
                 if item_id in published_ids:
                     raise ValueError(f"WITHDRAWN_ITEM_PUBLISHED: {item_id} is in items.json")
                 withdrawn_pgn = pgn_dir / f"{item_id}.pgn"
                 if withdrawn_pgn.is_file():
                     raise ValueError(f"WITHDRAWN_PGN_STILL_EXISTS: {item_id}.pgn should be deleted")
+                if item_id in packed_pgns[hex_char]:
+                    raise ValueError(f"WITHDRAWN_PGN_STILL_EXISTS: {item_id}.pgn should be deleted")
+        if pgn_layout == "shards" and set(packed_pgns[hex_char]) != {
+                item_id for item_id, item in bucket.items() if item.get("status") == "published"}:
+            raise ValueError(f"SHARD_PGN_COVERAGE_MISMATCH: {hex_char}.json")
+    if pgn_layout == "shards" and any(pgn_dir.glob("*.pgn")):
+        raise ValueError("BRILLIANCIES_STALE_PGN_FILES")
+    if pgn_layout == "files" and {path.stem for path in pgn_dir.glob("*.pgn")} != published_ids:
+        raise ValueError("BRILLIANCIES_PGN_FILES_MISMATCH")
 
     # Check OpenAPI spec
     openapi_path = data_dir / "openapi.json"
@@ -470,7 +511,7 @@ def validate_brilliancies(
     return {
         "snapshotId": sid,
         "validItems": len(items),
-        "shardsChecked": 16,
+        "shardsChecked": len(shards),
         "manifestBytes": manifest_path.stat().st_size,
     }
 

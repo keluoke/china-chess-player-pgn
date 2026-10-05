@@ -11,6 +11,8 @@
   const state = {
     items: [],
     filteredItems: [],
+    listPage: 0,
+    shardPrefixLength: 1,
     currentItem: null,
     currentDetail: null,
     selectionSerial: 0,
@@ -378,7 +380,7 @@
 
   async function loadDetail(id, snapshot) {
     try {
-      const bucket = id.replace("br-", "")[0].toLowerCase();
+      const bucket = id.slice(3, 3 + state.shardPrefixLength).toLowerCase();
       const resp = await fetch(`./data/brilliancies/shards/${bucket}.json`);
       if (!resp.ok) return null;
       const shard = await resp.json();
@@ -412,6 +414,7 @@
       return;
     }
     state.currentDetail = detail;
+    state.currentItem = detail;
     state.moveHistory = buildMoveHistory(detail);
     const verification = detail.verification || {};
     $("#metaEngine").textContent = verification.engine || "未记录";
@@ -597,7 +600,10 @@
       return;
     }
 
-    state.filteredItems.forEach((item) => {
+    const pageSize = 40;
+    const pageCount = Math.ceil(state.filteredItems.length / pageSize);
+    state.listPage = Math.min(state.listPage, pageCount - 1);
+    state.filteredItems.slice(state.listPage * pageSize, (state.listPage + 1) * pageSize).forEach((item) => {
       const card = document.createElement("div");
       card.className = "br-card";
       card.setAttribute("data-id", item.id);
@@ -626,28 +632,68 @@
       listEl.appendChild(card);
     });
 
+    if (pageCount > 1) {
+      const pager = document.createElement("nav");
+      pager.className = "br-list-pager";
+      pager.setAttribute("aria-label", "妙手列表分页");
+      for (const [label, nextPage, enabled] of [
+        ["上一页", state.listPage - 1, state.listPage > 0],
+        ["下一页", state.listPage + 1, state.listPage + 1 < pageCount],
+      ]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "br-list-page-button";
+        button.textContent = label;
+        button.disabled = !enabled;
+        button.addEventListener("click", () => {
+          state.listPage = nextPage;
+          state.currentItem = null;
+          state.selectionSerial++;
+          renderList();
+          listEl.scrollIntoView({ block: "start", behavior: "smooth" });
+        });
+        pager.appendChild(button);
+      }
+      const count = document.createElement("span");
+      count.textContent = `${state.listPage + 1} / ${pageCount} 页`;
+      pager.insertBefore(count, pager.lastChild);
+      listEl.appendChild(pager);
+    }
+
     if (!state.currentItem && state.filteredItems.length > 0) {
-      selectBrilliancy(state.filteredItems[0]);
+      selectBrilliancy(state.filteredItems[state.listPage * pageSize]);
     }
   }
 
   // Initialize
   async function init() {
     try {
-      const resp = await fetch("./data/brilliancies/items.json");
-      if (!resp.ok) {
+      const [resp, manifestResp] = await Promise.all([
+        fetch("./data/brilliancies/items.json"),
+        fetch("./data/brilliancies/manifest.json"),
+      ]);
+      if (!resp.ok || !manifestResp.ok) {
         $("#brTitle").textContent = "妙手数据加载失败";
         return;
       }
-      state.items = await resp.json();
-      renderList();
-
+      const [items, manifest] = await Promise.all([resp.json(), manifestResp.json()]);
+      const width = manifest.shardPrefixLength ?? 1;
+      if (![1, 2].includes(width) || !Array.isArray(items)
+          || items.some(item => item.snapshotId !== manifest.snapshotId)) {
+        $("#brTitle").textContent = "妙手快照不一致，请刷新后重试";
+        return;
+      }
+      state.shardPrefixLength = width;
+      state.items = items;
       const urlParams = new URLSearchParams(window.location.search);
       const requestedId = urlParams.get("id") || window.location.hash.replace("#", "");
-      if (requestedId) {
-        const found = state.items.find((i) => i.id === requestedId);
-        if (found) selectBrilliancy(found);
+      const requestedIndex = state.items.findIndex((i) => i.id === requestedId);
+      if (requestedIndex >= 0) {
+        state.listPage = Math.floor(requestedIndex / 40);
+        state.currentItem = state.items[requestedIndex];
       }
+      renderList();
+      if (requestedIndex >= 0) selectBrilliancy(state.items[requestedIndex]);
     } catch (err) {
       console.error(err);
       $("#brTitle").textContent = "妙手数据加载错误";
@@ -656,16 +702,25 @@
     // Event listeners
     $("#themeFilter")?.addEventListener("change", (e) => {
       state.themeFilter = e.target.value;
+      state.listPage = 0;
+      state.currentItem = null;
+      state.selectionSerial++;
       renderList();
     });
 
     $("#sortFilter")?.addEventListener("change", (e) => {
       state.sortBy = e.target.value;
+      state.listPage = 0;
+      state.currentItem = null;
+      state.selectionSerial++;
       renderList();
     });
 
     $("#searchInput")?.addEventListener("input", (e) => {
       state.searchQuery = e.target.value;
+      state.listPage = 0;
+      state.currentItem = null;
+      state.selectionSerial++;
       renderList();
     });
 

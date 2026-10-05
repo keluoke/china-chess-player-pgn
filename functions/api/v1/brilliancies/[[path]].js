@@ -38,6 +38,23 @@ function encodeCursor(obj) {
   return btoa(JSON.stringify(obj));
 }
 
+async function fetchDetailShard(context, id) {
+  const manifestUrl = new URL("/data/brilliancies/manifest.json", context.request.url);
+  const manifestResp = await context.env.ASSETS.fetch(manifestUrl);
+  if (!manifestResp.ok) return null;
+  let manifest;
+  try { manifest = await manifestResp.json(); }
+  catch { return null; }
+  const width = manifest?.shardPrefixLength ?? 1;
+  const pgnLayout = manifest?.pgnLayout ?? "files";
+  if (![1, 2].includes(width) || !["files", "shards"].includes(pgnLayout)
+      || typeof manifest?.snapshotId !== "string") return null;
+  const bucket = id.slice(3, 3 + width);
+  const shardUrl = new URL(`/data/brilliancies/shards/${bucket}.json`, context.request.url);
+  return { response: await context.env.ASSETS.fetch(shardUrl),
+    snapshotId: manifest.snapshotId, pgnLayout };
+}
+
 export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
@@ -125,18 +142,18 @@ export async function onRequestGet(context) {
   const jsonMatch = path.match(/^(br-[0-9a-fA-F]{64})\.json$/);
   if (jsonMatch) {
     const id = jsonMatch[1].toLowerCase();
-    const bucket = id.replace("br-", "")[0];
-    const shardUrl = new URL(`/data/brilliancies/shards/${bucket}.json`, context.request.url);
-    const shardResp = await context.env.ASSETS.fetch(shardUrl);
-    if (!shardResp.ok) return jsonResponse({ error: "shard_unavailable" }, 503);
+    const shard = await fetchDetailShard(context, id);
+    if (!shard?.response.ok) return jsonResponse({ error: "shard_unavailable" }, 503);
 
     let shardData;
     try {
-      shardData = await shardResp.json();
+      shardData = await shard.response.json();
     } catch {
       return jsonResponse({ error: "shard_invalid" }, 503);
     }
 
+    if (shardData.snapshotId !== shard.snapshotId)
+      return jsonResponse({ error: "shard_unavailable" }, 503);
     // Snapshot check if parameter supplied
     const requestedSnapshot = url.searchParams.get("snapshot");
     if (requestedSnapshot && shardData.snapshotId && requestedSnapshot !== shardData.snapshotId) {
@@ -171,13 +188,13 @@ export async function onRequestGet(context) {
   const pgnMatch = path.match(/^(br-[0-9a-fA-F]{64})\.pgn$/);
   if (pgnMatch) {
     const id = pgnMatch[1].toLowerCase();
-    const bucket = id.replace("br-", "")[0];
-    const shardUrl = new URL(`/data/brilliancies/shards/${bucket}.json`, context.request.url);
-    const shardResp = await context.env.ASSETS.fetch(shardUrl);
-    if (!shardResp.ok) return jsonResponse({ error: "shard_unavailable" }, 503);
+    const shard = await fetchDetailShard(context, id);
+    if (!shard?.response.ok) return jsonResponse({ error: "shard_unavailable" }, 503);
     let shardData;
-    try { shardData = await shardResp.json(); }
+    try { shardData = await shard.response.json(); }
     catch { return jsonResponse({ error: "shard_invalid" }, 503); }
+    if (shardData.snapshotId !== shard.snapshotId)
+      return jsonResponse({ error: "shard_unavailable" }, 503);
     const requestedSnapshot = url.searchParams.get("snapshot");
     if (requestedSnapshot && requestedSnapshot !== shardData.snapshotId)
       return jsonResponse({ error: "snapshot_changed", currentSnapshot: shardData.snapshotId }, 409);
@@ -189,8 +206,10 @@ export async function onRequestGet(context) {
     // Approved machine batches pack PGNs into detail shards to stay under the
     // static host's file-count budget. Retain the legacy file fallback while
     // an older snapshot is still serving during a code-only deploy.
-    let pgnText = shardData?.pgn?.[id];
+    let pgnText = shard.pgnLayout === "shards" ? shardData?.pgn?.[id] : undefined;
     if (typeof pgnText !== "string") {
+      if (shard.pgnLayout === "shards")
+        return jsonResponse({ error: "pgn_unavailable" }, 503);
       const pgnUrl = new URL(`/data/brilliancies/pgn/${id}.pgn`, context.request.url);
       const pgnResp = await context.env.ASSETS.fetch(pgnUrl);
       if (!pgnResp.ok) return new Response("PGN not found", { status: 404, headers: { "access-control-allow-origin": "*" } });

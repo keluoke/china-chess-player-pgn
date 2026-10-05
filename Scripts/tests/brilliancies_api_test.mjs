@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import {onRequestGet,onRequestHead} from '../../functions/api/v1/brilliancies/[[path]].js';
 const id='br-'+'a'.repeat(64), snapshotId='snapshot-test';
 const item={id,status:'published',white:{playerId:'fide-8602980'},black:{playerId:'fide-1'},themes:['queen-sacrifice'],event:{id:'event-test'}};
-let shardFailure=false, packedPgn=null, pgnFetches=0;
+let shardFailure=false, twoDigitMissing=false, packedPgn=null, pgnFetches=0;
+let shardPrefixLength=1, pgnLayout='files';
+const shardPaths=[];
 const assets=async input=>{
  const path=new URL(input).pathname;
- if(path.includes('/shards/')) return shardFailure ? new Response('',{status:503}) : Response.json({snapshotId,items:{[id]:item},pgn:packedPgn?{[id]:packedPgn}:{}});
+ if(path.includes('/shards/')) {shardPaths.push(path);return shardFailure ? new Response('',{status:503}) : twoDigitMissing && path.endsWith('/aa.json') ? new Response('',{status:404}) : Response.json({snapshotId,items:{[id]:item},pgn:packedPgn?{[id]:packedPgn}:{}});}
  if(path.endsWith('items.json'))return Response.json([item,{...item,id:'br-'+'b'.repeat(64)}]);
- if(path.endsWith('manifest.json'))return Response.json({snapshotId,total:2});
+ if(path.endsWith('manifest.json'))return Response.json({snapshotId,total:2,shardPrefixLength,pgnLayout});
  if(path.endsWith('.pgn')){pgnFetches++;return new Response('[Result "*"]\n\n1. e4 *');}
  return new Response('',{status:404});
 };
@@ -24,8 +26,18 @@ assert.equal((await onRequestGet(ctx(id+'.pgn','?snapshot=old'))).status,409);
 assert.equal((await onRequestGet(ctx(id+'.pgn'))).status,200);
 assert.equal(pgnFetches,1);
 packedPgn='[Result "*"]\n\n1. d4 *';
+shardPrefixLength=2;pgnLayout='shards';
 assert.equal(await (await onRequestGet(ctx(id+'.pgn'))).text(),packedPgn);
+assert.ok(shardPaths.at(-1).endsWith('/aa.json'));
 assert.equal(pgnFetches,1);
+twoDigitMissing=true;
+assert.equal((await onRequestGet(ctx(id+'.json'))).status,503);
+assert.ok(shardPaths.at(-1).endsWith('/aa.json'));
+twoDigitMissing=false;
+packedPgn=null;
+assert.equal((await onRequestGet(ctx(id+'.pgn'))).status,503);
+assert.equal(pgnFetches,1);
+packedPgn='[Result "*"]\n\n1. d4 *';
 item.status='withdrawn';for(const ext of ['json','pgn'])assert.equal((await onRequestGet(ctx(id+'.'+ext))).status,410);
 shardFailure=true;assert.equal((await onRequestGet(ctx(id+'.pgn'))).status,503);
 r=await onRequestGet(ctx('','?theme='+encodeURIComponent('中文\r\n"')));assert.equal(r.status,200);
