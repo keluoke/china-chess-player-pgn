@@ -219,6 +219,15 @@ class BrillianciesBuildAndValidationTests(unittest.TestCase):
         self.assertEqual(summary["shardsChecked"], 16)
         self.assertLess(summary["manifestBytes"], 1024 * 1024)
 
+    def test_list_keeps_full_move_arrays_in_detail_only(self):
+        summaries = json.loads(self.items_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(summaries), 10)
+        for item in summaries:
+            self.assertNotIn("movesUci", item["game"])
+            self.assertNotIn("movesSan", item["game"])
+            shard = json.loads((self.shards_dir / f"{item['id'][3]}.json").read_text())
+            self.assertTrue(shard["items"][item["id"]]["game"]["movesUci"])
+
     def test_shards_are_partitioned_by_hash_hex_char(self):
         for i in range(16):
             shard_key = hex(i)[2:]

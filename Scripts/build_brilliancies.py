@@ -454,7 +454,12 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None) -> Dict[str, Any
                 "snapshotId": sid,
                 "title": item.get("title", ""),
                 "summary": item.get("summary", ""),
-                "game": item.get("game", {}),
+                # The list is fetched on every browse. Full move arrays are
+                # available from the detail shard after the user selects one
+                # item; repeating them here makes a large approved set costly.
+                "game": {key: item.get("game", {}).get(key)
+                         for key in ("id", "fingerprint", "result", "totalMoves")
+                         if item.get("game", {}).get(key) is not None},
                 "white": item.get("white", {}),
                 "black": item.get("black", {}),
                 "event": item.get("event", {}),

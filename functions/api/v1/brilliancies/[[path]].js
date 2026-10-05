@@ -186,10 +186,16 @@ export async function onRequestGet(context) {
     if (item.status === "withdrawn") return jsonResponse({ error: "withdrawn" }, 410);
     if (item.status !== "published") return jsonResponse({ error: "not_found" }, 404);
 
-    const pgnUrl = new URL(`/data/brilliancies/pgn/${id}.pgn`, context.request.url);
-    const pgnResp = await context.env.ASSETS.fetch(pgnUrl);
-    if (!pgnResp.ok) return new Response("PGN not found", { status: 404, headers: { "access-control-allow-origin": "*" } });
-    const pgnText = await pgnResp.text();
+    // Approved machine batches pack PGNs into detail shards to stay under the
+    // static host's file-count budget. Retain the legacy file fallback while
+    // an older snapshot is still serving during a code-only deploy.
+    let pgnText = shardData?.pgn?.[id];
+    if (typeof pgnText !== "string") {
+      const pgnUrl = new URL(`/data/brilliancies/pgn/${id}.pgn`, context.request.url);
+      const pgnResp = await context.env.ASSETS.fetch(pgnUrl);
+      if (!pgnResp.ok) return new Response("PGN not found", { status: 404, headers: { "access-control-allow-origin": "*" } });
+      pgnText = await pgnResp.text();
+    }
     return new Response(pgnText, {
       status: 200,
       headers: {
