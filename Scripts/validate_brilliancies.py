@@ -32,6 +32,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 import logging
 import build_static_player_pgn as pgn_helper
 import brilliancy_archive
+import brilliancy_publication_gate as publication_gate
 from snapshot_context import snapshot_id
 
 logging.getLogger("chess.pgn").setLevel(logging.CRITICAL)
@@ -168,6 +169,11 @@ def validate_brilliancies(
         status = full_item.get("status")
         if status not in ("published", "withdrawn"):
             raise ValueError(f"INVALID_STATUS in {b_id}: expected 'published' or 'withdrawn', got '{status}'")
+        if "qualityTier" in full_item or "qualityRuleVersion" in full_item:
+            if (full_item.get("qualityTier") not in ("S", "A")
+                    or full_item.get("qualityRuleVersion") != publication_gate.RULE_VERSION
+                    or full_item.get("classification", {}).get("ruleVersion") != publication_gate.RULE_VERSION):
+                raise ValueError(f"MACHINE_QUALITY_TIER_INVALID in {b_id}")
 
         # Privacy check on full item json
         validate_privacy(json.dumps(full_item, ensure_ascii=False), f"item {b_id}")

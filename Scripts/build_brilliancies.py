@@ -36,6 +36,7 @@ from snapshot_context import snapshot_id
 from stable_json import write_json
 import build_static_player_pgn as pgn_helper
 import brilliancy_archive
+import brilliancy_approved_store
 
 CURATED_PATH = ROOT / "data/manual/brilliancies/curated.json"
 REGISTRY_PLAYERS = ROOT / "docs/data/registry/players.json"
@@ -313,7 +314,8 @@ def build_openapi_spec() -> Dict[str, Any]:
 
 
 def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
-          shard_prefix_length: Optional[int] = None) -> Dict[str, Any]:
+          shard_prefix_length: Optional[int] = None,
+          *, allow_machine_preview: bool = False) -> Dict[str, Any]:
     root = pathlib.Path(root).resolve()
     sid = sid or snapshot_id()
     now_iso = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
@@ -332,8 +334,20 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
         raise RuntimeError(f"CURATED_BRILLIANCIES_MISSING: {curated_path}")
 
     curated_data = json.loads(curated_path.read_text(encoding="utf-8"))
-    raw_items = curated_data.get("items", [])
-    scan_coverage = {"status": "not-measured", "published": 0}
+    manual_items = curated_data.get("items", [])
+    approved_items = brilliancy_approved_store.load(root, allow_unreleased=allow_machine_preview)
+    manual_by_id = {item["id"]: item for item in manual_items}
+    raw_items = list(manual_items)
+    for item in approved_items:
+        prior = manual_by_id.get(item["id"])
+        if prior is not None:
+            identity = lambda row: (row["game"]["fingerprint"], row["position"]["ply"], row["move"]["uci"])
+            if identity(prior) != identity(item):
+                raise ValueError(f"BRILLIANCY_APPROVED_MANUAL_CONFLICT: {item['id']}")
+            continue  # An existing human-curated item remains the display authority.
+        raw_items.append(item)
+    scan_coverage = {"status": "not-measured", "published": 0,
+                     "machineApproved": len(raw_items) - len(manual_items)}
     if shard_prefix_length is None:
         shard_prefix_length = 2 if len(raw_items) > 255 else 1
     if shard_prefix_length not in (1, 2):
@@ -485,6 +499,7 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
                     "classification": item.get("classification", {}).get("symbol", "!!"),
                 },
                 "themes": item.get("themes", []),
+                **({"qualityTier": item["qualityTier"]} if item.get("qualityTier") else {}),
                 "verification": {
                     "engine": item.get("verification", {}).get("engine", "Stockfish 17.1"),
                     "evaluation": item.get("verification", {}).get("evaluation", {}),

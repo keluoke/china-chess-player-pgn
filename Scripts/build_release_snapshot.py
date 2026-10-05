@@ -127,6 +127,11 @@ def output_facts() -> list[dict]:
         ROOT / "data/manual/presentation-disputes.csv",
         ROOT / "data/manual/brilliancies/curated.json",
     ]
+    approved_dir = ROOT / "data/generated/brilliancies-approved"
+    paths.append(approved_dir / "manifest.json")
+    if approved_dir.is_dir():
+        paths.extend(sorted(path for path in approved_dir.glob("*.json")
+                            if path.name != "manifest.json"))
     return [file_fact(path) for path in paths]
 
 
@@ -311,6 +316,7 @@ def main() -> int:
     # unverified snapshot id in the worktree.
     outputs = [fact for fact in output_facts()
                if not fact["path"].startswith("data/manual/")
+               and not fact["path"].startswith("data/generated/brilliancies-approved/")
                and pathlib.Path(fact["path"]).name not in {"local-release-manifest.json", "chess-results-player-events.csv", "chess-results-player-name-map.csv", "events--chess-results.json"}]
     generated_at = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     previous_snapshot = SNAPSHOT_JSON.read_bytes() if SNAPSHOT_JSON.is_file() else None

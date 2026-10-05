@@ -15,6 +15,7 @@ Covers:
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import pathlib
 import shutil
@@ -38,6 +39,7 @@ from analyze_brilliancies import (  # noqa: E402
     score_to_pov_dict,
 )
 import validate_brilliancies as validator  # noqa: E402
+import brilliancy_publication_gate as publication_gate  # noqa: E402
 
 
 class BrillianciesIdAndHeuristicsTests(unittest.TestCase):
@@ -246,6 +248,43 @@ class BrillianciesBuildAndValidationTests(unittest.TestCase):
             shard_path.write_text(json.dumps(shard), encoding="utf-8")
             with self.assertRaisesRegex(RuntimeError, "PGN_SNIPPET_MISSING"):
                 validator.validate_brilliancies(root)
+
+    def test_machine_approved_layer_accepts_missing_metadata_and_pins_hash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._setup_mock_environment(root)
+            manual_path = root / "data/manual/brilliancies/curated.json"
+            manual = json.loads(manual_path.read_text())
+            machine = manual["items"].pop(0)
+            manual_path.write_text(json.dumps(manual), encoding="utf-8")
+            machine["white"]["playerId"] = None
+            machine["black"]["playerId"] = None
+            machine["event"]["id"] = "event-unknown"
+            machine["classification"]["ruleVersion"] = publication_gate.RULE_VERSION
+            machine["approval"] = {"tier": "S", "ruleVersion": publication_gate.RULE_VERSION,
+                                   "candidateHash": "a" * 64}
+            folder = root / "data/generated/brilliancies-approved"
+            folder.mkdir(parents=True)
+            bucket_name = machine["id"][3:5] + ".json"
+            bucket_path = folder / bucket_name
+            bucket_path.write_text(json.dumps({"schemaVersion": 1, "bucket": bucket_name[:2],
+                                               "items": [machine]}), encoding="utf-8")
+            raw = bucket_path.read_bytes()
+            (folder / "manifest.json").write_text(json.dumps({
+                "schemaVersion": 1, "qualityRuleVersion": publication_gate.RULE_VERSION,
+                "totalItems": 1,
+                "files": [{"path": bucket_name, "bytes": len(raw),
+                           "sha256": hashlib.sha256(raw).hexdigest()}],
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "BRILLIANCY_AUTO_PUBLICATION_CLOSED"):
+                builder.build(root, sid="machine-closed")
+            builder.build(root, sid="machine-test", allow_machine_preview=True)
+            self.assertEqual(validator.validate_brilliancies(root)["validItems"], 10)
+            summaries = json.loads((root / "docs/data/brilliancies/items.json").read_text())
+            self.assertEqual(next(row for row in summaries if row["id"] == machine["id"])["qualityTier"], "S")
+            bucket_path.write_text(bucket_path.read_text() + " ", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "BRILLIANCY_APPROVED_HASH_MISMATCH"):
+                builder.build(root, sid="machine-test-2", allow_machine_preview=True)
 
     def test_shards_are_partitioned_by_hash_hex_char(self):
         for i in range(16):

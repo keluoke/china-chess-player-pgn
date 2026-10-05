@@ -105,10 +105,16 @@ class CollectorRuntimeTests(unittest.TestCase):
             "Scripts/build_player_participation.py",
             "Scripts/build_api.py",
             "Scripts/validate_snapshot_consistency.py",
+            "Scripts/brilliancy_archive.py",
+            "Scripts/brilliancy_approved_store.py",
+            "Scripts/brilliancy_publication_gate.py",
+            "Scripts/brilliancy_quality.py",
+            "Scripts/brilliancy_quality_gate.py",
             "data/community/name-corrections.csv",
             "data/community/federation-overrides.csv",
             "data/community/tournament-name-mappings.csv",
             "docs/data/index/public-events.json",
+            "docs/brilliancies.js",
         }
         self.assertFalse(required - set(rows))
         self.assertEqual(rows["docs/data/index/public-events.json"]["profiles"], ["event", "panel"])
