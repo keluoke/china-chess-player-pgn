@@ -41,6 +41,50 @@ def check_pgn(body, expected_count, sha=None):
         raise ValueError('CANARY_PGN_NOT_REPLAYABLE')
     return len(games)
 
+def check_brilliancies(site, snapshot):
+    """Verify ordinary list/detail/packed-PGN routes against this exact snapshot."""
+    sid = snapshot['snapshotId']
+    def certified(path):
+        refs = [row for row in snapshot['outputs'] if row['path'] == 'docs/' + path]
+        body, headers = fetch(urljoin(site+'/', path))
+        if (len(refs) != 1 or refs[0]['bytes'] != len(body)
+                or refs[0]['sha256'] != hashlib.sha256(body).hexdigest()
+                or 'json' not in headers.get('content-type', '')):
+            raise ValueError('CANARY_BRILLIANCY_BODY: ' + path)
+        return json.loads(body)
+    manifest = certified('data/brilliancies/manifest.json')
+    items = certified('data/brilliancies/items.json')
+    if manifest['snapshotId'] != sid or manifest['total'] != len(items):
+        raise ValueError('CANARY_BRILLIANCY_MANIFEST')
+    body, _ = fetch(urljoin(site+'/', 'api/v1/brilliancies?limit=2'))
+    listing = json.loads(body)
+    if listing.get('snapshotId') != sid or listing.get('total') != len(items):
+        raise ValueError('CANARY_BRILLIANCY_LIST')
+    samples = {}
+    for row in items:
+        group = row.get('qualityTier', 'manual')
+        samples.setdefault(group, row)
+    shards = {}
+    for row in samples.values():
+        cid = row['id']; prefix = cid[3:3+manifest['shardPrefixLength']]
+        if prefix not in shards:
+            shards[prefix] = certified(f'data/brilliancies/shards/{prefix}.json')
+        shard = shards[prefix]
+        body, _ = fetch(urljoin(site+'/', f'api/v1/brilliancies/{cid}.json'))
+        detail = json.loads(body)
+        if (shard['snapshotId'] != sid or detail != shard['items'].get(cid)
+                or detail.get('status') != 'published'):
+            raise ValueError('CANARY_BRILLIANCY_DETAIL')
+        body, headers = fetch(urljoin(site+'/', f'api/v1/brilliancies/{cid}.pgn'))
+        if 'chess-pgn' not in headers.get('content-type', ''):
+            raise ValueError('CANARY_BRILLIANCY_PGN_MIME')
+        check_pgn(body, 1)
+        if manifest.get('pgnLayout') == 'shards' and body.decode() != shard['pgn'].get(cid):
+            raise ValueError('CANARY_BRILLIANCY_PGN_BODY')
+        fetch(urljoin(site+'/', f'api/v1/brilliancies/{cid}.json?snapshot=invalid-snapshot'), expected=409)
+    return {'check': 'brilliancies', 'ok': True, 'published': len(items),
+            'sampleTiers': sorted(samples), 'snapshotId': sid}
+
 def run_checks(site, expected_snapshot='', cors_only=False):
     checks = []
     for origin in ORIGINS:
@@ -109,6 +153,7 @@ def run_checks(site, expected_snapshot='', cors_only=False):
     metrics = get('data/public-metrics.json')['totals']
     if metrics.get('playableUniqueGames') != catalog['totals']['playableGames']:
         raise ValueError('CANARY_UNIQUE_METRICS')
+    checks.append(check_brilliancies(site, snapshot))
     if get('data/snapshot.json')['snapshotId'] != sid: raise ValueError('CANARY_SNAPSHOT_CHANGED')
     return {'snapshotId':sid, 'inputCommit':snapshot['inputCommit'], 'checks':checks, 'metrics':metrics}
 

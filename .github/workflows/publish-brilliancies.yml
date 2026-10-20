@@ -1,0 +1,93 @@
+name: Adjudicate and publish brilliancies
+run-name: Automatic brilliancy publication (${{ github.event_name }})
+
+on:
+  workflow_run:
+    workflows: ['Analyze new archived brilliancies']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: brilliancy-auto-publication-v1
+  cancel-in-progress: false
+
+jobs:
+  adjudicate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      input_sha: ${{ steps.base.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Pin immutable publication base
+        id: base
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/setup-python-deps
+        with:
+          python-version: '3.13'
+          packages: chess==1.11.2 boto3==1.43.51 'cryptography>=46,<47'
+      - name: Require passing CI for the exact code and policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 Scripts/require_brilliancy_ci.py
+      - name: Authenticate checkpoints and adjudicate all eligible positions
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          BRILLIANCY_QUEUE_KEY: ${{ secrets.BRILLIANCY_QUEUE_KEY }}
+        run: |
+          set -euo pipefail
+          python3 Scripts/brilliancy_auto_publication.py collect \
+            --release "$RUNNER_TEMP/brilliancy-release" | tee "$RUNNER_TEMP/brilliancy-publication-summary.json"
+          cat "$RUNNER_TEMP/brilliancy-publication-summary.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve exact public package for engine-free publication retries
+        uses: actions/upload-artifact@v4
+        with:
+          name: brilliancy-release
+          path: ${{ runner.temp }}/brilliancy-release/
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: adjudicate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.adjudicate.outputs.input_sha }}
+          fetch-depth: 1
+      - uses: ./.github/actions/setup-python-deps
+        with:
+          python-version: '3.13'
+          packages: chess==1.11.2 'cryptography>=46,<47'
+      - uses: actions/download-artifact@v4
+        with:
+          name: brilliancy-release
+          path: ${{ runner.temp }}/brilliancy-release
+      - name: Verify policy and exact package, then fast-forward main
+        id: publish
+        env:
+          CI_COMMIT_REBASE_ON_CONFLICT: 'false'
+        run: python3 Scripts/brilliancy_auto_publication.py publish --release "$RUNNER_TEMP/brilliancy-release"
+      - name: Rebuild the actual published input
+        if: steps.publish.outputs.rebuild_required == 'true'
+        uses: ./.github/actions/dispatch-workflow
+        with:
+          workflow: rebuild-indexes.yml
+          token: ${{ github.token }}
+          workflow_inputs: '{"target_sha":"${{ steps.publish.outputs.target_sha }}"}'

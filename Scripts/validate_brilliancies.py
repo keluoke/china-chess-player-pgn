@@ -152,6 +152,10 @@ def validate_brilliancies(
     global_archive_cache = None
     wanted_fingerprints = {row.get("game", {}).get("fingerprint") for row in items}
     wanted_fingerprints.discard(None)
+    archive_games = [value['game'] for bucket in shards.values() for value in bucket.values()
+                     if value.get('status') == 'published']
+    if len(items) > 255:
+        global_archive_cache = brilliancy_archive.matching_games(root, wanted_fingerprints, archive_games)
 
     for idx, item in enumerate(items):
         b_id = item.get("id", "")
@@ -211,7 +215,8 @@ def validate_brilliancies(
             if not isinstance(score_val, int) or score_val <= 0:
                 raise ValueError(f"NON_WINNING_MATE_IN_VERIFICATION in {b_id}: {score_val}")
         elif score_type == "cp":
-            if not isinstance(score_val, (int, float)) or score_val < 80:
+            minimum_cp = -25 if full_item.get('qualityRuleVersion') == publication_gate.RULE_VERSION else 80
+            if not isinstance(score_val, (int, float)) or score_val < minimum_cp:
                 raise ValueError(f"INSUFFICIENT_CP_IN_VERIFICATION in {b_id}: {score_val}")
         else:
             raise ValueError(f"UNKNOWN_EVAL_TYPE in {b_id}: {score_type}")
@@ -231,9 +236,12 @@ def validate_brilliancies(
             if side_fid and side_fid not in fide_candidates:
                 fide_candidates.append(side_fid)
 
-        found_game = None
+        raw_match = global_archive_cache.get(fp, {}).get(gid) if global_archive_cache is not None else None
+        found_game = chess.pgn.read_game(io.StringIO(raw_match)) if raw_match else None
         archive_checked = 0
         for fid in fide_candidates:
+            if found_game is not None:
+                break
             player_pgn = root / f"docs/data/pgn/by-player/fide-{fid}/all.pgn"
             if player_pgn.is_file():
                 archive_checked += 1
@@ -255,7 +263,7 @@ def validate_brilliancies(
 
         if found_game is None:
             if global_archive_cache is None:
-                global_archive_cache = brilliancy_archive.matching_games(root, wanted_fingerprints)
+                global_archive_cache = brilliancy_archive.matching_games(root, wanted_fingerprints, archive_games)
             raw = global_archive_cache.get(fp, {}).get(gid)
             if raw:
                 found_game = chess.pgn.read_game(io.StringIO(raw))

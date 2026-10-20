@@ -13,6 +13,8 @@ from pathlib import Path
 import re
 
 import brilliancy_publication_gate as gate
+import brilliancy_auto_policy as policy
+import brilliancy_quality as quality
 
 DIR = Path("data/generated/brilliancies-approved")
 BUCKET = re.compile(r"[0-9a-f]{2}\.json\Z")
@@ -81,5 +83,16 @@ def load(root: Path, *, allow_unreleased: bool = False) -> list[dict]:
     if len(result) != manifest["totalItems"]:
         raise ValueError("BRILLIANCY_APPROVED_TOTAL_MISMATCH")
     if result and not allow_unreleased:
-        raise ValueError("BRILLIANCY_AUTO_PUBLICATION_CLOSED")
+        _, policy_hash = policy.load(root)
+        if (manifest.get('policyId') != policy.POLICY_ID
+                or manifest.get('policySha256') != policy_hash):
+            raise ValueError('BRILLIANCY_APPROVED_POLICY_MISMATCH')
+        for row in rows:
+            for original in json.loads((folder / row['path']).read_text())['items']:
+                public = copy.deepcopy(original)
+                approval = public.pop('approval')
+                if (approval.get('publicHash') != quality.digest(public)
+                        or not isinstance(approval.get('proofHash'), str)
+                        or not SHA256.fullmatch(approval['proofHash'])):
+                    raise ValueError('BRILLIANCY_APPROVED_PUBLIC_HASH_MISMATCH')
     return result

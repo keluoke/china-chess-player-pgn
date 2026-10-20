@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-RULE_VERSION = "sacrifice-quality-gate-1"
+RULE_VERSION = "sacrifice-quality-gate-2"
 
 
 def _engine_features(record: dict[str, Any]) -> dict[str, Any]:
@@ -26,9 +26,9 @@ def _engine_features(record: dict[str, Any]) -> dict[str, Any]:
                     if search == "refusal":
                         continue
                     raise ValueError("QC_GATE_SEARCH_MISSING")
-                if not isinstance(engine[search]["cp"], int):
+                if type(engine[search]["cp"]) is not int:
                     raise ValueError("QC_GATE_SCORE_INVALID")
-                if not isinstance(engine[search]["nodes"], int) or engine[search]["nodes"] <= 0:
+                if type(engine[search]["nodes"]) is not int or engine[search]["nodes"] <= 0:
                     raise ValueError("QC_GATE_NODES_INVALID")
             if (not engine.get("materialDeltas")
                     or any(not isinstance(delta, int) for delta in engine["materialDeltas"])):

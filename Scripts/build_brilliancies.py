@@ -336,6 +336,7 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
     curated_data = json.loads(curated_path.read_text(encoding="utf-8"))
     manual_items = curated_data.get("items", [])
     approved_items = brilliancy_approved_store.load(root, allow_unreleased=allow_machine_preview)
+    approved_items.sort(key=lambda row: (0 if row['qualityTier'] == 'S' else 1, row['id']))
     manual_by_id = {item["id"]: item for item in manual_items}
     raw_items = list(manual_items)
     for item in approved_items:
@@ -347,7 +348,12 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
             continue  # An existing human-curated item remains the display authority.
         raw_items.append(item)
     scan_coverage = {"status": "not-measured", "published": 0,
-                     "machineApproved": len(raw_items) - len(manual_items)}
+                     "machineApproved": sum(item.get('status') == 'published' and item['id'] not in manual_by_id
+                                            for item in approved_items)}
+    if approved_items:
+        receipt = json.loads((root / brilliancy_approved_store.DIR / 'manifest.json').read_text())
+        if receipt.get('coverage'):
+            scan_coverage.update(status='measured', lanes=receipt['coverage'])
     if shard_prefix_length is None:
         shard_prefix_length = 2 if len(raw_items) > 255 else 1
     if shard_prefix_length not in (1, 2):
@@ -358,6 +364,9 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
     archive_cache = {}
     global_archive_cache = None
     wanted_fingerprints = {row["game"]["fingerprint"] for row in raw_items}
+    archive_games = [row['game'] for row in raw_items]
+    if len(raw_items) > 255:
+        global_archive_cache = brilliancy_archive.matching_games(root, wanted_fingerprints, archive_games)
     published_items = []
     published_ids = set()
     seen_ids = set()
@@ -411,8 +420,8 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
         # Rebind only through an exact, unique move fingerprint, never list order.
         white_id = str(item.get("white", {}).get("playerId") or "").removeprefix("fide-")
         archive_path = root / f"docs/data/pgn/by-player/fide-{white_id}/all.pgn"
-        matches = set()
-        if archive_path.is_file():
+        matches = global_archive_cache.get(item['game']['fingerprint'], {}) if global_archive_cache is not None else {}
+        if not matches and archive_path.is_file():
             if white_id not in archive_cache:
                 by_fingerprint = {}
                 for raw in pgn_helper.split_pgn_games(archive_path.read_text(encoding="utf-8")):
@@ -421,17 +430,23 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
                         continue
                     clean = game.accept(chess.pgn.StringExporter(headers=True, variations=False, comments=False))
                     fp = pgn_helper.game_fingerprint(clean)
-                    by_fingerprint.setdefault(fp, set()).add(pgn_helper.stable_game_hash(raw))
+                    by_fingerprint.setdefault(fp, {})[pgn_helper.stable_game_hash(raw)] = raw
                 archive_cache[white_id] = by_fingerprint
-            matches = archive_cache[white_id].get(item["game"]["fingerprint"], set())
-        if not matches and (not white_id or archive_path.is_file()):
+            matches = archive_cache[white_id].get(item["game"]["fingerprint"], {})
+        if not matches:
             if global_archive_cache is None:
-                global_archive_cache = brilliancy_archive.matching_games(root, wanted_fingerprints)
-            matches = set(global_archive_cache.get(item["game"]["fingerprint"], {}))
+                global_archive_cache = brilliancy_archive.matching_games(root, wanted_fingerprints, archive_games)
+            matches = global_archive_cache.get(item["game"]["fingerprint"], {})
         if matches and item["game"]["id"] not in matches:
-            if len(matches) != 1:
-                raise ValueError(f"ORIGINAL_GAME_MATCH_NOT_UNIQUE: {b_id}")
-            item["game"]["id"] = next(iter(matches))
+            item["game"]["id"] = brilliancy_archive.choose_game(item, matches)
+        if matches:
+            selected_raw = matches[item['game']['id']]
+            headers = pgn_helper.pgn_headers(selected_raw)
+            if headers.get('BroadcastURL') or 'lichess.org' in headers.get('Site', ''):
+                rights = item.setdefault('rights', [])
+                if not any(row.get('type') == 'game-broadcast' for row in rights):
+                    rights.append({'type': 'game-broadcast', 'license': 'CC BY-SA 4.0',
+                                   'attribution': 'Lichess Broadcast (CC BY-SA 4.0)'})
         if not matches and not white_id:
             raise ValueError(f"ORIGINAL_GAME_MATCH_NOT_UNIQUE: {b_id}")
 

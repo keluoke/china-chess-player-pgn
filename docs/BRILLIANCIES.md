@@ -4,7 +4,7 @@
 
 ## 数据与发布
 
-人工审核记录在 `data/manual/brilliancies/curated.json`。每条绑定原始 PGN 的 SHA-256、规范化棋局指纹、半回合位置与实际招法。注册表决定棋手展示姓名。`!!` 是本站精选标记，不是其他平台评级，也不保证唯一最佳着法。
+人工精选在 `data/manual/brilliancies/curated.json`，机器批准在 `data/generated/brilliancies-approved/`。两者共同构建页面与 API。每条绑定原始 PGN 的 SHA-256、规范化棋局指纹、半回合位置与实际招法。注册表决定棋手展示姓名。`!!` 是本站精选标记，不是其他平台评级。
 
 `Scripts/build_release_snapshot.py` 统一构建分片、列表、片段 PGN、API 和 SEO，再验证原局回放、SAN、完整 FEN、实际续着、分析合法性及署名。GitHub main → 统一重建 → R2 认证 → Pages 部署；前端与只读 Functions 使用同一快照，无新增数据库。单项分享使用查询参数；列表可收录，查询页不重复收录。
 
@@ -58,7 +58,7 @@ python3 Scripts/brilliancy_queue.py --lane incremental --shard 0 --export-candid
 python3 Scripts/brilliancy_queue.py --lane incremental --shard 1 --export-candidates /tmp/new-1.json
 ```
 
-审核候选仍走人工维护记录 → 统一重建 → 部署。队列只持久保存机器分析结果，永不自动写 `data/manual`。
+人工精选走 curated → 统一重建 → 部署。机器候选成功完成质量阶段后，由 `publish-brilliancies.yml` 自动裁决并生成独立批准层，再经精确发布包、统一重建、部署和线上验收。队列永不自动写 `data/manual`。正式规则、校准范围、撤回和失败恢复见 `BRILLIANCIES_AUTO_PUBLICATION.md`。
 
 本地历史 worker 在独立、只读的完整 Git 快照运行，先用 `validate_player_pgn_r2_receipt.py` 对 3,133 个棋手包及当前快照的 SHA-256/回执做验证；不从采集工作区的旧文件拼凑全库。Stockfish 16 的 UCI 名称和分析版本须与切换前一致，否则会按新版本重新分析。`Scripts/local/run_brilliancy_history.py` 同时运行两个分片，按局在本机私有目录原子保存加密检查点，并在每轮结束时向生产 R2 同步。R2 上传暂时中断时继续从本机密文续跑；恢复上传时必须核对远端基线 ETag、回读正文，冲突即停止，不覆盖其他写入。两个分片全部 `pendingGames=0` 且 R2 检查点同步成功才退出。`Scripts/local/install_brilliancy_history_agent.py` 将其安装为当前用户的 launchd 任务；电脑关机或休眠期间不能运行，恢复后继续。每个分片最近一轮日志与摘要留在上述私有目录；生产候选仍需人工审核才能进入网站。
 
@@ -93,6 +93,6 @@ python3 Scripts/local/report_brilliancy_quality.py --lane deep --nodes 5000000
 
 首轮 `quality-full.json` 确认两个分片全部完成且 R2 已同步后，在固定提交的干净、detached 本机代码工作树运行 `python3 Scripts/local/install_brilliancy_quality_deep_full_agent.py`。深度全量任务复用现有 600 个样本和 7 个对照局面的加密断点，按首轮棋艺证据优先复核可能的妙手，再继续复核其余局面；没有按棋手身份、赛事 ID 或先验数量丢弃候选。两个分片继续使用条件 ETag、远端冲突隔离和正文回读；`quality-deep-full.json` 的 `graded == candidatePositions` 且两个 R2 分片同步后才算深度历史质控结束。安装器拒绝首轮未完成或可变代码工作树，避免重扫与版本漂移。
 
-`python3 Scripts/local/report_brilliancy_quality.py --lane deep --nodes 5000000 --gate-preview` 会把同一候选的 100 万、500 万节点加密证据配对，按双方独立引擎的最佳替代着法差距、接受/拒吃后的安全性、持续少子或强制战术获利给出仅供校准的 S/A/未证明分层。规则只读取棋局位置及引擎证据，不读取 FIDE ID、内部赛事 ID 或棋手姓名；试验等级和分层投影均不构成公开许可。对照样本揭示，只认持续少子会漏掉先弃后取的真实战术；当前机器发布门禁因此仍关闭，正式放行还需要复核规则、生成可审计的发布包并完成生产验收。
+`python3 Scripts/local/report_brilliancy_quality.py --lane deep --nodes 5000000 --gate-preview` 把同一候选的 100 万、500 万节点加密证据配对，提供聚合诊断。试验分层本身没有发布权。正式自动发布另由 `brilliancy_publication_gate.py` 重放原局、校验全部合法变例和预算，接受持续弃子及先弃后取两种质量证据，再按已冻结策略组包发布。缺 FIDE ID 或赛事 ID 不降级、不剔除。
 
 公开原局验证按棋局指纹查已归档 PGN；双方没有 FIDE ID 时仍核对原局哈希、完整走法和指定局面，若同指纹对应多个不同原档则隔离。缺失棋手 ID 和内部赛事 ID 时对应站内链接留空，不伪造身份或赛事。

@@ -17,9 +17,9 @@ SEARCHES = ("chosen", "alternative", "acceptance", "refusal")
 
 
 def _legal_pv(board: chess.Board, search: dict, minimum_nodes: int) -> chess.Move:
-    if (not isinstance(search, dict) or not isinstance(search.get("cp"), int)
-            or not isinstance(search.get("depth"), int) or search["depth"] < 14
-            or not isinstance(search.get("nodes"), int)
+    if (not isinstance(search, dict) or type(search.get("cp")) is not int
+            or type(search.get("depth")) is not int or search["depth"] < 14
+            or type(search.get("nodes")) is not int
             or search["nodes"] < minimum_nodes
             or not isinstance(search.get("pv"), list) or not search["pv"]):
         raise ValueError("QC_RELEASE_SEARCH_INCOMPLETE")
