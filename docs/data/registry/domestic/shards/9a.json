@@ -5008,7 +5008,7 @@
     "domesticEligibilityBasis": "domestic-event",
     "sex": "M",
     "identityStatus": "unlinked",
-    "publicIdentityStatus": "pending",
+    "publicIdentityStatus": "same-name",
     "entityType": "domestic-player",
     "aliases": [
       "domestic-bccf0be5ba24",
@@ -5016,19 +5016,17 @@
     ],
     "sightingCount": 1,
     "confidence": {
-      "score": 25,
+      "score": 0,
       "level": "low",
-      "weights": {
-        "uniqueName": 25
-      },
-      "sameNameConflictCount": 0,
-      "sameNameClusterSize": 1,
+      "weights": {},
+      "sameNameConflictCount": 1,
+      "sameNameClusterSize": 2,
       "crossEventCount": 1,
       "ageStageContinuity": "unknown",
       "reviewRequired": true,
       "machineNominationAllowed": true,
       "reasons": [
-        "全库姓名唯一"
+        "单条赛事观察，等待更多可区分证据"
       ]
     },
     "sightings": [
@@ -5044,6 +5042,57 @@
         "score": "2",
         "rounds": "9",
         "playerNo": "8"
+      }
+    ]
+  },
+  {
+    "id": "domestic-e1d9ea11a43b",
+    "domesticID": "domestic-e1d9ea11a43b",
+    "displayName": "贾樟翊",
+    "chineseName": "贾樟翊",
+    "federation": "unknown",
+    "domesticEligibilityBasis": "domestic-event",
+    "sex": "M",
+    "identityStatus": "unlinked",
+    "publicIdentityStatus": "presentation-high",
+    "entityType": "domestic-player",
+    "aliases": [
+      "domestic-e1d9ea11a43b",
+      "贾樟翊"
+    ],
+    "sightingCount": 1,
+    "confidence": {
+      "score": 90,
+      "level": "high",
+      "weights": {
+        "presentationEvidence": 90
+      },
+      "sameNameConflictCount": 1,
+      "sameNameClusterSize": 2,
+      "crossEventCount": 1,
+      "ageStageContinuity": "unknown",
+      "reviewRequired": true,
+      "machineNominationAllowed": true,
+      "reasons": [
+        "单条赛事观察，等待更多可区分证据",
+        "成员级证据通过 presentation-high-fide 展示归组"
+      ],
+      "presentationGroupID": "pg-fide-cb1c5ee8faa5",
+      "presentationRuleVersion": "identity-presentation-v4"
+    },
+    "sightings": [
+      {
+        "sightingID": "obs-cr-tnr1518312-p73",
+        "eventID": "chess-results-tnr1518312",
+        "eventName": "2026年全国国际象棋棋协大师赛（兴化站） 男子候补棋协大师组",
+        "group": "2026年全国国际象棋棋协大师赛（兴化站） 男子候补棋协大师组",
+        "playerName": "贾樟翊",
+        "chineseName": "贾樟翊",
+        "sex": "M",
+        "rank": "33",
+        "score": "5",
+        "rounds": "9",
+        "playerNo": "73"
       }
     ]
   },
@@ -5590,14 +5639,14 @@
       "score": 0,
       "level": "low",
       "weights": {},
-      "sameNameConflictCount": 1,
-      "sameNameClusterSize": 2,
+      "sameNameConflictCount": 2,
+      "sameNameClusterSize": 3,
       "crossEventCount": 1,
       "ageStageContinuity": "unknown",
       "reviewRequired": true,
-      "machineNominationAllowed": true,
+      "machineNominationAllowed": false,
       "reasons": [
-        "单条赛事观察，等待更多可区分证据"
+        "同名簇共 3 条，仅允许人工区分"
       ]
     },
     "sightings": [
