@@ -5,11 +5,13 @@ import json
 from pathlib import Path
 import sys
 import unittest
+import tempfile
 from unittest.mock import patch
 from urllib.parse import urlparse
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'Scripts'))
 import verify_product_canary as canary
+import build_release_snapshot as snapshot_builder
 
 
 class BrilliancyOnlineCanaryTests(unittest.TestCase):
@@ -46,6 +48,20 @@ class BrilliancyOnlineCanaryTests(unittest.TestCase):
         self.data['/data/brilliancies/items.json'][0]['title']='changed'
         with patch.object(canary,'fetch',side_effect=self.fetch),self.assertRaisesRegex(ValueError,'BODY'):
             canary.check_brilliancies('https://example.invalid',self.snapshot)
+
+    def test_unified_snapshot_certifies_actual_list_shard_and_pgn_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            payloads={'docs/data/brilliancies/items.json':b'[]\n',
+                      'docs/data/brilliancies/shards/aa.json':b'{"items":{}}\n',
+                      'docs/data/brilliancies/pgn/example.pgn':self.pgn.encode()}
+            for name,body in payloads.items():
+                path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(body)
+            with patch.object(snapshot_builder,'ROOT',root):
+                facts={row['path']:row for row in snapshot_builder.output_facts()}
+            for name,body in payloads.items():
+                self.assertEqual((facts[name]['bytes'],facts[name]['sha256']),
+                                 (len(body),hashlib.sha256(body).hexdigest()))
 
 
 if __name__=='__main__':unittest.main()

@@ -120,6 +120,7 @@ def output_facts() -> list[dict]:
         ROOT / "docs/data/index/catalog-pgn-packages.json",
         ROOT / "docs/data/index/public-events.json",
         ROOT / "docs/data/brilliancies/manifest.json",
+        ROOT / "docs/data/brilliancies/items.json",
         ROOT / "data/generated/player-event-facts/manifest.json",
         ROOT / "data/generated/player-game-facts/manifest.json",
         ROOT / "data/manual/domestic-player-sightings.csv",
@@ -128,6 +129,9 @@ def output_facts() -> list[dict]:
         ROOT / "data/manual/brilliancies/curated.json",
     ]
     approved_dir = ROOT / "data/generated/brilliancies-approved"
+    for directory, pattern in ((ROOT / 'docs/data/brilliancies/shards', '*.json'),
+                               (ROOT / 'docs/data/brilliancies/pgn', '*.pgn')):
+        paths.extend(sorted(directory.glob(pattern)))
     paths.append(approved_dir / "manifest.json")
     if approved_dir.is_dir():
         paths.extend(sorted(path for path in approved_dir.glob("*.json")
