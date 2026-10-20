@@ -536,6 +536,36 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
     # Sort published items (featured order as in curated)
     write_json(target_data_dir / "items.json", published_items)
 
+    # A compact filter index keeps edge pagination from parsing the entire
+    # catalogue. Only selected summary blocks are read; IDs/order stay stable.
+    list_dir = target_data_dir / "lists"
+    list_dir.mkdir(parents=True, exist_ok=True)
+    block_size = 256
+    players, events, themes = {"": 0}, {"": 0}, {}
+    def code(values, value):
+        return values.setdefault(value, len(values))
+    rows = [[code(players, str(item.get("white", {}).get("playerId") or "").lower().removeprefix("fide-")),
+             code(players, str(item.get("black", {}).get("playerId") or "").lower().removeprefix("fide-")),
+             code(events, str(item.get("event", {}).get("id") or "").lower()),
+             [code(themes, str(t).lower()) for t in item.get("themes", [])]] for item in published_items]
+    newest = sorted(range(len(published_items)), key=lambda i: (
+        # Two stable passes preserve descending date, ascending ID ties.
+        published_items[i]["id"]))
+    newest.sort(key=lambda i: str(published_items[i].get("event", {}).get("date") or ""), reverse=True)
+    write_json(list_dir / "index.json", {"snapshotId": sid, "blockSize": block_size,
+                                        "players": players, "events": events, "themes": themes, "rows": rows, "newest": newest})
+    expected_lists = {"index.json"}
+    for start in range(0, len(published_items), block_size):
+        name = f"{start // block_size}.jsonl"
+        expected_lists.add(name)
+        # Parse only selected lines at the edge, even for a sparse filter page.
+        lines = [{"snapshotId": sid, "offset": start}, *published_items[start:start + block_size]]
+        (list_dir / name).write_text("\n".join(json.dumps(row, ensure_ascii=False, separators=(",", ":"))
+                                               for row in lines) + "\n", encoding="utf-8")
+    for old in list_dir.glob("*.json*"):
+        if old.name not in expected_lists:
+            old.unlink()
+
     # Write shard files
     for bucket_char, bucket_items in shards.items():
         shard_payload = {
@@ -568,6 +598,7 @@ def build(root: pathlib.Path = ROOT, sid: Optional[str] = None,
         "shards": sorted(list(shards.keys())),
         "shardPrefixLength": shard_prefix_length,
         "pgnLayout": "shards" if packed_pgn else "files",
+        "listLayout": "blocks-v1",
         "scanCoverage": scan_coverage,
         "generatedAt": now_iso,
     }

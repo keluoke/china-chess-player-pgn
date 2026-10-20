@@ -228,22 +228,22 @@ export async function onRequestGet(context) {
 
   // 5. List items: /api/v1/brilliancies (path is empty or "")
   if (path === "" || path === "/") {
-    const itemsUrl = new URL("/data/brilliancies/items.json", context.request.url);
-    const manifestUrl = new URL("/data/brilliancies/manifest.json", context.request.url);
-
-    const [itemsResp, manifestResp] = await Promise.all([
-      context.env.ASSETS.fetch(itemsUrl),
-      context.env.ASSETS.fetch(manifestUrl),
-    ]);
-
-    if (!itemsResp.ok || !manifestResp.ok) {
-      return jsonResponse({ error: "data_unavailable" }, 503);
-    }
-
-    let allItems, manifest;
+    const manifestResp = await context.env.ASSETS.fetch(new URL("/data/brilliancies/manifest.json", url));
+    if (!manifestResp.ok) return jsonResponse({ error: "data_unavailable" }, 503);
+    let allItems, manifest, catalogue;
     try {
-      allItems = await itemsResp.json();
       manifest = await manifestResp.json();
+      const listPath = manifest.listLayout === "blocks-v1" ? "lists/index.json" : "items.json";
+      const resp = await context.env.ASSETS.fetch(new URL(`/data/brilliancies/${listPath}`, url));
+      if (!resp.ok) throw new Error("missing catalogue");
+      const data = await resp.json();
+      if (manifest.listLayout === "blocks-v1") {
+        if (data.snapshotId !== manifest.snapshotId || data.blockSize !== 256
+            || !Array.isArray(data.rows) || data.rows.length !== manifest.total
+            || !Array.isArray(data.newest) || data.newest.length !== data.rows.length)
+          throw new Error("invalid catalogue");
+        catalogue = data;
+      } else allItems = data;
     } catch {
       return jsonResponse({ error: "data_invalid" }, 503);
     }
@@ -309,7 +309,43 @@ export async function onRequestGet(context) {
     }
 
     // Filter items with EXACT matching on player and event
-    let filtered = allItems.filter((item) => {
+    let filtered, pageItems;
+    if (catalogue) {
+      const normPlayer = filterPlayer.replace(/^fide-/, "");
+      const playerCode = catalogue.players[normPlayer];
+      const eventCode = catalogue.events[filterEvent];
+      const themeCode = catalogue.themes[filterTheme];
+      const order = sort === "newest" ? catalogue.newest : catalogue.rows.map((_, i) => i);
+      filtered = order.filter(i => {
+        const row = catalogue.rows[i];
+        return row && (!normPlayer || row[0] === playerCode || row[1] === playerCode)
+          && (!filterEvent || row[2] === eventCode) && (!filterTheme || row[3].includes(themeCode));
+      });
+      const selected = filtered.slice(offset, offset + limit);
+      const blocks = new Map();
+      try {
+        // At most 26 blocks for the current 6.5k catalogue; bound concurrency
+        // to the platform's six active outgoing connections.
+        const keys = [...new Set(selected.map(i => Math.floor(i / catalogue.blockSize)))];
+        for (let start = 0; start < keys.length; start += 4) {
+          await Promise.all(keys.slice(start, start + 4).map(async key => {
+            const resp = await context.env.ASSETS.fetch(new URL(`/data/brilliancies/lists/${key}.jsonl`, url));
+            if (!resp.ok) throw new Error("missing block");
+            const lines = (await resp.text()).trimEnd().split("\n");
+            const header = JSON.parse(lines.shift());
+            if (header.snapshotId !== currentSnapshot || header.offset !== key * catalogue.blockSize)
+              throw new Error("stale block");
+            blocks.set(key, lines);
+          }));
+        }
+        pageItems = selected.map(i => {
+          const item = JSON.parse(blocks.get(Math.floor(i / catalogue.blockSize))[i % catalogue.blockSize]);
+          if (item?.snapshotId !== currentSnapshot || typeof item.id !== "string") throw new Error("wrong item");
+          return item;
+        });
+      } catch { return jsonResponse({ error: "data_invalid" }, 503); }
+    } else {
+    filtered = allItems.filter((item) => {
       if (filterPlayer) {
         const whiteId = String(item.white?.playerId || "").toLowerCase().replace(/^fide-/, "");
         const blackId = String(item.black?.playerId || "").toLowerCase().replace(/^fide-/, "");
@@ -342,8 +378,9 @@ export async function onRequestGet(context) {
       });
     }
 
+    pageItems = filtered.slice(offset, offset + limit);
+    }
     const total = filtered.length;
-    const pageItems = filtered.slice(offset, offset + limit);
     const nextOffset = offset + pageItems.length;
     const nextCursor =
       nextOffset < total

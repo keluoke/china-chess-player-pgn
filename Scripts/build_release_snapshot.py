@@ -130,7 +130,8 @@ def output_facts() -> list[dict]:
     ]
     approved_dir = ROOT / "data/generated/brilliancies-approved"
     for directory, pattern in ((ROOT / 'docs/data/brilliancies/shards', '*.json'),
-                               (ROOT / 'docs/data/brilliancies/pgn', '*.pgn')):
+                               (ROOT / 'docs/data/brilliancies/pgn', '*.pgn'),
+                               (ROOT / 'docs/data/brilliancies/lists', '*.json*')):
         paths.extend(sorted(directory.glob(pattern)))
     paths.append(approved_dir / "manifest.json")
     if approved_dir.is_dir():

@@ -230,6 +230,17 @@ class BrillianciesBuildAndValidationTests(unittest.TestCase):
             shard = json.loads((self.shards_dir / f"{item['id'][3]}.json").read_text())
             self.assertTrue(shard["items"][item["id"]]["game"]["movesUci"])
 
+    def test_compact_list_index_preserves_order_and_exact_summaries(self):
+        summaries = json.loads(self.items_path.read_text())
+        directory = self.items_path.parent / 'lists'
+        index = json.loads((directory / 'index.json').read_text())
+        block = [json.loads(line) for line in (directory / '0.jsonl').read_text().splitlines()]
+        self.assertEqual(block[1:], summaries)
+        self.assertEqual(len(index['rows']), len(summaries))
+        expected = sorted(summaries, key=lambda item: item['id'])
+        expected.sort(key=lambda item: str(item.get('event', {}).get('date') or ''), reverse=True)
+        self.assertEqual([summaries[i]['id'] for i in index['newest']], [item['id'] for item in expected])
+
     def test_packed_layout_replaces_legacy_files_and_validates_pgn(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

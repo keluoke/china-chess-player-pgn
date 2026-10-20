@@ -42,3 +42,21 @@ item.status='withdrawn';for(const ext of ['json','pgn'])assert.equal((await onRe
 shardFailure=true;assert.equal((await onRequestGet(ctx(id+'.pgn'))).status,503);
 r=await onRequestGet(ctx('','?theme='+encodeURIComponent('中文\r\n"')));assert.equal(r.status,200);
 console.log('Brilliancies API: pagination, filtering, ETag, HEAD, withdrawal and fail-closed PGN passed');
+// Expanded catalogues filter a compact index and read selected summary blocks.
+const catalogueItems=Array.from({length:600},(_,i)=>({...item,snapshotId,id:'br-'+i.toString(16).padStart(64,'0'),event:{id:i%2?'odd':'even'},themes:['test']}));
+let blockSnapshot=snapshotId, fullListReads=0;
+const blockContext=query=>({...ctx('',query),env:{ASSETS:{fetch:async input=>{
+ const path=new URL(input).pathname;
+ if(path.endsWith('manifest.json'))return Response.json({snapshotId,total:600,listLayout:'blocks-v1'});
+ if(path.endsWith('lists/index.json'))return Response.json({snapshotId,blockSize:256,players:{'8602980':1,'1':2},events:{odd:1,even:2},themes:{test:1},rows:catalogueItems.map(x=>[1,2,x.event.id==='odd'?1:2,[1]]),newest:catalogueItems.map((_,i)=>599-i)});
+ const match=path.match(/lists\/(\d+)\.jsonl$/);
+ if(match)return new Response([JSON.stringify({snapshotId:blockSnapshot,offset:Number(match[1])*256}),...catalogueItems.slice(Number(match[1])*256,(Number(match[1])+1)*256).map(x=>JSON.stringify(x))].join('\n')+'\n');
+ fullListReads++;throw new Error('full list must not be read');
+}}}});
+let blockResult=await (await onRequestGet(blockContext('?offset=250&limit=40'))).json();
+assert.deepEqual(blockResult.items.map(x=>x.id),catalogueItems.slice(250,290).map(x=>x.id));
+blockResult=await (await onRequestGet(blockContext('?event=odd&sort=newest&limit=100'))).json();
+assert.equal(blockResult.total,300);assert.equal(blockResult.items[0].id,catalogueItems[599].id);
+assert.equal(fullListReads,0);
+blockSnapshot='old';assert.equal((await onRequestGet(blockContext('?limit=1'))).status,503);
+console.log('Brilliancies API: compact index, cross-block pages, filtered newest and stale-block rejection passed');

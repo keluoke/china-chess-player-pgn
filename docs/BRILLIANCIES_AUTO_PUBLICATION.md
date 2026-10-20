@@ -27,7 +27,7 @@
 
 - `data/manual/brilliancies/withdrawals.json` 可按稳定 ID 撤回机器条目；保留 tombstone，列表移除、详情/API 返回 410。人工精选的显示优先权保留，其撤回仍修改 curated。
 - 已发布局面失去通过证据时转为 withdrawn；来源队列中整条候选消失则停止本批并诊断队列漂移，禁止静默丢失。
-- 超过 255 条使用 256 个两位 ID 前缀分片，PGN 与详情打包。每片不超过 2 MiB；列表不重复整局着法，前台每页 40 条。部署的 19,000 文件及 24 MiB 单文件门禁继续生效。
+- 超过 255 条使用 256 个两位 ID 前缀分片，PGN 与详情打包。每片不超过 2 MiB；列表不重复整局着法，前台每页 40 条。API 用字典压缩筛选索引和每 256 条一块的列表，稀疏筛选仅解析本页 JSON 行；全部索引/块都进入统一快照哈希清单。部署的 19,000 文件及 24 MiB 单文件门禁继续生效。
 - 历史双引擎深度复核已完成 59,318 条。正式证据裁决 335 S、6,132 A；971 条搜索不满足门槛隔离，其余未证明。2026-10-20 首次真实 R2 暂存还包括新增 780 个候选，通过 2 S、81 A，机器批准总数 6,550。它们只有完成生产链后才计为线上公开数量。
 
 查看运行：GitHub Actions 的 **Adjudicate and publish brilliancies**、其后 **Rebuild indexes and deploy**、**Deploy static site**。进度日志只展示聚合；发布包保留 30 天。线上页面 `/brilliancies.html`，API `/api/v1/brilliancies`、`/<id>.json` 与 `/<id>.pgn` 读取同一快照。

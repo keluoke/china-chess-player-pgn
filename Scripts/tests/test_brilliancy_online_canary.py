@@ -53,6 +53,7 @@ class BrilliancyOnlineCanaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
             payloads={'docs/data/brilliancies/items.json':b'[]\n',
+                      'docs/data/brilliancies/lists/index.json':b'{"rows":[]}\n',
                       'docs/data/brilliancies/shards/aa.json':b'{"items":{}}\n',
                       'docs/data/brilliancies/pgn/example.pgn':self.pgn.encode()}
             for name,body in payloads.items():

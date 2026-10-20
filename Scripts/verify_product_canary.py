@@ -44,14 +44,14 @@ def check_pgn(body, expected_count, sha=None):
 def check_brilliancies(site, snapshot):
     """Verify ordinary list/detail/packed-PGN routes against this exact snapshot."""
     sid = snapshot['snapshotId']
-    def certified(path):
+    def certified(path, lines=False):
         refs = [row for row in snapshot['outputs'] if row['path'] == 'docs/' + path]
         body, headers = fetch(urljoin(site+'/', path))
         if (len(refs) != 1 or refs[0]['bytes'] != len(body)
                 or refs[0]['sha256'] != hashlib.sha256(body).hexdigest()
-                or 'json' not in headers.get('content-type', '')):
+                or (not lines and 'json' not in headers.get('content-type', ''))):
             raise ValueError('CANARY_BRILLIANCY_BODY: ' + path)
-        return json.loads(body)
+        return [json.loads(line) for line in body.splitlines()] if lines else json.loads(body)
     manifest = certified('data/brilliancies/manifest.json')
     items = certified('data/brilliancies/items.json')
     if manifest['snapshotId'] != sid or manifest['total'] != len(items):
@@ -60,6 +60,14 @@ def check_brilliancies(site, snapshot):
     listing = json.loads(body)
     if listing.get('snapshotId') != sid or listing.get('total') != len(items):
         raise ValueError('CANARY_BRILLIANCY_LIST')
+    if manifest.get('listLayout') == 'blocks-v1':
+        catalogue = certified('data/brilliancies/lists/index.json')
+        block = certified('data/brilliancies/lists/0.jsonl', lines=True) if items else [{'snapshotId': sid}]
+        if (catalogue.get('snapshotId') != sid or block[0].get('snapshotId') != sid
+                or len(catalogue.get('rows', [])) != len(items)
+                or block[1:] != items[:256]
+                or listing.get('items') != items[:2]):
+            raise ValueError('CANARY_BRILLIANCY_LIST_BLOCK')
     samples = {}
     for row in items:
         group = row.get('qualityTier', 'manual')
